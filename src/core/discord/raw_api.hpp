@@ -7,7 +7,6 @@
 #include <dpp/json_fwd.h>
 #include <dpp/message.h>
 
-#include <mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -41,14 +40,12 @@ public:
     /// A 4xx or 5xx reply becomes an `api_error` carrying Discord's message,
     /// since callers of a raw endpoint have no other way to see it.
     ///
-    /// `audit_reason` sets the `X-Audit-Log-Reason` header. It goes through
-    /// DPP's cluster-wide audit-reason slot, which another thread's REST call
-    /// can consume in between, so use it only for rare administrative actions
-    /// and never rely on it for attribution (plan v4 §8.1 stores that in the
-    /// database instead).
+    /// There is deliberately no audit-reason parameter: DPP takes that header
+    /// from a cluster-wide slot which another thread's request can consume,
+    /// so it cannot be attached reliably. Attribution lives in the database
+    /// instead (plan v4 §8.1).
     dpp::task<result<nlohmann::json>> request(ports::http_method method, std::string path,
-                                              std::string body = {},
-                                              std::string audit_reason = {});
+                                              std::string body = {});
 
     /// Multipart form upload, for endpoints that take `payload_json` plus
     /// files: voice messages, attachments (plan v4 §12.8).
@@ -58,10 +55,6 @@ public:
 
 private:
     dpp::cluster* cluster_;
-
-    /// Serialises our own use of the shared audit-reason slot. It cannot
-    /// protect against DPP's other callers, hence the warning above.
-    std::mutex audit_mutex_;
 };
 
 } // namespace latibot::discord

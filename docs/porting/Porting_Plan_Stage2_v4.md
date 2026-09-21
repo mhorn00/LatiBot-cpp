@@ -202,8 +202,9 @@ The order is a list, so it's cheap to change once it's running.
 
 Thin wrapper over `cluster::post_rest` / `post_rest_multipart`, which already
 handle authentication and rate limits. Returns parsed JSON or a typed error,
-with a multipart variant. Known uses: voice messages (§12.8), the
-`X-Audit-Log-Reason` header (§8.1), and any component type DPP lacks.
+with a multipart variant. Known uses: voice messages (§12.8), suppressing
+embeds on someone else's message (§9.2, a PATCH carrying only `flags`), and
+any component type DPP lacks.
 
 ---
 
@@ -238,11 +239,15 @@ Each command and passive feature declares what it needs. Checked per guild on
 **`/nickname`** writes its own row first (`changed_by = invoker`,
 `source = 'command'`) and registers a pending expectation
 `(guild, target, new_nick)` with a ~30 s TTL, so the member-update event
-doesn't add a duplicate. The API call also sends **`X-Audit-Log-Reason`**
-through the raw-API helper (§5.5), so Discord's own audit log shows who ran
-the command. We don't use `cluster::set_audit_reason`, which is cluster-wide
-state and would race between concurrent requests. On failure the row is
-removed and the user gets an error.
+doesn't add a duplicate. On failure the row is removed and the user gets an
+error.
+
+**`X-Audit-Log-Reason` is dropped** (was decision 9). DPP takes that header
+from a cluster-wide slot which the next request from any thread can consume,
+so it cannot be attached reliably, and attaching the *wrong* reason to an
+unrelated moderation entry is worse than attaching none. Discord's audit log
+will keep showing the bot as the actor, as it has for years; the answer to
+"who actually did it" comes from `nickname_history`.
 
 ### 8.2 Storage and display
 

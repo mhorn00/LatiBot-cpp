@@ -71,14 +71,10 @@ std::string build_endpoint(std::string_view path) {
 }
 
 dpp::task<result<nlohmann::json>> raw_api::request(ports::http_method method, std::string path,
-                                                   std::string body, std::string audit_reason) {
+                                                   std::string body) {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
-        const std::scoped_lock guard(audit_mutex_);
-        if (!audit_reason.empty()) {
-            cluster_->set_audit_reason(audit_reason);
-        }
         cluster_->post_rest(endpoint, "", "", to_dpp(method), body,
                             [complete](nlohmann::json& parsed,
                                        const dpp::http_request_completion_t& http) mutable {
