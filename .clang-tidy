@@ -1,0 +1,26 @@
+# Static analysis for our own code only. Third-party headers (DPP, Catch2,
+# CTRE, SQLite) are excluded through HeaderFilterRegex.
+#
+# Run through the ninja-tidy preset, which produces compile_commands.json:
+#   cmake --preset ninja-tidy && clang-tidy -p build-tidy src/**/*.cpp
+---
+Checks: >
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  readability-*,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-slicing,
+  misc-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -misc-include-cleaner,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers
+
+HeaderFilterRegex: '.*[\\/]src[\\/]core[\\/].*'
+WarningsAsErrors: ''
+FormatStyle: file

@@ -1,0 +1,118 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "msvc",
+      "displayName": "MSVC (Debug + Release)",
+      "description": "Default multi-config build. Needs: conan install . --build=missing -s build_type=Release && ... -s build_type=Debug",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build",
+      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
+    },
+    {
+      "name": "asan",
+      "displayName": "MSVC + AddressSanitizer",
+      "description": "Debug build of our targets with /fsanitize=address. Needs the VC.ASAN component.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-asan",
+      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
+      "cacheVariables": {
+        "LATIBOT_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "MSVC + libFuzzer",
+      "description": "Builds the fuzz targets in tests/fuzz. Needs the VC.ASAN component.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-fuzz",
+      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
+      "cacheVariables": {
+        "LATIBOT_ENABLE_ASAN": "ON",
+        "LATIBOT_BUILD_FUZZERS": "ON"
+      }
+    },
+    {
+      "name": "ninja-tidy",
+      "displayName": "Ninja (compile_commands.json for clang-tidy)",
+      "description": "Needs: conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja, and a shell with vcvars loaded (build/Debug/generators/conanbuild.bat)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-tidy",
+      "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msvc-debug",
+      "configurePreset": "msvc",
+      "configuration": "Debug"
+    },
+    {
+      "name": "msvc-release",
+      "configurePreset": "msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-tidy",
+      "configurePreset": "ninja-tidy"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "msvc",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "exclude": {
+          "name": "\\[live\\]"
+        }
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "msvc",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "exclude": {
+          "name": "\\[live\\]"
+        }
+      }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+find_package(Catch2 3 REQUIRED)
+
+add_executable(latibot_tests
+    unit/version_test.cpp
+    unit/text_test.cpp
+)
+
+target_link_libraries(latibot_tests PRIVATE latibot_core Catch2::Catch2WithMain)
+
+latibot_target_warnings(latibot_tests)
+latibot_target_sanitizers(latibot_tests)
+latibot_copy_runtime_dlls(latibot_tests)
+
+include(Catch)
+# PRE_TEST discovery runs the binary at test time rather than build time, so a
+# build never depends on the DLLs already being in place.
+catch_discover_tests(latibot_tests DISCOVERY_MODE PRE_TEST)
+
+if(LATIBOT_BUILD_FUZZERS)
+    add_subdirectory(fuzz)
+endif()

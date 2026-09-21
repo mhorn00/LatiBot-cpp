@@ -1,0 +1,20 @@
+add_library(latibot_core STATIC
+    core/version.cpp
+    core/bot.cpp
+    core/util/env.cpp
+    core/util/text.cpp
+)
+
+# Headers are included as "core/<area>/<file>.hpp".
+target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(latibot_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
+
+latibot_target_warnings(latibot_core)
+latibot_target_sanitizers(latibot_core)
+
+add_executable(LatiBot main.cpp)
+target_link_libraries(LatiBot PRIVATE latibot_core)
+
+latibot_target_warnings(LatiBot)
+latibot_target_sanitizers(LatiBot)
+latibot_copy_runtime_dlls(LatiBot)
