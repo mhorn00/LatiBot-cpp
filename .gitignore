@@ -1,0 +1,17 @@
+build/
+build-*/
+out/
+.vs/
+CMakeUserPresets.json
+*.user
+
+# secrets
+.env
+token.txt
+openai_key.txt
+
+# runtime data
+data/
+
+# original Java bot, kept locally for reference only (contains personal data)
+java-reference/

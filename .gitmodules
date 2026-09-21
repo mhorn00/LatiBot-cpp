@@ -1,0 +1,8 @@
+[submodule "third_party/DPP"]
+	path = third_party/DPP
+	url = https://github.com/brainboxdotcc/DPP.git
+	shallow = true
+[submodule "third_party/dectalk"]
+	path = third_party/dectalk
+	url = https://github.com/dectalk/dectalk.git
+	branch = develop
