@@ -3,7 +3,10 @@ find_package(Catch2 3 REQUIRED)
 add_executable(latibot_tests
     db/backup_test.cpp
     db/database_test.cpp
+    db/guild_settings_test.cpp
     db/migrations_test.cpp
+    unit/bootstrap_test.cpp
+    unit/ports_test.cpp
     unit/version_test.cpp
     unit/text_test.cpp
 )
