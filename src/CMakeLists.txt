@@ -1,6 +1,11 @@
 add_library(latibot_core STATIC
     core/version.cpp
     core/bot.cpp
+    core/db/backup.cpp
+    core/db/database.cpp
+    core/db/error.cpp
+    core/db/migrations.cpp
+    core/db/statement.cpp
     core/util/env.cpp
     core/util/text.cpp
 )

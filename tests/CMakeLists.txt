@@ -1,10 +1,15 @@
 find_package(Catch2 3 REQUIRED)
 
 add_executable(latibot_tests
+    db/backup_test.cpp
+    db/database_test.cpp
+    db/migrations_test.cpp
     unit/version_test.cpp
     unit/text_test.cpp
 )
 
+# Test helpers are included as "support/<file>.hpp".
+target_include_directories(latibot_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(latibot_tests PRIVATE latibot_core Catch2::Catch2WithMain)
 
 latibot_target_warnings(latibot_tests)
