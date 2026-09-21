@@ -30,6 +30,15 @@ function(latibot_target_sanitizers target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /fsanitize=address)
         target_link_options(${target} PRIVATE /INCREMENTAL:NO)
+        # With ASan on, the MSVC STL annotates string/vector/optional buffers
+        # and stamps that choice into every object file. Conan's Catch2 is not
+        # instrumented, so linking it against annotated objects fails with
+        # LNK2038. Turning the annotations off costs us overflow detection
+        # *inside* std containers; everything else ASan finds (use-after-free,
+        # overruns of raw buffers, leaks) still works, which is what matters
+        # for the C code in DECtalk and the audio buffers.
+        target_compile_definitions(${target} PRIVATE _DISABLE_STL_ANNOTATION)
+        latibot_copy_asan_runtime(${target})
     else()
         target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
         target_link_options(${target} PRIVATE -fsanitize=address)

@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies
         run: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
 
-      # The ci preset expects the multi-config layout Conan produces for a
+      # The msvc preset expects the multi-config layout Conan produces for a
       # Visual Studio generator. If that ever changes, say so plainly instead
       # of letting CMake fail with a missing toolchain file.
       - name: Check the dependency layout
@@ -61,16 +61,17 @@ jobs:
             exit 1
           }
 
-      # The ci preset does not name a Visual Studio version: the runner image
-      # switched from VS 2022 to VS 2026, which is what broke the first run.
+      # The msvc preset does not name a Visual Studio version: the runner
+      # image switched from VS 2022 to VS 2026, which is what broke the first
+      # run. Local builds use this same preset.
       - name: Configure
-        run: cmake --preset ci
+        run: cmake --preset msvc
 
       - name: Build
         run: cmake --build build --config Debug
 
       - name: Test
-        run: ctest --preset ci
+        run: ctest --preset debug
 
   secrets:
     name: Secret scan

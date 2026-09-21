@@ -9,16 +9,7 @@
     {
       "name": "msvc",
       "displayName": "MSVC (Debug + Release)",
-      "description": "Default multi-config build. Needs: conan install . --build=missing -s build_type=Release && ... -s build_type=Debug",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build",
-      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
-    },
-    {
-      "name": "ci",
-      "displayName": "CI (whatever Visual Studio the runner has)",
-      "description": "Like msvc, but without pinning the Visual Studio version: GitHub's Windows image changes which VS it ships (it moved from 2022 to 2026), so CMake picks the installed one.",
+      "description": "Default multi-config build, used locally and by CI. The Visual Studio version is deliberately not pinned: CMake picks the installed one, which is what keeps this working across VS 2022 and VS 2026. Needs: conan install . --build=missing -s build_type=Release && ... -s build_type=Debug",
       "binaryDir": "${sourceDir}/build",
       "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
     },
@@ -26,8 +17,6 @@
       "name": "asan",
       "displayName": "MSVC + AddressSanitizer",
       "description": "Debug build of our targets with /fsanitize=address. Needs the VC.ASAN component.",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
       "binaryDir": "${sourceDir}/build-asan",
       "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
       "cacheVariables": {
@@ -38,8 +27,6 @@
       "name": "fuzz",
       "displayName": "MSVC + libFuzzer",
       "description": "Builds the fuzz targets in tests/fuzz. Needs the VC.ASAN component.",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
       "binaryDir": "${sourceDir}/build-fuzz",
       "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
       "cacheVariables": {
@@ -70,11 +57,6 @@
       "name": "msvc-release",
       "configurePreset": "msvc",
       "configuration": "Release"
-    },
-    {
-      "name": "ci",
-      "configurePreset": "ci",
-      "configuration": "Debug"
     },
     {
       "name": "asan",
@@ -109,19 +91,6 @@
       "name": "release",
       "configurePreset": "msvc",
       "configuration": "Release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "filter": {
-        "exclude": {
-          "name": "\\[live\\]"
-        }
-      }
-    },
-    {
-      "name": "ci",
-      "configurePreset": "ci",
-      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       },

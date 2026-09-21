@@ -92,7 +92,7 @@ public:
     template <typename T>
     [[nodiscard]] T get(int column) const {
         if constexpr (detail::is_optional<T>::value) {
-            using value_type = typename detail::is_optional<T>::value_type;
+            using value_type = detail::is_optional<T>::value_type;
             if (is_null(column)) {
                 return std::nullopt;
             }

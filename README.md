@@ -13,7 +13,7 @@ reference during the port; it is not part of the C++ build.
 |---|---|---|
 | Windows | 10 (1903+) / 11 | x64. 1903+ is needed for C++20 `<chrono>` time zones |
 | [winget](https://learn.microsoft.com/windows/package-manager/winget/) | any recent | used to install MSVC Build Tools |
-| MSVC Build Tools | VS 2022 (v143 toolset) | C++ compiler, installed via winget below |
+| MSVC Build Tools | VS 2026 (v145 toolset, MSVC 14.51) | C++ compiler, installed via winget below. Matches what GitHub's `windows-latest` runner ships, so CI and local builds use the same compiler. VS 2022 also works: no preset pins a Visual Studio version |
 | [Git](https://git-scm.com/) | any recent | needed for the submodules (and by DPP's CMake) |
 | [CMake](https://cmake.org/) | >= 3.21 | required for the `TARGET_RUNTIME_DLLS` generator expression |
 | [Conan](https://conan.io/) | 2.x | dependency manager |
@@ -21,13 +21,11 @@ reference during the port; it is not part of the C++ build.
 If any are missing: `winget install Git.Git`, `winget install Kitware.CMake`,
 and `pip install conan` (or `winget install --id Conan.Conan`).
 
-Optional, for the analysis and sanitizer builds:
+The Build Tools install in step 2 already includes AddressSanitizer, Ninja and
+clang-tidy/clang-format. One more is optional:
 
 | Tool | Install | Used by |
 |---|---|---|
-| AddressSanitizer component | VS Installer → Build Tools → Individual components → **C++ AddressSanitizer** | the `asan` and `fuzz` presets |
-| Ninja | bundled with the Build Tools CMake component, or `winget install Ninja-build.Ninja` | the `ninja-tidy` preset |
-| clang-tidy / clang-format | bundled with the Build Tools LLVM component | linting and formatting |
 | OpenCppCoverage | `winget install OpenCppCoverage.OpenCppCoverage` | local coverage reports |
 
 ## 1. Clone with submodules
@@ -43,20 +41,31 @@ git submodule update --init --recursive
 ## 2. Install MSVC Build Tools
 
 ```powershell
-winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget `
+winget install --id Microsoft.VisualStudio.BuildTools --source winget `
   --accept-package-agreements --accept-source-agreements `
-  --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.CMake.Project --add Microsoft.VisualStudio.Component.Windows11SDK.26100"
+  --override "--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.CMake.Project --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --add Microsoft.VisualStudio.Component.VC.ASAN --add Microsoft.VisualStudio.Component.VC.Llvm.Clang --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset"
 ```
 
-This installs the Visual C++ build tools workload (compiler, linker, Windows
-SDK) without the full Visual Studio IDE. Verify it afterwards:
+This installs the C++ build tools (compiler, linker, Windows SDK, CMake,
+Ninja) without the Visual Studio IDE, plus AddressSanitizer for the `asan` and
+`fuzz` presets and clang-tidy/clang-format for linting.
+
+**`Microsoft.VisualStudio.Component.VC.Tools.x86.x64` has to be listed
+explicitly.** In VS 2026 the VCTools *workload* alone no longer pulls in the
+x64 compiler component. Without it, `cl.exe` is on disk but the instance is
+not registered as having a C++ compiler, and CMake fails with
+`could not find any instance of Visual Studio`.
+
+Verify afterwards:
 
 ```powershell
 & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -all -products * `
   -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 ```
 
-This should print the BuildTools install path.
+This should print the BuildTools install path. If you add components later,
+run the installer **elevated**: `--passive` and `--quiet` refuse to prompt for
+elevation and exit with code 5007 instead.
 
 ## 3. Set up the Conan profile
 
@@ -75,9 +84,14 @@ build_type=Release
 compiler=msvc
 compiler.cppstd=20
 compiler.runtime=dynamic
-compiler.version=194
+compiler.version=195
 os=Windows
 ```
+
+`compiler.version=195` is the v145 toolset that ships with VS 2026, and it is
+what the CI runner detects too. ConanCenter has no prebuilt binaries for it
+yet, so the first `conan install` builds the dependencies from source (about
+ten minutes); afterwards they come from `~/.conan2/p/`.
 
 The default `conancenter` remote is all that's needed.
 
@@ -164,7 +178,8 @@ cmake --preset fuzz; cmake --build build-fuzz --config Debug
 # the MSVC environment loaded
 conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja
 cmd /c "build\Debug\generators\conanbuild.bat && cmake --preset ninja-tidy && cmake --build build-tidy"
-clang-tidy -p build-tidy (Get-ChildItem -Recurse src -Filter *.cpp).FullName
+$tidy = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"
+& $tidy -p build-tidy (Get-ChildItem -Recurse src -Filter *.cpp).FullName
 ```
 
 ## Project layout
@@ -214,6 +229,20 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   public headers produce C4251/C4100 warnings that we can't fix from here.
 - **Warnings are errors by default** for our targets
   (`-DLATIBOT_WARNINGS_AS_ERRORS=OFF` turns that off while experimenting).
+- **No preset names a Visual Studio version.** CMake picks the installed one.
+  Pinning it is what broke the first CI run: GitHub's Windows image moved from
+  VS 2022 to VS 2026, and a pinned generator cannot find an instance.
+- **The `asan` preset disables the STL's container annotations**
+  (`_DISABLE_STL_ANNOTATION`). Conan's Catch2 is not instrumented, and mixing
+  annotated and unannotated objects fails to link with `LNK2038`. The cost is
+  overflow detection *inside* std containers; everything else ASan checks
+  still works. It also copies `clang_rt.asan_dynamic-x86_64.dll` next to the
+  binaries, since MSVC links that runtime dynamically and it is not on `PATH`.
+- **clang-tidy must be Clang 20 or newer** for MSVC 14.51's headers; older
+  ones stop at `error STL1000: Unexpected compiler version`. The copy in the
+  VS 2026 install (LLVM 22) is new enough; the one in VS 2022 is not, so use
+  the 2026 path:
+  `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"`.
 - **To upgrade DPP:** `git -C third_party/DPP fetch --depth 1 origin tag vX.Y.Z`,
   check out that tag, commit the submodule change, then rebuild.
 - **To add a dependency:** add it to `requirements()` in `conanfile.py`, re-run
