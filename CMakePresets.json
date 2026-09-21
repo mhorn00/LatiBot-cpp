@@ -16,6 +16,13 @@
       "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
     },
     {
+      "name": "ci",
+      "displayName": "CI (whatever Visual Studio the runner has)",
+      "description": "Like msvc, but without pinning the Visual Studio version: GitHub's Windows image changes which VS it ships (it moved from 2022 to 2026), so CMake picks the installed one.",
+      "binaryDir": "${sourceDir}/build",
+      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
+    },
+    {
       "name": "asan",
       "displayName": "MSVC + AddressSanitizer",
       "description": "Debug build of our targets with /fsanitize=address. Needs the VC.ASAN component.",
@@ -65,6 +72,11 @@
       "configuration": "Release"
     },
     {
+      "name": "ci",
+      "configurePreset": "ci",
+      "configuration": "Debug"
+    },
+    {
       "name": "asan",
       "configurePreset": "asan",
       "configuration": "Debug"
@@ -97,6 +109,19 @@
       "name": "release",
       "configurePreset": "msvc",
       "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "exclude": {
+          "name": "\\[live\\]"
+        }
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       },

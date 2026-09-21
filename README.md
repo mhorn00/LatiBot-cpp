@@ -150,6 +150,7 @@ from the test presets.
 | `asan` | our targets with `/fsanitize=address` (needs the ASan component) |
 | `fuzz` | libFuzzer targets in `tests/fuzz` (needs the ASan component) |
 | `ninja-tidy` | generates `compile_commands.json` for clang-tidy |
+| `ci` | same as `msvc` but lets CMake pick the installed Visual Studio; used by GitHub Actions, whose image ships VS 2026 |
 
 ```powershell
 # AddressSanitizer

@@ -17,26 +17,31 @@ jobs:
 
     steps:
       - name: Checkout (with submodules)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install Conan
         run: pip install "conan>=2.0"
 
+      # Detection follows whatever the image ships. Its result is printed
+      # because the toolset it picks decides whether ConanCenter has prebuilt
+      # binaries: a new MSVC means every dependency is built from source.
       - name: Detect Conan profile
-        run: conan profile detect --force
+        run: |
+          conan profile detect --force
+          conan profile show -s compiler.cppstd=20
 
       # Cache the built dependency packages (OpenSSL, zlib, opus, SQLite,
       # CTRE, Catch2). DPP itself is built from source by our CMake and is not
       # cached; that is the slowest part of a cold run.
       - name: Cache Conan packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.conan2/p
           key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
@@ -45,14 +50,27 @@ jobs:
       - name: Install dependencies
         run: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
 
+      # The ci preset expects the multi-config layout Conan produces for a
+      # Visual Studio generator. If that ever changes, say so plainly instead
+      # of letting CMake fail with a missing toolchain file.
+      - name: Check the dependency layout
+        run: |
+          if (-not (Test-Path build/generators/conan_toolchain.cmake)) {
+            Get-ChildItem -Recurse -Depth 2 build | Select-Object -ExpandProperty FullName
+            Write-Error "Expected build/generators/conan_toolchain.cmake (multi-config layout)"
+            exit 1
+          }
+
+      # The ci preset does not name a Visual Studio version: the runner image
+      # switched from VS 2022 to VS 2026, which is what broke the first run.
       - name: Configure
-        run: cmake --preset msvc
+        run: cmake --preset ci
 
       - name: Build
         run: cmake --build build --config Debug
 
       - name: Test
-        run: ctest --preset debug
+        run: ctest --preset ci
 
   secrets:
     name: Secret scan
@@ -60,7 +78,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
