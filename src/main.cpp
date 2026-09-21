@@ -1,31 +1,31 @@
 #include "core/bot.hpp"
-#include "core/util/env.hpp"
+#include "core/config/bootstrap.hpp"
+#include "core/util/log.hpp"
 
 #include <exception>
-#include <iostream>
+#include <filesystem>
 
 // Everything is caught below; clang-tidy still flags main because writing to
-// std::cerr inside a handler could itself throw. There is nowhere left to
+// the log inside a handler could itself throw. There is nowhere left to
 // report that, so terminating is the correct outcome.
 // NOLINTNEXTLINE(bugprone-exception-escape)
-int main() {
+int main(int argc, char** argv) {
     try {
-        const auto token = latibot::util::env_var("DISCORD_BOT_TOKEN");
-        if (!token || token->empty()) {
-            std::cerr << "DISCORD_BOT_TOKEN environment variable not set\n";
-            return 1;
-        }
+        const std::filesystem::path config_path = argc > 1 ? argv[1] : "config.json";
 
-        latibot::bot bot(*token);
+        const auto settings = latibot::config::bootstrap::load(config_path);
+        const auto credentials = latibot::config::secrets::from_environment();
+
+        latibot::bot bot(settings, credentials);
         bot.run();
         return 0;
-    } catch (const std::exception& e) {
-        // Nothing above main can report this, and an escaped exception would
-        // terminate without a usable message.
-        std::cerr << "fatal: " << e.what() << '\n';
+    } catch (const std::exception& error) {
+        // The logger's default sink is stderr, so this is visible whether or
+        // not the config was ever read.
+        latibot::util::log().error("fatal: {}", error.what());
         return 1;
     } catch (...) {
-        std::cerr << "fatal: unknown error\n";
+        latibot::util::log().error("fatal: unknown error");
         return 1;
     }
 }

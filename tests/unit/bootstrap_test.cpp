@@ -122,6 +122,20 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     SECTION("not an object") {
         REQUIRE_THROWS_AS(bootstrap::from_json("[1, 2, 3]"), config_error);
     }
+
+    SECTION("unknown log level names the valid ones") {
+        REQUIRE_THROWS_MATCHES(
+            bootstrap::from_json(R"({"log_level": "verbose"})"), config_error,
+            Catch::Matchers::MessageMatches(ContainsSubstring("trace, debug, info")));
+    }
+}
+
+TEST_CASE("the log level is read from the config", "[config]") {
+    CHECK(bootstrap::from_json("{}").log_level == latibot::util::log_level::info);
+    CHECK(bootstrap::from_json(R"({"log_level": "debug"})").log_level ==
+          latibot::util::log_level::debug);
+    CHECK(bootstrap::from_json(R"({"log_level": "WARN"})").log_level ==
+          latibot::util::log_level::warn);
 }
 
 TEST_CASE("trust needs a listed user, or an admin in a listed server", "[config]") {

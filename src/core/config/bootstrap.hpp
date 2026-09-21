@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/util/log.hpp"
+
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -24,6 +26,8 @@ public:
 /// Everything guild-specific lives in the database instead, because it is
 /// edited at runtime through commands and panels.
 struct bootstrap {
+    util::log_level log_level = util::log_level::info;
+
     std::filesystem::path database_path{"data/bot.db"};
     std::filesystem::path backup_directory{"data/backups"};
     int backups_to_keep = 7;

@@ -8,10 +8,13 @@ add_library(latibot_core STATIC
     core/db/error.cpp
     core/db/migrations.cpp
     core/db/statement.cpp
+    core/commands/registry.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
+    core/discord/raw_api.cpp
     core/ports/clock.cpp
     core/util/env.cpp
+    core/util/log.cpp
     core/util/text.cpp
 )
 
