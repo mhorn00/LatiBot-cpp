@@ -38,6 +38,7 @@ public:
     [[nodiscard]] const config::bootstrap& settings() const noexcept { return settings_; }
 
 private:
+    void register_commands();
     void register_events();
 
     config::bootstrap settings_;

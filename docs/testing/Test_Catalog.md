@@ -5,17 +5,17 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-67 test cases across 7 components, including 21 sections.
+75 test cases across 7 components, including 32 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 21 | 3 |
 | [config](#config) | 17 | 14 |
-| [commands](#commands) | 8 | 4 |
+| [commands](#commands) | 14 | 14 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 6 | 0 |
-| [util](#util) | 3 | 0 |
+| [util](#util) | 5 | 1 |
 
 ## db
 
@@ -32,12 +32,12 @@ Database (`src/core/db`)
 | backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:169](../../tests/db/backup_test.cpp#L169) |
 | opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:41](../../tests/db/database_test.cpp#L41) |
 | values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
-| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:73](../../tests/db/database_test.cpp#L73) |
-| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:86](../../tests/db/database_test.cpp#L86) |
-| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:102](../../tests/db/database_test.cpp#L102) |
-| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
-| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
-| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
+| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:74](../../tests/db/database_test.cpp#L74) |
+| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:87](../../tests/db/database_test.cpp#L87) |
+| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:103](../../tests/db/database_test.cpp#L103) |
+| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:110](../../tests/db/database_test.cpp#L110) |
+| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:147](../../tests/db/database_test.cpp#L147) |
+| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:161](../../tests/db/database_test.cpp#L161) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
@@ -64,10 +64,10 @@ Configuration (`src/core/config`)
 | a missing config file is not an error | `fs` |  | [tests/unit/bootstrap_test.cpp:57](../../tests/unit/bootstrap_test.cpp#L57) |
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:63](../../tests/unit/bootstrap_test.cpp#L63) |
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:92](../../tests/unit/bootstrap_test.cpp#L92) |
-| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:100](../../tests/unit/bootstrap_test.cpp#L100) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:133](../../tests/unit/bootstrap_test.cpp#L133) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:141](../../tests/unit/bootstrap_test.cpp#L141) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:175](../../tests/unit/bootstrap_test.cpp#L175) |
+| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:101](../../tests/unit/bootstrap_test.cpp#L101) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:132](../../tests/unit/bootstrap_test.cpp#L132) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:140](../../tests/unit/bootstrap_test.cpp#L140) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
 
 ## commands
 
@@ -75,6 +75,12 @@ Command framework (`src/core/commands`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:25](../../tests/unit/basic_commands_test.cpp#L25) |
+| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
+| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:58](../../tests/unit/basic_commands_test.cpp#L58) |
+| say replies only when given a message id |  | 5 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:97](../../tests/unit/basic_commands_test.cpp#L97) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:113](../../tests/unit/basic_commands_test.cpp#L113) |
 | commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
 | a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
 | an empty name is refused |  |  | [tests/unit/registry_test.cpp:97](../../tests/unit/registry_test.cpp#L97) |
@@ -121,7 +127,7 @@ Logging (`src/core/util/log`)
 | messages below the level are dropped |  |  | [tests/unit/log_test.cpp:33](../../tests/unit/log_test.cpp#L33) |
 | off silences everything |  |  | [tests/unit/log_test.cpp:46](../../tests/unit/log_test.cpp#L46) |
 | arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:54](../../tests/unit/log_test.cpp#L54) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:62](../../tests/unit/log_test.cpp#L62) |
+| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
 
 ## util
 
@@ -131,4 +137,6 @@ Utilities (`src/core/util`, `src/core/version`)
 |---|---|---:|---|
 | count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:13](../../tests/unit/text_test.cpp#L13) |
 | is_inside_spoiler follows an odd count of markers |  |  | [tests/unit/text_test.cpp:22](../../tests/unit/text_test.cpp#L22) |
+| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:36](../../tests/unit/text_test.cpp#L36) |
+| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
 | version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |

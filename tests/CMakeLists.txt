@@ -5,6 +5,7 @@ add_executable(latibot_tests
     db/database_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
+    unit/basic_commands_test.cpp
     unit/bootstrap_test.cpp
     unit/log_test.cpp
     unit/ports_test.cpp

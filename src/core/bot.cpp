@@ -1,5 +1,6 @@
 #include "core/bot.hpp"
 
+#include "core/commands/basic.hpp"
 #include "core/db/migrations.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
@@ -54,7 +55,12 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     util::log().info("LatiBot {} starting; database {} at schema version {}", version_string(),
                      settings_.database_path.generic_string(), version);
 
+    register_commands();
     register_events();
+}
+
+void bot::register_commands() {
+    commands::add_basic_commands(commands_, cluster_, clock_, [this] { cluster_.shutdown(); });
 }
 
 void bot::register_events() {
