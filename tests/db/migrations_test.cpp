@@ -26,8 +26,8 @@ constexpr std::array<migration, 2> two_steps{{
 }};
 
 bool table_exists(database& db, std::string_view name) {
-    auto query = db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
-                            name);
+    auto query =
+        db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name);
     return query.step() && query.get<int>(0) == 1;
 }
 

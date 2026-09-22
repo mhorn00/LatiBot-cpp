@@ -8,12 +8,18 @@ AccessModifierOffset: -4
 PointerAlignment: Left
 DerivePointerAlignment: false
 
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 BreakBeforeBraces: Attach
 NamespaceIndentation: None
 FixNamespaceComments: true
+
+# Google indents case labels, puts two spaces before a trailing comment and
+# only keeps empty functions on one line. This code does none of those, and a
+# config that disagrees churns every file it is asked to format.
+IndentCaseLabels: false
+SpacesBeforeTrailingComments: 1
 
 # Our own headers first, then third-party, then the standard library.
 IncludeBlocks: Preserve

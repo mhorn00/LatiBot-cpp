@@ -50,8 +50,9 @@ TEST_CASE("values survive a bind and get round trip", "[db]") {
     const std::vector<std::byte> raw{std::byte{0x00}, std::byte{0xFF}, std::byte{0x10}};
 
     {
-        auto insert = db.prepare("INSERT INTO things (id, name, weight, raw, note) "
-                                 "VALUES (?, ?, ?, ?, ?)");
+        auto insert = db.prepare(
+            "INSERT INTO things (id, name, weight, raw, note) "
+            "VALUES (?, ?, ?, ?, ?)");
         insert.bind_all(std::uint64_t{1234567890123456789ULL}, "first", 2.5, std::span(raw),
                         std::optional<std::string>{});
         insert.run();

@@ -60,9 +60,8 @@ dpp::task<result<std::vector<dpp::message>>> dpp_gateway::get_messages(dpp::snow
     for (const auto& [id, message] : messages) {
         ordered.push_back(message);
     }
-    std::ranges::sort(ordered, [](const dpp::message& lhs, const dpp::message& rhs) {
-        return lhs.id > rhs.id;
-    });
+    std::ranges::sort(
+        ordered, [](const dpp::message& lhs, const dpp::message& rhs) { return lhs.id > rhs.id; });
     co_return ordered;
 }
 

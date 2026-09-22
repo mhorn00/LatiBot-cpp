@@ -59,9 +59,7 @@ public:
     [[nodiscard]] sqlite3* handle() noexcept { return handle_; }
 
     /// Locks the connection for a compound operation.
-    [[nodiscard]] std::unique_lock<std::recursive_mutex> lock() {
-        return std::unique_lock(mutex_);
-    }
+    [[nodiscard]] std::unique_lock<std::recursive_mutex> lock() { return std::unique_lock(mutex_); }
 
     /// Throws `db_error` unless `result_code` is SQLITE_OK.
     void check(int result_code, const char* context) const;

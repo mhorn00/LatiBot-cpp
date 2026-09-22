@@ -84,16 +84,16 @@ TEST_CASE("the Discord mock hands out scripted history pages", "[ports][coro]") 
     page.emplace_back(dpp::snowflake{42}, "older");
     discord.message_pages.emplace_back(page);
 
-    const auto first = discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100)
-                           .sync_wait_for(2s);
+    const auto first =
+        discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100).sync_wait_for(2s);
     REQUIRE(first.has_value());
     REQUIRE(first->ok());
     CHECK(first->value().size() == 1);
 
     // With nothing left queued the mock reports an empty page, which is how a
     // backfill learns it has reached the end.
-    const auto second = discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100)
-                            .sync_wait_for(2s);
+    const auto second =
+        discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100).sync_wait_for(2s);
     REQUIRE(second.has_value());
     REQUIRE(second->ok());
     CHECK(second->value().empty());

@@ -56,7 +56,8 @@ TEST_CASE("arguments are formatted into the message", "[log]") {
 
     log().info("registered {} commands for guild {}", 7, 1234567890123456789ULL);
 
-    CHECK(captured.contains(log_level::info, "registered 7 commands for guild 1234567890123456789"));
+    CHECK(
+        captured.contains(log_level::info, "registered 7 commands for guild 1234567890123456789"));
 }
 
 TEST_CASE("a message is never split between threads", "[log][threads]") {

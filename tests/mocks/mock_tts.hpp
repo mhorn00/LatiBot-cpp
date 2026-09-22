@@ -44,8 +44,8 @@ public:
         for (std::size_t i = 0; i < sample_count; ++i) {
             // A 440 Hz tone: recognisable in a golden file, and not silence,
             // so a test can tell "spoke something" from "spoke nothing".
-            const double phase = 2.0 * std::numbers::pi * 440.0 *
-                                 static_cast<double>(i) / audio.sample_rate;
+            const double phase =
+                2.0 * std::numbers::pi * 440.0 * static_cast<double>(i) / audio.sample_rate;
             audio.samples.push_back(static_cast<std::int16_t>(8000.0 * std::sin(phase)));
         }
         co_return audio;

@@ -26,7 +26,7 @@ public:
     capture_log& operator=(const capture_log&) = delete;
 
     ~capture_log() {
-        util::log().set_sink({});  // restores the default stderr sink
+        util::log().set_sink({}); // restores the default stderr sink
         util::log().set_level(previous_level_);
     }
 

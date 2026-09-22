@@ -69,8 +69,8 @@ void database::execute(std::string_view sql) {
 
     char* error_message = nullptr;
     const std::string statement_text(sql);
-    const int result = sqlite3_exec(handle_, statement_text.c_str(), nullptr, nullptr,
-                                    &error_message);
+    const int result =
+        sqlite3_exec(handle_, statement_text.c_str(), nullptr, nullptr, &error_message);
     if (result != SQLITE_OK) {
         std::string message = "cannot execute SQL: ";
         message += error_message != nullptr ? error_message : sqlite3_errstr(result);
@@ -84,8 +84,8 @@ statement database::prepare(std::string_view sql) {
     std::unique_lock guard(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
-    const int result = sqlite3_prepare_v2(handle_, sql.data(), static_cast<int>(sql.size()), &stmt,
-                                          nullptr);
+    const int result =
+        sqlite3_prepare_v2(handle_, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr);
     if (result != SQLITE_OK) {
         throw db_error(result, describe(handle_, result, "cannot prepare statement"));
     }
@@ -127,7 +127,7 @@ transaction::~transaction() {
     }
     try {
         db_->execute("ROLLBACK");
-    } catch (...) {  // NOLINT(bugprone-empty-catch)
+    } catch (...) { // NOLINT(bugprone-empty-catch)
         // A destructor must not throw, and there is nowhere to report this
         // while unwinding. Once the logger exists (plan v4 §19, phase 0e),
         // this should log the failure.

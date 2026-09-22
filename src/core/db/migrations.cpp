@@ -13,9 +13,7 @@ namespace {
 
 // Append only. Never edit a migration that has shipped.
 constexpr std::array<migration, 1> all_migrations{{
-    {.version = 1,
-     .name = "guild_settings",
-     .sql = R"sql(
+    {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
             key      TEXT    NOT NULL,
@@ -43,8 +41,7 @@ int migrate(database& db, std::span<const migration> migrations) {
         }
         if (step.version != version + 1) {
             throw db_error(SQLITE_ERROR, "migration " + std::to_string(step.version) + " (" +
-                                             std::string(step.name) +
-                                             ") does not follow version " +
+                                             std::string(step.name) + ") does not follow version " +
                                              std::to_string(version));
         }
 

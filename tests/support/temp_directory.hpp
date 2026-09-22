@@ -32,9 +32,7 @@ public:
 
     [[nodiscard]] const std::filesystem::path& path() const noexcept { return path_; }
 
-    [[nodiscard]] std::filesystem::path file(std::string_view name) const {
-        return path_ / name;
-    }
+    [[nodiscard]] std::filesystem::path file(std::string_view name) const { return path_ / name; }
 
 private:
     std::filesystem::path path_;

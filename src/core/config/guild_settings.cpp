@@ -12,9 +12,8 @@ namespace latibot::config {
 namespace {
 
 std::string lowercase(std::string text) {
-    std::ranges::transform(text, text.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
-    });
+    std::ranges::transform(text, text.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return text;
 }
 
@@ -90,9 +89,10 @@ double guild_settings::get_real(dpp::snowflake guild_id, std::string_view key,
 }
 
 void guild_settings::set(dpp::snowflake guild_id, std::string_view key, std::string_view value) {
-    db_->prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?) "
-                 "ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
-                 static_cast<std::uint64_t>(guild_id), key, value)
+    db_->prepare(
+           "INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?) "
+           "ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
+           static_cast<std::uint64_t>(guild_id), key, value)
         .run();
 }
 
@@ -115,8 +115,7 @@ bool guild_settings::erase(dpp::snowflake guild_id, std::string_view key) {
     return db_->changes() > 0;
 }
 
-std::map<std::string, std::string, std::less<>> guild_settings::all(
-    dpp::snowflake guild_id) const {
+std::map<std::string, std::string, std::less<>> guild_settings::all(dpp::snowflake guild_id) const {
     std::map<std::string, std::string, std::less<>> settings;
 
     auto query = db_->prepare("SELECT key, value FROM guild_settings WHERE guild_id = ?",

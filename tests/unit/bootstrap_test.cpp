@@ -12,11 +12,11 @@
 #include <optional>
 #include <string>
 
+using Catch::Matchers::ContainsSubstring;
 using latibot::config::bootstrap;
 using latibot::config::config_error;
 using latibot::config::secrets;
 using latibot::testing::temp_directory;
-using Catch::Matchers::ContainsSubstring;
 
 namespace {
 
@@ -93,21 +93,20 @@ TEST_CASE("IDs written as JSON numbers are rejected", "[config]") {
     // JSON numbers are doubles and lose precision past 2^53, so a snowflake
     // written unquoted would silently come out wrong (plan v4 §5.2).
     REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"trusted_users": [987654321098765432]})"),
-                           config_error, Catch::Matchers::MessageMatches(ContainsSubstring(
-                                             "cannot represent a Discord ID exactly")));
+                           config_error,
+                           Catch::Matchers::MessageMatches(
+                               ContainsSubstring("cannot represent a Discord ID exactly")));
 }
 
 TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     SECTION("unknown key") {
-        REQUIRE_THROWS_MATCHES(
-            bootstrap::from_json(R"({"databse_path": "typo.db"})"), config_error,
-            Catch::Matchers::MessageMatches(ContainsSubstring("databse_path")));
+        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"databse_path": "typo.db"})"), config_error,
+                               Catch::Matchers::MessageMatches(ContainsSubstring("databse_path")));
     }
 
     SECTION("wrong type") {
-        REQUIRE_THROWS_MATCHES(
-            bootstrap::from_json(R"({"llm_model": 5})"), config_error,
-            Catch::Matchers::MessageMatches(ContainsSubstring("llm_model")));
+        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_model": 5})"), config_error,
+                               Catch::Matchers::MessageMatches(ContainsSubstring("llm_model")));
     }
 
     SECTION("out of range") {

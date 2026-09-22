@@ -28,8 +28,8 @@ template <typename T>
 // NOLINTNEXTLINE(bugprone-exception-escape)
 class result {
 public:
-    result(T value) : data_(std::move(value)) {}          // NOLINT(google-explicit-constructor)
-    result(api_error error) : data_(std::move(error)) {}  // NOLINT(google-explicit-constructor)
+    result(T value) : data_(std::move(value)) {}         // NOLINT(google-explicit-constructor)
+    result(api_error error) : data_(std::move(error)) {} // NOLINT(google-explicit-constructor)
 
     [[nodiscard]] bool ok() const noexcept { return std::holds_alternative<T>(data_); }
     explicit operator bool() const noexcept { return ok(); }
@@ -52,7 +52,7 @@ template <>
 class result<void> {
 public:
     result() = default;
-    result(api_error error)  // NOLINT(google-explicit-constructor)
+    result(api_error error) // NOLINT(google-explicit-constructor)
         : error_(std::move(error)), ok_(false) {}
 
     [[nodiscard]] bool ok() const noexcept { return ok_; }
