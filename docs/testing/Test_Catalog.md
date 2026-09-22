@@ -5,13 +5,15 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-80 test cases across 7 components, including 33 sections.
+130 test cases across 9 components, including 44 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 21 | 3 |
+| [db](#db) | 31 | 4 |
 | [config](#config) | 17 | 14 |
-| [commands](#commands) | 19 | 15 |
+| [commands](#commands) | 26 | 18 |
+| [events](#events) | 22 | 7 |
+| [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 6 | 0 |
@@ -28,8 +30,8 @@ Database (`src/core/db`)
 | an existing backup file is replaced | `fs` |  | [tests/db/backup_test.cpp:74](../../tests/db/backup_test.cpp#L74) |
 | a backup taken while other threads write is consistent | `fs`, `threads` |  | [tests/db/backup_test.cpp:92](../../tests/db/backup_test.cpp#L92) |
 | rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:124](../../tests/db/backup_test.cpp#L124) |
-| rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:147](../../tests/db/backup_test.cpp#L147) |
-| backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:169](../../tests/db/backup_test.cpp#L169) |
+| rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:146](../../tests/db/backup_test.cpp#L146) |
+| backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:168](../../tests/db/backup_test.cpp#L168) |
 | opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:41](../../tests/db/database_test.cpp#L41) |
 | values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
 | optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:74](../../tests/db/database_test.cpp#L74) |
@@ -38,12 +40,22 @@ Database (`src/core/db`)
 | a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:110](../../tests/db/database_test.cpp#L110) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:147](../../tests/db/database_test.cpp#L147) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:161](../../tests/db/database_test.cpp#L161) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:74](../../tests/db/migrations_test.cpp#L74) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:91](../../tests/db/migrations_test.cpp#L91) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:104](../../tests/db/migrations_test.cpp#L104) |
+| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:35](../../tests/db/migrations_test.cpp#L35) |
+| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:48](../../tests/db/migrations_test.cpp#L48) |
+| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:59](../../tests/db/migrations_test.cpp#L59) |
+| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:73](../../tests/db/migrations_test.cpp#L73) |
+| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:90](../../tests/db/migrations_test.cpp#L90) |
+| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:103](../../tests/db/migrations_test.cpp#L103) |
+| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:49](../../tests/db/trigger_store_test.cpp#L49) |
+| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:68](../../tests/db/trigger_store_test.cpp#L68) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:85](../../tests/db/trigger_store_test.cpp#L85) |
+| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:101](../../tests/db/trigger_store_test.cpp#L101) |
+| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:113](../../tests/db/trigger_store_test.cpp#L113) |
+| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:124](../../tests/db/trigger_store_test.cpp#L124) |
+| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:146](../../tests/db/trigger_store_test.cpp#L146) |
+| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:163](../../tests/db/trigger_store_test.cpp#L163) |
+| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:176](../../tests/db/trigger_store_test.cpp#L176) |
+| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:188](../../tests/db/trigger_store_test.cpp#L188) |
 
 ## config
 
@@ -64,10 +76,10 @@ Configuration (`src/core/config`)
 | a missing config file is not an error | `fs` |  | [tests/unit/bootstrap_test.cpp:57](../../tests/unit/bootstrap_test.cpp#L57) |
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:63](../../tests/unit/bootstrap_test.cpp#L63) |
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:92](../../tests/unit/bootstrap_test.cpp#L92) |
-| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:101](../../tests/unit/bootstrap_test.cpp#L101) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:132](../../tests/unit/bootstrap_test.cpp#L132) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:140](../../tests/unit/bootstrap_test.cpp#L140) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
+| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:99](../../tests/unit/bootstrap_test.cpp#L99) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:135](../../tests/unit/bootstrap_test.cpp#L135) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:169](../../tests/unit/bootstrap_test.cpp#L169) |
 
 ## commands
 
@@ -79,21 +91,75 @@ Command framework (`src/core/commands`)
 | a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
 | say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:58](../../tests/unit/basic_commands_test.cpp#L58) |
 | say replies only when given a message id |  | 5 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:97](../../tests/unit/basic_commands_test.cpp#L97) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:113](../../tests/unit/basic_commands_test.cpp#L113) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:96](../../tests/unit/basic_commands_test.cpp#L96) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:112](../../tests/unit/basic_commands_test.cpp#L112) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
 | a requirement of nothing is always met |  |  | [tests/unit/preflight_test.cpp:49](../../tests/unit/preflight_test.cpp#L49) |
 | permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
-| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
-| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
-| an empty name is refused |  |  | [tests/unit/registry_test.cpp:97](../../tests/unit/registry_test.cpp#L97) |
-| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:102](../../tests/unit/registry_test.cpp#L102) |
-| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:116](../../tests/unit/registry_test.cpp#L116) |
-| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:128](../../tests/unit/registry_test.cpp#L128) |
-| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:144](../../tests/unit/registry_test.cpp#L144) |
-| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:155](../../tests/unit/registry_test.cpp#L155) |
+| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:55](../../tests/unit/registry_test.cpp#L55) |
+| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:66](../../tests/unit/registry_test.cpp#L66) |
+| an empty name is refused |  |  | [tests/unit/registry_test.cpp:93](../../tests/unit/registry_test.cpp#L93) |
+| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:98](../../tests/unit/registry_test.cpp#L98) |
+| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:112](../../tests/unit/registry_test.cpp#L112) |
+| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:124](../../tests/unit/registry_test.cpp#L124) |
+| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:140](../../tests/unit/registry_test.cpp#L140) |
+| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:151](../../tests/unit/registry_test.cpp#L151) |
+| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:14](../../tests/unit/trigger_command_test.cpp#L14) |
+| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:23](../../tests/unit/trigger_command_test.cpp#L23) |
+| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
+| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:44](../../tests/unit/trigger_command_test.cpp#L44) |
+| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:52](../../tests/unit/trigger_command_test.cpp#L52) |
+| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
+| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
+
+## events
+
+Message pipeline and triggers (`src/core/events`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
+| the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
+| a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
+| a custom phrase replaces the default |  |  | [tests/unit/goodbye_test.cpp:42](../../tests/unit/goodbye_test.cpp#L42) |
+| an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
+| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:56](../../tests/unit/message_pipeline_test.cpp#L56) |
+| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:69](../../tests/unit/message_pipeline_test.cpp#L69) |
+| the bot never answers itself or another bot |  | 2 | [tests/unit/message_pipeline_test.cpp:84](../../tests/unit/message_pipeline_test.cpp#L84) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:106](../../tests/unit/message_pipeline_test.cpp#L106) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:123](../../tests/unit/message_pipeline_test.cpp#L123) |
+| whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
+| a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
+| substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |
+| matching ignores case on both sides |  |  | [tests/unit/triggers_test.cpp:40](../../tests/unit/triggers_test.cpp#L40) |
+| a pattern with punctuation matches as a word |  |  | [tests/unit/triggers_test.cpp:45](../../tests/unit/triggers_test.cpp#L45) |
+| an empty pattern never matches |  |  | [tests/unit/triggers_test.cpp:52](../../tests/unit/triggers_test.cpp#L52) |
+| match modes parse from their stored and spoken names |  |  | [tests/unit/triggers_test.cpp:58](../../tests/unit/triggers_test.cpp#L58) |
+| weighted responses are picked in proportion |  | 2 | [tests/unit/triggers_test.cpp:67](../../tests/unit/triggers_test.cpp#L67) |
+| a trigger with nothing to say picks nothing |  | 1 | [tests/unit/triggers_test.cpp:96](../../tests/unit/triggers_test.cpp#L96) |
+| a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:108](../../tests/unit/triggers_test.cpp#L108) |
+| cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:120](../../tests/unit/triggers_test.cpp#L120) |
+| a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:129](../../tests/unit/triggers_test.cpp#L129) |
+
+## ui
+
+Panels and paging (`src/core/ui`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| page state survives a round trip through a custom_id |  |  | [tests/unit/paginator_test.cpp:17](../../tests/unit/paginator_test.cpp#L17) |
+| an argument containing the separator still round trips |  |  | [tests/unit/paginator_test.cpp:30](../../tests/unit/paginator_test.cpp#L30) |
+| an id that would exceed Discord's limit is refused |  |  | [tests/unit/paginator_test.cpp:43](../../tests/unit/paginator_test.cpp#L43) |
+| text that is not ours decodes to nothing |  |  | [tests/unit/paginator_test.cpp:50](../../tests/unit/paginator_test.cpp#L50) |
+| an empty list is one page, not zero |  |  | [tests/unit/paginator_test.cpp:59](../../tests/unit/paginator_test.cpp#L59) |
+| pages are counted by rounding up |  |  | [tests/unit/paginator_test.cpp:67](../../tests/unit/paginator_test.cpp#L67) |
+| a stale page number is clamped rather than rejected |  |  | [tests/unit/paginator_test.cpp:75](../../tests/unit/paginator_test.cpp#L75) |
+| the last page holds the remainder |  |  | [tests/unit/paginator_test.cpp:86](../../tests/unit/paginator_test.cpp#L86) |
+| there is no paging row for a single page |  |  | [tests/unit/paginator_test.cpp:92](../../tests/unit/paginator_test.cpp#L92) |
+| the paging row disables the direction it cannot go |  |  | [tests/unit/paginator_test.cpp:98](../../tests/unit/paginator_test.cpp#L98) |
+| the paging buttons carry the neighbouring pages |  |  | [tests/unit/paginator_test.cpp:111](../../tests/unit/paginator_test.cpp#L111) |
 
 ## discord
 
@@ -117,9 +183,9 @@ Ports and mocks (`src/core/ports`, `tests/mocks`)
 | a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:53](../../tests/unit/ports_test.cpp#L53) |
 | the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:69](../../tests/unit/ports_test.cpp#L69) |
 | the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:80](../../tests/unit/ports_test.cpp#L80) |
-| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:105](../../tests/unit/ports_test.cpp#L105) |
-| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:134](../../tests/unit/ports_test.cpp#L134) |
-| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:152](../../tests/unit/ports_test.cpp#L152) |
+| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:103](../../tests/unit/ports_test.cpp#L103) |
+| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:132](../../tests/unit/ports_test.cpp#L132) |
+| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:150](../../tests/unit/ports_test.cpp#L150) |
 
 ## log
 
@@ -132,7 +198,7 @@ Logging (`src/core/util/log`)
 | messages below the level are dropped |  |  | [tests/unit/log_test.cpp:33](../../tests/unit/log_test.cpp#L33) |
 | off silences everything |  |  | [tests/unit/log_test.cpp:46](../../tests/unit/log_test.cpp#L46) |
 | arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:54](../../tests/unit/log_test.cpp#L54) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
+| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:62](../../tests/unit/log_test.cpp#L62) |
 
 ## util
 

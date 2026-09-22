@@ -2,13 +2,20 @@
 
 #include "core/commands/basic.hpp"
 #include "core/commands/preflight.hpp"
+#include "core/commands/trigger.hpp"
 #include "core/db/migrations.hpp"
+#include "core/events/goodbye.hpp"
+#include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
 
+#include <chrono>
 #include <filesystem>
+#include <memory>
 #include <string>
+#include <thread>
 #include <utility>
+#include <variant>
 
 namespace latibot {
 namespace {
@@ -49,7 +56,9 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       cluster_(credentials.discord_token),
       gateway_(cluster_),
       http_(cluster_),
-      raw_(cluster_) {
+      raw_(cluster_),
+      triggers_(database_),
+      trigger_responder_(triggers_, clock_) {
     util::log().set_level(settings_.log_level);
 
     const int version = db::migrate(database_);
@@ -57,11 +66,20 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
                      settings_.database_path.generic_string(), version);
 
     register_commands();
+    register_stages();
     register_events();
 }
 
 void bot::register_commands() {
     commands::add_basic_commands(commands_, cluster_, clock_, [this] { cluster_.shutdown(); });
+    commands_.add(std::make_unique<commands::trigger_command>(triggers_));
+}
+
+void bot::register_stages() {
+    // The order is plan v4 §5.4, and it is a list so that changing it is one
+    // line. URL replacement and the LLM stages join it in phases 3 and 5.
+    pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
+    pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
 }
 
 void bot::register_events() {
@@ -93,7 +111,78 @@ void bot::register_events() {
     // Guilds arrive as guild_create after the gateway connects, including the
     // ones the bot was already in, so this covers both cases plan v4 §7 asks
     // for without a separate sweep on ready.
-    cluster_.on_guild_create([this](const dpp::guild_create_t& event) { check_permissions(event.created); });
+    cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
+        check_permissions(event.created);
+
+        const int seeded = triggers_.seed_defaults(event.created.id);
+        if (seeded > 0) {
+            util::log().info("{}: seeded {} default triggers", event.created.name, seeded);
+        }
+    });
+
+    cluster_.on_message_create(
+        [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
+
+    cluster_.on_button_click([this](const dpp::button_click_t& event) {
+        const auto state = ui::decode(event.custom_id);
+        if (!state || state->view != commands::trigger_list_view) {
+            return;
+        }
+
+        // Paging edits the message the button is on rather than posting a new
+        // one, which is why the page lives in the custom_id and not in memory.
+        event.reply(dpp::ir_update_message,
+                    commands::render_trigger_list(triggers_, event.command.guild_id, state->page));
+    });
+}
+
+events::incoming_message bot::describe(const dpp::message& message) const {
+    events::incoming_message described;
+    described.guild_id = message.guild_id;
+    described.channel_id = message.channel_id;
+    described.author_id = message.author.id;
+    described.from_self = message.author.id == cluster_.me.id;
+    described.from_bot = message.author.is_bot();
+    described.content = message.content;
+
+    // Administrator is a guild-level question, so it needs the guild and the
+    // member: a message carries neither on its own.
+    if (const dpp::guild* guild = dpp::find_guild(message.guild_id); guild != nullptr) {
+        const auto member = guild->members.find(message.author.id);
+        if (member != guild->members.end()) {
+            const std::uint64_t permissions = guild->base_permissions(member->second);
+            described.author_is_administrator = (permissions & dpp::p_administrator) != 0;
+        }
+    }
+
+    return described;
+}
+
+void bot::carry_out(const std::vector<events::action>& actions) {
+    for (const events::action& wanted : actions) {
+        std::visit(
+            [this](const auto& step) {
+                using step_type = std::decay_t<decltype(step)>;
+
+                if constexpr (std::is_same_v<step_type, events::send_message>) {
+                    dpp::message reply(step.channel_id, step.content);
+                    // Suppressed notifications, as the Java bot did: these are
+                    // jokes and acknowledgements, not things to be pinged for.
+                    reply.set_flags(dpp::m_suppress_notifications);
+                    cluster_.message_create(reply);
+                } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
+                    util::log().info("shutting down on request from a message");
+                    // Detached, so the pause does not block DPP's event
+                    // thread. The process is on its way out either way.
+                    const auto delay = step.after;
+                    std::thread([this, delay] {
+                        std::this_thread::sleep_for(delay);
+                        cluster_.shutdown();
+                    }).detach();
+                }
+            },
+            wanted);
+    }
 }
 
 void bot::check_permissions(const dpp::guild& guild) const {

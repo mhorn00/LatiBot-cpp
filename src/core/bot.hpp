@@ -7,6 +7,8 @@
 #include "core/discord/dpp_gateway.hpp"
 #include "core/discord/dpp_http_client.hpp"
 #include "core/discord/raw_api.hpp"
+#include "core/events/message_pipeline.hpp"
+#include "core/events/triggers.hpp"
 #include "core/ports/clock.hpp"
 
 #include <dpp/dpp.h>
@@ -39,11 +41,19 @@ public:
 
 private:
     void register_commands();
+    void register_stages();
     void register_events();
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot (plan v4 §7).
     void check_permissions(const dpp::guild& guild) const;
+
+    /// Turns a DPP message into the plain struct the stages work on, which is
+    /// where the Administrator check happens.
+    [[nodiscard]] events::incoming_message describe(const dpp::message& message) const;
+
+    /// Performs what the stages decided.
+    void carry_out(const std::vector<events::action>& actions);
 
     config::bootstrap settings_;
     db::database database_;
@@ -56,6 +66,10 @@ private:
     discord::dpp_http_client http_;
     discord::raw_api raw_;
     ports::system_clock clock_;
+
+    events::trigger_store triggers_;
+    events::trigger_responder trigger_responder_;
+    events::pipeline pipeline_;
 };
 
 } // namespace latibot

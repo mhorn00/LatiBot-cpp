@@ -63,7 +63,9 @@ grouped by; the traits are for filtering.
 |---|---|
 | `[db]` | `src/core/db`: connection, statements, migrations, backups |
 | `[config]` | `src/core/config`: `config.json`, per-guild settings |
-| `[commands]` | `src/core/commands`: the registry and dispatch |
+| `[commands]` | `src/core/commands`: the registry, dispatch and the commands |
+| `[events]` | `src/core/events`: the message pipeline, goodbye, triggers |
+| `[ui]` | `src/core/ui`: paging and panel primitives |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
 | `[log]` | `src/core/util/log` |
@@ -190,7 +192,7 @@ LatiBot tests           build/bin/Debug/
       ...
 ```
 
-One top-level node, so a single run button covers all 67 tests.
+One top-level node, so a single run button covers the whole suite.
 
 Three things are worth knowing before editing that file:
 
@@ -219,8 +221,8 @@ the other is not. Release and ASan go through `ctest --preset release` and
 `ctest --preset asan`. Widen `pattern` to `build/bin/*/latibot_tests.exe` if
 you would rather have them in the sidebar.
 
-**A run looks instantaneous because it is.** All 67 tests take about 0.2 s.
-To confirm a run really happened, uncomment `testMate.cpp.log.logpanel` in
+**A run looks instantaneous because it is.** The whole suite takes well under
+a second. To confirm a run really happened, uncomment `testMate.cpp.log.logpanel` in
 `.vscode/settings.json`: the *C++ TestMate* output channel then logs every
 command it spawns and the Catch2 XML it parses back.
 

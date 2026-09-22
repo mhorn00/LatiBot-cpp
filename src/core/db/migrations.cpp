@@ -12,7 +12,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 1> all_migrations{{
+constexpr std::array<migration, 2> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -20,6 +20,29 @@ constexpr std::array<migration, 1> all_migrations{{
             value    TEXT    NOT NULL,
             PRIMARY KEY (guild_id, key)
         ) WITHOUT ROWID;
+     )sql"},
+    {.version = 2, .name = "triggers", .sql = R"sql(
+        CREATE TABLE triggers (
+            id         INTEGER PRIMARY KEY,
+            guild_id   INTEGER NOT NULL,
+            pattern    TEXT    NOT NULL,
+            match_mode TEXT    NOT NULL,
+            cooldown_s INTEGER NOT NULL,
+            enabled    INTEGER NOT NULL
+        );
+
+        CREATE INDEX triggers_by_guild ON triggers (guild_id);
+
+        -- Rows rather than a list column, so each response can carry its own
+        -- weight and be edited on its own. rowid order is the order they were
+        -- added, which is the order the command and the panel show.
+        CREATE TABLE trigger_responses (
+            trigger_id INTEGER NOT NULL REFERENCES triggers (id) ON DELETE CASCADE,
+            response   TEXT    NOT NULL,
+            weight     INTEGER NOT NULL DEFAULT 1
+        );
+
+        CREATE INDEX trigger_responses_by_trigger ON trigger_responses (trigger_id);
      )sql"},
 }};
 

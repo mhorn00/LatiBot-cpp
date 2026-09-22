@@ -3,15 +3,21 @@ find_package(Catch2 3 REQUIRED)
 add_executable(latibot_tests
     db/backup_test.cpp
     db/database_test.cpp
+    db/trigger_store_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
     unit/basic_commands_test.cpp
     unit/bootstrap_test.cpp
+    unit/goodbye_test.cpp
+    unit/message_pipeline_test.cpp
+    unit/paginator_test.cpp
     unit/log_test.cpp
     unit/ports_test.cpp
     unit/preflight_test.cpp
     unit/raw_api_test.cpp
     unit/registry_test.cpp
+    unit/trigger_command_test.cpp
+    unit/triggers_test.cpp
     unit/version_test.cpp
     unit/text_test.cpp
 )

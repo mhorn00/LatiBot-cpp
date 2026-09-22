@@ -35,6 +35,8 @@
                 ["db"],
                 ["config"],
                 ["commands"],
+                ["events"],
+                ["ui"],
                 ["discord"],
                 ["ports"],
                 ["log"],

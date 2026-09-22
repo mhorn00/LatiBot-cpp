@@ -1,0 +1,201 @@
+#include "core/db/database.hpp"
+#include "core/db/migrations.hpp"
+#include "core/events/triggers.hpp"
+#include "core/ports/clock.hpp"
+
+#include "mocks/mock_clock.hpp"
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <chrono>
+#include <string>
+#include <vector>
+
+using latibot::events::match_mode;
+using latibot::events::trigger;
+using latibot::events::trigger_responder;
+using latibot::events::trigger_store;
+using namespace std::chrono_literals;
+
+namespace {
+
+constexpr dpp::snowflake guild{1000};
+constexpr dpp::snowflake other_guild{2000};
+constexpr dpp::snowflake channel{3000};
+constexpr dpp::snowflake other_channel{4000};
+
+struct store_fixture {
+    latibot::db::database db{":memory:"};
+    trigger_store store{db};
+
+    store_fixture() { latibot::db::migrate(db); }
+};
+
+trigger nice_trigger(dpp::snowflake in = guild) {
+    return {.guild_id = in,
+            .pattern = "420",
+            .mode = match_mode::whole_word,
+            .cooldown = 30s,
+            .enabled = true,
+            .responses = {{.text = "nice", .weight = 1}}};
+}
+
+latibot::events::incoming_message message_saying(std::string content, dpp::snowflake in_channel = channel) {
+    return {.guild_id = guild, .channel_id = in_channel, .author_id = dpp::snowflake{9}, .content = std::move(content)};
+}
+
+} // namespace
+
+TEST_CASE("a trigger survives a round trip with its responses", "[db]") {
+    store_fixture fixture;
+
+    trigger saved = nice_trigger();
+    saved.responses = {{.text = "nice", .weight = 2}, {.text = "very nice", .weight = 1}};
+    const std::int64_t id = fixture.store.add(saved);
+
+    const auto loaded = fixture.store.find(id, guild);
+    REQUIRE(loaded.has_value());
+    CHECK(loaded->pattern == "420");
+    CHECK(loaded->mode == match_mode::whole_word);
+    CHECK(loaded->cooldown == 30s);
+    CHECK(loaded->enabled);
+    REQUIRE(loaded->responses.size() == 2);
+    CHECK(loaded->responses[0].text == "nice");
+    CHECK(loaded->responses[0].weight == 2);
+    CHECK(loaded->responses[1].text == "very nice");
+}
+
+TEST_CASE("guilds cannot see or change each other's triggers", "[db]") {
+    store_fixture fixture;
+    const std::int64_t mine = fixture.store.add(nice_trigger(guild));
+    fixture.store.add(nice_trigger(other_guild));
+
+    CHECK(fixture.store.for_guild(guild).size() == 1);
+    CHECK_FALSE(fixture.store.find(mine, other_guild).has_value());
+    CHECK_FALSE(fixture.store.remove(mine, other_guild));
+
+    trigger stolen = nice_trigger(other_guild);
+    stolen.id = mine;
+    CHECK_FALSE(fixture.store.update(stolen));
+
+    // Still there, still ours.
+    CHECK(fixture.store.find(mine, guild).has_value());
+}
+
+TEST_CASE("updating a trigger replaces its responses rather than adding to them", "[db]") {
+    store_fixture fixture;
+    trigger saved = nice_trigger();
+    saved.responses = {{.text = "one", .weight = 1}, {.text = "two", .weight = 1}};
+    saved.id = fixture.store.add(saved);
+
+    saved.responses = {{.text = "only", .weight = 5}};
+    REQUIRE(fixture.store.update(saved));
+
+    const auto loaded = fixture.store.find(saved.id, guild);
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->responses.size() == 1);
+    CHECK(loaded->responses[0].text == "only");
+    CHECK(loaded->responses[0].weight == 5);
+}
+
+TEST_CASE("removing a trigger takes its responses with it", "[db]") {
+    store_fixture fixture;
+    const std::int64_t id = fixture.store.add(nice_trigger());
+
+    REQUIRE(fixture.store.remove(id, guild));
+    CHECK(fixture.store.for_guild(guild).empty());
+
+    auto orphans = fixture.db.prepare("SELECT COUNT(*) FROM trigger_responses WHERE trigger_id = ?", id);
+    REQUIRE(orphans.step());
+    CHECK(orphans.get<std::int64_t>(0) == 0);
+}
+
+TEST_CASE("the defaults are seeded once per guild", "[db]") {
+    store_fixture fixture;
+
+    CHECK(fixture.store.seed_defaults(guild) == 3);
+    CHECK(fixture.store.for_guild(guild).size() == 3);
+
+    // Seeding again would give a server that deliberately deleted them back.
+    CHECK(fixture.store.seed_defaults(guild) == 0);
+    CHECK(fixture.store.for_guild(guild).size() == 3);
+}
+
+TEST_CASE("a matching message gets one of the trigger's responses", "[db]") {
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    const auto result = responder(message_saying("it is 420 somewhere"));
+
+    REQUIRE(result.actions.size() == 1);
+    const auto* post = std::get_if<latibot::events::send_message>(&result.actions.front());
+    REQUIRE(post != nullptr);
+    CHECK(post->content == "nice");
+    CHECK(post->channel_id == channel);
+
+    SECTION("and the message does not stop here") {
+        // A message with both "420" and a link should get the reply and the
+        // URL replacement (plan v4 §5.4).
+        CHECK_FALSE(result.consumed);
+    }
+}
+
+TEST_CASE("a trigger is quiet until its cooldown has passed", "[db]") {
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_saying("420")).actions.size() == 1);
+    CHECK(responder(message_saying("420")).actions.empty());
+
+    clock.advance(29s);
+    CHECK(responder(message_saying("420")).actions.empty());
+
+    clock.advance(1s);
+    CHECK(responder(message_saying("420")).actions.size() == 1);
+}
+
+TEST_CASE("cooldowns are per channel", "[db]") {
+    // One busy channel should not silence the trigger everywhere else.
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_saying("420", channel)).actions.size() == 1);
+    CHECK(responder(message_saying("420", other_channel)).actions.size() == 1);
+    CHECK(responder(message_saying("420", channel)).actions.empty());
+}
+
+TEST_CASE("a disabled trigger says nothing", "[db]") {
+    store_fixture fixture;
+    trigger off = nice_trigger();
+    off.enabled = false;
+    fixture.store.add(off);
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_saying("420")).actions.empty());
+}
+
+TEST_CASE("two triggers on one message both answer", "[db]") {
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    trigger second = nice_trigger();
+    second.pattern = "69";
+    second.responses = {{.text = "also nice", .weight = 1}};
+    fixture.store.add(second);
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_saying("420 and 69")).actions.size() == 2);
+}
