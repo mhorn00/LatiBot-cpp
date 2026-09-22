@@ -1,21 +1,160 @@
 {
   "version": "2.0.0",
+
+  // Everything here is also a command line, in the README or in tools/. The
+  // tasks exist so the common ones are one keystroke away and their output is
+  // clickable, not so the terminal stops working.
+  //
+  // The multi-step tasks pin their shell to pwsh, because `&&` is a syntax
+  // error in Windows PowerShell 5.1 and the default shell is whatever the
+  // terminal profile happens to be.
   "tasks": [
     {
-      // Referenced by testMate.cpp.test.advancedExecutables[].runTask.before,
-      // so the Testing sidebar always runs the current sources. A no-op build
-      // costs about a second.
+      // Referenced by testMate.cpp.test.advancedExecutables[].runTask.before
+      // in settings.json, so the Testing sidebar always runs the current
+      // sources. Renaming it breaks that. A no-op build costs about a second.
       "label": "Build tests (Debug)",
       "type": "process",
       "command": "cmake",
       "args": ["--build", "build", "--config", "Debug", "--target", "latibot_tests"],
       "group": "build",
       "problemMatcher": "$msCompile",
-      "presentation": {
-        "reveal": "silent",
-        "panel": "shared",
-        "clear": true
-      }
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Build (Debug)",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "build", "--config", "Debug"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Build (Release)",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--build", "build", "--config", "Release"],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Test (Debug)",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "debug"],
+      "dependsOn": ["Build (Debug)"],
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Test (Release)",
+      "type": "process",
+      "command": "ctest",
+      "args": ["--preset", "release"],
+      "dependsOn": ["Build (Release)"],
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // Its own build directory, so it configures as well as builds. Slower
+      // than the Debug run and worth it before anything touching lifetimes.
+      "label": "Test (AddressSanitizer)",
+      "type": "shell",
+      "command": "cmake --preset asan && cmake --build build-asan --config Debug && ctest --preset asan",
+      "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
+      "group": "test",
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // $gcc, not a clang-tidy matcher: VS Code has none built in, and
+      // clang-tidy prints "file:line:col: warning: text [check-name]", which
+      // is the format $gcc already parses. The check name lands in the
+      // message, where it is worth reading anyway.
+      "label": "Lint: clang-tidy (src)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Invoke-ClangTidy.ps1"],
+      "group": "test",
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Lint: clang-tidy (src and tests)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Invoke-ClangTidy.ps1", "-IncludeTests"],
+      "group": "test",
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Lint: clang-tidy (this file)",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Invoke-ClangTidy.ps1", "-Path", "${file}"],
+      "problemMatcher": "$gcc",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // Format on save covers day to day work; this is for a change to
+      // .clang-format itself, or files edited outside the editor.
+      "label": "Format: clang-format everything",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Invoke-ClangFormat.ps1"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "Format: check only",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Invoke-ClangFormat.ps1", "-Check"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // CI fails if the committed catalog differs from what this produces.
+      "label": "Docs: update the test catalog",
+      "type": "process",
+      "command": "pwsh",
+      "args": ["-NoProfile", "-File", "tools/Update-TestCatalog.ps1"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // Both configurations into one generators folder, which is what the
+      // msvc preset's multi-config layout expects. Needed after editing
+      // conanfile.py; the first run builds the dependencies from source.
+      "label": "Conan: install dependencies",
+      "type": "shell",
+      "command": "conan install . --build=missing -s build_type=Release && conan install . --build=missing -s build_type=Debug",
+      "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "CMake: configure",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--preset", "msvc"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
+      // A short run, for checking a target still works. Real fuzzing runs for
+      // hours; drop -max_total_time to let it run until stopped.
+      "label": "Fuzz: 60 second run",
+      "type": "shell",
+      "command": "cmake --preset fuzz && cmake --build build-fuzz --config Debug && ./build-fuzz/bin/Debug/fuzz_text.exe -max_total_time=60",
+      "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     }
   ]
 }

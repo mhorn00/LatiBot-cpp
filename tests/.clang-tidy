@@ -1,0 +1,12 @@
+# Inherits everything from the root .clang-tidy and turns off the checks that
+# only misfire here. Tests are held to the same standard otherwise: this list
+# is for false positives, not for letting test code rot.
+#
+#   bugprone-unchecked-optional-access
+#     REQUIRE(x.has_value()) throws when it fails, so the *x on the next line
+#     is safe. clang-tidy does not model Catch2's macros and reports every
+#     one of them.
+
+InheritParentConfig: true
+Checks: >
+  -bugprone-unchecked-optional-access

@@ -30,6 +30,6 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers
 
-HeaderFilterRegex: '.*[\\/]src[\\/]core[\\/].*'
+HeaderFilterRegex: '.*[\\/](src|tests)[\\/].*'
 WarningsAsErrors: ''
 FormatStyle: file

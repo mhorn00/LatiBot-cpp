@@ -196,13 +196,27 @@ cmake --preset asan; cmake --build build-asan --config Debug; ctest --preset asa
 cmake --preset fuzz; cmake --build build-fuzz --config Debug
 .\build-fuzz\bin\Debug\fuzz_text.exe -max_total_time=60
 
-# clang-tidy: needs a Ninja-flavoured dependency install and a shell with
-# the MSVC environment loaded
-conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja
-cmd /c "build\Debug\generators\conanbuild.bat && cmake --preset ninja-tidy && cmake --build build-tidy"
-$tidy = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"
-& $tidy -p build-tidy (Get-ChildItem -Recurse src -Filter *.cpp).FullName
+# clang-tidy and clang-format, through the scripts in tools/
+pwsh tools/Invoke-ClangTidy.ps1                  # src/
+pwsh tools/Invoke-ClangTidy.ps1 -IncludeTests    # src/ and tests/
+pwsh tools/Invoke-ClangFormat.ps1 -Check         # report, change nothing
 ```
+
+The clang-tidy script needs a Ninja-flavoured dependency install once, since
+the Visual Studio generator cannot produce `compile_commands.json`. It says so
+if the install is missing rather than starting a long build on its own:
+
+```powershell
+conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja
+```
+
+### VS Code tasks
+
+`.vscode/tasks.json` wraps the common ones, so they are available from
+**Run Task** with clickable output: build and test per configuration, the
+AddressSanitizer run, clang-tidy over `src/` or a single file, clang-format,
+the test catalog generator, the Conan install and a short fuzz run. They call
+the same commands as above; nothing is exclusive to the editor.
 
 ## Project layout
 
@@ -211,6 +225,8 @@ CMakeLists.txt      top-level build definition (also configures the DPP submodul
 CMakePresets.json   msvc / asan / fuzz / ninja-tidy presets
 conanfile.py        Conan recipe: openssl, zlib, opus, sqlite3, ctre, catch2
 cmake/              warnings, sanitizers and shared helpers
+tools/              catalog generator, clang-tidy and clang-format wrappers
+.vscode/            tasks, IntelliSense and the grouped test tree
 src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
 tests/              Catch2 tests, mocks, fixtures and fuzz targets
