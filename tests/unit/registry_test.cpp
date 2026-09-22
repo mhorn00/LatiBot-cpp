@@ -125,7 +125,7 @@ TEST_CASE("required permissions are the union of every command's", "[commands]")
     CHECK((required & dpp::p_administrator) == 0);
 }
 
-TEST_CASE("dispatch runs the command registered under the name", "[commands]") {
+TEST_CASE("dispatch runs the command registered under the name", "[commands][coro]") {
     registry commands;
     auto owned = std::make_unique<spy_command>(basic("ping", {"p"}));
     spy_command* spy = owned.get();
@@ -141,7 +141,7 @@ TEST_CASE("dispatch runs the command registered under the name", "[commands]") {
     CHECK(spy->runs == 2);
 }
 
-TEST_CASE("an unknown command name is logged, not thrown", "[commands]") {
+TEST_CASE("an unknown command name is logged, not thrown", "[commands][coro]") {
     // Discord can still deliver a command that was removed from the code but
     // not yet from the guild.
     const capture_log captured;
@@ -152,7 +152,7 @@ TEST_CASE("an unknown command name is logged, not thrown", "[commands]") {
     CHECK(captured.contains(latibot::util::log_level::warn, "gone"));
 }
 
-TEST_CASE("an exception from a handler is caught and logged", "[commands]") {
+TEST_CASE("an exception from a handler is caught and logged", "[commands][coro]") {
     // Letting it escape would leave the coroutine unhandled and take the
     // process down.
     const capture_log captured;

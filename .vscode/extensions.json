@@ -1,0 +1,10 @@
+{
+  // clangd is deliberately not recommended: it fights with cpptools over
+  // IntelliSense, and the CMake Tools configuration provider already feeds
+  // cpptools the compile flags.
+  "recommendations": [
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools",
+    "matepek.vscode-catch2-test-adapter"
+  ]
+}

@@ -24,7 +24,7 @@ constexpr dpp::snowflake guild_b{222222222222222222ULL};
 
 } // namespace
 
-TEST_CASE("an unset key falls back to the caller's default", "[db][config]") {
+TEST_CASE("an unset key falls back to the caller's default", "[config]") {
     settings_fixture fixture;
 
     CHECK(fixture.settings.get(guild_a, "goodbye_message", "bye") == "bye");
@@ -34,7 +34,7 @@ TEST_CASE("an unset key falls back to the caller's default", "[db][config]") {
     CHECK_FALSE(fixture.settings.find(guild_a, "goodbye_message").has_value());
 }
 
-TEST_CASE("values survive a set and get round trip", "[db][config]") {
+TEST_CASE("values survive a set and get round trip", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "goodbye_message", "see ya");
@@ -48,7 +48,7 @@ TEST_CASE("values survive a set and get round trip", "[db][config]") {
     CHECK(fixture.settings.get_real(guild_a, "trigger_chance", 0.25) == 0.75);
 }
 
-TEST_CASE("setting a key again replaces the value", "[db][config]") {
+TEST_CASE("setting a key again replaces the value", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "goodbye_message", "first");
@@ -58,7 +58,7 @@ TEST_CASE("setting a key again replaces the value", "[db][config]") {
     CHECK(fixture.settings.all(guild_a).size() == 1);
 }
 
-TEST_CASE("guilds do not see each other's settings", "[db][config]") {
+TEST_CASE("guilds do not see each other's settings", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "goodbye_message", "server A");
@@ -67,7 +67,7 @@ TEST_CASE("guilds do not see each other's settings", "[db][config]") {
     CHECK(fixture.settings.all(guild_b).empty());
 }
 
-TEST_CASE("erase removes a key and reports whether it existed", "[db][config]") {
+TEST_CASE("erase removes a key and reports whether it existed", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "goodbye_message", "bye");
@@ -77,7 +77,7 @@ TEST_CASE("erase removes a key and reports whether it existed", "[db][config]") 
     CHECK_FALSE(fixture.settings.erase(guild_a, "goodbye_message"));
 }
 
-TEST_CASE("a value that cannot be parsed falls back instead of throwing", "[db][config]") {
+TEST_CASE("a value that cannot be parsed falls back instead of throwing", "[config]") {
     // One hand-edited or corrupted row should not take a feature down.
     settings_fixture fixture;
 
@@ -90,7 +90,7 @@ TEST_CASE("a value that cannot be parsed falls back instead of throwing", "[db][
     CHECK(fixture.settings.get_bool(guild_a, "llm_enabled", true));
 }
 
-TEST_CASE("booleans accept the usual spellings", "[db][config]") {
+TEST_CASE("booleans accept the usual spellings", "[config]") {
     settings_fixture fixture;
 
     for (const auto* truthy : {"1", "true", "TRUE", "yes", "on"}) {
@@ -103,7 +103,7 @@ TEST_CASE("booleans accept the usual spellings", "[db][config]") {
     }
 }
 
-TEST_CASE("partly numeric text is not accepted as a number", "[db][config]") {
+TEST_CASE("partly numeric text is not accepted as a number", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "tts_max_seconds", "90s");
@@ -113,7 +113,7 @@ TEST_CASE("partly numeric text is not accepted as a number", "[db][config]") {
     CHECK(fixture.settings.get_real(guild_a, "trigger_chance", 0.25) == 0.25);
 }
 
-TEST_CASE("all() lists everything set for one guild", "[db][config]") {
+TEST_CASE("all() lists everything set for one guild", "[config]") {
     settings_fixture fixture;
 
     fixture.settings.set(guild_a, "b_key", "2");

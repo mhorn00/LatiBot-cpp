@@ -54,13 +54,13 @@ TEST_CASE("an empty config object gives the documented defaults", "[config]") {
     CHECK(config.trusted_guilds.empty());
 }
 
-TEST_CASE("a missing config file is not an error", "[config]") {
+TEST_CASE("a missing config file is not an error", "[config][fs]") {
     const temp_directory temp;
     const bootstrap config = bootstrap::load(temp.file("does-not-exist.json"));
     CHECK(config.llm_model == "claude-haiku-4-5");
 }
 
-TEST_CASE("values in the file replace the defaults", "[config]") {
+TEST_CASE("values in the file replace the defaults", "[config][fs]") {
     const temp_directory temp;
     const auto path = temp.file("config.json");
     {

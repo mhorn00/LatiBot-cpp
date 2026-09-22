@@ -45,7 +45,7 @@ bool passes_integrity_check(const std::filesystem::path& file) {
 
 } // namespace
 
-TEST_CASE("a backup is a complete, valid copy", "[db]") {
+TEST_CASE("a backup is a complete, valid copy", "[db][fs]") {
     const temp_directory temp;
 
     database db{temp.file("bot.db")};
@@ -59,7 +59,7 @@ TEST_CASE("a backup is a complete, valid copy", "[db]") {
     CHECK(row_count(destination) == 25);
 }
 
-TEST_CASE("backing up an in-memory database writes it to disk", "[db]") {
+TEST_CASE("backing up an in-memory database writes it to disk", "[db][fs]") {
     const temp_directory temp;
 
     database db{std::filesystem::path(database::in_memory)};
@@ -71,7 +71,7 @@ TEST_CASE("backing up an in-memory database writes it to disk", "[db]") {
     CHECK(row_count(destination) == 3);
 }
 
-TEST_CASE("an existing backup file is replaced", "[db]") {
+TEST_CASE("an existing backup file is replaced", "[db][fs]") {
     const temp_directory temp;
 
     const std::filesystem::path destination = temp.file("copy.db");
@@ -89,7 +89,7 @@ TEST_CASE("an existing backup file is replaced", "[db]") {
     CHECK(row_count(destination) == 2);
 }
 
-TEST_CASE("a backup taken while other threads write is consistent", "[db]") {
+TEST_CASE("a backup taken while other threads write is consistent", "[db][fs][threads]") {
     // The single-connection lock (plan v4 §5.2) is what makes this safe: the
     // backup holds the connection, so no write lands mid-copy.
     const temp_directory temp;
@@ -121,7 +121,7 @@ TEST_CASE("a backup taken while other threads write is consistent", "[db]") {
     CHECK(copied <= written.load());
 }
 
-TEST_CASE("rotation keeps the newest backups", "[db]") {
+TEST_CASE("rotation keeps the newest backups", "[db][fs]") {
     const temp_directory temp;
 
     database db{std::filesystem::path(database::in_memory)};
@@ -144,7 +144,7 @@ TEST_CASE("rotation keeps the newest backups", "[db]") {
     CHECK_FALSE(std::filesystem::exists(created[1]));
 }
 
-TEST_CASE("rotation ignores unrelated files", "[db]") {
+TEST_CASE("rotation ignores unrelated files", "[db][fs]") {
     const temp_directory temp;
 
     {
@@ -166,7 +166,7 @@ TEST_CASE("rotation ignores unrelated files", "[db]") {
     CHECK(std::filesystem::exists(temp.file("other-20240101-000000.db")));
 }
 
-TEST_CASE("backup file names carry a sortable UTC timestamp", "[db]") {
+TEST_CASE("backup file names carry a sortable UTC timestamp", "[db][fs]") {
     const temp_directory temp;
 
     database db{std::filesystem::path(database::in_memory)};

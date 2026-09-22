@@ -10,7 +10,7 @@
 using latibot::util::count_occurrences;
 using latibot::util::is_inside_spoiler;
 
-TEST_CASE("count_occurrences counts non-overlapping matches", "[text]") {
+TEST_CASE("count_occurrences counts non-overlapping matches", "[util]") {
     CHECK(count_occurrences("", "||") == 0);
     CHECK(count_occurrences("no markers here", "||") == 0);
     CHECK(count_occurrences("||spoiler||", "||") == 2);
@@ -19,7 +19,7 @@ TEST_CASE("count_occurrences counts non-overlapping matches", "[text]") {
     CHECK(count_occurrences("anything", "") == 0);
 }
 
-TEST_CASE("is_inside_spoiler follows an odd count of markers", "[text]") {
+TEST_CASE("is_inside_spoiler follows an odd count of markers", "[util]") {
     auto [before, spoilered] = GENERATE(table<std::string, bool>({
         {"", false},
         {"||", true},

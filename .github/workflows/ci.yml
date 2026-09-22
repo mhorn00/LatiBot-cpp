@@ -26,6 +26,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Cheap and independent of the build: catches a test added without
+      # regenerating docs/testing/Test_Catalog.md, and any mistagged test,
+      # since the generator refuses those.
+      - name: Check the test catalog is up to date
+        run: |
+          pwsh -NoProfile -File tools/Update-TestCatalog.ps1
+          git diff --exit-code -- docs/testing/Test_Catalog.md
+
       - name: Install Conan
         run: pip install "conan>=2.0"
 

@@ -1,0 +1,43 @@
+{
+  // TestMate C++ groups the Catch2 suite by component tag, then by source
+  // file, so the Testing sidebar matches docs/testing/Test_Catalog.md instead
+  // of listing every test flat. Add new component tags to "tags" below and to
+  // tools/Update-TestCatalog.ps1 together.
+  "testMate.cpp.test.advancedExecutables": [
+    {
+      "name": "LatiBot tests (${baseFilename})",
+      "description": "${relDirpath}",
+      "pattern": "build/bin/*/latibot_tests.exe",
+      "cwd": "${absDirpath}",
+      "catch2": {
+        "testGrouping": {
+          "groupByTags": {
+            "tags": [
+              "[db]",
+              "[config]",
+              "[commands]",
+              "[discord]",
+              "[ports]",
+              "[log]",
+              "[util]"
+            ],
+            "label": "${tag}",
+            "groupBySource": {
+              "label": "${sourceRelPath}"
+            }
+          },
+          "groupUngroupedTo": "other (missing a component tag)"
+        }
+      }
+    }
+  ],
+
+  // The suite is fast; discovering on every build keeps the tree honest.
+  "testMate.cpp.discovery.gracePeriodForMissing": 10,
+
+  "files.associations": {
+    "*.hpp": "cpp"
+  },
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "cmake.configureOnOpen": false
+}

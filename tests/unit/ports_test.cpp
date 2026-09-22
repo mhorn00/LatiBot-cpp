@@ -50,7 +50,7 @@ TEST_CASE("mock_clock moves both clocks together", "[ports]") {
     CHECK(clock.steady_now() - steady_start == 90s);
 }
 
-TEST_CASE("a coroutine feature runs against the Discord mock", "[ports]") {
+TEST_CASE("a coroutine feature runs against the Discord mock", "[ports][coro]") {
     latibot::testing::mock_discord discord;
 
     // sync_wait_for turns a hung coroutine into a failed test rather than a
@@ -66,7 +66,7 @@ TEST_CASE("a coroutine feature runs against the Discord mock", "[ports]") {
     CHECK(discord.edited.front().content == "edited");
 }
 
-TEST_CASE("the Discord mock can script a failure", "[ports]") {
+TEST_CASE("the Discord mock can script a failure", "[ports][coro]") {
     latibot::testing::mock_discord discord;
     discord.send_results.emplace_back(api_error{500, "Internal Server Error"});
 
@@ -77,7 +77,7 @@ TEST_CASE("the Discord mock can script a failure", "[ports]") {
     CHECK(discord.edited.empty());
 }
 
-TEST_CASE("the Discord mock hands out scripted history pages", "[ports]") {
+TEST_CASE("the Discord mock hands out scripted history pages", "[ports][coro]") {
     latibot::testing::mock_discord discord;
 
     std::vector<dpp::message> page;
@@ -102,7 +102,7 @@ TEST_CASE("the Discord mock hands out scripted history pages", "[ports]") {
     CHECK(discord.history_requests.front().limit == 100);
 }
 
-TEST_CASE("the HTTP mock replays responses in order and records requests", "[ports]") {
+TEST_CASE("the HTTP mock replays responses in order and records requests", "[ports][coro]") {
     latibot::testing::mock_http http;
     http.queue(200, R"({"ok":true})");
     http.queue(429, R"({"error":"rate limited"})");
@@ -131,7 +131,7 @@ TEST_CASE("the HTTP mock replays responses in order and records requests", "[por
     CHECK(http.requests.front().url == "https://api.anthropic.com/v1/messages");
 }
 
-TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports]") {
+TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro]") {
     latibot::testing::mock_tts tts;
     tts.per_character = 10ms;
 
@@ -149,7 +149,7 @@ TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports]") {
     CHECK(tts.requests.front().first == "abcde");
 }
 
-TEST_CASE("the TTS mock can fail once and records stops", "[ports]") {
+TEST_CASE("the TTS mock can fail once and records stops", "[ports][coro]") {
     latibot::testing::mock_tts tts;
     tts.next_error = api_error{0, "engine busy"};
 
