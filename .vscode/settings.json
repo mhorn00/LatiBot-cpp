@@ -74,9 +74,7 @@
   // the status bar, or "CMake: Select Configure Preset" -> msvc. build/ is
   // already configured, so the reconfigure takes about a second.
   "cmake.configureOnOpen": true,
-  "cmake.useCMakePresets": "always"
+  "cmake.useCMakePresets": "always",
 
-  // C_Cpp.default.configurationProvider used to live here. It only applies
-  // when there is no .vscode/c_cpp_properties.json, and there is one now, so
-  // the provider is declared there instead.
+  "editor.formatOnSave": true
 }

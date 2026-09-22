@@ -13,8 +13,7 @@ namespace latibot::testing {
 /// puts it back afterwards.
 class capture_log {
 public:
-    explicit capture_log(util::log_level level = util::log_level::trace)
-        : previous_level_(util::log().level()) {
+    explicit capture_log(util::log_level level = util::log_level::trace) : previous_level_(util::log().level()) {
         util::log().set_level(level);
         util::log().set_sink([this](util::log_level severity, std::string_view message) {
             const std::scoped_lock guard(mutex_);

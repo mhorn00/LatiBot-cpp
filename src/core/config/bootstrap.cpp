@@ -84,10 +84,9 @@ bootstrap bootstrap::from_json(std::string_view text) {
     bootstrap config;
 
     static constexpr std::array<std::string_view, 12> known_keys{
-        "log_level",       "database_path",           "backup_directory",
-        "backups_to_keep", "backup_interval_minutes", "llm_provider",
-        "llm_model",       "spend_cap_daily_usd",     "spend_cap_monthly_usd",
-        "llm_tool_rounds", "trusted_guilds",          "trusted_users",
+        "log_level",      "database_path", "backup_directory",    "backups_to_keep",       "backup_interval_minutes",
+        "llm_provider",   "llm_model",     "spend_cap_daily_usd", "spend_cap_monthly_usd", "llm_tool_rounds",
+        "trusted_guilds", "trusted_users",
     };
 
     for (const auto& [key, unused] : parsed.items()) {
@@ -165,8 +164,7 @@ bootstrap bootstrap::load(const std::filesystem::path& path) {
     return from_json(contents.str());
 }
 
-bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id,
-                           bool administrator) const {
+bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const {
     if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) {
         return true;
     }

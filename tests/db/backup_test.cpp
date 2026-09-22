@@ -25,8 +25,8 @@ constexpr std::chrono::system_clock::time_point stamp(int minutes_past_epoch) {
 void seed(database& db, int rows) {
     latibot::db::migrate(db);
     for (int i = 0; i < rows; ++i) {
-        db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)",
-                   1234567890123456789ULL, "key-" + std::to_string(i), std::to_string(i))
+        db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1234567890123456789ULL,
+                   "key-" + std::to_string(i), std::to_string(i))
             .run();
     }
 }
@@ -129,8 +129,7 @@ TEST_CASE("rotation keeps the newest backups", "[db][fs]") {
 
     std::vector<std::filesystem::path> created;
     for (int minute = 1; minute <= 5; ++minute) {
-        created.push_back(
-            latibot::db::create_backup(db, temp.path(), "bot", /*keep=*/3, stamp(minute)));
+        created.push_back(latibot::db::create_backup(db, temp.path(), "bot", /*keep=*/3, stamp(minute)));
     }
 
     const auto remaining = latibot::db::list_backups(temp.path(), "bot");

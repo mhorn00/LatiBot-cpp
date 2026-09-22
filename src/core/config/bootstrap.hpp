@@ -55,8 +55,7 @@ struct bootstrap {
     [[nodiscard]] static bootstrap load(const std::filesystem::path& path);
 
     /// Whether this user may use the host-touching DECtalk commands here.
-    [[nodiscard]] bool is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id,
-                                  bool administrator) const;
+    [[nodiscard]] bool is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const;
 };
 
 /// Credentials. These only ever come from the environment, never from a file

@@ -67,9 +67,8 @@ void bot::register_commands() {
 void bot::register_events() {
     // DPP's own logging goes through our logger, so there is one format and
     // one level to configure.
-    cluster_.on_log([](const dpp::log_t& event) {
-        util::log().write(from_dpp(event.severity), "[dpp] " + event.message);
-    });
+    cluster_.on_log(
+        [](const dpp::log_t& event) { util::log().write(from_dpp(event.severity), "[dpp] " + event.message); });
 
     cluster_.on_slashcommand([this](const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_await commands_.dispatch(event.command.get_command_name(), event);
@@ -94,8 +93,7 @@ void bot::register_events() {
     // Guilds arrive as guild_create after the gateway connects, including the
     // ones the bot was already in, so this covers both cases plan v4 §7 asks
     // for without a separate sweep on ready.
-    cluster_.on_guild_create(
-        [this](const dpp::guild_create_t& event) { check_permissions(event.created); });
+    cluster_.on_guild_create([this](const dpp::guild_create_t& event) { check_permissions(event.created); });
 }
 
 void bot::check_permissions(const dpp::guild& guild) const {
@@ -103,16 +101,14 @@ void bot::check_permissions(const dpp::guild& guild) const {
     if (self == guild.members.end()) {
         // Without GUILD_MEMBERS the bot's own member object may be absent.
         // Say so once rather than reporting every permission as missing.
-        util::log().debug("no member record for the bot in {}; skipping the permission check",
-                          guild.name);
+        util::log().debug("no member record for the bot in {}; skipping the permission check", guild.name);
         return;
     }
 
     std::vector<commands::requirement> required;
     const auto passive = commands::passive_requirements();
     required.assign(passive.begin(), passive.end());
-    required.push_back({.permissions = commands_.required_bot_permissions(),
-                        .purpose = "the registered commands"});
+    required.push_back({.permissions = commands_.required_bot_permissions(), .purpose = "the registered commands"});
 
     const std::uint64_t granted = guild.base_permissions(self->second);
     for (const commands::gap& missing : commands::unmet(required, granted)) {

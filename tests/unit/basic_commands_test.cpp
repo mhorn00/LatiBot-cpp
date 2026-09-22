@@ -76,8 +76,7 @@ TEST_CASE("say replies only when given a message id", "[commands]") {
     }
 
     SECTION("a message link is not a message id") {
-        const auto decision =
-            plan_say("hello", "https://discord.com/channels/1/2/1234567890123456789");
+        const auto decision = plan_say("hello", "https://discord.com/channels/1/2/1234567890123456789");
         CHECK(decision.action == say_action::bad_reply_id);
     }
 

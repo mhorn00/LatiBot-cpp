@@ -25,8 +25,7 @@ public:
     std::vector<std::pair<std::string, ports::voice_settings>> requests;
     int stop_count = 0;
 
-    dpp::task<result<ports::pcm_audio>> synthesize(std::string text,
-                                                   ports::voice_settings settings) override {
+    dpp::task<result<ports::pcm_audio>> synthesize(std::string text, ports::voice_settings settings) override {
         requests.emplace_back(text, settings);
 
         if (next_error) {
@@ -37,15 +36,13 @@ public:
 
         ports::pcm_audio audio;
         const auto milliseconds = per_character * static_cast<std::int64_t>(text.size());
-        const auto sample_count =
-            static_cast<std::size_t>(audio.sample_rate * milliseconds.count() / 1000);
+        const auto sample_count = static_cast<std::size_t>(audio.sample_rate * milliseconds.count() / 1000);
 
         audio.samples.reserve(sample_count);
         for (std::size_t i = 0; i < sample_count; ++i) {
             // A 440 Hz tone: recognisable in a golden file, and not silence,
             // so a test can tell "spoke something" from "spoke nothing".
-            const double phase =
-                2.0 * std::numbers::pi * 440.0 * static_cast<double>(i) / audio.sample_rate;
+            const double phase = 2.0 * std::numbers::pi * 440.0 * static_cast<double>(i) / audio.sample_rate;
             audio.samples.push_back(static_cast<std::int16_t>(8000.0 * std::sin(phase)));
         }
         co_return audio;

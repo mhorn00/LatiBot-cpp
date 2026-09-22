@@ -35,11 +35,10 @@ void backup_to_file(database& source, const std::filesystem::path& destination) 
     std::filesystem::remove(destination, remove_error);
 
     sqlite3* target = nullptr;
-    const int open_result = sqlite3_open_v2(to_utf8(destination).c_str(), &target,
-                                            SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
+    const int open_result =
+        sqlite3_open_v2(to_utf8(destination).c_str(), &target, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
     if (open_result != SQLITE_OK) {
-        const std::string message =
-            std::string("cannot open backup destination: ") + sqlite3_errstr(open_result);
+        const std::string message = std::string("cannot open backup destination: ") + sqlite3_errstr(open_result);
         sqlite3_close(target);
         throw db_error(open_result, message);
     }
@@ -65,13 +64,11 @@ void backup_to_file(database& source, const std::filesystem::path& destination) 
 
     const int close_result = sqlite3_close(target);
     if (close_result != SQLITE_OK) {
-        throw db_error(close_result, std::string("cannot close backup destination: ") +
-                                         sqlite3_errstr(close_result));
+        throw db_error(close_result, std::string("cannot close backup destination: ") + sqlite3_errstr(close_result));
     }
 }
 
-std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory,
-                                                std::string_view prefix) {
+std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory, std::string_view prefix) {
     std::vector<std::filesystem::path> backups;
 
     std::error_code error;
@@ -117,9 +114,8 @@ int rotate_backups(const std::filesystem::path& directory, std::string_view pref
     return removed;
 }
 
-std::filesystem::path create_backup(database& source, const std::filesystem::path& directory,
-                                    std::string_view prefix, int keep,
-                                    std::chrono::system_clock::time_point at) {
+std::filesystem::path create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix,
+                                    int keep, std::chrono::system_clock::time_point at) {
     std::filesystem::create_directories(directory);
 
     const std::filesystem::path destination = directory / backup_file_name(prefix, at);

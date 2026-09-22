@@ -14,9 +14,7 @@ public:
 
     [[nodiscard]] std::chrono::system_clock::time_point now() const override { return now_; }
 
-    [[nodiscard]] std::chrono::steady_clock::time_point steady_now() const override {
-        return steady_;
-    }
+    [[nodiscard]] std::chrono::steady_clock::time_point steady_now() const override { return steady_; }
 
     void advance(std::chrono::nanoseconds amount) {
         now_ += std::chrono::duration_cast<std::chrono::system_clock::duration>(amount);

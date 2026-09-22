@@ -92,10 +92,8 @@ TEST_CASE("values in the file replace the defaults", "[config][fs]") {
 TEST_CASE("IDs written as JSON numbers are rejected", "[config]") {
     // JSON numbers are doubles and lose precision past 2^53, so a snowflake
     // written unquoted would silently come out wrong (plan v4 §5.2).
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"trusted_users": [987654321098765432]})"),
-                           config_error,
-                           Catch::Matchers::MessageMatches(
-                               ContainsSubstring("cannot represent a Discord ID exactly")));
+    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"trusted_users": [987654321098765432]})"), config_error,
+                           Catch::Matchers::MessageMatches(ContainsSubstring("cannot represent a Discord ID exactly")));
 }
 
 TEST_CASE("bad config is reported with the key that caused it", "[config]") {
@@ -123,18 +121,15 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     }
 
     SECTION("unknown log level names the valid ones") {
-        REQUIRE_THROWS_MATCHES(
-            bootstrap::from_json(R"({"log_level": "verbose"})"), config_error,
-            Catch::Matchers::MessageMatches(ContainsSubstring("trace, debug, info")));
+        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"log_level": "verbose"})"), config_error,
+                               Catch::Matchers::MessageMatches(ContainsSubstring("trace, debug, info")));
     }
 }
 
 TEST_CASE("the log level is read from the config", "[config]") {
     CHECK(bootstrap::from_json("{}").log_level == latibot::util::log_level::info);
-    CHECK(bootstrap::from_json(R"({"log_level": "debug"})").log_level ==
-          latibot::util::log_level::debug);
-    CHECK(bootstrap::from_json(R"({"log_level": "WARN"})").log_level ==
-          latibot::util::log_level::warn);
+    CHECK(bootstrap::from_json(R"({"log_level": "debug"})").log_level == latibot::util::log_level::debug);
+    CHECK(bootstrap::from_json(R"({"log_level": "WARN"})").log_level == latibot::util::log_level::warn);
 }
 
 TEST_CASE("trust needs a listed user, or an admin in a listed server", "[config]") {

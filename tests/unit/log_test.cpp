@@ -15,8 +15,8 @@ using latibot::util::log_level_from_string;
 using latibot::util::to_string;
 
 TEST_CASE("level names round trip", "[log]") {
-    for (const auto level : {log_level::trace, log_level::debug, log_level::info, log_level::warn,
-                             log_level::error, log_level::off}) {
+    for (const auto level :
+         {log_level::trace, log_level::debug, log_level::info, log_level::warn, log_level::error, log_level::off}) {
         const auto parsed = log_level_from_string(to_string(level));
         REQUIRE(parsed.has_value());
         CHECK(*parsed == level);
@@ -56,8 +56,7 @@ TEST_CASE("arguments are formatted into the message", "[log]") {
 
     log().info("registered {} commands for guild {}", 7, 1234567890123456789ULL);
 
-    CHECK(
-        captured.contains(log_level::info, "registered 7 commands for guild 1234567890123456789"));
+    CHECK(captured.contains(log_level::info, "registered 7 commands for guild 1234567890123456789"));
 }
 
 TEST_CASE("a message is never split between threads", "[log][threads]") {

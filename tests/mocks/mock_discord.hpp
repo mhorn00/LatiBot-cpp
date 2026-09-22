@@ -55,8 +55,7 @@ public:
         co_return message;
     }
 
-    dpp::task<result<void>> delete_message(dpp::snowflake channel_id,
-                                           dpp::snowflake message_id) override {
+    dpp::task<result<void>> delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) override {
         deleted.emplace_back(channel_id, message_id);
         if (!delete_results.empty()) {
             auto scripted = std::move(delete_results.front());
@@ -66,8 +65,7 @@ public:
         co_return result<void>{};
     }
 
-    dpp::task<result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id,
-                                                              dpp::snowflake before,
+    dpp::task<result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id, dpp::snowflake before,
                                                               std::uint64_t limit) override {
         history_requests.push_back({channel_id, before, limit});
         if (!message_pages.empty()) {
@@ -80,9 +78,10 @@ public:
         co_return std::vector<dpp::message>{};
     }
 
-    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(
-        dpp::snowflake /*channel_id*/, dpp::snowflake /*message_id*/, std::string /*emoji*/,
-        dpp::snowflake /*after*/, std::uint64_t /*limit*/) override {
+    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/,
+                                                                      dpp::snowflake /*message_id*/,
+                                                                      std::string /*emoji*/, dpp::snowflake /*after*/,
+                                                                      std::uint64_t /*limit*/) override {
         if (!reaction_pages.empty()) {
             auto scripted = std::move(reaction_pages.front());
             reaction_pages.pop_front();

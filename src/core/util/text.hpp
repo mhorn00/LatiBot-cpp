@@ -6,8 +6,7 @@ namespace latibot::util {
 
 /// Number of non-overlapping occurrences of `needle` in `haystack`.
 /// An empty needle counts zero.
-[[nodiscard]] std::size_t count_occurrences(std::string_view haystack,
-                                            std::string_view needle) noexcept;
+[[nodiscard]] std::size_t count_occurrences(std::string_view haystack, std::string_view needle) noexcept;
 
 /// The text with leading and trailing ASCII whitespace removed.
 [[nodiscard]] std::string_view trim(std::string_view text) noexcept;

@@ -9,8 +9,7 @@
 namespace latibot::util {
 namespace {
 
-constexpr std::array<std::string_view, 6> level_names{"trace", "debug", "info",
-                                                      "warn",  "error", "off"};
+constexpr std::array<std::string_view, 6> level_names{"trace", "debug", "info", "warn", "error", "off"};
 
 void write_to_stderr(log_level level, std::string_view message) {
     const auto stamp = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());

@@ -48,8 +48,7 @@ struct join_decision {
     dpp::snowflake channel_id;
 };
 
-[[nodiscard]] join_decision plan_join(dpp::snowflake target_channel,
-                                      dpp::snowflake bot_channel) noexcept;
+[[nodiscard]] join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept;
 
 /// What `/say` should do with the options it was given.
 enum class say_action : std::uint8_t {
@@ -107,8 +106,7 @@ public:
     explicit say_command(dpp::cluster& cluster);
 
     [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name,
-                                          dpp::snowflake application_id) const override;
+    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
     dpp::task<void> execute(const dpp::slashcommand_t& event) override;
 
 private:
@@ -122,8 +120,7 @@ public:
     explicit status_command(dpp::cluster& cluster);
 
     [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name,
-                                          dpp::snowflake application_id) const override;
+    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
     dpp::task<void> execute(const dpp::slashcommand_t& event) override;
 
 private:
@@ -137,8 +134,7 @@ public:
     join_command();
 
     [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name,
-                                          dpp::snowflake application_id) const override;
+    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
     dpp::task<void> execute(const dpp::slashcommand_t& event) override;
 
 private:

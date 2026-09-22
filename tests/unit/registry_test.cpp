@@ -41,8 +41,7 @@ private:
     command_info info_;
 };
 
-command_info basic(std::string name, std::vector<std::string> aliases = {},
-                   std::uint64_t permissions = 0) {
+command_info basic(std::string name, std::vector<std::string> aliases = {}, std::uint64_t permissions = 0) {
     return command_info{.name = std::move(name),
                         .description = "a test command",
                         .aliases = std::move(aliases),
@@ -69,18 +68,15 @@ TEST_CASE("a duplicate name or alias is refused", "[commands]") {
     commands.add(std::make_unique<spy_command>(basic("ping", {"p"})));
 
     SECTION("same name") {
-        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("ping"))),
-                          registry_error);
+        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("ping"))), registry_error);
     }
 
     SECTION("alias collides with an existing name") {
-        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("status", {"ping"}))),
-                          registry_error);
+        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("status", {"ping"}))), registry_error);
     }
 
     SECTION("alias collides with an existing alias") {
-        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("status", {"p"}))),
-                          registry_error);
+        REQUIRE_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("status", {"p"}))), registry_error);
     }
 
     SECTION("a refused command leaves the registry untouched") {

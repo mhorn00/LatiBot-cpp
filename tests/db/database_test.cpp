@@ -173,8 +173,7 @@ TEST_CASE("concurrent writers are serialized by the connection lock", "[db][thre
     for (int t = 0; t < thread_count; ++t) {
         writers.emplace_back([&db, t] {
             for (int i = 0; i < per_thread; ++i) {
-                db.prepare("INSERT INTO things (name) VALUES (?)",
-                           "t" + std::to_string(t) + "-" + std::to_string(i))
+                db.prepare("INSERT INTO things (name) VALUES (?)", "t" + std::to_string(t) + "-" + std::to_string(i))
                     .run();
             }
         });

@@ -57,8 +57,7 @@ public:
 
     /// Builds the registration payload under `name`, which may be an alias.
     /// Commands with options override this and add them.
-    [[nodiscard]] virtual dpp::slashcommand build(const std::string& name,
-                                                  dpp::snowflake application_id) const;
+    [[nodiscard]] virtual dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const;
 
     virtual dpp::task<void> execute(const dpp::slashcommand_t& event) = 0;
 };

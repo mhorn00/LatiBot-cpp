@@ -69,8 +69,7 @@ void database::execute(std::string_view sql) {
 
     char* error_message = nullptr;
     const std::string statement_text(sql);
-    const int result =
-        sqlite3_exec(handle_, statement_text.c_str(), nullptr, nullptr, &error_message);
+    const int result = sqlite3_exec(handle_, statement_text.c_str(), nullptr, nullptr, &error_message);
     if (result != SQLITE_OK) {
         std::string message = "cannot execute SQL: ";
         message += error_message != nullptr ? error_message : sqlite3_errstr(result);
@@ -84,8 +83,7 @@ statement database::prepare(std::string_view sql) {
     std::unique_lock guard(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
-    const int result =
-        sqlite3_prepare_v2(handle_, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr);
+    const int result = sqlite3_prepare_v2(handle_, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr);
     if (result != SQLITE_OK) {
         throw db_error(result, describe(handle_, result, "cannot prepare statement"));
     }

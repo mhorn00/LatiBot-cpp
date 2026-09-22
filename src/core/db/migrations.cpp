@@ -40,9 +40,8 @@ int migrate(database& db, std::span<const migration> migrations) {
             continue;
         }
         if (step.version != version + 1) {
-            throw db_error(SQLITE_ERROR, "migration " + std::to_string(step.version) + " (" +
-                                             std::string(step.name) + ") does not follow version " +
-                                             std::to_string(version));
+            throw db_error(SQLITE_ERROR, "migration " + std::to_string(step.version) + " (" + std::string(step.name) +
+                                             ") does not follow version " + std::to_string(version));
         }
 
         transaction tx(db);
