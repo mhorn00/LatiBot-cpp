@@ -41,6 +41,10 @@ private:
     void register_commands();
     void register_events();
 
+    /// Warns about anything the bot cannot do in this guild. Never fatal: a
+    /// missing permission disables one feature, not the bot (plan v4 §7).
+    void check_permissions(const dpp::guild& guild) const;
+
     config::bootstrap settings_;
     db::database database_;
     config::guild_settings guild_settings_;

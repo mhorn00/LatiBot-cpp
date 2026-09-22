@@ -1,6 +1,7 @@
 #include "core/bot.hpp"
 
 #include "core/commands/basic.hpp"
+#include "core/commands/preflight.hpp"
 #include "core/db/migrations.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
@@ -89,6 +90,35 @@ void bot::register_events() {
         cluster_.global_bulk_command_create(commands_.build_all(cluster_.me.id));
         util::log().info("registered {} commands", commands_.size());
     });
+
+    // Guilds arrive as guild_create after the gateway connects, including the
+    // ones the bot was already in, so this covers both cases plan v4 §7 asks
+    // for without a separate sweep on ready.
+    cluster_.on_guild_create(
+        [this](const dpp::guild_create_t& event) { check_permissions(event.created); });
+}
+
+void bot::check_permissions(const dpp::guild& guild) const {
+    const auto self = guild.members.find(cluster_.me.id);
+    if (self == guild.members.end()) {
+        // Without GUILD_MEMBERS the bot's own member object may be absent.
+        // Say so once rather than reporting every permission as missing.
+        util::log().debug("no member record for the bot in {}; skipping the permission check",
+                          guild.name);
+        return;
+    }
+
+    std::vector<commands::requirement> required;
+    const auto passive = commands::passive_requirements();
+    required.assign(passive.begin(), passive.end());
+    required.push_back({.permissions = commands_.required_bot_permissions(),
+                        .purpose = "the registered commands"});
+
+    const std::uint64_t granted = guild.base_permissions(self->second);
+    for (const commands::gap& missing : commands::unmet(required, granted)) {
+        util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id.str(),
+                         commands::describe_permissions(missing.permissions), missing.purpose);
+    }
 }
 
 void bot::run() {

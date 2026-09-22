@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-75 test cases across 7 components, including 32 sections.
+80 test cases across 7 components, including 33 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 21 | 3 |
 | [config](#config) | 17 | 14 |
-| [commands](#commands) | 14 | 14 |
+| [commands](#commands) | 19 | 15 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 6 | 0 |
@@ -81,6 +81,11 @@ Command framework (`src/core/commands`)
 | say replies only when given a message id |  | 5 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
 | status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:97](../../tests/unit/basic_commands_test.cpp#L97) |
 | a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:113](../../tests/unit/basic_commands_test.cpp#L113) |
+| only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
+| a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
+| administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
+| a requirement of nothing is always met |  |  | [tests/unit/preflight_test.cpp:49](../../tests/unit/preflight_test.cpp#L49) |
+| permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
 | commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
 | a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
 | an empty name is refused |  |  | [tests/unit/registry_test.cpp:97](../../tests/unit/registry_test.cpp#L97) |
