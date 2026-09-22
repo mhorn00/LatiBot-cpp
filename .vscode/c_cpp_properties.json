@@ -1,0 +1,45 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "LatiBot",
+
+      // The real source of flags. Once CMake Tools has configured the project
+      // it hands cpptools the exact include paths, defines and compiler for
+      // every file, and everything below is ignored.
+      //
+      // It only answers after a configure has run, which needs a configure
+      // preset to be selected once: the status bar, or "CMake: Select
+      // Configure Preset" -> msvc. Until then the fallback below applies.
+      "configurationProvider": "ms-vscode.cmake-tools",
+
+      // Fallback, for before that first configure. Our own headers and DPP's
+      // come from the tree; the rest are Conan packages, whose paths are a
+      // content hash of the package, so they can only be matched by glob.
+      //
+      // The cache can hold several builds of the same package, and a glob
+      // cannot tell which one this project links. If a header looks like the
+      // wrong version, that is this list rather than the build: configure
+      // with CMake Tools and it stops being used.
+      "includePath": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/tests",
+        "${workspaceFolder}/third_party/DPP/include",
+        "${env:USERPROFILE}/.conan2/p/*/p/include/**",
+        "${env:USERPROFILE}/.conan2/p/b/*/p/include/**"
+      ],
+
+      "defines": ["WIN32", "_WINDOWS"],
+
+      // No compilerPath on purpose. The build tools are not on PATH, so a
+      // bare "cl.exe" would not resolve, and an absolute path would carry the
+      // MSVC toolset version and break on the next update or on a machine
+      // with VS 2022. cpptools finds the installed compiler on its own, and
+      // once CMake Tools has configured, it supplies the exact one the build
+      // uses.
+      "cStandard": "c17",
+      "cppStandard": "c++20",
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ]
+}

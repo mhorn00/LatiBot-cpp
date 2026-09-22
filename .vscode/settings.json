@@ -64,6 +64,19 @@
   "files.associations": {
     "*.hpp": "cpp"
   },
-  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-  "cmake.configureOnOpen": false
+
+  // IntelliSense flags come from CMake Tools, which only supplies them once
+  // it has configured the project, so it has to configure on open. Without
+  // this the editor has no include paths at all and every #include is an
+  // error, while the command line builds perfectly.
+  //
+  // It configures with a preset, which has to be selected once per machine:
+  // the status bar, or "CMake: Select Configure Preset" -> msvc. build/ is
+  // already configured, so the reconfigure takes about a second.
+  "cmake.configureOnOpen": true,
+  "cmake.useCMakePresets": "always"
+
+  // C_Cpp.default.configurationProvider used to live here. It only applies
+  // when there is no .vscode/c_cpp_properties.json, and there is one now, so
+  // the provider is declared there instead.
 }

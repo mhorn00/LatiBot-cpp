@@ -124,6 +124,20 @@ Binaries land in `build\bin\Debug\` and `build\bin\Release\`. A post-build step
 copies `dpp.dll` and the other runtime DLLs next to `LatiBot.exe`, so it runs
 without extra `PATH` setup.
 
+## 6. In VS Code
+
+Install the recommended extensions when prompted (`.vscode/extensions.json`),
+then **select a configure preset once**: the CMake status bar, or
+`CMake: Select Configure Preset` → **msvc**.
+
+That selection is what makes IntelliSense work. CMake Tools supplies cpptools
+the include paths, defines and compiler for every file, and it only does so
+after it has configured, so before the first selection every `#include` is
+underlined in red while the command line builds perfectly.
+`.vscode/c_cpp_properties.json` has a fallback for that gap, but it cannot
+tell which build of a Conan package this project links, so it is a stopgap
+rather than the answer.
+
 ## Running
 
 The bot reads its token from the `DISCORD_BOT_TOKEN` environment variable:
@@ -173,7 +187,6 @@ from the test presets.
 | `asan` | our targets with `/fsanitize=address` (needs the ASan component) |
 | `fuzz` | libFuzzer targets in `tests/fuzz` (needs the ASan component) |
 | `ninja-tidy` | generates `compile_commands.json` for clang-tidy |
-| `ci` | same as `msvc` but lets CMake pick the installed Visual Studio; used by GitHub Actions, whose image ships VS 2026 |
 
 ```powershell
 # AddressSanitizer
