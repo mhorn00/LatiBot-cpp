@@ -177,15 +177,52 @@ reason logic lives behind ports rather than inside event handlers.
 
 ## VS Code setup
 
-`.vscode/settings.json` configures the
+`.vscode/settings.json` points the
 [TestMate C++](https://marketplace.visualstudio.com/items?itemName=matepek.vscode-catch2-test-adapter)
-extension to group the suite by component tag and then by source file, so the
-Testing sidebar reflects the same structure as the catalog instead of one flat
-list of 67 entries.
+extension at `build/bin/Debug/latibot_tests.exe` and groups it the way the
+catalog is grouped:
 
-If the tree looks wrong after adding a component tag, add it to the `tags`
-array in that file — TestMate only groups the tags it is told about, and
-anything else lands under **other**.
+```
+LatiBot tests           build/bin/Debug/
+  [db]
+    tests/db/backup_test.cpp
+      a backup is a complete, valid copy
+      ...
+```
+
+One top-level node, so a single run button covers all 67 tests.
+
+Three things are worth knowing before editing that file:
+
+- **`tags` is an array of tag *combinations*.** Each entry is itself an array,
+  and the tags are written **without brackets** — `["db"]`, not `"[db]"`.
+  TestMate's setting has no schema, so a flat list of bracketed strings is
+  accepted by the editor, ignored by the extension, and the only symptom is
+  that tag grouping silently does not happen. `tagFormat` puts the brackets
+  back for display.
+- **`groupUngroupedTo` belongs inside `groupByTags`**, not beside it. A test
+  with no recognised component tag then lands under *other (missing a
+  component tag)*, the visible counterpart of the check in
+  `tools/Update-TestCatalog.ps1`.
+- **A new component tag means editing three things**: the test, the `tags`
+  array in `.vscode/settings.json`, and the table above plus the generator.
+
+**Running a test builds it first.** `runTask.before` runs the *Build tests
+(Debug)* task from `.vscode/tasks.json`, which costs about a second when
+nothing has changed. Without it the sidebar re-runs whichever binary happened
+to be built last, and edited code appears to have no effect.
+
+**Only the Debug build is in the tree.** TestMate runs a binary; it does not
+pick a configuration. Listing both would put two copies of every test in the
+tree, whose tags and results drift apart as soon as one config is rebuilt and
+the other is not. Release and ASan go through `ctest --preset release` and
+`ctest --preset asan`. Widen `pattern` to `build/bin/*/latibot_tests.exe` if
+you would rather have them in the sidebar.
+
+**A run looks instantaneous because it is.** All 67 tests take about 0.2 s.
+To confirm a run really happened, uncomment `testMate.cpp.log.logpanel` in
+`.vscode/settings.json`: the *C++ TestMate* output channel then logs every
+command it spawns and the Catch2 XML it parses back.
 
 ---
 

@@ -1,36 +1,62 @@
 {
-  // TestMate C++ groups the Catch2 suite by component tag, then by source
-  // file, so the Testing sidebar matches docs/testing/Test_Catalog.md instead
-  // of listing every test flat. Add new component tags to "tags" below and to
-  // tools/Update-TestCatalog.ps1 together.
+  // TestMate C++ drives the Testing sidebar for this project. Everything sits
+  // under one top-level node so a single run button covers the whole suite,
+  // then component tag, then source file, matching docs/testing/Test_Catalog.md.
+  //
+  // Two things about "tags" are easy to get wrong, and TestMate only mentions
+  // them in its log (the setting has no schema, so the editor will not flag
+  // them): the list is an array of tag *combinations*, so each entry is itself
+  // an array, and tags are written without their brackets. A flat list of
+  // "[db]"-style strings is ignored outright and no tag grouping happens.
   "testMate.cpp.test.advancedExecutables": [
     {
-      "name": "LatiBot tests (${baseFilename})",
-      "description": "${relDirpath}",
-      "pattern": "build/bin/*/latibot_tests.exe",
+      "name": "LatiBot tests",
+      // Debug only, deliberately. TestMate runs a binary, it does not choose a
+      // configuration, so listing build/bin/*/ would put a second copy of every
+      // test in the tree whose tags and results drift whenever one config is
+      // rebuilt and the other is not. Release and ASan go through their ctest
+      // presets; widen this pattern if you would rather have them here.
+      "pattern": "build/bin/Debug/latibot_tests.exe",
       "cwd": "${absDirpath}",
+      // Say so loudly if the binary is missing, instead of showing an empty tree.
+      "strictPattern": true,
+      // Without this, running a test re-runs whatever was built last, which
+      // looks exactly like the tests not running at all.
+      "runTask": {
+        "before": ["Build tests (Debug)"]
+      },
       "catch2": {
         "testGrouping": {
-          "groupByTags": {
-            "tags": [
-              "[db]",
-              "[config]",
-              "[commands]",
-              "[discord]",
-              "[ports]",
-              "[log]",
-              "[util]"
-            ],
-            "label": "${tag}",
-            "groupBySource": {
-              "label": "${sourceRelPath}"
+          "groupByExecutable": {
+            "label": "LatiBot tests",
+            "description": "${relDirpath}${osPathSep}",
+            "groupByTags": {
+              "tags": [
+                ["db"],
+                ["config"],
+                ["commands"],
+                ["discord"],
+                ["ports"],
+                ["log"],
+                ["util"]
+              ],
+              "tagFormat": "[${tag}]",
+              "groupUngroupedTo": "other (missing a component tag)",
+              "groupBySource": {
+                "label": "${sourceRelPath}"
+              }
             }
-          },
-          "groupUngroupedTo": "other (missing a component tag)"
+          }
         }
       }
     }
   ],
+
+  // Uncomment to get a "C++ TestMate" output channel listing every command it
+  // spawns and the raw Catch2 XML it parses. The suite runs in about a fifth
+  // of a second, so a run looks instantaneous; this is how to confirm one
+  // actually happened.
+  // "testMate.cpp.log.logpanel": true,
 
   // The suite is fast; discovering on every build keeps the tree honest.
   "testMate.cpp.discovery.gracePeriodForMissing": 10,

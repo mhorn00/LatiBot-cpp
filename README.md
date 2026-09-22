@@ -142,8 +142,9 @@ CTest:
 ctest --preset debug      # or: ctest --test-dir build -C Debug --output-on-failure
 ```
 
-In VS Code, the CMake Tools extension lists every test case individually in the
-**Testing** sidebar.
+In VS Code, the TestMate C++ extension puts the whole suite under one node in
+the **Testing** sidebar, grouped by component tag and then by source file, and
+rebuilds the Debug tests before running them.
 
 [docs/testing/](docs/testing/README.md) covers the strategy, the tag
 conventions and the VS Code setup;
