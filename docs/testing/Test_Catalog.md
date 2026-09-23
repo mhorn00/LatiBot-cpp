@@ -5,12 +5,12 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-133 test cases across 9 components, including 46 sections.
+134 test cases across 9 components, including 47 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 31 | 4 |
-| [config](#config) | 17 | 14 |
+| [config](#config) | 18 | 15 |
 | [commands](#commands) | 29 | 20 |
 | [events](#events) | 22 | 7 |
 | [ui](#ui) | 11 | 0 |
@@ -63,15 +63,16 @@ Configuration (`src/core/config`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| an unset key falls back to the caller's default |  |  | [tests/db/guild_settings_test.cpp:27](../../tests/db/guild_settings_test.cpp#L27) |
-| values survive a set and get round trip |  |  | [tests/db/guild_settings_test.cpp:37](../../tests/db/guild_settings_test.cpp#L37) |
-| setting a key again replaces the value |  |  | [tests/db/guild_settings_test.cpp:51](../../tests/db/guild_settings_test.cpp#L51) |
-| guilds do not see each other's settings |  |  | [tests/db/guild_settings_test.cpp:61](../../tests/db/guild_settings_test.cpp#L61) |
-| erase removes a key and reports whether it existed |  |  | [tests/db/guild_settings_test.cpp:70](../../tests/db/guild_settings_test.cpp#L70) |
-| a value that cannot be parsed falls back instead of throwing |  |  | [tests/db/guild_settings_test.cpp:80](../../tests/db/guild_settings_test.cpp#L80) |
-| booleans accept the usual spellings |  |  | [tests/db/guild_settings_test.cpp:93](../../tests/db/guild_settings_test.cpp#L93) |
-| partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:106](../../tests/db/guild_settings_test.cpp#L106) |
-| all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:116](../../tests/db/guild_settings_test.cpp#L116) |
+| an unset key falls back to the caller's default |  |  | [tests/db/guild_settings_test.cpp:28](../../tests/db/guild_settings_test.cpp#L28) |
+| values survive a set and get round trip |  |  | [tests/db/guild_settings_test.cpp:38](../../tests/db/guild_settings_test.cpp#L38) |
+| setting a key again replaces the value |  |  | [tests/db/guild_settings_test.cpp:52](../../tests/db/guild_settings_test.cpp#L52) |
+| guilds do not see each other's settings |  |  | [tests/db/guild_settings_test.cpp:62](../../tests/db/guild_settings_test.cpp#L62) |
+| erase removes a key and reports whether it existed |  |  | [tests/db/guild_settings_test.cpp:71](../../tests/db/guild_settings_test.cpp#L71) |
+| a value that cannot be parsed falls back instead of throwing |  |  | [tests/db/guild_settings_test.cpp:81](../../tests/db/guild_settings_test.cpp#L81) |
+| booleans accept the usual spellings |  |  | [tests/db/guild_settings_test.cpp:94](../../tests/db/guild_settings_test.cpp#L94) |
+| partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:107](../../tests/db/guild_settings_test.cpp#L107) |
+| all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:117](../../tests/db/guild_settings_test.cpp#L117) |
+| the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:130](../../tests/db/guild_settings_test.cpp#L130) |
 | an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:45](../../tests/unit/bootstrap_test.cpp#L45) |
 | a missing config file is not an error | `fs` |  | [tests/unit/bootstrap_test.cpp:57](../../tests/unit/bootstrap_test.cpp#L57) |
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:63](../../tests/unit/bootstrap_test.cpp#L63) |

@@ -71,7 +71,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
 }
 
 void bot::register_commands() {
-    commands::add_basic_commands(commands_, cluster_, clock_, [this] { cluster_.shutdown(); });
+    commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::trigger_command>(triggers_));
 }
 
@@ -187,6 +187,12 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     } else if (state->view == commands::trigger_confirm_view) {
         triggers_.remove(id, guild);
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
+    } else if (state->view == commands::trigger_toggle_view) {
+        if (auto entry = triggers_.find(id, guild)) {
+            entry->enabled = !entry->enabled;
+            triggers_.update(*entry);
+        }
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
     } else if (state->view == commands::trigger_add_view) {
         event.dialog(commands::trigger_form(state->page, nullptr));
     } else if (state->view == commands::trigger_edit_view) {

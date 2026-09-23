@@ -147,6 +147,28 @@ $env:DISCORD_BOT_TOKEN = "your-token-here"
 .\build\bin\Release\LatiBot.exe
 ```
 
+### What it does so far
+
+The port follows [docs/porting/Porting_Plan_Stage2_v4.md](docs/porting/Porting_Plan_Stage2_v4.md).
+Phase 1 is done: the framework, and enough features to prove it works.
+
+| Command | What it does |
+|---|---|
+| `/ping` | round trip and gateway latency |
+| `/say` | post as the bot, optionally as a reply |
+| `/status` | set the bot's presence |
+| `/join`, `/leave` | voice channel, following you or a named user |
+| `/shutdown` | stop the bot |
+| `/goodbye` | show, change or turn off the phrase that stops the bot |
+| `/trigger` | `add`, `edit`, `remove`, `list`, `panel` |
+
+Passively: an administrator saying the goodbye phrase stops the bot, trigger
+patterns get weighted replies with a per-channel cooldown, and missing
+permissions are reported per guild at startup as warnings rather than errors.
+
+Still to come: nickname tracking and midnight (phase 2), URL replacement and
+link statistics (phase 3), DECtalk speech (phase 4), the LLM (phase 5).
+
 ## Testing
 
 Unit tests use [Catch2 v3](https://github.com/catchorg/Catch2) and run through

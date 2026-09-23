@@ -60,6 +60,7 @@ inline constexpr std::string_view trigger_delete_view = "trigdel";
 inline constexpr std::string_view trigger_confirm_view = "trigyes";
 inline constexpr std::string_view trigger_add_view = "trigadd";
 inline constexpr std::string_view trigger_form_view = "trigform";
+inline constexpr std::string_view trigger_toggle_view = "trigonoff";
 
 /// What the edit and add modals collect. Everything is free text, because a
 /// modal has no other kind of input.

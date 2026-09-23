@@ -7,6 +7,7 @@
 #include <dpp/dispatcher.h>
 #include <dpp/permissions.h>
 
+#include <algorithm>
 #include <charconv>
 #include <format>
 #include <string_view>
@@ -390,31 +391,42 @@ std::optional<dpp::component> pick_menu(std::span<const events::trigger> page_of
 ///
 /// Confirming happens in the panel itself rather than in a second message, so
 /// there is nothing left behind if it is ignored (plan v4 §9.5).
-std::optional<dpp::component> selection_row(int page, std::int64_t selected, bool confirming_delete) {
+std::optional<dpp::component> selection_row(std::span<const events::trigger> page_of, int page, std::int64_t selected,
+                                            bool confirming_delete) {
     if (selected == 0) {
         return std::nullopt;
     }
 
     const std::string chosen = std::to_string(selected);
-    const auto left = ui::encode({.view = std::string(confirming_delete ? trigger_confirm_view : trigger_edit_view),
-                                  .page = page,
-                                  .argument = chosen});
-    const auto right = confirming_delete
-                           ? ui::encode({.view = std::string(trigger_panel_view), .page = page, .argument = {}})
-                           : ui::encode({.view = std::string(trigger_delete_view), .page = page, .argument = chosen});
-    if (!left || !right) {
+    dpp::component row;
+    row.set_type(dpp::cot_action_row);
+
+    if (confirming_delete) {
+        const auto yes = ui::encode({.view = std::string(trigger_confirm_view), .page = page, .argument = chosen});
+        const auto no = ui::encode({.view = std::string(trigger_panel_view), .page = page, .argument = {}});
+        if (!yes || !no) {
+            return std::nullopt;
+        }
+        row.add_component(button(dpp::cos_danger, std::format("Delete {}", chosen), *yes));
+        row.add_component(button(dpp::cos_secondary, "Cancel", *no));
+        return row;
+    }
+
+    const auto edit = ui::encode({.view = std::string(trigger_edit_view), .page = page, .argument = chosen});
+    const auto del = ui::encode({.view = std::string(trigger_delete_view), .page = page, .argument = chosen});
+    const auto toggle = ui::encode({.view = std::string(trigger_toggle_view), .page = page, .argument = chosen});
+    if (!edit || !del || !toggle) {
         return std::nullopt;
     }
 
-    dpp::component row;
-    row.set_type(dpp::cot_action_row);
-    if (confirming_delete) {
-        row.add_component(button(dpp::cos_danger, std::format("Delete {}", chosen), *left));
-        row.add_component(button(dpp::cos_secondary, "Cancel", *right));
-    } else {
-        row.add_component(button(dpp::cos_primary, "Edit", *left));
-        row.add_component(button(dpp::cos_danger, "Delete", *right));
-    }
+    // The label says what pressing it does, which means reading the trigger's
+    // current state rather than showing a fixed word.
+    const auto found = std::ranges::find(page_of, selected, &events::trigger::id);
+    const bool currently_on = found == page_of.end() || found->enabled;
+
+    row.add_component(button(dpp::cos_primary, "Edit", *edit));
+    row.add_component(button(dpp::cos_secondary, currently_on ? "Disable" : "Enable", *toggle));
+    row.add_component(button(dpp::cos_danger, "Delete", *del));
     return row;
 }
 
@@ -465,7 +477,7 @@ dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowf
     if (const auto menu = pick_menu(page_of, current, selected)) {
         reply.add_component(*menu);
     }
-    if (const auto row = selection_row(current, selected, confirming_delete)) {
+    if (const auto row = selection_row(page_of, current, selected, confirming_delete)) {
         reply.add_component(*row);
     }
     if (const auto footer = footer_row(current, all.size())) {

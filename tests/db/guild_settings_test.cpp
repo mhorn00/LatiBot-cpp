@@ -2,6 +2,7 @@
 
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
+#include "core/events/goodbye.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -124,4 +125,28 @@ TEST_CASE("all() lists everything set for one guild", "[config]") {
     REQUIRE(listed.size() == 2);
     CHECK(listed.at("a_key") == "1");
     CHECK(listed.at("b_key") == "2");
+}
+
+TEST_CASE("the goodbye phrase can be set, read back and turned off", "[config]") {
+    // /goodbye stores through guild_settings, and the pipeline stage reads
+    // the same key, so this pins the contract between them (plan v4 §6).
+    settings_fixture fixture;
+    constexpr dpp::snowflake guild{4242};
+
+    const std::string key(latibot::events::goodbye_phrase_key);
+
+    CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase) ==
+          latibot::events::default_goodbye_phrase);
+
+    fixture.settings.set(guild, key, "time for bed");
+    CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase) == "time for bed");
+
+    SECTION("an empty phrase is stored rather than erased") {
+        // Erasing would fall back to the default on the next read, which is
+        // the opposite of what turning it off should do.
+        fixture.settings.set(guild, key, "");
+        CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase).empty());
+        CHECK_FALSE(latibot::events::is_goodbye(
+            "say goodbye latibot", fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase)));
+    }
 }

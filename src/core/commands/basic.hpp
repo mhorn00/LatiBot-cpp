@@ -18,6 +18,10 @@ namespace latibot::ports {
 class clock;
 }
 
+namespace latibot::config {
+class guild_settings;
+}
+
 namespace latibot::commands {
 
 // --------------------------------------------------------------------------
@@ -168,8 +172,25 @@ private:
     std::function<void()> request_shutdown_;
 };
 
+/// Shows or changes the phrase that stops the bot (plan v4 §6).
+///
+/// Separate from `/shutdown` because it edits a setting rather than acting on
+/// it, and because the phrase is per guild while `/shutdown` is not.
+class goodbye_command final : public command {
+public:
+    explicit goodbye_command(config::guild_settings& settings);
+
+    [[nodiscard]] const command_info& info() const override { return info_; }
+    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
+    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+
+private:
+    command_info info_;
+    config::guild_settings* settings_;
+};
+
 /// Adds all of the above to `registry`.
-void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock,
+void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
                         std::function<void()> request_shutdown);
 
 } // namespace latibot::commands

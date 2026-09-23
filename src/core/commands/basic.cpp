@@ -1,5 +1,7 @@
 #include "core/commands/basic.hpp"
 
+#include "core/config/guild_settings.hpp"
+#include "core/events/goodbye.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -370,7 +372,55 @@ dpp::task<void> shutdown_command::execute(const dpp::slashcommand_t& event) {
 
 // --------------------------------------------------------------------------
 
-void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock,
+// --------------------------------------------------------------------------
+// /goodbye
+// --------------------------------------------------------------------------
+
+goodbye_command::goodbye_command(config::guild_settings& settings)
+    : info_{.name = "goodbye",
+            .description = "Show or change the phrase that stops the bot.",
+            .aliases = {},
+            .required_bot_permissions = 0,
+            .default_member_permissions = dpp::permission(dpp::p_administrator),
+            .guild_only = true},
+      settings_(&settings) {}
+
+dpp::slashcommand goodbye_command::build(const std::string& name, dpp::snowflake application_id) const {
+    dpp::slashcommand payload = command::build(name, application_id);
+    payload.add_option(
+        dpp::command_option(dpp::co_string, "phrase", "The new phrase.", false).set_min_length(1).set_max_length(200));
+    payload.add_option(dpp::command_option(dpp::co_boolean, "off", "Turn the phrase off entirely.", false));
+    return payload;
+}
+
+dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    const dpp::command_value off = event.get_parameter("off");
+    if (const auto* disable = std::get_if<bool>(&off); disable != nullptr && *disable) {
+        // Stored empty rather than erased, so the guild keeps saying "off"
+        // instead of falling back to the default on the next restart.
+        settings_->set(guild, events::goodbye_phrase_key, "");
+        co_await event.co_reply(ack("the goodbye phrase is off; set one to turn it back on"));
+        co_return;
+    }
+
+    const std::string wanted = std::string(util::trim(string_option(event, "phrase")));
+    if (wanted.empty()) {
+        const std::string current = settings_->get(guild, events::goodbye_phrase_key, events::default_goodbye_phrase);
+        co_await event.co_reply(ack(current.empty()
+                                        ? "the goodbye phrase is off"
+                                        : std::format("an administrator saying \"{}\" stops the bot", current)));
+        co_return;
+    }
+
+    settings_->set(guild, events::goodbye_phrase_key, wanted);
+    co_await event.co_reply(ack(std::format("an administrator saying \"{}\" now stops the bot", wanted)));
+}
+
+// --------------------------------------------------------------------------
+
+void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
                         std::function<void()> request_shutdown) {
     into.add(std::make_unique<ping_command>(clock));
     into.add(std::make_unique<say_command>(cluster));
@@ -378,6 +428,7 @@ void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clo
     into.add(std::make_unique<join_command>());
     into.add(std::make_unique<leave_command>());
     into.add(std::make_unique<shutdown_command>(std::move(request_shutdown)));
+    into.add(std::make_unique<goodbye_command>(settings));
 }
 
 } // namespace latibot::commands
