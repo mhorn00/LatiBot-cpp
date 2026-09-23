@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+
+  // F5 builds the bot and runs it under the debugger. Breakpoints in our code
+  // work; DPP's own threads show up too, so a breakpoint in an event handler
+  // stops on a gateway thread rather than the main one.
+  "configurations": [
+    {
+      "name": "Run the bot (Debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/bin/Debug/LatiBot.exe",
+      "args": [],
+
+      // The bot resolves .env, config.json and data/ relative to the working
+      // directory, so this has to be the repo root. It also means a run from
+      // here and a run from the terminal behave identically.
+      "cwd": "${workspaceFolder}",
+
+      // Deliberately no "envFile": the bot reads .env itself, so pointing
+      // VS Code at it as well would mean two loaders that could disagree.
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build bot (Debug)"
+    },
+    {
+      "name": "Run the bot (Release)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/bin/Release/LatiBot.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build bot (Release)"
+    }
+  ]
+}
