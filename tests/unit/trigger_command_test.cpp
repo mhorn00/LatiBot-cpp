@@ -182,3 +182,12 @@ TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
         }
     }
 }
+
+TEST_CASE("a trigger that answers bots says so when described", "[commands]") {
+    latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
+
+    CHECK(describe(entry).find("answers bots") == std::string::npos);
+
+    entry.respond_to_bots = true;
+    CHECK(describe(entry).find("answers bots") != std::string::npos);
+}

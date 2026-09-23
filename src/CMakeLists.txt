@@ -9,12 +9,14 @@ add_library(latibot_core STATIC
     core/db/migrations.cpp
     core/db/statement.cpp
     core/commands/basic.cpp
+    core/commands/bots.cpp
     core/commands/trigger.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
     core/discord/raw_api.cpp
+    core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/message_pipeline.cpp
     core/events/triggers.cpp

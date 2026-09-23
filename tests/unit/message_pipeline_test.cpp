@@ -80,9 +80,9 @@ TEST_CASE("a stage that consumes the message stops the ones after it", "[events]
     CHECK(sent(actions) == std::vector<std::string>{"first", "second"});
 }
 
-TEST_CASE("the bot never answers itself or another bot", "[events]") {
-    // Answering our own message is a loop, and bot-to-bot is opt-in and does
-    // not arrive until the LLM phase.
+TEST_CASE("the bot never answers itself, or a bot this guild has not allowed", "[events]") {
+    // Answering our own message is a loop with no exit, and answering an
+    // arbitrary bot is the same loop with two participants (plan v4 §5.4).
     std::vector<std::string> ran;
     pipeline stages;
     stages.add("only", recorder(ran, "only", false, true));
@@ -93,13 +93,38 @@ TEST_CASE("the bot never answers itself or another bot", "[events]") {
         CHECK(stages.run(message).empty());
     }
 
-    SECTION("another bot") {
+    SECTION("a bot nobody allowed") {
         auto message = from_human();
         message.from_bot = true;
         CHECK(stages.run(message).empty());
     }
 
+    SECTION("our own message, even if we somehow allowed ourselves") {
+        // from_self is checked first on purpose: an allowlist entry for our
+        // own id must not talk us into answering ourselves.
+        auto message = from_human();
+        message.from_self = true;
+        message.from_bot = true;
+        message.author_is_allowed_bot = true;
+        CHECK(stages.run(message).empty());
+    }
+
     CHECK(ran.empty());
+}
+
+TEST_CASE("an allowed bot reaches the stages", "[events]") {
+    // Being heard is the allowlist's decision; whether to answer is each
+    // stage's own (plan v4 §14.4).
+    std::vector<std::string> ran;
+    pipeline stages;
+    stages.add("only", recorder(ran, "only", false, true));
+
+    auto message = from_human();
+    message.from_bot = true;
+    message.author_is_allowed_bot = true;
+
+    CHECK(sent(stages.run(message)) == std::vector<std::string>{"only"});
+    CHECK(ran == std::vector<std::string>{"only"});
 }
 
 TEST_CASE("a stage that throws is logged and the rest still run", "[events]") {

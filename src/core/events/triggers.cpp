@@ -125,7 +125,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
     std::vector<trigger> found;
     {
         auto query = db_->prepare(
-            "SELECT id, pattern, match_mode, cooldown_s, enabled FROM triggers "
+            "SELECT id, pattern, match_mode, cooldown_s, enabled, respond_to_bots FROM triggers "
             "WHERE guild_id = ? ORDER BY id",
             static_cast<std::uint64_t>(guild_id));
         while (query.step()) {
@@ -136,6 +136,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
             entry.mode = match_mode_from_string(query.get<std::string>(2)).value_or(match_mode::whole_word);
             entry.cooldown = std::chrono::seconds(query.get<std::int64_t>(3));
             entry.enabled = query.get<bool>(4);
+            entry.respond_to_bots = query.get<bool>(5);
             found.push_back(std::move(entry));
         }
     }
@@ -173,9 +174,10 @@ std::int64_t trigger_store::add(const trigger& entry) {
     db::transaction tx(*db_);
 
     db_->prepare(
-           "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) "
-           "VALUES (?, ?, ?, ?, ?)",
-           static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled)
+           "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled, respond_to_bots) "
+           "VALUES (?, ?, ?, ?, ?, ?)",
+           static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled,
+           entry.respond_to_bots)
         .run();
 
     const std::int64_t id = db_->last_insert_rowid();
@@ -190,9 +192,9 @@ bool trigger_store::update(const trigger& entry) {
     db::transaction tx(*db_);
 
     db_->prepare(
-           "UPDATE triggers SET pattern = ?, match_mode = ?, cooldown_s = ?, enabled = ? "
+           "UPDATE triggers SET pattern = ?, match_mode = ?, cooldown_s = ?, enabled = ?, respond_to_bots = ? "
            "WHERE id = ? AND guild_id = ?",
-           entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.id,
+           entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.respond_to_bots, entry.id,
            static_cast<std::uint64_t>(entry.guild_id))
         .run();
 
@@ -255,6 +257,12 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
     const auto now = clock_->steady_now();
     for (const trigger& entry : store_->for_guild(message.guild_id)) {
         if (!entry.enabled || !matches(message.content, entry.pattern, entry.mode)) {
+            continue;
+        }
+
+        // The allowlist decided this bot may be heard; this decides whether
+        // this particular trigger answers it (plan v4 14.4).
+        if (message.from_bot && !entry.respond_to_bots) {
             continue;
         }
 

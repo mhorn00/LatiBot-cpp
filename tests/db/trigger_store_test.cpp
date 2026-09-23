@@ -44,6 +44,15 @@ latibot::events::incoming_message message_saying(std::string content, dpp::snowf
     return {.guild_id = guild, .channel_id = in_channel, .author_id = dpp::snowflake{9}, .content = std::move(content)};
 }
 
+/// A message from a bot this guild has already allowed, so the only question
+/// left is whether the trigger itself answers bots.
+latibot::events::incoming_message message_from_allowed_bot(std::string content) {
+    auto message = message_saying(std::move(content));
+    message.from_bot = true;
+    message.author_is_allowed_bot = true;
+    return message;
+}
+
 } // namespace
 
 TEST_CASE("a trigger survives a round trip with its responses", "[db]") {
@@ -198,4 +207,54 @@ TEST_CASE("two triggers on one message both answer", "[db]") {
     trigger_responder responder(fixture.store, clock, [] { return 0; });
 
     CHECK(responder(message_saying("420 and 69")).actions.size() == 2);
+}
+
+TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[db]") {
+    store_fixture fixture;
+
+    const std::int64_t quiet = fixture.store.add(nice_trigger());
+    REQUIRE(fixture.store.find(quiet, guild).has_value());
+    CHECK_FALSE(fixture.store.find(quiet, guild)->respond_to_bots);
+
+    trigger chatty = nice_trigger();
+    chatty.respond_to_bots = true;
+    const std::int64_t loud = fixture.store.add(chatty);
+    CHECK(fixture.store.find(loud, guild)->respond_to_bots);
+
+    // And it is editable, which is what the panel button does.
+    auto entry = fixture.store.find(loud, guild);
+    entry->respond_to_bots = false;
+    REQUIRE(fixture.store.update(*entry));
+    CHECK_FALSE(fixture.store.find(loud, guild)->respond_to_bots);
+}
+
+TEST_CASE("a trigger only answers an allowed bot when it opts in", "[db]") {
+    // The allowlist got the message this far (plan v4 14.4); this is the
+    // second, per-trigger decision.
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_from_allowed_bot("420")).actions.empty());
+
+    trigger chatty = nice_trigger();
+    chatty.respond_to_bots = true;
+    fixture.store.add(chatty);
+
+    CHECK(responder(message_from_allowed_bot("420")).actions.size() == 1);
+}
+
+TEST_CASE("a trigger that answers bots still answers humans", "[db]") {
+    store_fixture fixture;
+
+    trigger chatty = nice_trigger();
+    chatty.respond_to_bots = true;
+    fixture.store.add(chatty);
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    CHECK(responder(message_saying("420")).actions.size() == 1);
 }

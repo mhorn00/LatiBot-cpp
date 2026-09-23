@@ -12,7 +12,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 2> all_migrations{{
+constexpr std::array<migration, 3> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -43,6 +43,20 @@ constexpr std::array<migration, 2> all_migrations{{
         );
 
         CREATE INDEX trigger_responses_by_trigger ON trigger_responses (trigger_id);
+     )sql"},
+    {.version = 3, .name = "bot_allowlist", .sql = R"sql(
+        -- Which other bots this server lets LatiBot hear (plan v4 5.4, 14.4).
+        -- Empty by default: every bot is ignored until someone says otherwise,
+        -- because two bots answering each other is a loop nobody asked for.
+        CREATE TABLE allowed_bots (
+            guild_id INTEGER NOT NULL,
+            bot_id   INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, bot_id)
+        ) WITHOUT ROWID;
+
+        -- Hearing a bot is not the same as answering it, so each trigger opts
+        -- in separately. Existing triggers keep the old behaviour.
+        ALTER TABLE triggers ADD COLUMN respond_to_bots INTEGER NOT NULL DEFAULT 0;
      )sql"},
 }};
 

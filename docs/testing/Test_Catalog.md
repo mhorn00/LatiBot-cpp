@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-150 test cases across 9 components, including 48 sections.
+160 test cases across 9 components, including 48 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 34 | 4 |
+| [db](#db) | 39 | 4 |
 | [config](#config) | 18 | 15 |
-| [commands](#commands) | 30 | 20 |
+| [commands](#commands) | 35 | 20 |
 | [events](#events) | 23 | 8 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
@@ -32,6 +32,11 @@ Database (`src/core/db`)
 | rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:123](../../tests/db/backup_test.cpp#L123) |
 | rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:145](../../tests/db/backup_test.cpp#L145) |
 | backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:167](../../tests/db/backup_test.cpp#L167) |
+| nothing is allowed until somebody says so |  |  | [tests/db/bot_allowlist_test.cpp:26](../../tests/db/bot_allowlist_test.cpp#L26) |
+| an allowed bot is remembered and can be taken back |  |  | [tests/db/bot_allowlist_test.cpp:35](../../tests/db/bot_allowlist_test.cpp#L35) |
+| allowing and denying report whether anything changed |  |  | [tests/db/bot_allowlist_test.cpp:45](../../tests/db/bot_allowlist_test.cpp#L45) |
+| guilds keep their own allowlists |  |  | [tests/db/bot_allowlist_test.cpp:57](../../tests/db/bot_allowlist_test.cpp#L57) |
+| for_guild lists everything allowed there |  |  | [tests/db/bot_allowlist_test.cpp:68](../../tests/db/bot_allowlist_test.cpp#L68) |
 | opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:41](../../tests/db/database_test.cpp#L41) |
 | values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
 | optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:73](../../tests/db/database_test.cpp#L73) |
@@ -97,6 +102,10 @@ Command framework (`src/core/commands`)
 | say replies only when given a message id |  | 5 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
 | status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:96](../../tests/unit/basic_commands_test.cpp#L96) |
 | a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:112](../../tests/unit/basic_commands_test.cpp#L112) |
+| an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
+| allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
+| a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
+| the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -121,6 +130,7 @@ Command framework (`src/core/commands`)
 | the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:119](../../tests/unit/trigger_command_test.cpp#L119) |
 | the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:134](../../tests/unit/trigger_command_test.cpp#L134) |
 | the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:152](../../tests/unit/trigger_command_test.cpp#L152) |
+| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:186](../../tests/unit/trigger_command_test.cpp#L186) |
 
 ## events
 

@@ -53,6 +53,13 @@ struct trigger {
     std::chrono::seconds cooldown{30};
     bool enabled = true;
 
+    /// Whether this trigger answers messages from other bots.
+    ///
+    /// Off by default, and only reachable at all for bots this guild has
+    /// allowed (plan v4 §14.4): the allowlist decides who is heard, this
+    /// decides who is answered.
+    bool respond_to_bots = false;
+
     std::vector<weighted_response> responses;
 };
 

@@ -634,6 +634,24 @@ channel, a minimum delay between turns, a daily cap, and a human message
 resets the counter. Optionally only when a human started the exchange. Limits
 are per-guild settings to tune after implementation.
 
+**The allowlist itself was built in phase 1, not here.** §5.4 already put
+"ignore self / non-allowlisted bots" at the top of the message pipeline, so
+every feature that reads a message needs it, not just the LLM. It is the
+`allowed_bots` table, `events::bot_allowlist`, and `/bots allow | deny |
+list`.
+
+Hearing and answering are separate decisions, and only the first one is
+shared. The allowlist says which bots reach the pipeline at all; each feature
+then opts in for itself, because a trigger firing on another bot's message is
+a much smaller commitment than an LLM conversation with one. For simple
+triggers that opt-in is `triggers.respond_to_bots`, off by default, set by
+`/trigger add bots:true` or the panel's **Answer bots** button.
+
+What stays in phase 5 is everything above: the turn limits, the delay, the
+daily cap, and the "a human started it" rule. Those exist because an LLM
+exchange is expensive and open-ended. A trigger reply is neither, and its
+cooldown already bounds it.
+
 ### 14.5 Memory, settings and documents
 
 **Short-term:** rolling per-channel window, bounded by message count and an
@@ -867,7 +885,8 @@ and mixer; `/speak`; voice sessions; custom voices and the voice lab;
 **Phase 5 — LLM**
 Provider and tool framework; text replies; guards, spend cap, prompt caching;
 runtime settings; documents; short- then long-term memory; advanced triggers;
-voice-session replies; bot-to-bot.
+voice-session replies; bot-to-bot pacing (the allowlist itself shipped in
+phase 1, see §14.4).
 
 **Later:** music, emote stats, appearance tracking, and possibly the cobalt
 idea.
@@ -907,7 +926,9 @@ state one; each is a setting or a small code change, not a design decision.
 | 11 | Document edit notices | internal log only, no Discord announcement | §14.5 |
 | 12 | Spend caps | $20/month, $2/day | `config.json` |
 | 13 | LLM tool rounds | 4 per reply | `config.json` |
-| 14 | Bot-to-bot | 6 turns, daily cap, human resets | per guild |
+| 14 | Bot-to-bot pacing | 6 turns, daily cap, human resets | per guild |
+| 14a | Bot allowlist | empty: every bot ignored | per guild, `/bots` |
+| 14b | Trigger answers bots | off | per trigger, `/trigger … bots:` |
 | 15 | Embed timeout | ~6 s per attempt, 2 attempts per mirror | per guild |
 | 16 | Simple + advanced trigger on one message | the simple trigger wins | §14.3 |
 

@@ -24,6 +24,11 @@ struct incoming_message {
     bool from_self = false;
     bool from_bot = false;
 
+    /// Whether this guild allows LatiBot to hear this bot (plan v4 §14.4).
+    /// Only meaningful with `from_bot`; resolved by the shell from
+    /// `bot_allowlist`.
+    bool author_is_allowed_bot = false;
+
     /// Whether the author has Administrator in this guild. Resolved by the
     /// shell, since it depends on roles and overwrites.
     bool author_is_administrator = false;
@@ -71,9 +76,10 @@ public:
 
     /// Everything the stages asked for, in order.
     ///
-    /// Messages from the bot itself and from other bots produce nothing: an
-    /// answer to our own message is a loop, and bot-to-bot conversation is
-    /// opt-in and does not arrive until plan v4 §14.4.
+    /// Our own messages produce nothing, and so do other bots' unless this
+    /// guild allows that one (plan v4 §5.4). Reaching the stages is only
+    /// permission to be considered: a stage still decides for itself whether
+    /// it answers a bot.
     [[nodiscard]] std::vector<action> run(const incoming_message& message) const;
 
     [[nodiscard]] std::vector<std::string_view> stage_names() const;

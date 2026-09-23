@@ -1,6 +1,7 @@
 #include "core/bot.hpp"
 
 #include "core/commands/basic.hpp"
+#include "core/commands/bots.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/trigger.hpp"
 #include "core/db/migrations.hpp"
@@ -66,6 +67,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       gateway_(cluster_),
       http_(cluster_),
       raw_(cluster_),
+      bot_allowlist_(database_),
       triggers_(database_),
       trigger_responder_(triggers_, clock_) {
     util::log().set_level(settings_.log_level);
@@ -82,6 +84,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
 void bot::register_commands() {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::trigger_command>(triggers_));
+    commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
 }
 
 void bot::register_stages() {
@@ -198,6 +201,12 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
             triggers_.update(*entry);
         }
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
+    } else if (state->view == commands::trigger_bots_view) {
+        if (auto entry = triggers_.find(id, guild)) {
+            entry->respond_to_bots = !entry->respond_to_bots;
+            triggers_.update(*entry);
+        }
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
     } else if (state->view == commands::trigger_add_view) {
         event.dialog(commands::trigger_form(state->page, nullptr));
     } else if (state->view == commands::trigger_edit_view) {
@@ -257,6 +266,7 @@ events::incoming_message bot::describe(const dpp::message& message) const {
     described.author_id = message.author.id;
     described.from_self = message.author.id == cluster_.me.id;
     described.from_bot = message.author.is_bot();
+    described.author_is_allowed_bot = described.from_bot && bot_allowlist_.contains(message.guild_id, message.author.id);
     described.content = message.content;
 
     // Administrator is a guild-level question, so it needs the guild and the

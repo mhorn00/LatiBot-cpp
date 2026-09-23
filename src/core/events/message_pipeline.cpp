@@ -14,7 +14,9 @@ void pipeline::add(std::string name, stage_fn handler) {
 std::vector<action> pipeline::run(const incoming_message& message) const {
     std::vector<action> actions;
 
-    if (message.from_self || message.from_bot) {
+    // Answering ourselves is a loop with no exit. Answering another bot is one
+    // too, unless this guild has said it wants that (plan v4 §5.4).
+    if (message.from_self || (message.from_bot && !message.author_is_allowed_bot)) {
         return actions;
     }
 

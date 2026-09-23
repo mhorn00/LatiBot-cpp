@@ -111,6 +111,9 @@ std::string describe(const events::trigger& entry) {
     if (!entry.enabled) {
         line += ", disabled";
     }
+    if (entry.respond_to_bots) {
+        line += ", answers bots";
+    }
     line += std::format(") -> {} response{}", entry.responses.size(), entry.responses.size() == 1 ? "" : "s");
     return line;
 }
@@ -168,6 +171,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     add.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 0 for none.", false)
                        .set_min_value(0)
                        .set_max_value(86400));
+    add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change a trigger.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
@@ -176,6 +180,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     edit.add_option(mode);
     edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(86400));
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
+    edit.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete a trigger.");
     remove.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
@@ -226,11 +231,15 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
     const events::match_mode mode = events::match_mode_from_string(mode_text).value_or(events::match_mode::whole_word);
     const auto cooldown = int_option(event, "cooldown");
 
+    const dpp::command_value bots = event.get_parameter("bots");
+    const auto* answer_bots = std::get_if<bool>(&bots);
+
     const std::int64_t id = store_->add({.guild_id = event.command.guild_id,
                                          .pattern = pattern,
                                          .mode = mode,
                                          .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
                                          .enabled = true,
+                                         .respond_to_bots = answer_bots != nullptr && *answer_bots,
                                          .responses = responses});
 
     co_await event.co_reply(ack(
@@ -277,6 +286,11 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
     const dpp::command_value enabled = event.get_parameter("enabled");
     if (const auto* flag = std::get_if<bool>(&enabled)) {
         entry->enabled = *flag;
+    }
+
+    const dpp::command_value bots = event.get_parameter("bots");
+    if (const auto* flag = std::get_if<bool>(&bots)) {
+        entry->respond_to_bots = *flag;
     }
 
     if (!store_->update(*entry)) {
@@ -403,17 +417,22 @@ std::optional<dpp::component> selection_row(std::span<const events::trigger> pag
     const auto edit = ui::encode({.view = std::string(trigger_edit_view), .page = page, .argument = chosen});
     const auto del = ui::encode({.view = std::string(trigger_delete_view), .page = page, .argument = chosen});
     const auto toggle = ui::encode({.view = std::string(trigger_toggle_view), .page = page, .argument = chosen});
-    if (!edit || !del || !toggle) {
+    const auto bots = ui::encode({.view = std::string(trigger_bots_view), .page = page, .argument = chosen});
+    if (!edit || !del || !toggle || !bots) {
         return std::nullopt;
     }
 
-    // The label says what pressing it does, which means reading the trigger's
-    // current state rather than showing a fixed word.
+    // The labels say what pressing them does, which means reading the
+    // trigger's current state rather than showing a fixed word.
     const auto found = std::ranges::find(page_of, selected, &events::trigger::id);
     const bool currently_on = found == page_of.end() || found->enabled;
+    const bool answers_bots = found != page_of.end() && found->respond_to_bots;
 
     row.add_component(button(dpp::cos_primary, "Edit", *edit));
     row.add_component(button(dpp::cos_secondary, currently_on ? "Disable" : "Enable", *toggle));
+    // A modal has room for this as a fifth field, but a yes/no typed into a
+    // text box is a worse answer than a button that already knows the state.
+    row.add_component(button(dpp::cos_secondary, answers_bots ? "Ignore bots" : "Answer bots", *bots));
     row.add_component(button(dpp::cos_danger, "Delete", *del));
     return row;
 }

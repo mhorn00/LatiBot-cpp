@@ -7,6 +7,7 @@
 #include "core/discord/dpp_gateway.hpp"
 #include "core/discord/dpp_http_client.hpp"
 #include "core/discord/raw_api.hpp"
+#include "core/events/bot_allowlist.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/triggers.hpp"
 #include "core/ports/clock.hpp"
@@ -76,6 +77,7 @@ private:
     discord::raw_api raw_;
     ports::system_clock clock_;
 
+    events::bot_allowlist bot_allowlist_;
     events::trigger_store triggers_;
     events::trigger_responder trigger_responder_;
     events::pipeline pipeline_;
