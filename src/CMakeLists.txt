@@ -20,6 +20,7 @@ add_library(latibot_core STATIC
     core/events/triggers.cpp
     core/ports/clock.cpp
     core/ui/paginator.cpp
+    core/util/ca_certificates.cpp
     core/util/env.cpp
     core/util/log.cpp
     core/util/text.cpp
@@ -28,6 +29,12 @@ add_library(latibot_core STATIC
 # Headers are included as "core/<area>/<file>.hpp".
 target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(latibot_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
+
+# crypt32 is the Windows certificate store, read at startup to give OpenSSL
+# the roots it does not ship with (core/util/ca_certificates.cpp).
+if(WIN32)
+    target_link_libraries(latibot_core PRIVATE crypt32)
+endif()
 
 latibot_target_warnings(latibot_core)
 latibot_target_sanitizers(latibot_core)

@@ -1,5 +1,6 @@
 #include "core/bot.hpp"
 #include "core/config/bootstrap.hpp"
+#include "core/util/ca_certificates.hpp"
 #include "core/util/env.hpp"
 #include "core/util/log.hpp"
 
@@ -21,6 +22,11 @@ int main(int argc, char** argv) {
         latibot::util::load_dotenv(".env");
 
         const auto settings = latibot::config::bootstrap::load(config_path);
+
+        // Before anything opens a connection: the OpenSSL we link has no root
+        // certificates of its own, so it needs pointing at the system's.
+        latibot::util::use_system_certificates(settings.database_path.parent_path() / "ca-bundle.pem");
+
         const auto credentials = latibot::config::secrets::from_environment();
 
         latibot::bot bot(settings, credentials);

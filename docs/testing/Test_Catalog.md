@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-143 test cases across 9 components, including 47 sections.
+145 test cases across 9 components, including 47 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -17,7 +17,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 6 | 0 |
-| [util](#util) | 14 | 1 |
+| [util](#util) | 16 | 1 |
 
 ## db
 
@@ -210,6 +210,8 @@ Utilities (`src/core/util`, `src/core/version`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| the system root certificates export as a readable PEM bundle | `fs` |  | [tests/unit/ca_certificates_test.cpp:34](../../tests/unit/ca_certificates_test.cpp#L34) |
+| exporting creates the directory it was given | `fs` |  | [tests/unit/ca_certificates_test.cpp:50](../../tests/unit/ca_certificates_test.cpp#L50) |
 | parse_dotenv reads simple key-value lines |  |  | [tests/unit/env_test.cpp:7](../../tests/unit/env_test.cpp#L7) |
 | parse_dotenv skips blank lines and comments |  |  | [tests/unit/env_test.cpp:15](../../tests/unit/env_test.cpp#L15) |
 | parse_dotenv trims whitespace around key and value |  |  | [tests/unit/env_test.cpp:22](../../tests/unit/env_test.cpp#L22) |

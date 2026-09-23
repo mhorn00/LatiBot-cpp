@@ -154,12 +154,15 @@ or copy [.env.example](.env.example) to `.env` (git-ignored) and fill it in —
 the shell already set. Run it from the repo root so it finds both `.env` and
 `config.json`.
 
-**If REST calls fail with `Malformed HTTP response`:** the Conan-built
-OpenSSL on Windows has no CA bundle of its own (`openssl version -d` points
-at an empty directory), so certificate verification fails before any HTTP
-response is read, and DPP reports the empty response rather than the TLS
-failure. Point `SSL_CERT_FILE` at a PEM bundle — see the commented line in
-`.env.example`, which uses the one Git for Windows already ships.
+In VS Code, **F5** does both: `.vscode/launch.json` builds the executable and
+runs it from the repo root, so the same `.env` applies.
+
+The bot needs the **Message Content** privileged intent, which has to be
+enabled for the application at
+*Discord Developer Portal → your app → Bot → Privileged Gateway Intents*.
+Without it Discord delivers guild messages with an empty `content`, and
+everything that reads a message — the goodbye phrase, the triggers — goes
+quiet while the slash commands keep working.
 
 ### What it does so far
 
@@ -286,10 +289,15 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
 - **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`). DPP only
   auto-detects opus on Windows when it uses its bundled binaries. Configure
   output should include `VOICE support will be enabled`.
-- **Conan's OpenSSL ships no CA bundle**, so a fresh machine hits
-  `Malformed HTTP response` on the first REST call (see [Running](#running)).
-  This is a Windows/OpenSSL packaging gap, not a DPP bug — Schannel-based
-  clients don't need this because they use the OS certificate store instead.
+- **Conan's OpenSSL ships no CA bundle.** Its `OPENSSLDIR` is an empty
+  directory in the package cache, so every TLS handshake fails verification,
+  which DPP reports as `Malformed HTTP response` — the request never gets far
+  enough to have a status. `src/core/util/ca_certificates.cpp` fixes this at
+  startup by exporting the Windows root store to `data/ca-bundle.pem` and
+  setting `SSL_CERT_FILE`, which is what OpenSSL's default verify paths read.
+  The roots therefore stay whatever Windows Update says they are, and nothing
+  has to be vendored or installed alongside. Set `SSL_CERT_FILE` yourself to
+  override it.
 - **`WITH_OPENSSL3` on the `hpke` target:** DPP hardcodes `OPENSSL_VERSION` to
   1.1.1f on Windows, which makes its `mlspp` dependency pick an OpenSSL 1.1
   code path that doesn't compile against OpenSSL 3. Recheck this when

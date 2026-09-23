@@ -15,6 +15,11 @@ namespace latibot::util {
 /// is returned as an empty string, which callers should treat as unset.
 [[nodiscard]] std::optional<std::string> env_var(const char* name);
 
+/// Sets an environment variable for this process, replacing any current
+/// value. Only useful for variables read by a library we cannot configure
+/// directly, which is why `SSL_CERT_FILE` exists (see ca_certificates.hpp).
+void set_env_var(const std::string& name, const std::string& value);
+
 /// Parses `.env`-style text: one `KEY=VALUE` per line, an optional leading
 /// `export `, and surrounding quotes stripped from the value. Blank lines,
 /// lines starting with `#`, and lines with no `=` are skipped rather than

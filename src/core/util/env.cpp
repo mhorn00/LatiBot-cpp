@@ -23,14 +23,6 @@ std::string_view unquote(std::string_view value) {
     return value;
 }
 
-void set_env_var(const std::string& name, const std::string& value) {
-#ifdef _MSC_VER
-    _putenv_s(name.c_str(), value.c_str());
-#else
-    setenv(name.c_str(), value.c_str(), /*overwrite=*/0);
-#endif
-}
-
 } // namespace
 
 std::optional<std::string> env_var(const char* name) {
@@ -50,6 +42,14 @@ std::optional<std::string> env_var(const char* name) {
         return std::nullopt;
     }
     return std::string(value);
+#endif
+}
+
+void set_env_var(const std::string& name, const std::string& value) {
+#ifdef _MSC_VER
+    _putenv_s(name.c_str(), value.c_str());
+#else
+    setenv(name.c_str(), value.c_str(), /*overwrite=*/1);
 #endif
 }
 
