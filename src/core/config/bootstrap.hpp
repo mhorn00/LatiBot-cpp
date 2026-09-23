@@ -26,7 +26,9 @@ public:
 /// Everything guild-specific lives in the database instead, because it is
 /// edited at runtime through commands and panels.
 struct bootstrap {
-    util::log_level log_level = util::log_level::info;
+    /// Debug builds start at `debug`, release builds at `info`. `config.json`
+    /// overrides that, and `LATIBOT_LOG_LEVEL` overrides both (see `load`).
+    util::log_level log_level = util::default_log_level;
 
     std::filesystem::path database_path{"data/bot.db"};
     std::filesystem::path backup_directory{"data/backups"};
@@ -57,6 +59,13 @@ struct bootstrap {
     /// Whether this user may use the host-touching DECtalk commands here.
     [[nodiscard]] bool is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const;
 };
+
+/// The level `LATIBOT_LOG_LEVEL` asks for, or nothing when it is unset.
+///
+/// Separate from `bootstrap::load` so the level can be applied before the
+/// configuration is read, which is the only way loading it is itself logged at
+/// the level that was asked for. Throws `config_error` naming the valid levels.
+[[nodiscard]] std::optional<util::log_level> log_level_from_environment();
 
 /// Credentials. These only ever come from the environment, never from a file
 /// that could be committed (plan v4 §5.1).

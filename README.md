@@ -164,6 +164,39 @@ Without it Discord delivers guild messages with an empty `content`, and
 everything that reads a message — the goodbye phrase, the triggers — goes
 quiet while the slash commands keep working.
 
+### Logging
+
+Lines go to **stderr**, one per message, timestamped first so they stay
+greppable and sort chronologically:
+
+```
+2026-09-23T18:01:34Z [info] latios (42) ran /trigger add pattern="420" in guild 999
+```
+
+The level is whichever of these is set, last one winning:
+
+| | Level | |
+|---|---|---|
+| Build default | `debug` in a Debug build, `info` in Release | nothing to configure |
+| `config.json` | `"log_level": "debug"` | `trace`, `debug`, `info`, `warn`, `error`, `off` |
+| Environment | `LATIBOT_LOG_LEVEL=debug` | also works from `.env`; overrides the file |
+
+`LATIBOT_LOG_LEVEL` is the one to reach for while the bot is running badly,
+since it needs no file edit and applies before the configuration is even read.
+
+**What each level is for.** `info` is the running record: every command with
+who ran it and what they passed, every reply the bot posts by itself, startup,
+shutdown, schema changes and guilds joined. `debug` adds why — which stage
+wanted what, which trigger matched and why it stayed quiet, what a panel button
+decoded to, how long a command took. `trace` adds the content of every message
+the bot sees, and DPP's own gateway chatter.
+
+To keep the output to one file:
+
+```powershell
+.\build\bin\Release\LatiBot.exe 2> latibot.log
+```
+
 ### What it does so far
 
 Phase 1 is done: the framework, and enough features to prove it works.

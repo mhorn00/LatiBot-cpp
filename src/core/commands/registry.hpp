@@ -5,6 +5,7 @@
 #include <dpp/dispatcher.h>
 #include <dpp/permissions.h>
 #include <dpp/snowflake.h>
+#include <dpp/user.h>
 
 #include <cstdint>
 #include <map>
@@ -40,6 +41,18 @@ struct command_info {
     std::optional<dpp::permission> default_member_permissions;
     bool guild_only = true;
 };
+
+/// One line naming what a command was asked to do: the subcommand path, then
+/// each option as `name=value`.
+///
+/// For the log, so it has to stay one line and stay bounded — newlines are
+/// escaped and long values are cut with their full length noted, otherwise a
+/// single 2000-character `/say` would bury everything around it.
+[[nodiscard]] std::string describe_invocation(const dpp::command_interaction& interaction);
+
+/// Who ran something, as `name (id)`. Names are not unique and ids are not
+/// readable, so the log carries both.
+[[nodiscard]] std::string describe_user(const dpp::user& who);
 
 /// One slash command.
 ///

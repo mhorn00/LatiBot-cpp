@@ -3,6 +3,7 @@
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"
 #include "core/ports/clock.hpp"
+#include "core/util/log.hpp"
 
 #include <algorithm>
 #include <array>
@@ -256,13 +257,22 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
 
     const auto now = clock_->steady_now();
     for (const trigger& entry : store_->for_guild(message.guild_id)) {
-        if (!entry.enabled || !matches(message.content, entry.pattern, entry.mode)) {
+        if (!matches(message.content, entry.pattern, entry.mode)) {
+            continue;
+        }
+
+        // Past this point the pattern matched, so every way out is a reason
+        // the bot stayed quiet — which is the question being asked whenever
+        // somebody reports that a trigger "stopped working".
+        if (!entry.enabled) {
+            util::log().debug("trigger {} matched but is disabled", entry.id);
             continue;
         }
 
         // The allowlist decided this bot may be heard; this decides whether
         // this particular trigger answers it (plan v4 14.4).
         if (message.from_bot && !entry.respond_to_bots) {
+            util::log().debug("trigger {} matched a bot's message but does not answer bots", entry.id);
             continue;
         }
 
@@ -270,14 +280,19 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
         const auto seen = last_fired_.find(key);
         const auto last = seen == last_fired_.end() ? std::nullopt : std::optional<std::chrono::steady_clock::time_point>(seen->second);
         if (!off_cooldown(last, now, entry.cooldown)) {
+            const auto waited = std::chrono::duration_cast<std::chrono::seconds>(now - *last);
+            util::log().debug("trigger {} matched but is on cooldown in channel {}: {}s of {}s", entry.id, message.channel_id.str(),
+                              waited.count(), entry.cooldown.count());
             continue;
         }
 
         const weighted_response* reply = choose(entry.responses, roll_());
         if (reply == nullptr) {
+            util::log().debug("trigger {} matched but has no response worth picking", entry.id);
             continue;
         }
 
+        util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id.str());
         last_fired_[key] = now;
         result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = reply->text});
     }

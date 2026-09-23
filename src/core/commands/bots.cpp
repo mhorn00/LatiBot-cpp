@@ -1,5 +1,7 @@
 #include "core/commands/bots.hpp"
 
+#include "core/util/log.hpp"
+
 #include <dpp/cluster.h>
 #include <dpp/dispatcher.h>
 #include <dpp/permissions.h>
@@ -119,6 +121,10 @@ dpp::task<void> bots_command::allow(const dpp::slashcommand_t& event) {
     }
 
     const bool added = allowlist_->allow(event.command.guild_id, chosen->id);
+    if (added) {
+        util::log().info("guild {} now hears bot {} ({}), allowed by {}", event.command.guild_id.str(), chosen->name, chosen->id.str(),
+                         describe_user(event.command.get_issuing_user()));
+    }
     co_await event.co_reply(
         ack(added ? std::format("ok, i'll listen to {} now", chosen->name) : std::format("i was already listening to {}", chosen->name)));
 }
@@ -131,6 +137,10 @@ dpp::task<void> bots_command::deny(const dpp::slashcommand_t& event) {
     }
 
     const bool removed = allowlist_->deny(event.command.guild_id, chosen->id);
+    if (removed) {
+        util::log().info("guild {} no longer hears bot {} ({}), denied by {}", event.command.guild_id.str(), chosen->name, chosen->id.str(),
+                         describe_user(event.command.get_issuing_user()));
+    }
     co_await event.co_reply(ack(removed ? std::format("ok, back to ignoring {}", chosen->name)
                                         : std::format("i was not listening to {} anyway", chosen->name)));
 }

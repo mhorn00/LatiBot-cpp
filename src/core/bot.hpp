@@ -65,6 +65,12 @@ private:
     /// Modal submissions.
     void on_form(const dpp::form_submit_t& event);
 
+    /// Applies one change to a trigger from the panel and logs what happened.
+    /// `change` returns the past-tense verb for the log, so the two toggles
+    /// differ only in the field they flip.
+    void toggle_trigger(std::int64_t id, dpp::snowflake guild, std::string_view who,
+                        const std::function<std::string_view(events::trigger&)>& change);
+
     config::bootstrap settings_;
     db::database database_;
     config::guild_settings guild_settings_;

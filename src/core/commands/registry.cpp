@@ -2,10 +2,101 @@
 
 #include "core/util/log.hpp"
 
+#include <chrono>
 #include <exception>
+#include <format>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace latibot::commands {
+namespace {
+
+/// How much of one option's text the log keeps. Long enough to recognise what
+/// was typed, short enough that a full-length `/say` stays one readable line.
+constexpr std::size_t value_limit = 120;
+
+void append_text(std::string& out, const std::string& text) {
+    out.push_back('"');
+
+    const bool truncated = text.size() > value_limit;
+    for (const char letter : truncated ? std::string_view(text).substr(0, value_limit) : std::string_view(text)) {
+        // The logger promises one line per message, and a pasted multi-line
+        // response would otherwise break every tool that relies on it.
+        switch (letter) {
+        case '\n':
+            out += "\\n";
+            break;
+        case '\r':
+            out += "\\r";
+            break;
+        case '"':
+            out += "\\\"";
+            break;
+        default:
+            out.push_back(letter);
+        }
+    }
+
+    out.push_back('"');
+    if (truncated) {
+        out += std::format("…({} chars)", text.size());
+    }
+}
+
+void append_value(std::string& out, const dpp::command_value& value) {
+    std::visit(
+        [&out](const auto& held) {
+            using held_type = std::decay_t<decltype(held)>;
+
+            if constexpr (std::is_same_v<held_type, std::monostate>) {
+                out += "<unset>";
+            } else if constexpr (std::is_same_v<held_type, std::string>) {
+                append_text(out, held);
+            } else if constexpr (std::is_same_v<held_type, bool>) {
+                out += held ? "true" : "false";
+            } else if constexpr (std::is_same_v<held_type, dpp::snowflake>) {
+                out += held.str();
+            } else {
+                out += std::format("{}", held);
+            }
+        },
+        value);
+}
+
+// Recursive, but Discord's own schema bounds the depth: a command holds a
+// subcommand group, which holds a subcommand, which holds plain options. Three
+// levels, enforced at registration by Discord itself.
+// NOLINTNEXTLINE(misc-no-recursion)
+void append_options(std::string& out, const std::vector<dpp::command_data_option>& options) {
+    for (const dpp::command_data_option& option : options) {
+        // A subcommand is not an argument, it is part of the command's name,
+        // so it reads as "/trigger add pattern=…" rather than "add=…".
+        if (option.type == dpp::co_sub_command || option.type == dpp::co_sub_command_group) {
+            out.push_back(' ');
+            out += option.name;
+            append_options(out, option.options);
+            continue;
+        }
+
+        out.push_back(' ');
+        out += option.name;
+        out.push_back('=');
+        append_value(out, option.value);
+    }
+}
+
+} // namespace
+
+std::string describe_invocation(const dpp::command_interaction& interaction) {
+    std::string line = "/" + interaction.name;
+    append_options(line, interaction.options);
+    return line;
+}
+
+std::string describe_user(const dpp::user& who) {
+    return std::format("{} ({})", who.username, who.id.str());
+}
 
 dpp::slashcommand command::build(const std::string& name, dpp::snowflake application_id) const {
     const command_info& details = info();
@@ -69,19 +160,35 @@ std::uint64_t registry::required_bot_permissions() const {
 }
 
 dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& event) const {
+    // Logged before the command runs, so an invocation that hangs or crashes
+    // the process still leaves a record of what was asked.
+    const std::string who = describe_user(event.command.get_issuing_user());
+    const std::string what = describe_invocation(event.command.get_command_interaction());
+    const dpp::snowflake guild = event.command.guild_id;
+
+    util::log().info("{} ran {} in {}", who, what, guild.empty() ? std::string("a DM") : "guild " + guild.str());
+
     command* target = find(name);
     if (target == nullptr) {
+        // Not an error: Discord can still deliver a command that was removed
+        // from the code but not yet from the guild.
         util::log().warn("no command registered for \"{}\"", name);
         co_return;
     }
 
+    const auto started = std::chrono::steady_clock::now();
     try {
         co_await target->execute(event);
     } catch (const std::exception& error) {
-        util::log().error("command \"{}\" threw: {}", name, error.what());
+        util::log().error("{} threw: {}", what, error.what());
+        co_return;
     } catch (...) {
-        util::log().error("command \"{}\" threw an unknown exception", name);
+        util::log().error("{} threw an unknown exception", what);
+        co_return;
     }
+
+    const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
+    util::log().debug("{} finished in {} ms", what, took.count());
 }
 
 } // namespace latibot::commands

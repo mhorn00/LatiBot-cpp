@@ -21,7 +21,17 @@ int main(int argc, char** argv) {
         // populated from this file first).
         latibot::util::load_dotenv(".env");
 
+        // Before the configuration is read, so that reading it is itself
+        // logged at the level asked for.
+        if (const auto wanted = latibot::config::log_level_from_environment()) {
+            latibot::util::log().set_level(*wanted);
+        }
+
         const auto settings = latibot::config::bootstrap::load(config_path);
+
+        // Applied here rather than only in the bot, so that everything below
+        // this line is logged at the level the operator asked for.
+        latibot::util::log().set_level(settings.log_level);
 
         // Before anything opens a connection: the OpenSSL we link has no root
         // certificates of its own, so it needs pointing at the system's.

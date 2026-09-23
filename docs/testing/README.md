@@ -124,6 +124,13 @@ TEST_CASE("a coroutine feature runs against the Discord mock", "[ports][coro]") 
 that deadlocks a coroutine then fails the test in two seconds instead of
 hanging the suite forever.
 
+**The suite runs with logging off.** A Debug build defaults to the `debug`
+level, which would otherwise put every migration, stage decision and trigger
+match into the test output. `tests/support/quiet_log.cpp` registers a Catch2
+listener that silences the logger for the run; a test that wants to assert on
+log output uses `testing::capture_log`, which sets its own level and restores
+this one afterwards.
+
 **Golden tests** (from Phase 4) will compare DECtalk output against a stored
 hash and sample count, and write the `.wav` next to it so a difference can be
 listened to rather than guessed at.

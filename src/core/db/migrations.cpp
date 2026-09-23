@@ -2,6 +2,7 @@
 
 #include "core/db/database.hpp"
 #include "core/db/error.hpp"
+#include "core/util/log.hpp"
 
 #include <sqlite3.h>
 
@@ -86,6 +87,9 @@ int migrate(database& db, std::span<const migration> migrations) {
         db.set_user_version(step.version);
         tx.commit();
 
+        // Info, not debug: a schema change is the one startup event worth
+        // seeing in a log that was not turned up beforehand.
+        util::log().info("applied migration {} ({})", step.version, step.name);
         version = step.version;
     }
 

@@ -127,9 +127,19 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
 }
 
 TEST_CASE("the log level is read from the config", "[config]") {
-    CHECK(bootstrap::from_json("{}").log_level == latibot::util::log_level::info);
+    // With nothing configured the build decides: a debug build is being
+    // diagnosed, a release build is being used by other people.
+    CHECK(bootstrap::from_json("{}").log_level == latibot::util::default_log_level);
     CHECK(bootstrap::from_json(R"({"log_level": "debug"})").log_level == latibot::util::log_level::debug);
     CHECK(bootstrap::from_json(R"({"log_level": "WARN"})").log_level == latibot::util::log_level::warn);
+}
+
+TEST_CASE("the build's default log level matches the build", "[config]") {
+#ifdef NDEBUG
+    CHECK(latibot::util::default_log_level == latibot::util::log_level::info);
+#else
+    CHECK(latibot::util::default_log_level == latibot::util::log_level::debug);
+#endif
 }
 
 TEST_CASE("trust needs a listed user, or an admin in a listed server", "[config]") {

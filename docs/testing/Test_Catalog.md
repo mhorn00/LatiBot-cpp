@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-161 test cases across 9 components, including 48 sections.
+172 test cases across 9 components, including 48 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 40 | 4 |
-| [config](#config) | 18 | 15 |
-| [commands](#commands) | 35 | 20 |
+| [config](#config) | 19 | 15 |
+| [commands](#commands) | 45 | 20 |
 | [events](#events) | 23 | 8 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
@@ -88,8 +88,9 @@ Configuration (`src/core/config`)
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:92](../../tests/unit/bootstrap_test.cpp#L92) |
 | bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:99](../../tests/unit/bootstrap_test.cpp#L99) |
 | the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:135](../../tests/unit/bootstrap_test.cpp#L135) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:169](../../tests/unit/bootstrap_test.cpp#L169) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:137](../../tests/unit/bootstrap_test.cpp#L137) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:145](../../tests/unit/bootstrap_test.cpp#L145) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:179](../../tests/unit/bootstrap_test.cpp#L179) |
 
 ## commands
 
@@ -107,6 +108,16 @@ Command framework (`src/core/commands`)
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
 | the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
+| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:28](../../tests/unit/command_log_test.cpp#L28) |
+| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:32](../../tests/unit/command_log_test.cpp#L32) |
+| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:39](../../tests/unit/command_log_test.cpp#L39) |
+| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:51](../../tests/unit/command_log_test.cpp#L51) |
+| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:66](../../tests/unit/command_log_test.cpp#L66) |
+| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:73](../../tests/unit/command_log_test.cpp#L73) |
+| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:86](../../tests/unit/command_log_test.cpp#L86) |
+| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:93](../../tests/unit/command_log_test.cpp#L93) |
+| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:105](../../tests/unit/command_log_test.cpp#L105) |
+| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:112](../../tests/unit/command_log_test.cpp#L112) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |

@@ -13,6 +13,18 @@ namespace latibot::util {
 
 enum class log_level : std::uint8_t { trace, debug, info, warn, error, off };
 
+/// What a build logs when nothing says otherwise.
+///
+/// A debug build exists to be diagnosed, so it starts at `debug`; a release
+/// build is running for other people, so it starts at `info`. `config.json`
+/// and `LATIBOT_LOG_LEVEL` both override this (see `config::bootstrap::load`).
+inline constexpr log_level default_log_level =
+#ifdef NDEBUG
+    log_level::info;
+#else
+    log_level::debug;
+#endif
+
 [[nodiscard]] std::string_view to_string(log_level level) noexcept;
 
 /// Parses a level name from the config file. Case-insensitive; returns
@@ -27,7 +39,7 @@ class logger {
 public:
     using sink_fn = std::function<void(log_level, std::string_view)>;
 
-    explicit logger(log_level minimum = log_level::info);
+    explicit logger(log_level minimum = default_log_level);
 
     logger(const logger&) = delete;
     logger& operator=(const logger&) = delete;

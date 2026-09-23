@@ -119,16 +119,42 @@ bootstrap bootstrap::from_json(std::string_view text) {
 }
 
 bootstrap bootstrap::load(const std::filesystem::path& path) {
+    bootstrap config;
+
     const std::ifstream file(path);
-    if (!file) {
+    if (file) {
+        std::ostringstream contents;
+        contents << file.rdbuf();
+        config = from_json(contents.str());
+        util::log().debug("read configuration from {}", std::filesystem::absolute(path).generic_string());
+    } else {
         // A missing config file is fine: every value has a default, and the
         // only thing the bot truly needs is the token from the environment.
-        return {};
+        // Worth a line all the same, since "my setting did nothing" is usually
+        // a file the bot never found.
+        util::log().debug("no configuration file at {}; using defaults", std::filesystem::absolute(path).generic_string());
     }
 
-    std::ostringstream contents;
-    contents << file.rdbuf();
-    return from_json(contents.str());
+    // Last word goes to the environment, so the level can be raised for one
+    // run without editing a file the bot is about to read again.
+    if (const auto wanted = log_level_from_environment()) {
+        config.log_level = *wanted;
+    }
+
+    return config;
+}
+
+std::optional<util::log_level> log_level_from_environment() {
+    const auto wanted = util::env_var("LATIBOT_LOG_LEVEL");
+    if (!wanted || wanted->empty()) {
+        return std::nullopt;
+    }
+
+    const auto level = util::log_level_from_string(*wanted);
+    if (!level) {
+        throw config_error("LATIBOT_LOG_LEVEL is \"" + *wanted + "\", expected: trace, debug, info, warn, error, off");
+    }
+    return level;
 }
 
 bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const {

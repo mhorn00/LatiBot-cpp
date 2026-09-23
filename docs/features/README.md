@@ -368,6 +368,14 @@ matters before then.
 **Commands are registered globally** when the bot starts, once per run. Discord
 can take a little while to show changes to a command's options.
 
+**Everything is logged.** Every command records who ran it, what they passed
+and what it did; so does every button and form in a panel, every message the
+bot posts on its own, and each start, stop and schema change. Turning the level
+up to `debug` adds the reasoning — which trigger matched, why one stayed quiet,
+what a cooldown had left to run. Nothing is posted to Discord; it all goes to
+the bot's own log. See [Logging](../../README.md#logging) for how to set the
+level.
+
 **The bot needs the Message Content intent**, enabled for the application in the
 Discord developer portal. Without it every message arrives empty: slash commands
 keep working while the goodbye phrase and every trigger silently do nothing.

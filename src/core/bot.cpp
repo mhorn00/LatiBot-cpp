@@ -72,13 +72,27 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       trigger_responder_(triggers_, clock_) {
     util::log().set_level(settings_.log_level);
 
+    util::log().info("LatiBot {} starting", version_string());
+    util::log().debug("log level {}; {} trusted guild(s), {} trusted user(s)", util::to_string(settings_.log_level),
+                      settings_.trusted_guilds.size(), settings_.trusted_users.size());
+
+    // After the line above, so that any migration it applies is logged under a
+    // heading rather than before the bot has said it is starting.
     const int version = db::migrate(database_);
-    util::log().info("LatiBot {} starting; database {} at schema version {}", version_string(), settings_.database_path.generic_string(),
-                     version);
+    util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
 
     register_commands();
     register_stages();
     register_events();
+
+    std::string stages;
+    for (const std::string_view name : pipeline_.stage_names()) {
+        if (!stages.empty()) {
+            stages += " -> ";
+        }
+        stages += name;
+    }
+    util::log().debug("{} commands registered; message stages: {}", commands_.size(), stages);
 }
 
 void bot::register_commands() {
@@ -103,8 +117,13 @@ void bot::register_events() {
         co_await commands_.dispatch(event.command.get_command_name(), event);
     });
 
-    cluster_.on_ready([this](const dpp::ready_t&) {
+    cluster_.on_ready([this](const dpp::ready_t& event) {
+        util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id.str());
+
         if (!dpp::run_once<struct register_bot_commands>()) {
+            // on_ready fires again after a reconnect; the commands are global
+            // and already registered, so this is the normal path, not a fault.
+            util::log().debug("reconnected (session {}); commands already registered", event.session_id);
             return;
         }
 
@@ -115,20 +134,32 @@ void bot::register_events() {
             return;
         }
 
-        cluster_.global_bulk_command_create(commands_.build_all(cluster_.me.id));
-        util::log().info("registered {} commands", commands_.size());
+        const std::vector<dpp::slashcommand> payloads = commands_.build_all(cluster_.me.id);
+        cluster_.global_bulk_command_create(payloads);
+
+        util::log().info("registering {} commands with Discord", payloads.size());
+        for (const dpp::slashcommand& payload : payloads) {
+            util::log().debug("  /{}: {}", payload.name, payload.description);
+        }
     });
 
     // Guilds arrive as guild_create after the gateway connects, including the
     // ones the bot was already in, so this covers both cases plan v4 §7 asks
     // for without a separate sweep on ready.
     cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
-        check_permissions(event.created);
+        const dpp::guild& guild = event.created;
+        util::log().info("in guild {} ({})", guild.name, guild.id.str());
 
-        const int seeded = triggers_.seed_defaults(event.created.id);
+        check_permissions(guild);
+
+        const int seeded = triggers_.seed_defaults(guild.id);
         if (seeded > 0) {
-            util::log().info("{}: seeded {} default triggers", event.created.name, seeded);
+            util::log().info("{}: seeded {} default triggers", guild.name, seeded);
         }
+
+        util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\"", guild.name, triggers_.for_guild(guild.id).size(),
+                          bot_allowlist_.for_guild(guild.id).size(),
+                          guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase));
     });
 
     cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
@@ -167,14 +198,36 @@ std::string field_of(const dpp::form_submit_t& event, std::string_view name) {
 
 } // namespace
 
+void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, std::string_view who,
+                         const std::function<std::string_view(events::trigger&)>& change) {
+    auto entry = triggers_.find(id, guild);
+    if (!entry) {
+        // Deleted from another client while this panel was open. The caller
+        // re-renders either way, which is what puts the panel back in step.
+        util::log().debug("panel asked to change trigger {}, which is no longer in guild {}", id, guild.str());
+        return;
+    }
+
+    const std::string_view became = change(*entry);
+    triggers_.update(*entry);
+    util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild.str(), became, who);
+}
+
 void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) {
     const auto state = ui::decode(custom_id);
     if (!state) {
+        // Someone else's component, or one of ours from a build that encoded
+        // them differently. Ignoring it is right; saying so is how you find out.
+        util::log().debug("ignoring a component with an unrecognised id \"{}\"", custom_id);
         return;
     }
 
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = chosen.empty() ? argument_id(*state) : 0;
+
+    const std::string who = commands::describe_user(event.command.get_issuing_user());
+    util::log().debug("{} used panel {} page {} argument \"{}\"{} in guild {}", who, state->view, state->page, state->argument,
+                      chosen.empty() ? std::string{} : std::format(" chose \"{}\"", chosen), guild.str());
 
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
@@ -193,19 +246,20 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     } else if (state->view == commands::trigger_delete_view) {
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
     } else if (state->view == commands::trigger_confirm_view) {
+        util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild.str(), who);
         triggers_.remove(id, guild);
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
     } else if (state->view == commands::trigger_toggle_view) {
-        if (auto entry = triggers_.find(id, guild)) {
-            entry->enabled = !entry->enabled;
-            triggers_.update(*entry);
-        }
+        toggle_trigger(id, guild, who, [](events::trigger& entry) {
+            entry.enabled = !entry.enabled;
+            return entry.enabled ? "enabled" : "disabled";
+        });
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
     } else if (state->view == commands::trigger_bots_view) {
-        if (auto entry = triggers_.find(id, guild)) {
-            entry->respond_to_bots = !entry->respond_to_bots;
-            triggers_.update(*entry);
-        }
+        toggle_trigger(id, guild, who, [](events::trigger& entry) {
+            entry.respond_to_bots = !entry.respond_to_bots;
+            return entry.respond_to_bots ? "set to answer bots" : "set to ignore bots";
+        });
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
     } else if (state->view == commands::trigger_add_view) {
         event.dialog(commands::trigger_form(state->page, nullptr));
@@ -222,11 +276,13 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
 void bot::on_form(const dpp::form_submit_t& event) {
     const auto state = ui::decode(event.custom_id);
     if (!state || state->view != commands::trigger_form_view) {
+        util::log().debug("ignoring a modal submission with an unrecognised id \"{}\"", event.custom_id);
         return;
     }
 
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = argument_id(*state);
+    const std::string who = commands::describe_user(event.command.get_issuing_user());
 
     // Zero means add. Anything else has to still exist: somebody could have
     // deleted it from another client while the modal was open.
@@ -249,6 +305,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
                                        .cooldown = field_of(event, "cooldown")};
 
     if (const auto problem = commands::apply_form(entry, fields)) {
+        util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild.str(), *problem);
         dpp::message complaint(*problem);
         complaint.set_flags(dpp::m_ephemeral);
         event.reply(complaint);
@@ -256,6 +313,8 @@ void bot::on_form(const dpp::form_submit_t& event) {
     }
 
     const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
+    util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild.str(), who,
+                     commands::describe(entry));
     event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, saved));
 }
 
@@ -294,6 +353,7 @@ void bot::carry_out(const std::vector<events::action>& actions) {
                     // jokes and acknowledgements, not things to be pinged for.
                     reply.set_flags(dpp::m_suppress_notifications);
                     cluster_.message_create(reply);
+                    util::log().info("replied in channel {}: \"{}\"", step.channel_id.str(), step.content);
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
                     // Detached, so the pause does not block DPP's event
@@ -324,14 +384,25 @@ void bot::check_permissions(const dpp::guild& guild) const {
     required.push_back({.permissions = commands_.required_bot_permissions(), .purpose = "the registered commands"});
 
     const std::uint64_t granted = guild.base_permissions(self->second);
-    for (const commands::gap& missing : commands::unmet(required, granted)) {
+    const std::vector<commands::gap> gaps = commands::unmet(required, granted);
+    for (const commands::gap& missing : gaps) {
         util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id.str(), commands::describe_permissions(missing.permissions),
                          missing.purpose);
+    }
+
+    if (gaps.empty()) {
+        util::log().debug("{}: every permission the bot needs is granted", guild.name);
     }
 }
 
 void bot::run() {
+    util::log().info("connecting to Discord");
     cluster_.start(dpp::st_wait);
+
+    // start() returns once the cluster has stopped, so this is the last thing
+    // the bot says: a log that ends here stopped on purpose, and one that ends
+    // anywhere else did not.
+    util::log().info("disconnected; LatiBot has stopped");
 }
 
 } // namespace latibot
