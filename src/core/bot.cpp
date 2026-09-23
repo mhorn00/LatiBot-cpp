@@ -53,7 +53,16 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     : settings_(std::move(settings)),
       database_(prepare(settings_.database_path)),
       guild_settings_(database_),
-      cluster_(credentials.discord_token),
+      // i_message_content is privileged and must also be enabled in the
+      // Discord developer portal. Without it every guild message arrives with
+      // an empty `content`, which silently disables the whole pipeline: the
+      // goodbye phrase and the triggers both read it (plan v4 §5.4).
+      //
+      // i_guild_members is deliberately not requested. The only thing that
+      // needs a member is the administrator check, and Discord sends a partial
+      // member with each guild message, which DPP caches before the handler
+      // runs.
+      cluster_(credentials.discord_token, dpp::i_default_intents | dpp::i_message_content),
       gateway_(cluster_),
       http_(cluster_),
       raw_(cluster_),
