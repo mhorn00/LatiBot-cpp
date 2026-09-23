@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-145 test cases across 9 components, including 47 sections.
+150 test cases across 9 components, including 48 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 31 | 4 |
+| [db](#db) | 34 | 4 |
 | [config](#config) | 18 | 15 |
-| [commands](#commands) | 29 | 20 |
-| [events](#events) | 22 | 7 |
+| [commands](#commands) | 30 | 20 |
+| [events](#events) | 23 | 8 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -46,16 +46,19 @@ Database (`src/core/db`)
 | a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:73](../../tests/db/migrations_test.cpp#L73) |
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:90](../../tests/db/migrations_test.cpp#L90) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:103](../../tests/db/migrations_test.cpp#L103) |
-| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:49](../../tests/db/trigger_store_test.cpp#L49) |
-| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:68](../../tests/db/trigger_store_test.cpp#L68) |
-| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:85](../../tests/db/trigger_store_test.cpp#L85) |
-| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:101](../../tests/db/trigger_store_test.cpp#L101) |
-| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:113](../../tests/db/trigger_store_test.cpp#L113) |
-| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:124](../../tests/db/trigger_store_test.cpp#L124) |
-| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:146](../../tests/db/trigger_store_test.cpp#L146) |
-| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:163](../../tests/db/trigger_store_test.cpp#L163) |
-| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:176](../../tests/db/trigger_store_test.cpp#L176) |
-| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:188](../../tests/db/trigger_store_test.cpp#L188) |
+| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:58](../../tests/db/trigger_store_test.cpp#L58) |
+| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:77](../../tests/db/trigger_store_test.cpp#L77) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:94](../../tests/db/trigger_store_test.cpp#L94) |
+| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:110](../../tests/db/trigger_store_test.cpp#L110) |
+| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:122](../../tests/db/trigger_store_test.cpp#L122) |
+| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:133](../../tests/db/trigger_store_test.cpp#L133) |
+| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:155](../../tests/db/trigger_store_test.cpp#L155) |
+| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:172](../../tests/db/trigger_store_test.cpp#L172) |
+| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:185](../../tests/db/trigger_store_test.cpp#L185) |
+| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:197](../../tests/db/trigger_store_test.cpp#L197) |
+| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:212](../../tests/db/trigger_store_test.cpp#L212) |
+| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:231](../../tests/db/trigger_store_test.cpp#L231) |
+| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:249](../../tests/db/trigger_store_test.cpp#L249) |
 
 ## config
 
@@ -107,16 +110,17 @@ Command framework (`src/core/commands`)
 | dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:124](../../tests/unit/registry_test.cpp#L124) |
 | an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:140](../../tests/unit/registry_test.cpp#L140) |
 | an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:151](../../tests/unit/registry_test.cpp#L151) |
-| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:14](../../tests/unit/trigger_command_test.cpp#L14) |
-| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:23](../../tests/unit/trigger_command_test.cpp#L23) |
-| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
-| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:44](../../tests/unit/trigger_command_test.cpp#L44) |
-| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:52](../../tests/unit/trigger_command_test.cpp#L52) |
-| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
-| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
-| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:96](../../tests/unit/trigger_command_test.cpp#L96) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:118](../../tests/unit/trigger_command_test.cpp#L118) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:133](../../tests/unit/trigger_command_test.cpp#L133) |
+| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:15](../../tests/unit/trigger_command_test.cpp#L15) |
+| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
+| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:34](../../tests/unit/trigger_command_test.cpp#L34) |
+| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:45](../../tests/unit/trigger_command_test.cpp#L45) |
+| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:53](../../tests/unit/trigger_command_test.cpp#L53) |
+| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:60](../../tests/unit/trigger_command_test.cpp#L60) |
+| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:70](../../tests/unit/trigger_command_test.cpp#L70) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:97](../../tests/unit/trigger_command_test.cpp#L97) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:119](../../tests/unit/trigger_command_test.cpp#L119) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:134](../../tests/unit/trigger_command_test.cpp#L134) |
+| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:152](../../tests/unit/trigger_command_test.cpp#L152) |
 
 ## events
 
@@ -131,9 +135,10 @@ Message pipeline and triggers (`src/core/events`)
 | an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
 | stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:55](../../tests/unit/message_pipeline_test.cpp#L55) |
 | a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:68](../../tests/unit/message_pipeline_test.cpp#L68) |
-| the bot never answers itself or another bot |  | 2 | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:105](../../tests/unit/message_pipeline_test.cpp#L105) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:122](../../tests/unit/message_pipeline_test.cpp#L122) |
+| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
+| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
 | whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
 | a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
 | substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |

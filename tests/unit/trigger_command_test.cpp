@@ -2,6 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -145,5 +146,39 @@ TEST_CASE("the modal refuses a trigger that could not work", "[commands]") {
         const auto problem = apply_form(entry, {.pattern = "69", .responses = "  \n \n"});
         REQUIRE(problem.has_value());
         CHECK(entry.pattern == "420");
+    }
+}
+
+TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
+    // Production caught this one instead of a test: a label of 50 characters
+    // came back as "50035 Invalid Form Body ... data.components[1].label:
+    // Must be between 1 and 45 in length", which is only visible once the
+    // modal is actually opened against the API.
+    using latibot::commands::trigger_form;
+
+    constexpr std::size_t label_limit = 45;
+    constexpr std::size_t id_limit = 100;
+    constexpr std::size_t placeholder_limit = 100;
+
+    latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 3}}};
+
+    const std::array<const latibot::events::trigger*, 2> shapes{nullptr, &existing};
+    for (const latibot::events::trigger* entry : shapes) {
+        const auto form = trigger_form(0, entry);
+
+        CHECK(form.title.size() <= label_limit);
+        CHECK_FALSE(form.title.empty());
+        CHECK(form.custom_id.size() <= id_limit);
+        REQUIRE_FALSE(form.components.empty());
+
+        for (const auto& row : form.components) {
+            for (const dpp::component& input : row) {
+                INFO("label: " << input.label);
+                CHECK_FALSE(input.label.empty());
+                CHECK(input.label.size() <= label_limit);
+                CHECK(input.custom_id.size() <= id_limit);
+                CHECK(input.placeholder.size() <= placeholder_limit);
+            }
+        }
     }
 }

@@ -492,7 +492,11 @@ dpp::interaction_modal_response trigger_form(int page, const events::trigger* en
 
     form.add_row();
     form.add_component(dpp::component()
-                           .set_label("Responses, one per line (\"3 | text\" to weight one)")
+                           // Discord rejects a label over 45 characters with
+                           // 50035, so the weight syntax goes in the
+                           // placeholder, which allows 100.
+                           .set_label("Responses, one per line")
+                           .set_placeholder("nice\n3 | thrice as likely")
                            .set_id("responses")
                            .set_type(dpp::cot_text)
                            .set_text_style(dpp::text_paragraph)
