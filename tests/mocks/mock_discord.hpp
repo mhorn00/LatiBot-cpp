@@ -78,8 +78,7 @@ public:
         co_return std::vector<dpp::message>{};
     }
 
-    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/,
-                                                                      dpp::snowflake /*message_id*/,
+    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake /*message_id*/,
                                                                       std::string /*emoji*/, dpp::snowflake /*after*/,
                                                                       std::uint64_t /*limit*/) override {
         if (!reaction_pages.empty()) {

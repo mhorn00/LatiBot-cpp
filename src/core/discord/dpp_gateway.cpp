@@ -60,12 +60,10 @@ dpp::task<result<std::vector<dpp::message>>> dpp_gateway::get_messages(dpp::snow
     co_return ordered;
 }
 
-dpp::task<result<std::vector<dpp::snowflake>>> dpp_gateway::get_reaction_users(dpp::snowflake channel_id,
-                                                                               dpp::snowflake message_id,
+dpp::task<result<std::vector<dpp::snowflake>>> dpp_gateway::get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id,
                                                                                std::string emoji, dpp::snowflake after,
                                                                                std::uint64_t limit) {
-    const auto confirmation =
-        co_await cluster_->co_message_get_reactions(message_id, channel_id, emoji, /*before=*/0, after, limit);
+    const auto confirmation = co_await cluster_->co_message_get_reactions(message_id, channel_id, emoji, /*before=*/0, after, limit);
     if (confirmation.is_error()) {
         co_return to_error(confirmation);
     }

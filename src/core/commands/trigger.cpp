@@ -71,8 +71,7 @@ std::vector<events::weighted_response> parse_responses(std::string_view text) {
     std::size_t at = 0;
     while (at <= text.size()) {
         const std::size_t newline = text.find('\n', at);
-        std::string_view line =
-            text.substr(at, newline == std::string_view::npos ? std::string_view::npos : newline - at);
+        std::string_view line = text.substr(at, newline == std::string_view::npos ? std::string_view::npos : newline - at);
         at = newline == std::string_view::npos ? text.size() + 1 : newline + 1;
 
         const std::optional<int> weight = leading_weight(line);
@@ -106,8 +105,7 @@ std::string format_responses(std::span<const events::weighted_response> response
 
 std::string describe(const events::trigger& entry) {
     const std::string mode = entry.mode == events::match_mode::substring ? "anywhere" : "whole word";
-    const std::string cooldown =
-        entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s", entry.cooldown.count());
+    const std::string cooldown = entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s", entry.cooldown.count());
 
     std::string line = std::format("`{}` **{}** ({}, {}", entry.id, entry.pattern, mode, cooldown);
     if (!entry.enabled) {
@@ -136,8 +134,7 @@ dpp::message render_trigger_list(const events::trigger_store& store, dpp::snowfl
     dpp::message reply(body);
     reply.set_flags(dpp::m_ephemeral);
 
-    const auto row = ui::controls({.view = std::string(trigger_list_view), .page = current, .argument = {}}, all.size(),
-                                  triggers_per_page);
+    const auto row = ui::controls({.view = std::string(trigger_list_view), .page = current, .argument = {}}, all.size(), triggers_per_page);
     if (row) {
         reply.add_component(*row);
     }
@@ -163,28 +160,21 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
 
     dpp::command_option add(dpp::co_sub_command, "add", "Add a trigger.");
-    add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true)
+    add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true).set_min_length(1).set_max_length(200));
+    add.add_option(dpp::command_option(dpp::co_string, "responses", "One per line. Prefix with \"3 | \" to weight a line.", true)
                        .set_min_length(1)
-                       .set_max_length(200));
-    add.add_option(
-        dpp::command_option(dpp::co_string, "responses", "One per line. Prefix with \"3 | \" to weight a line.", true)
-            .set_min_length(1)
-            .set_max_length(2000));
+                       .set_max_length(2000));
     add.add_option(mode);
-    add.add_option(
-        dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 0 for none.", false)
-            .set_min_value(0)
-            .set_max_value(86400));
+    add.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 0 for none.", false)
+                       .set_min_value(0)
+                       .set_max_value(86400));
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change a trigger.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
     edit.add_option(dpp::command_option(dpp::co_string, "pattern", "New text to look for.", false).set_max_length(200));
-    edit.add_option(
-        dpp::command_option(dpp::co_string, "responses", "Replaces every response.", false).set_max_length(2000));
+    edit.add_option(dpp::command_option(dpp::co_string, "responses", "Replaces every response.", false).set_max_length(2000));
     edit.add_option(mode);
-    edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false)
-                        .set_min_value(0)
-                        .set_max_value(86400));
+    edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(86400));
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete a trigger.");
@@ -236,16 +226,15 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
     const events::match_mode mode = events::match_mode_from_string(mode_text).value_or(events::match_mode::whole_word);
     const auto cooldown = int_option(event, "cooldown");
 
-    const std::int64_t id =
-        store_->add({.guild_id = event.command.guild_id,
-                     .pattern = pattern,
-                     .mode = mode,
-                     .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
-                     .enabled = true,
-                     .responses = responses});
+    const std::int64_t id = store_->add({.guild_id = event.command.guild_id,
+                                         .pattern = pattern,
+                                         .mode = mode,
+                                         .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
+                                         .enabled = true,
+                                         .responses = responses});
 
-    co_await event.co_reply(ack(std::format("added trigger `{}` for `{}` with {} response{}", id, pattern,
-                                            responses.size(), responses.size() == 1 ? "" : "s")));
+    co_await event.co_reply(ack(
+        std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(), responses.size() == 1 ? "" : "s")));
 }
 
 dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
@@ -377,9 +366,8 @@ std::optional<dpp::component> pick_menu(std::span<const events::trigger> page_of
     dpp::component menu;
     menu.set_type(dpp::cot_selectmenu).set_placeholder("Pick a trigger to edit or delete").set_id(*id);
     for (const events::trigger& entry : page_of) {
-        menu.add_select_option(
-            dpp::select_option(entry.pattern, std::to_string(entry.id), std::string(events::to_string(entry.mode)))
-                .set_default(entry.id == selected));
+        menu.add_select_option(dpp::select_option(entry.pattern, std::to_string(entry.id), std::string(events::to_string(entry.mode)))
+                                   .set_default(entry.id == selected));
     }
 
     dpp::component row;
@@ -441,8 +429,8 @@ std::optional<dpp::component> footer_row(int page, std::size_t total) {
     if (const auto add = ui::encode({.view = std::string(trigger_add_view), .page = page, .argument = {}})) {
         row.add_component(button(dpp::cos_success, "Add", *add));
     }
-    if (const auto paging = ui::controls({.view = std::string(trigger_panel_view), .page = page, .argument = {}}, total,
-                                         triggers_per_page)) {
+    if (const auto paging =
+            ui::controls({.view = std::string(trigger_panel_view), .page = page, .argument = {}}, total, triggers_per_page)) {
         for (const dpp::component& one : paging->components) {
             row.add_component(one);
         }
@@ -453,8 +441,8 @@ std::optional<dpp::component> footer_row(int page, std::size_t total) {
 
 } // namespace
 
-dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page,
-                                  std::int64_t selected, bool confirming_delete) {
+dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected,
+                                  bool confirming_delete) {
     const std::vector<events::trigger> all = store.for_guild(guild_id);
     const int current = ui::clamp_page(page, all.size(), triggers_per_page);
     const ui::page_range window = ui::range_for(current, all.size(), triggers_per_page);
@@ -521,14 +509,14 @@ dpp::interaction_modal_response trigger_form(int page, const events::trigger* en
                            .set_default_value(entry == nullptr ? "word" : std::string(events::to_string(entry->mode))));
 
     form.add_row();
-    form.add_component(dpp::component()
-                           .set_label("Cooldown in seconds, 0 for none")
-                           .set_id("cooldown")
-                           .set_type(dpp::cot_text)
-                           .set_text_style(dpp::text_short)
-                           .set_required(false)
-                           .set_default_value(std::to_string(entry == nullptr ? events::default_trigger_cooldown.count()
-                                                                              : entry->cooldown.count())));
+    form.add_component(
+        dpp::component()
+            .set_label("Cooldown in seconds, 0 for none")
+            .set_id("cooldown")
+            .set_type(dpp::cot_text)
+            .set_text_style(dpp::text_short)
+            .set_required(false)
+            .set_default_value(std::to_string(entry == nullptr ? events::default_trigger_cooldown.count() : entry->cooldown.count())));
 
     return form;
 }

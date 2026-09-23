@@ -28,8 +28,7 @@ incoming_message from_human(std::string content = "hello") {
 }
 
 /// A stage that records that it ran and optionally answers.
-pipeline::stage_fn recorder(std::vector<std::string>& ran, std::string name, bool consumes = false,
-                            bool answers = false) {
+pipeline::stage_fn recorder(std::vector<std::string>& ran, std::string name, bool consumes = false, bool answers = false) {
     return [&ran, name = std::move(name), consumes, answers](const incoming_message& message) {
         ran.push_back(name);
         stage_result result;

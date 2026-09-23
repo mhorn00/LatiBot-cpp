@@ -32,8 +32,7 @@ result<nlohmann::json> to_result(const rest_reply& reply) {
     const auto& [body, http] = reply;
 
     if (http.error != dpp::h_success) {
-        return api_error{.http_status = http.status,
-                         .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))};
+        return api_error{.http_status = http.status, .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))};
     }
 
     if (http.status >= 400) {
@@ -73,26 +72,22 @@ dpp::task<result<nlohmann::json>> raw_api::request(ports::http_method method, st
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
-        cluster_->post_rest(endpoint, "", "", to_dpp(method), body,
-                            [complete](nlohmann::json& parsed, const dpp::http_request_completion_t& http) mutable {
-                                complete(rest_reply{parsed, http});
-                            });
+        cluster_->post_rest(
+            endpoint, "", "", to_dpp(method), body,
+            [complete](nlohmann::json& parsed, const dpp::http_request_completion_t& http) mutable { complete(rest_reply{parsed, http}); });
     }};
 
     co_return to_result(reply);
 }
 
-dpp::task<result<nlohmann::json>> raw_api::multipart(ports::http_method method, std::string path,
-                                                     std::string payload_json,
+dpp::task<result<nlohmann::json>> raw_api::multipart(ports::http_method method, std::string path, std::string payload_json,
                                                      std::vector<dpp::message_file_data> files) {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
         cluster_->post_rest_multipart(
             endpoint, "", "", to_dpp(method), payload_json,
-            [complete](nlohmann::json& parsed, const dpp::http_request_completion_t& http) mutable {
-                complete(rest_reply{parsed, http});
-            },
+            [complete](nlohmann::json& parsed, const dpp::http_request_completion_t& http) mutable { complete(rest_reply{parsed, http}); },
             files);
     }};
 

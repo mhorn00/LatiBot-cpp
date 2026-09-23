@@ -9,6 +9,10 @@
 #   bugprone-implicit-widening-...  crashes clang-tidy 19.1.5 on DPP's cache.h
 #   modernize-return-braced-...     "return {a, b};" hides the returned type
 #   modernize-use-trailing-...      we write leading return types
+#   readability-braces-around-...   .clang-format allows a short if on one
+#                                    line (AllowShortIfStatementsOnASingleLine:
+#                                    WithoutElse); this is the matching tidy
+#                                    check, not a gap in coverage
 #   readability-identifier-length   short names are fine in short scopes
 #   readability-magic-numbers       too noisy against SQLite and Discord codes
 ---
@@ -27,6 +31,7 @@ Checks: >
   -misc-non-private-member-variables-in-classes,
   -modernize-return-braced-init-list,
   -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
   -readability-identifier-length,
   -readability-magic-numbers
 

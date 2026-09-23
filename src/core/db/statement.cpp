@@ -12,8 +12,7 @@ namespace latibot::db {
 statement::statement(database& owner, sqlite3_stmt* handle, std::unique_lock<std::recursive_mutex> lock)
     : owner_(&owner), handle_(handle), lock_(std::move(lock)) {}
 
-statement::statement(statement&& other) noexcept
-    : owner_(other.owner_), handle_(other.handle_), lock_(std::move(other.lock_)) {
+statement::statement(statement&& other) noexcept : owner_(other.owner_), handle_(other.handle_), lock_(std::move(other.lock_)) {
     other.owner_ = nullptr;
     other.handle_ = nullptr;
 }
@@ -60,8 +59,7 @@ statement& statement::bind(int index, double value) {
 statement& statement::bind(int index, std::string_view value) {
     // SQLITE_TRANSIENT: SQLite copies the text, so the caller's buffer does
     // not have to outlive the bind.
-    check(sqlite3_bind_text(handle_, index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT),
-          "cannot bind text");
+    check(sqlite3_bind_text(handle_, index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT), "cannot bind text");
     return *this;
 }
 
@@ -70,8 +68,7 @@ statement& statement::bind(int index, const char* value) {
 }
 
 statement& statement::bind(int index, std::span<const std::byte> value) {
-    check(sqlite3_bind_blob(handle_, index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT),
-          "cannot bind blob");
+    check(sqlite3_bind_blob(handle_, index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT), "cannot bind blob");
     return *this;
 }
 

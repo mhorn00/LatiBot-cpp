@@ -62,8 +62,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     util::log().set_level(settings_.log_level);
 
     const int version = db::migrate(database_);
-    util::log().info("LatiBot {} starting; database {} at schema version {}", version_string(),
-                     settings_.database_path.generic_string(), version);
+    util::log().info("LatiBot {} starting; database {} at schema version {}", version_string(), settings_.database_path.generic_string(),
+                     version);
 
     register_commands();
     register_stages();
@@ -85,8 +85,7 @@ void bot::register_stages() {
 void bot::register_events() {
     // DPP's own logging goes through our logger, so there is one format and
     // one level to configure.
-    cluster_.on_log(
-        [](const dpp::log_t& event) { util::log().write(from_dpp(event.severity), "[dpp] " + event.message); });
+    cluster_.on_log([](const dpp::log_t& event) { util::log().write(from_dpp(event.severity), "[dpp] " + event.message); });
 
     cluster_.on_slashcommand([this](const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_await commands_.dispatch(event.command.get_command_name(), event);
@@ -120,8 +119,7 @@ void bot::register_events() {
         }
     });
 
-    cluster_.on_message_create(
-        [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
+    cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
 
     cluster_.on_button_click([this](const dpp::button_click_t& event) { on_component(event, event.custom_id, {}); });
     cluster_.on_select_click([this](const dpp::select_click_t& event) {
@@ -157,8 +155,7 @@ std::string field_of(const dpp::form_submit_t& event, std::string_view name) {
 
 } // namespace
 
-void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id,
-                       const std::string& chosen) {
+void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) {
     const auto state = ui::decode(custom_id);
     if (!state) {
         return;
@@ -182,8 +179,7 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
         }
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, picked));
     } else if (state->view == commands::trigger_delete_view) {
-        event.reply(dpp::ir_update_message,
-                    commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
     } else if (state->view == commands::trigger_confirm_view) {
         triggers_.remove(id, guild);
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
@@ -310,8 +306,8 @@ void bot::check_permissions(const dpp::guild& guild) const {
 
     const std::uint64_t granted = guild.base_permissions(self->second);
     for (const commands::gap& missing : commands::unmet(required, granted)) {
-        util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id.str(),
-                         commands::describe_permissions(missing.permissions), missing.purpose);
+        util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id.str(), commands::describe_permissions(missing.permissions),
+                         missing.purpose);
     }
 }
 

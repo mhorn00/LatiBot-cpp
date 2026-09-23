@@ -91,10 +91,8 @@ std::optional<dpp::component> controls(const page_state& state, std::size_t tota
     }
 
     const int current = clamp_page(state.page, total, per_page);
-    const auto previous =
-        encode({.view = state.view, .page = current - 1 < 0 ? 0 : current - 1, .argument = state.argument});
-    const auto next =
-        encode({.view = state.view, .page = std::min(current + 1, pages - 1), .argument = state.argument});
+    const auto previous = encode({.view = state.view, .page = current - 1 < 0 ? 0 : current - 1, .argument = state.argument});
+    const auto next = encode({.view = state.view, .page = std::min(current + 1, pages - 1), .argument = state.argument});
     if (!previous || !next) {
         return std::nullopt;
     }

@@ -32,8 +32,7 @@ std::vector<action> pipeline::run(const incoming_message& message) const {
             continue;
         }
 
-        actions.insert(actions.end(), std::make_move_iterator(result.actions.begin()),
-                       std::make_move_iterator(result.actions.end()));
+        actions.insert(actions.end(), std::make_move_iterator(result.actions.begin()), std::make_move_iterator(result.actions.end()));
 
         if (result.consumed) {
             break;

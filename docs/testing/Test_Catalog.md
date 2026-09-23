@@ -29,17 +29,17 @@ Database (`src/core/db`)
 | backing up an in-memory database writes it to disk | `fs` |  | [tests/db/backup_test.cpp:62](../../tests/db/backup_test.cpp#L62) |
 | an existing backup file is replaced | `fs` |  | [tests/db/backup_test.cpp:74](../../tests/db/backup_test.cpp#L74) |
 | a backup taken while other threads write is consistent | `fs`, `threads` |  | [tests/db/backup_test.cpp:92](../../tests/db/backup_test.cpp#L92) |
-| rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:124](../../tests/db/backup_test.cpp#L124) |
-| rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:146](../../tests/db/backup_test.cpp#L146) |
-| backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:168](../../tests/db/backup_test.cpp#L168) |
+| rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:123](../../tests/db/backup_test.cpp#L123) |
+| rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:145](../../tests/db/backup_test.cpp#L145) |
+| backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:167](../../tests/db/backup_test.cpp#L167) |
 | opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:41](../../tests/db/database_test.cpp#L41) |
 | values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
-| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:74](../../tests/db/database_test.cpp#L74) |
-| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:87](../../tests/db/database_test.cpp#L87) |
-| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:103](../../tests/db/database_test.cpp#L103) |
-| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:110](../../tests/db/database_test.cpp#L110) |
-| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:147](../../tests/db/database_test.cpp#L147) |
-| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:161](../../tests/db/database_test.cpp#L161) |
+| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:73](../../tests/db/database_test.cpp#L73) |
+| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:86](../../tests/db/database_test.cpp#L86) |
+| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:102](../../tests/db/database_test.cpp#L102) |
+| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
+| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
+| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:35](../../tests/db/migrations_test.cpp#L35) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:48](../../tests/db/migrations_test.cpp#L48) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:59](../../tests/db/migrations_test.cpp#L59) |
@@ -115,8 +115,8 @@ Command framework (`src/core/commands`)
 | responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
 | a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
 | the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:96](../../tests/unit/trigger_command_test.cpp#L96) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:119](../../tests/unit/trigger_command_test.cpp#L119) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:135](../../tests/unit/trigger_command_test.cpp#L135) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:118](../../tests/unit/trigger_command_test.cpp#L118) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:133](../../tests/unit/trigger_command_test.cpp#L133) |
 
 ## events
 
@@ -129,11 +129,11 @@ Message pipeline and triggers (`src/core/events`)
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
 | a custom phrase replaces the default |  |  | [tests/unit/goodbye_test.cpp:42](../../tests/unit/goodbye_test.cpp#L42) |
 | an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
-| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:56](../../tests/unit/message_pipeline_test.cpp#L56) |
-| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:69](../../tests/unit/message_pipeline_test.cpp#L69) |
-| the bot never answers itself or another bot |  | 2 | [tests/unit/message_pipeline_test.cpp:84](../../tests/unit/message_pipeline_test.cpp#L84) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:106](../../tests/unit/message_pipeline_test.cpp#L106) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:123](../../tests/unit/message_pipeline_test.cpp#L123) |
+| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:55](../../tests/unit/message_pipeline_test.cpp#L55) |
+| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:68](../../tests/unit/message_pipeline_test.cpp#L68) |
+| the bot never answers itself or another bot |  | 2 | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:105](../../tests/unit/message_pipeline_test.cpp#L105) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:122](../../tests/unit/message_pipeline_test.cpp#L122) |
 | whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
 | a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
 | substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |
@@ -198,11 +198,11 @@ Logging (`src/core/util/log`)
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
 | level names round trip |  |  | [tests/unit/log_test.cpp:17](../../tests/unit/log_test.cpp#L17) |
-| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:26](../../tests/unit/log_test.cpp#L26) |
-| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:33](../../tests/unit/log_test.cpp#L33) |
-| off silences everything |  |  | [tests/unit/log_test.cpp:46](../../tests/unit/log_test.cpp#L46) |
-| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:54](../../tests/unit/log_test.cpp#L54) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:62](../../tests/unit/log_test.cpp#L62) |
+| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:25](../../tests/unit/log_test.cpp#L25) |
+| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:32](../../tests/unit/log_test.cpp#L32) |
+| off silences everything |  |  | [tests/unit/log_test.cpp:45](../../tests/unit/log_test.cpp#L45) |
+| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:53](../../tests/unit/log_test.cpp#L53) |
+| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:61](../../tests/unit/log_test.cpp#L61) |
 
 ## util
 

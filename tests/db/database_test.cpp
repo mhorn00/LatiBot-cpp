@@ -53,8 +53,7 @@ TEST_CASE("values survive a bind and get round trip", "[db]") {
         auto insert = db.prepare(
             "INSERT INTO things (id, name, weight, raw, note) "
             "VALUES (?, ?, ?, ?, ?)");
-        insert.bind_all(std::uint64_t{1234567890123456789ULL}, "first", 2.5, std::span(raw),
-                        std::optional<std::string>{});
+        insert.bind_all(std::uint64_t{1234567890123456789ULL}, "first", 2.5, std::span(raw), std::optional<std::string>{});
         insert.run();
     }
 
@@ -173,8 +172,7 @@ TEST_CASE("concurrent writers are serialized by the connection lock", "[db][thre
     for (int t = 0; t < thread_count; ++t) {
         writers.emplace_back([&db, t] {
             for (int i = 0; i < per_thread; ++i) {
-                db.prepare("INSERT INTO things (name) VALUES (?)", "t" + std::to_string(t) + "-" + std::to_string(i))
-                    .run();
+                db.prepare("INSERT INTO things (name) VALUES (?)", "t" + std::to_string(t) + "-" + std::to_string(i)).run();
             }
         });
     }

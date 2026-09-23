@@ -135,8 +135,7 @@ TEST_CASE("the goodbye phrase can be set, read back and turned off", "[config]")
 
     const std::string key(latibot::events::goodbye_phrase_key);
 
-    CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase) ==
-          latibot::events::default_goodbye_phrase);
+    CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase) == latibot::events::default_goodbye_phrase);
 
     fixture.settings.set(guild, key, "time for bed");
     CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase) == "time for bed");
@@ -146,7 +145,7 @@ TEST_CASE("the goodbye phrase can be set, read back and turned off", "[config]")
         // the opposite of what turning it off should do.
         fixture.settings.set(guild, key, "");
         CHECK(fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase).empty());
-        CHECK_FALSE(latibot::events::is_goodbye(
-            "say goodbye latibot", fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase)));
+        CHECK_FALSE(
+            latibot::events::is_goodbye("say goodbye latibot", fixture.settings.get(guild, key, latibot::events::default_goodbye_phrase)));
     }
 }

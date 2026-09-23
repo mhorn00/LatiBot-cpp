@@ -27,8 +27,7 @@ std::string_view to_string(log_level level) noexcept {
 
 std::optional<log_level> log_level_from_string(std::string_view name) {
     std::string lowered(name);
-    std::ranges::transform(lowered, lowered.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::ranges::transform(lowered, lowered.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     const auto found = std::ranges::find(level_names, lowered);
     if (found == level_names.end()) {

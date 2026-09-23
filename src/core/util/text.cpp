@@ -13,8 +13,7 @@ std::size_t count_occurrences(std::string_view haystack, std::string_view needle
     }
 
     std::size_t count = 0;
-    for (std::size_t pos = haystack.find(needle); pos != std::string_view::npos;
-         pos = haystack.find(needle, pos + needle.size())) {
+    for (std::size_t pos = haystack.find(needle); pos != std::string_view::npos; pos = haystack.find(needle, pos + needle.size())) {
         ++count;
     }
     return count;

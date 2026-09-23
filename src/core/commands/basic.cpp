@@ -71,8 +71,7 @@ dpp::snowflake bot_voice_channel(const dpp::slashcommand_t& event) {
 
 std::string lowercased(std::string_view text) {
     std::string result(text);
-    std::ranges::transform(result, result.begin(),
-                           [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
+    std::ranges::transform(result, result.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
     return result;
 }
 
@@ -171,8 +170,7 @@ dpp::task<void> ping_command::execute(const dpp::slashcommand_t& event) {
     const dpp::discord_client* shard = event.from();
     const auto gateway = shard == nullptr ? 0 : static_cast<int>(shard->websocket_ping * 1000.0);
 
-    co_await event.co_edit_original_response(
-        ack(std::format("Pong! ({} ms round trip, {} ms gateway)", round_trip.count(), gateway)));
+    co_await event.co_edit_original_response(ack(std::format("Pong! ({} ms round trip, {} ms gateway)", round_trip.count(), gateway)));
 }
 
 // --------------------------------------------------------------------------
@@ -190,9 +188,7 @@ say_command::say_command(dpp::cluster& cluster)
 
 dpp::slashcommand say_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
-    payload.add_option(dpp::command_option(dpp::co_string, "message", "The message to send.", true)
-                           .set_min_length(1)
-                           .set_max_length(2000));
+    payload.add_option(dpp::command_option(dpp::co_string, "message", "The message to send.", true).set_min_length(1).set_max_length(2000));
     payload.add_option(dpp::command_option(dpp::co_string, "reply", "Optional message id to reply to.", false));
     return payload;
 }
@@ -224,8 +220,7 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
         // show the caller.
         const auto target = co_await cluster_->co_message_get(decision.reply_to, event.command.channel_id);
         if (target.is_error()) {
-            co_await event.co_reply(
-                ack(std::format("couldn't find message {} in this channel", decision.reply_to.str())));
+            co_await event.co_reply(ack(std::format("couldn't find message {} in this channel", decision.reply_to.str())));
             co_return;
         }
 
@@ -253,8 +248,7 @@ status_command::status_command(dpp::cluster& cluster)
 
 dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
-    payload.add_option(
-        dpp::command_option(dpp::co_string, "status", "The status text.", true).set_min_length(1).set_max_length(128));
+    payload.add_option(dpp::command_option(dpp::co_string, "status", "The status text.", true).set_min_length(1).set_max_length(128));
 
     dpp::command_option type(dpp::co_string, "type", "How the status reads.", false);
     type.add_choice(dpp::command_option_choice("Playing", std::string("playing")));
@@ -298,19 +292,16 @@ dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
     const dpp::snowflake target = requested.empty() ? caller : requested;
     const bool following_someone_else = target != caller;
 
-    const join_decision decision =
-        plan_join(voice_channel_of(event.command.guild_id, target), bot_voice_channel(event));
+    const join_decision decision = plan_join(voice_channel_of(event.command.guild_id, target), bot_voice_channel(event));
 
     dpp::discord_client* shard = event.from();
     switch (decision.action) {
     case join_action::target_not_in_voice:
-        co_await event.co_reply(
-            ack(following_someone_else ? "they're not in a voice channel" : "you're not in a voice channel"));
+        co_await event.co_reply(ack(following_someone_else ? "they're not in a voice channel" : "you're not in a voice channel"));
         co_return;
 
     case join_action::already_there:
-        co_await event.co_reply(
-            ack(following_someone_else ? "i'm already in their voice channel" : "i'm already in your voice channel"));
+        co_await event.co_reply(ack(following_someone_else ? "i'm already in their voice channel" : "i'm already in your voice channel"));
         co_return;
 
     case join_action::connect:
@@ -387,8 +378,7 @@ goodbye_command::goodbye_command(config::guild_settings& settings)
 
 dpp::slashcommand goodbye_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
-    payload.add_option(
-        dpp::command_option(dpp::co_string, "phrase", "The new phrase.", false).set_min_length(1).set_max_length(200));
+    payload.add_option(dpp::command_option(dpp::co_string, "phrase", "The new phrase.", false).set_min_length(1).set_max_length(200));
     payload.add_option(dpp::command_option(dpp::co_boolean, "off", "Turn the phrase off entirely.", false));
     return payload;
 }
@@ -408,9 +398,8 @@ dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
     const std::string wanted = std::string(util::trim(string_option(event, "phrase")));
     if (wanted.empty()) {
         const std::string current = settings_->get(guild, events::goodbye_phrase_key, events::default_goodbye_phrase);
-        co_await event.co_reply(ack(current.empty()
-                                        ? "the goodbye phrase is off"
-                                        : std::format("an administrator saying \"{}\" stops the bot", current)));
+        co_await event.co_reply(
+            ack(current.empty() ? "the goodbye phrase is off" : std::format("an administrator saying \"{}\" stops the bot", current)));
         co_return;
     }
 

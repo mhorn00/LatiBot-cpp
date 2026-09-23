@@ -25,8 +25,8 @@ constexpr std::chrono::system_clock::time_point stamp(int minutes_past_epoch) {
 void seed(database& db, int rows) {
     latibot::db::migrate(db);
     for (int i = 0; i < rows; ++i) {
-        db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1234567890123456789ULL,
-                   "key-" + std::to_string(i), std::to_string(i))
+        db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1234567890123456789ULL, "key-" + std::to_string(i),
+                   std::to_string(i))
             .run();
     }
 }
@@ -102,8 +102,7 @@ TEST_CASE("a backup taken while other threads write is consistent", "[db][fs][th
     std::thread writer([&db, &stop, &written] {
         while (!stop.load()) {
             const int next = written.fetch_add(1);
-            db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1,
-                       "concurrent-" + std::to_string(next), "v")
+            db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1, "concurrent-" + std::to_string(next), "v")
                 .run();
         }
     });

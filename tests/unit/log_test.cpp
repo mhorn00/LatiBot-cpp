@@ -15,8 +15,7 @@ using latibot::util::log_level_from_string;
 using latibot::util::to_string;
 
 TEST_CASE("level names round trip", "[log]") {
-    for (const auto level :
-         {log_level::trace, log_level::debug, log_level::info, log_level::warn, log_level::error, log_level::off}) {
+    for (const auto level : {log_level::trace, log_level::debug, log_level::info, log_level::warn, log_level::error, log_level::off}) {
         const auto parsed = log_level_from_string(to_string(level));
         REQUIRE(parsed.has_value());
         CHECK(*parsed == level);

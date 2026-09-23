@@ -16,8 +16,8 @@ class temp_directory {
 public:
     temp_directory() {
         static std::atomic<int> counter{0};
-        path_ = std::filesystem::temp_directory_path() / ("latibot-test-" + std::to_string(counter.fetch_add(1)) + "-" +
-                                                          std::to_string(reinterpret_cast<std::uintptr_t>(this)));
+        path_ = std::filesystem::temp_directory_path() /
+                ("latibot-test-" + std::to_string(counter.fetch_add(1)) + "-" + std::to_string(reinterpret_cast<std::uintptr_t>(this)));
         std::filesystem::create_directories(path_);
     }
 

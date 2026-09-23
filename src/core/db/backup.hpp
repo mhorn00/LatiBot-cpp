@@ -18,8 +18,7 @@ class database;
 void backup_to_file(database& source, const std::filesystem::path& destination);
 
 /// Backups in `directory` named `<prefix>-YYYYMMDD-HHMMSS.db`, oldest first.
-[[nodiscard]] std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory,
-                                                              std::string_view prefix);
+[[nodiscard]] std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory, std::string_view prefix);
 
 /// Deletes all but the `keep` newest backups. Returns how many were removed.
 int rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep);
@@ -27,8 +26,7 @@ int rotate_backups(const std::filesystem::path& directory, std::string_view pref
 /// Writes a timestamped backup into `directory` and rotates it, keeping the
 /// `keep` newest. The timestamp is UTC and is a parameter so tests are
 /// deterministic.
-std::filesystem::path create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix,
-                                    int keep,
+std::filesystem::path create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix, int keep,
                                     std::chrono::system_clock::time_point at = std::chrono::system_clock::now());
 
 } // namespace latibot::db

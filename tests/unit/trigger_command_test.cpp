@@ -107,8 +107,7 @@ TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[
 
     // Someone typing "thirty" into a box should not silently lose what was
     // there, which is the difference between an optional field and a reset.
-    const auto problem =
-        apply_form(entry, {.pattern = "69", .responses = "nice", .mode = "sideways", .cooldown = "thirty"});
+    const auto problem = apply_form(entry, {.pattern = "69", .responses = "nice", .mode = "sideways", .cooldown = "thirty"});
 
     CHECK_FALSE(problem.has_value());
     CHECK(entry.pattern == "69");
@@ -121,8 +120,7 @@ TEST_CASE("the modal applies the fields it can read", "[commands]") {
 
     latibot::events::trigger entry{.pattern = "420", .mode = latibot::events::match_mode::whole_word, .cooldown = 30s};
 
-    const auto problem = apply_form(
-        entry, {.pattern = "  69  ", .responses = "2 | nice\nvery nice", .mode = "anywhere", .cooldown = "0"});
+    const auto problem = apply_form(entry, {.pattern = "  69  ", .responses = "2 | nice\nvery nice", .mode = "anywhere", .cooldown = "0"});
 
     REQUIRE_FALSE(problem.has_value());
     CHECK(entry.pattern == "69");

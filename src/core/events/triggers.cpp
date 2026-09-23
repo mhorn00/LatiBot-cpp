@@ -109,8 +109,8 @@ const weighted_response* choose(std::span<const weighted_response> responses, st
     return nullptr;
 }
 
-bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired,
-                  std::chrono::steady_clock::time_point now, std::chrono::seconds cooldown) {
+bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
+                  std::chrono::seconds cooldown) {
     if (cooldown <= std::chrono::seconds::zero() || !last_fired) {
         return true;
     }
@@ -141,8 +141,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
     }
 
     for (trigger& entry : found) {
-        auto query = db_->prepare("SELECT response, weight FROM trigger_responses WHERE trigger_id = ? ORDER BY rowid",
-                                  entry.id);
+        auto query = db_->prepare("SELECT response, weight FROM trigger_responses WHERE trigger_id = ? ORDER BY rowid", entry.id);
         while (query.step()) {
             entry.responses.push_back({.text = query.get<std::string>(0), .weight = query.get<int>(1)});
         }
@@ -163,8 +162,8 @@ std::optional<trigger> trigger_store::find(std::int64_t id, dpp::snowflake guild
 void trigger_store::replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses) {
     db_->prepare("DELETE FROM trigger_responses WHERE trigger_id = ?", trigger_id).run();
     for (const weighted_response& option : responses) {
-        db_->prepare("INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (?, ?, ?)", trigger_id,
-                     option.text, option.weight)
+        db_->prepare("INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (?, ?, ?)", trigger_id, option.text,
+                     option.weight)
             .run();
     }
 }
@@ -176,8 +175,7 @@ std::int64_t trigger_store::add(const trigger& entry) {
     db_->prepare(
            "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) "
            "VALUES (?, ?, ?, ?, ?)",
-           static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(),
-           entry.enabled)
+           static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled)
         .run();
 
     const std::int64_t id = db_->last_insert_rowid();
@@ -248,8 +246,7 @@ int trigger_store::seed_defaults(dpp::snowflake guild_id) {
 
 // --------------------------------------------------------------------------
 
-trigger_responder::trigger_responder(const trigger_store& store, ports::clock& clock,
-                                     std::function<std::uint64_t()> roll)
+trigger_responder::trigger_responder(const trigger_store& store, ports::clock& clock, std::function<std::uint64_t()> roll)
     : store_(&store), clock_(&clock), roll_(roll ? std::move(roll) : default_roll()) {}
 
 stage_result trigger_responder::operator()(const incoming_message& message) {
@@ -263,9 +260,7 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
 
         const auto key = std::pair{entry.id, message.channel_id};
         const auto seen = last_fired_.find(key);
-        const auto last = seen == last_fired_.end()
-                              ? std::nullopt
-                              : std::optional<std::chrono::steady_clock::time_point>(seen->second);
+        const auto last = seen == last_fired_.end() ? std::nullopt : std::optional<std::chrono::steady_clock::time_point>(seen->second);
         if (!off_cooldown(last, now, entry.cooldown)) {
             continue;
         }

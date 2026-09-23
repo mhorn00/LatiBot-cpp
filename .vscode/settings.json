@@ -23,7 +23,9 @@
       // Without this, running a test re-runs whatever was built last, which
       // looks exactly like the tests not running at all.
       "runTask": {
-        "before": ["Build tests (Debug)"]
+        "before": [
+          "Build tests (Debug)"
+        ]
       },
       "catch2": {
         "testGrouping": {
@@ -32,15 +34,33 @@
             "description": "${relDirpath}${osPathSep}",
             "groupByTags": {
               "tags": [
-                ["db"],
-                ["config"],
-                ["commands"],
-                ["events"],
-                ["ui"],
-                ["discord"],
-                ["ports"],
-                ["log"],
-                ["util"]
+                [
+                  "db"
+                ],
+                [
+                  "config"
+                ],
+                [
+                  "commands"
+                ],
+                [
+                  "events"
+                ],
+                [
+                  "ui"
+                ],
+                [
+                  "discord"
+                ],
+                [
+                  "ports"
+                ],
+                [
+                  "log"
+                ],
+                [
+                  "util"
+                ]
               ],
               "tagFormat": "[${tag}]",
               "groupUngroupedTo": "other (missing a component tag)",
@@ -53,20 +73,16 @@
       }
     }
   ],
-
   // Uncomment to get a "C++ TestMate" output channel listing every command it
   // spawns and the raw Catch2 XML it parses. The suite runs in about a fifth
   // of a second, so a run looks instantaneous; this is how to confirm one
   // actually happened.
   // "testMate.cpp.log.logpanel": true,
-
   // The suite is fast; discovering on every build keeps the tree honest.
   "testMate.cpp.discovery.gracePeriodForMissing": 10,
-
   "files.associations": {
     "*.hpp": "cpp"
   },
-
   // IntelliSense flags come from CMake Tools, which only supplies them once
   // it has configured the project, so it has to configure on open. Without
   // this the editor has no include paths at all and every #include is an
@@ -77,6 +93,8 @@
   // already configured, so the reconfigure takes about a second.
   "cmake.configureOnOpen": true,
   "cmake.useCMakePresets": "always",
-
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "editor.rulers": [
+    140
+  ]
 }

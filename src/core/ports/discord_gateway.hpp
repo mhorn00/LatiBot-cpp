@@ -38,8 +38,7 @@ public:
 
     /// Who reacted with one emoji. Discord pages this 100 at a time and never
     /// reports *when* a reaction was added (plan v4 §9.7).
-    virtual dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake channel_id,
-                                                                              dpp::snowflake message_id,
+    virtual dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id,
                                                                               std::string emoji, dpp::snowflake after,
                                                                               std::uint64_t limit) = 0;
 };

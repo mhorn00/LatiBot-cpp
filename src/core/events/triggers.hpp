@@ -78,8 +78,8 @@ inline constexpr std::chrono::seconds default_trigger_cooldown{30};
 ///
 /// `last_fired` is empty when it has not fired there yet. A zero cooldown
 /// always allows it, which is the documented way to turn cooldowns off.
-[[nodiscard]] bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired,
-                                std::chrono::steady_clock::time_point now, std::chrono::seconds cooldown);
+[[nodiscard]] bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
+                                std::chrono::seconds cooldown);
 
 // --------------------------------------------------------------------------
 // Storage
