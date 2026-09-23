@@ -235,6 +235,15 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
 - **`bot` itself is untested.** It is the shell: it wires DPP events to the
   registry and ports. Testing it would mean mocking `dpp::cluster`, which is
   exactly what the ports exist to avoid. It stays thin instead.
+
+  Two parts of it are no longer as thin as that claim implies, and are worth
+  watching. `on_component` and `on_form` route a panel's buttons, select
+  menus and modal submissions by view name, which is branching logic with no
+  test behind it. The pure parts they call — `ui::decode`, `apply_form`,
+  `render_trigger_panel` — are tested; the routing between them is not. If a
+  third panel arrives and the chain grows again, the routing should move into
+  a function that takes a decoded `page_state` and returns what to render,
+  which is testable without an interaction.
 - **`dpp_gateway`, `dpp_http_client` and `raw_api` are only partly tested.**
   Their pure parts (endpoint building) have tests; the parts that call DPP do
   not, because there is no cluster to call. They are deliberately thin
