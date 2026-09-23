@@ -140,7 +140,7 @@ rather than the answer.
 
 ## Running
 
-Secrets come from the environment only (plan v4 §5.1): `DISCORD_BOT_TOKEN`,
+Secrets come from the environment only ([plan §5.1](docs/porting/Porting_Plan_Final.md)): `DISCORD_BOT_TOKEN`,
 and optionally `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for later phases.
 Either set them in the shell:
 
@@ -166,8 +166,9 @@ quiet while the slash commands keep working.
 
 ### What it does so far
 
-The port follows [docs/porting/Porting_Plan_Stage2_v4.md](docs/porting/Porting_Plan_Stage2_v4.md).
 Phase 1 is done: the framework, and enough features to prove it works.
+[docs/features/](docs/features/README.md) documents all of this properly —
+options, replies and edge cases.
 
 | Command | What it does |
 |---|---|
@@ -177,20 +178,28 @@ Phase 1 is done: the framework, and enough features to prove it works.
 | `/join`, `/leave` | voice channel, following you or a named user |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
-| `/trigger` | `add`, `edit`, `remove`, `list`, `panel` |
-| `/bots` | `allow`, `deny`, `list` — which other bots I may hear |
+| `/trigger` | `add`, `edit`, `remove`, `list`, `panel` — automatic replies |
+| `/bots` | `allow`, `deny`, `list` — which other bots the bot may hear |
 
-Passively: an administrator saying the goodbye phrase stops the bot, trigger
-patterns get weighted replies with a per-channel cooldown, and missing
-permissions are reported per guild at startup as warnings rather than errors.
+Without being asked: an administrator saying the goodbye phrase stops the bot,
+trigger patterns get weighted replies with a per-channel cooldown, and anything
+the bot lacks permission to do is reported per server at startup as a warning
+rather than an error.
 
 Other bots are ignored unless `/bots allow` says otherwise, and even then a
-trigger only answers one if it was added with `bots:true` (or switched on from
-the panel). Hearing and answering are separate on purpose: the first is a
-server-wide decision, the second belongs to each trigger.
+trigger only answers one if it was added with `bots:true`. Hearing and answering
+are separate on purpose: the first is a server-wide decision, the second belongs
+to each trigger.
 
-Still to come: nickname tracking and midnight (phase 2), URL replacement and
-link statistics (phase 3), DECtalk speech (phase 4), the LLM (phase 5).
+**Still to come** — [the plan](docs/porting/Porting_Plan_Final.md), and
+[what each feature should do](docs/features/Planned.md):
+
+| Phase | Features |
+|---|---|
+| 2 | nickname history and attribution, the midnight message |
+| 3 | URL replacement, reaction statistics, the history backfill |
+| 4 | DECtalk speech, `/speak`, custom voices, voice sessions |
+| 5 | the LLM: replies, memory, personality, advanced triggers |
 
 ## Testing
 
@@ -275,7 +284,8 @@ tools/              catalog generator, clang-tidy and clang-format wrappers
 src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
 tests/              Catch2 tests, mocks, fixtures and fuzz targets
-docs/porting/       porting plans (the implementation follows Stage 2 v4)
+docs/features/      what the bot does, and what it will do
+docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
 docs/ideas/         parked ideas
 third_party/DPP     submodule: DPP v10.1.6, built from source
 third_party/dectalk submodule: DECtalk (develop branch); not wired into the build yet

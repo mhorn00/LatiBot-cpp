@@ -1,6 +1,6 @@
 # LatiBot Stage 2 (v2): Detailed C++ Implementation Plan
 
-This supersedes [Porting_Plan_Stage2.md](Porting_Plan_Stage2.md) (v1, left as-is with
+This supersedes [Porting_Plan_v1.md](Porting_Plan_v1.md) (left as-is with
 your review comments). It folds in every comment from that review, records what
 has already been done to the workspace, reports what the new research turned up,
 and ends with the decisions that are still open.

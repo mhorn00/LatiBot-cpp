@@ -1,6 +1,6 @@
 # LatiBot Stage 2 — Detailed C++ Implementation Plan
 
-Follow-up to [Porting_Plan.md](Porting_Plan.md), incorporating your keep/skip/later
+Follow-up to [Porting_Initial_Analysis.md](Porting_Initial_Analysis.md), incorporating the keep/skip/later
 marks and inline comments. This is the technical "how", not the "what" — each
 feature section covers data structures, the specific DPP APIs involved,
 algorithms, known bugs being fixed, and open questions.

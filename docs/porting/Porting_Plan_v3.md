@@ -1,6 +1,6 @@
 # LatiBot Stage 2 (v3): Detailed C++ Implementation Plan
 
-This supersedes [Porting_Plan_Stage2_v2.md](Porting_Plan_Stage2_v2.md), which is
+This supersedes [Porting_Plan_v2.md](Porting_Plan_v2.md), which is
 left as-is with your review comments. v3 does four things:
 
 - folds in every comment and §19 answer from the v2 review;

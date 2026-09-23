@@ -1,6 +1,6 @@
 # LatiBot Stage 2 (v4): Final Implementation Plan
 
-This supersedes [Porting_Plan_Stage2_v3.md](Porting_Plan_Stage2_v3.md), which
+This supersedes [Porting_Plan_v3.md](Porting_Plan_v3.md), which
 is left as-is with your review comments.
 
 **This is meant to be the last planning document before implementation.** So

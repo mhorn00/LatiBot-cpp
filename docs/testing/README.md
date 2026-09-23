@@ -2,7 +2,7 @@
 
 How this project is tested, and the conventions that keep the suite readable
 as it grows. The plan behind it is
-[Porting_Plan_Stage2_v4.md §17](../porting/Porting_Plan_Stage2_v4.md); this
+[Porting_Plan_Final.md §17](../porting/Porting_Plan_Final.md); this
 document is the living version, kept in step with the code.
 
 For the current list of what is tested, see
