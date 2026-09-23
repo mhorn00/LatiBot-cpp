@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-160 test cases across 9 components, including 48 sections.
+161 test cases across 9 components, including 48 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 39 | 4 |
+| [db](#db) | 40 | 4 |
 | [config](#config) | 18 | 15 |
 | [commands](#commands) | 35 | 20 |
 | [events](#events) | 23 | 8 |
@@ -45,12 +45,13 @@ Database (`src/core/db`)
 | a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:35](../../tests/db/migrations_test.cpp#L35) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:48](../../tests/db/migrations_test.cpp#L48) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:59](../../tests/db/migrations_test.cpp#L59) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:73](../../tests/db/migrations_test.cpp#L73) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:90](../../tests/db/migrations_test.cpp#L90) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:103](../../tests/db/migrations_test.cpp#L103) |
+| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
+| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
+| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
+| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:74](../../tests/db/migrations_test.cpp#L74) |
+| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:91](../../tests/db/migrations_test.cpp#L91) |
+| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:104](../../tests/db/migrations_test.cpp#L104) |
+| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:116](../../tests/db/migrations_test.cpp#L116) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:58](../../tests/db/trigger_store_test.cpp#L58) |
 | guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:77](../../tests/db/trigger_store_test.cpp#L77) |
 | updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:94](../../tests/db/trigger_store_test.cpp#L94) |
