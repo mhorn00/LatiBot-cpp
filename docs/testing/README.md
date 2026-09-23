@@ -251,3 +251,5 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
 2. Give it one component tag and any traits that apply.
 3. Name it after the behaviour.
 4. Run `pwsh tools/Update-TestCatalog.ps1` and commit the regenerated catalog.
+   `Invoke-ClangFormat.ps1` does this for you, since reformatting moves the
+   line numbers the catalog links to.

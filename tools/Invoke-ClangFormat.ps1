@@ -37,6 +37,13 @@ if (-not $Check) {
         throw "clang-format failed with exit code $LASTEXITCODE"
     }
     Write-Host "Formatted $($sources.Count) files."
+
+    # Reformatting moves lines, and the catalog links to tests by line number,
+    # so a format pass invalidates it. CI notices, but a commit later; doing it
+    # here means the two never disagree in the first place.
+    if ($sources | Where-Object { $_ -like '*\tests\*' }) {
+        & (Join-Path $PSScriptRoot 'Update-TestCatalog.ps1')
+    }
     return
 }
 
