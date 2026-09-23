@@ -8,6 +8,7 @@ add_executable(latibot_tests
     db/migrations_test.cpp
     unit/basic_commands_test.cpp
     unit/bootstrap_test.cpp
+    unit/env_test.cpp
     unit/goodbye_test.cpp
     unit/message_pipeline_test.cpp
     unit/paginator_test.cpp

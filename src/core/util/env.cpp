@@ -1,9 +1,37 @@
 #include "core/util/env.hpp"
 
 #include <cstdlib>
+#include <fstream>
 #include <memory>
+#include <sstream>
 
 namespace latibot::util {
+
+namespace {
+
+std::string_view trim(std::string_view text) {
+    constexpr std::string_view whitespace = " \t\r\n";
+    const auto begin = text.find_first_not_of(whitespace);
+    if (begin == std::string_view::npos) return {};
+    return text.substr(begin, text.find_last_not_of(whitespace) - begin + 1);
+}
+
+std::string_view unquote(std::string_view value) {
+    if (value.size() >= 2 && (value.front() == '"' || value.front() == '\'') && value.back() == value.front()) {
+        return value.substr(1, value.size() - 2);
+    }
+    return value;
+}
+
+void set_env_var(const std::string& name, const std::string& value) {
+#ifdef _MSC_VER
+    _putenv_s(name.c_str(), value.c_str());
+#else
+    setenv(name.c_str(), value.c_str(), /*overwrite=*/0);
+#endif
+}
+
+} // namespace
 
 std::optional<std::string> env_var(const char* name) {
 #ifdef _MSC_VER
@@ -11,9 +39,9 @@ std::optional<std::string> env_var(const char* name) {
     // invalidated by a later _putenv; _dupenv_s hands back an owned copy.
     char* value = nullptr;
     std::size_t size = 0;
-    if (_dupenv_s(&value, &size, name) != 0 || value == nullptr) {
-        return std::nullopt;
-    }
+
+    if (_dupenv_s(&value, &size, name) != 0 || value == nullptr) return std::nullopt;
+
     const std::unique_ptr<char, decltype(&std::free)> owned(value, &std::free);
     return std::string(owned.get());
 #else
@@ -23,6 +51,47 @@ std::optional<std::string> env_var(const char* name) {
     }
     return std::string(value);
 #endif
+}
+
+std::vector<std::pair<std::string, std::string>> parse_dotenv(std::string_view text) {
+    std::vector<std::pair<std::string, std::string>> entries;
+
+    std::size_t start = 0;
+    while (start <= text.size()) {
+        const std::size_t newline = text.find('\n', start);
+        const bool last_line = newline == std::string_view::npos;
+        const std::string_view raw = text.substr(start, last_line ? std::string_view::npos : newline - start);
+        start = last_line ? text.size() + 1 : newline + 1;
+
+        std::string_view line = trim(raw);
+        if (line.empty() || line.front() == '#') continue;
+
+        if (line.starts_with("export ")) line = trim(line.substr(std::string_view("export ").size()));
+
+        const auto equals = line.find('=');
+        if (equals == std::string_view::npos) continue;
+
+        const std::string_view key = trim(line.substr(0, equals));
+        const std::string_view value = unquote(trim(line.substr(equals + 1)));
+        if (key.empty()) continue;
+
+        entries.emplace_back(std::string(key), std::string(value));
+    }
+
+    return entries;
+}
+
+void load_dotenv(const std::filesystem::path& path) {
+    const std::ifstream file(path, std::ios::binary);
+    if (!file) return;
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    for (const auto& [key, value] : parse_dotenv(buffer.str())) {
+        if (env_var(key.c_str())) continue; // a real environment variable always wins
+        set_env_var(key, value);
+    }
 }
 
 } // namespace latibot::util

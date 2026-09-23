@@ -1,5 +1,6 @@
 #include "core/bot.hpp"
 #include "core/config/bootstrap.hpp"
+#include "core/util/env.hpp"
 #include "core/util/log.hpp"
 
 #include <exception>
@@ -12,6 +13,12 @@
 int main(int argc, char** argv) {
     try {
         const std::filesystem::path config_path = argc > 1 ? argv[1] : "config.json";
+
+        // .env is a local-run convenience only, gitignored, and never
+        // overrides a variable the real environment already set (plan v4
+        // §5.1: secrets still come from the environment, just optionally
+        // populated from this file first).
+        latibot::util::load_dotenv(".env");
 
         const auto settings = latibot::config::bootstrap::load(config_path);
         const auto credentials = latibot::config::secrets::from_environment();

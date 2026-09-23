@@ -140,12 +140,26 @@ rather than the answer.
 
 ## Running
 
-The bot reads its token from the `DISCORD_BOT_TOKEN` environment variable:
+Secrets come from the environment only (plan v4 §5.1): `DISCORD_BOT_TOKEN`,
+and optionally `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for later phases.
+Either set them in the shell:
 
 ```powershell
 $env:DISCORD_BOT_TOKEN = "your-token-here"
 .\build\bin\Release\LatiBot.exe
 ```
+
+or copy [.env.example](.env.example) to `.env` (git-ignored) and fill it in —
+`LatiBot.exe` loads it on startup if present, without overriding a variable
+the shell already set. Run it from the repo root so it finds both `.env` and
+`config.json`.
+
+**If REST calls fail with `Malformed HTTP response`:** the Conan-built
+OpenSSL on Windows has no CA bundle of its own (`openssl version -d` points
+at an empty directory), so certificate verification fails before any HTTP
+response is read, and DPP reports the empty response rather than the TLS
+failure. Point `SSL_CERT_FILE` at a PEM bundle — see the commented line in
+`.env.example`, which uses the one Git for Windows already ships.
 
 ### What it does so far
 
@@ -272,6 +286,10 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
 - **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`). DPP only
   auto-detects opus on Windows when it uses its bundled binaries. Configure
   output should include `VOICE support will be enabled`.
+- **Conan's OpenSSL ships no CA bundle**, so a fresh machine hits
+  `Malformed HTTP response` on the first REST call (see [Running](#running)).
+  This is a Windows/OpenSSL packaging gap, not a DPP bug — Schannel-based
+  clients don't need this because they use the OS certificate store instead.
 - **`WITH_OPENSSL3` on the `hpke` target:** DPP hardcodes `OPENSSL_VERSION` to
   1.1.1f on Windows, which makes its `mlspp` dependency pick an OpenSSL 1.1
   code path that doesn't compile against OpenSSL 3. Recheck this when
