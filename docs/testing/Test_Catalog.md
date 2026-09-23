@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-130 test cases across 9 components, including 44 sections.
+133 test cases across 9 components, including 46 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 31 | 4 |
 | [config](#config) | 17 | 14 |
-| [commands](#commands) | 26 | 18 |
+| [commands](#commands) | 29 | 20 |
 | [events](#events) | 22 | 7 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
@@ -113,6 +113,9 @@ Command framework (`src/core/commands`)
 | nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:52](../../tests/unit/trigger_command_test.cpp#L52) |
 | responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
 | a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:96](../../tests/unit/trigger_command_test.cpp#L96) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:119](../../tests/unit/trigger_command_test.cpp#L119) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:135](../../tests/unit/trigger_command_test.cpp#L135) |
 
 ## events
 

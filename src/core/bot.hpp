@@ -55,6 +55,15 @@ private:
     /// Performs what the stages decided.
     void carry_out(const std::vector<events::action>& actions);
 
+    /// Buttons and select menus. `chosen` is the select menu's value, empty
+    /// for a button. Both arrive here because a panel mixes the two and the
+    /// custom_id says what to do either way; the id is passed separately
+    /// because DPP puts it on each event type rather than on their base.
+    void on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen);
+
+    /// Modal submissions.
+    void on_form(const dpp::form_submit_t& event);
+
     config::bootstrap settings_;
     db::database database_;
     config::guild_settings guild_settings_;

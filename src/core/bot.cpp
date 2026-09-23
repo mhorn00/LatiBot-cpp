@@ -123,17 +123,120 @@ void bot::register_events() {
     cluster_.on_message_create(
         [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
 
-    cluster_.on_button_click([this](const dpp::button_click_t& event) {
-        const auto state = ui::decode(event.custom_id);
-        if (!state || state->view != commands::trigger_list_view) {
+    cluster_.on_button_click([this](const dpp::button_click_t& event) { on_component(event, event.custom_id, {}); });
+    cluster_.on_select_click([this](const dpp::select_click_t& event) {
+        on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
+    });
+    cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
+}
+
+namespace {
+
+/// The id a panel button carries, or 0 when it carries none.
+std::int64_t argument_id(const ui::page_state& state) {
+    std::int64_t id = 0;
+    const char* begin = state.argument.data();
+    const char* end = begin + state.argument.size();
+    const auto [stop, error] = std::from_chars(begin, end, id);
+    return error == std::errc{} && stop == end ? id : 0;
+}
+
+/// A modal's field, by the id it was built with.
+std::string field_of(const dpp::form_submit_t& event, std::string_view name) {
+    for (const dpp::component& row : event.components) {
+        for (const dpp::component& input : row.components) {
+            if (input.custom_id == name) {
+                if (const auto* text = std::get_if<std::string>(&input.value)) {
+                    return *text;
+                }
+            }
+        }
+    }
+    return {};
+}
+
+} // namespace
+
+void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id,
+                       const std::string& chosen) {
+    const auto state = ui::decode(custom_id);
+    if (!state) {
+        return;
+    }
+
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::int64_t id = chosen.empty() ? argument_id(*state) : 0;
+
+    // Every one of these edits the message the component is on rather than
+    // posting a new one, which is why the state rides in the custom_id: there
+    // is nothing here to expire, leak, or lose across a restart.
+    if (state->view == commands::trigger_list_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_list(triggers_, guild, state->page));
+    } else if (state->view == commands::trigger_panel_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
+    } else if (state->view == commands::trigger_pick_view) {
+        std::int64_t picked = 0;
+        const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
+        if (error != std::errc{} || stop != chosen.data() + chosen.size()) {
+            picked = 0;
+        }
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, picked));
+    } else if (state->view == commands::trigger_delete_view) {
+        event.reply(dpp::ir_update_message,
+                    commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
+    } else if (state->view == commands::trigger_confirm_view) {
+        triggers_.remove(id, guild);
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
+    } else if (state->view == commands::trigger_add_view) {
+        event.dialog(commands::trigger_form(state->page, nullptr));
+    } else if (state->view == commands::trigger_edit_view) {
+        const auto entry = triggers_.find(id, guild);
+        if (!entry) {
+            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
             return;
         }
+        event.dialog(commands::trigger_form(state->page, &*entry));
+    }
+}
 
-        // Paging edits the message the button is on rather than posting a new
-        // one, which is why the page lives in the custom_id and not in memory.
-        event.reply(dpp::ir_update_message,
-                    commands::render_trigger_list(triggers_, event.command.guild_id, state->page));
-    });
+void bot::on_form(const dpp::form_submit_t& event) {
+    const auto state = ui::decode(event.custom_id);
+    if (!state || state->view != commands::trigger_form_view) {
+        return;
+    }
+
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::int64_t id = argument_id(*state);
+
+    // Zero means add. Anything else has to still exist: somebody could have
+    // deleted it from another client while the modal was open.
+    events::trigger entry;
+    if (id != 0) {
+        auto existing = triggers_.find(id, guild);
+        if (!existing) {
+            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
+            return;
+        }
+        entry = std::move(*existing);
+    } else {
+        entry.guild_id = guild;
+        entry.cooldown = events::default_trigger_cooldown;
+    }
+
+    const commands::form_fields fields{.pattern = field_of(event, "pattern"),
+                                       .responses = field_of(event, "responses"),
+                                       .mode = field_of(event, "mode"),
+                                       .cooldown = field_of(event, "cooldown")};
+
+    if (const auto problem = commands::apply_form(entry, fields)) {
+        dpp::message complaint(*problem);
+        complaint.set_flags(dpp::m_ephemeral);
+        event.reply(complaint);
+        return;
+    }
+
+    const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
+    event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, saved));
 }
 
 events::incoming_message bot::describe(const dpp::message& message) const {

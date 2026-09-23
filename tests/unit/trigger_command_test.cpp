@@ -92,3 +92,60 @@ TEST_CASE("a trigger describes itself in one line", "[commands]") {
         CHECK(describe(entry) == "`7` **420** (whole word, 30s) -> 2 responses");
     }
 }
+
+TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[commands]") {
+    using latibot::commands::apply_form;
+    using latibot::commands::form_fields;
+
+    latibot::events::trigger entry{.id = 1,
+                                   .guild_id = dpp::snowflake{1},
+                                   .pattern = "420",
+                                   .mode = latibot::events::match_mode::substring,
+                                   .cooldown = 45s,
+                                   .enabled = true,
+                                   .responses = {{.text = "nice", .weight = 1}}};
+
+    // Someone typing "thirty" into a box should not silently lose what was
+    // there, which is the difference between an optional field and a reset.
+    const auto problem =
+        apply_form(entry, {.pattern = "69", .responses = "nice", .mode = "sideways", .cooldown = "thirty"});
+
+    CHECK_FALSE(problem.has_value());
+    CHECK(entry.pattern == "69");
+    CHECK(entry.mode == latibot::events::match_mode::substring);
+    CHECK(entry.cooldown == 45s);
+}
+
+TEST_CASE("the modal applies the fields it can read", "[commands]") {
+    using latibot::commands::apply_form;
+
+    latibot::events::trigger entry{.pattern = "420", .mode = latibot::events::match_mode::whole_word, .cooldown = 30s};
+
+    const auto problem = apply_form(
+        entry, {.pattern = "  69  ", .responses = "2 | nice\nvery nice", .mode = "anywhere", .cooldown = "0"});
+
+    REQUIRE_FALSE(problem.has_value());
+    CHECK(entry.pattern == "69");
+    CHECK(entry.mode == latibot::events::match_mode::substring);
+    CHECK(entry.cooldown == 0s);
+    REQUIRE(entry.responses.size() == 2);
+    CHECK(entry.responses[0].weight == 2);
+}
+
+TEST_CASE("the modal refuses a trigger that could not work", "[commands]") {
+    using latibot::commands::apply_form;
+
+    latibot::events::trigger entry{.pattern = "420", .responses = {{.text = "nice", .weight = 1}}};
+
+    SECTION("a blank pattern would match every message") {
+        const auto problem = apply_form(entry, {.pattern = "   ", .responses = "nice"});
+        REQUIRE(problem.has_value());
+        CHECK(entry.pattern == "420"); // unchanged
+    }
+
+    SECTION("no responses leaves nothing to say") {
+        const auto problem = apply_form(entry, {.pattern = "69", .responses = "  \n \n"});
+        REQUIRE(problem.has_value());
+        CHECK(entry.pattern == "420");
+    }
+}
