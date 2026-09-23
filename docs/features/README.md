@@ -68,7 +68,7 @@ Posts a message as the bot.
 | | |
 |---|---|
 | **Options** | `message` (required, 1–2000 characters) · `reply` (optional, a message id) |
-| **Who** | Manage Roles, by default |
+| **Who** | Manage Messages, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, Read Message History |
 

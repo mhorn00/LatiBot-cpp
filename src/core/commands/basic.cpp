@@ -182,7 +182,7 @@ say_command::say_command(dpp::cluster& cluster)
             .description = "Say something as the bot.",
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages | dpp::p_read_message_history,
-            .default_member_permissions = dpp::permission(dpp::p_manage_roles),
+            .default_member_permissions = dpp::permission(dpp::p_manage_messages),
             .guild_only = true},
       cluster_(&cluster) {}
 
