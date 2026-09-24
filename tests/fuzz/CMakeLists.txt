@@ -11,6 +11,11 @@ function(latibot_add_fuzzer name source)
     if(MSVC)
         target_compile_options(${name} PRIVATE /fsanitize=fuzzer /fsanitize=address)
         target_link_options(${name} PRIVATE /INCREMENTAL:NO)
+        # latibot_core is built with the STL's ASan annotations off (see
+        # latibot_target_sanitizers), and MSVC refuses to link objects that
+        # disagree. fuzz_text only got away without this because nothing it
+        # pulls in touches std::string.
+        target_compile_definitions(${name} PRIVATE _DISABLE_STL_ANNOTATION)
     else()
         target_compile_options(${name} PRIVATE -fsanitize=fuzzer,address)
         target_link_options(${name} PRIVATE -fsanitize=fuzzer,address)
@@ -19,8 +24,8 @@ function(latibot_add_fuzzer name source)
 endfunction()
 
 latibot_add_fuzzer(fuzz_text fuzz_text.cpp)
+latibot_add_fuzzer(fuzz_url_scan fuzz_url_scan.cpp)
 
 # As the parsers land, add:
-#   latibot_add_fuzzer(fuzz_url_scan fuzz_url_scan.cpp)          (plan v4 §9.1)
 #   latibot_add_fuzzer(fuzz_dectalk_sanitizer fuzz_sanitizer.cpp) (plan v4 §12.5)
 #   latibot_add_fuzzer(fuzz_legacy_parser fuzz_legacy_parser.cpp) (plan v4 §9.7)

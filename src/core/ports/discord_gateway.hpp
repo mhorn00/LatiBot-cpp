@@ -31,6 +31,13 @@ public:
 
     virtual dpp::task<result<void>> delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) = 0;
 
+    /// Turns a message's link previews off or back on, including on messages
+    /// somebody else wrote, which needs Manage Messages (plan v4 §9.2). Only
+    /// the flag changes; the message is otherwise untouched.
+    virtual dpp::task<result<void>> set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) = 0;
+
+    virtual dpp::task<result<dpp::message>> get_message(dpp::snowflake channel_id, dpp::snowflake message_id) = 0;
+
     /// Newest first, as Discord returns them. `before` of 0 starts at the
     /// most recent message.
     virtual dpp::task<result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id, dpp::snowflake before,

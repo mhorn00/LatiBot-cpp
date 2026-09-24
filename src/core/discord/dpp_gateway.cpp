@@ -41,6 +41,26 @@ dpp::task<result<void>> dpp_gateway::delete_message(dpp::snowflake channel_id, d
     co_return result<void>{};
 }
 
+dpp::task<result<void>> dpp_gateway::set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) {
+    // A PATCH carrying only the flags, which is the one edit Discord allows
+    // on somebody else's message. It ignores every flag but this one, so
+    // sending 0 to turn previews back on clears nothing else.
+    dpp::message target(channel_id, "");
+    target.id = message_id;
+    target.flags = suppressed ? dpp::m_suppress_embeds : 0;
+
+    const auto confirmation = co_await cluster_->co_message_edit_flags(target);
+    if (confirmation.is_error()) {
+        co_return to_error(confirmation);
+    }
+    co_return result<void>{};
+}
+
+dpp::task<result<dpp::message>> dpp_gateway::get_message(dpp::snowflake channel_id, dpp::snowflake message_id) {
+    const auto confirmation = co_await cluster_->co_message_get(message_id, channel_id);
+    co_return unwrap<dpp::message>(confirmation);
+}
+
 dpp::task<result<std::vector<dpp::message>>> dpp_gateway::get_messages(dpp::snowflake channel_id, dpp::snowflake before,
                                                                        std::uint64_t limit) {
     const auto confirmation = co_await cluster_->co_messages_get(channel_id, /*around=*/0, before, /*after=*/0, limit);

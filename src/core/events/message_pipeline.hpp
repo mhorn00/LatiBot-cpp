@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/events/url_rules.hpp"
+
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -19,6 +21,7 @@ namespace latibot::events {
 struct incoming_message {
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;
+    dpp::snowflake message_id;
     dpp::snowflake author_id;
 
     bool from_self = false;
@@ -32,6 +35,9 @@ struct incoming_message {
     /// Whether the author has Administrator in this guild. Resolved by the
     /// shell, since it depends on roles and overwrites.
     bool author_is_administrator = false;
+
+    /// The author already turned this message's link previews off.
+    bool embeds_suppressed = false;
 
     std::string content;
 };
@@ -47,12 +53,30 @@ struct stop_bot {
     std::chrono::milliseconds after{0};
 };
 
+/// Post working previews for links a URL rule covers (plan v4 §9.2).
+///
+/// Carrying this out takes several calls and then some waiting, which is why
+/// it is an action of its own rather than a `send_message`: what gets posted
+/// next depends on whether Discord manages to embed the first attempt.
+struct replace_links {
+    dpp::snowflake guild_id;
+    dpp::snowflake channel_id;
+
+    /// The message the links were in, whose own previews get turned off.
+    dpp::snowflake message_id;
+
+    /// Who posted them, which is who the reaction statistics credit.
+    dpp::snowflake author_id;
+
+    std::vector<planned_link> links;
+};
+
 /// Something a stage wants done.
 ///
 /// Stages return actions rather than performing them, which is what keeps
 /// them pure: a test reads the actions, and the shell is the only code that
 /// touches Discord.
-using action = std::variant<send_message, stop_bot>;
+using action = std::variant<send_message, stop_bot, replace_links>;
 
 struct stage_result {
     std::vector<action> actions;

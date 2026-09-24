@@ -6,6 +6,8 @@ add_executable(latibot_tests
     db/bot_allowlist_test.cpp
     db/database_test.cpp
     db/trigger_store_test.cpp
+    db/replacement_store_test.cpp
+    db/url_rule_store_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
     db/midnight_store_test.cpp
@@ -16,6 +18,7 @@ add_executable(latibot_tests
     unit/bots_command_test.cpp
     unit/ca_certificates_test.cpp
     unit/command_log_test.cpp
+    unit/embed_watch_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp
     unit/message_pipeline_test.cpp
@@ -35,6 +38,8 @@ add_executable(latibot_tests
     unit/triggers_test.cpp
     unit/version_test.cpp
     unit/text_test.cpp
+    unit/url_rules_test.cpp
+    unit/url_scan_test.cpp
 )
 
 # Test helpers are included as "support/<file>.hpp".

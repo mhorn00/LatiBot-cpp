@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 5> all_migrations{{
+constexpr std::array<migration, 6> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -114,6 +114,74 @@ constexpr std::array<migration, 5> all_migrations{{
         );
 
         CREATE INDEX midnight_messages_by_guild ON midnight_messages (guild_id);
+     )sql"},
+    {.version = 6, .name = "url_replacement", .sql = R"sql(
+        -- Where links to a site go instead, in the order to try them
+        -- (plan v4 9). A rule is its rows for one domain; position 0 is first.
+        CREATE TABLE url_rules (
+            guild_id         INTEGER NOT NULL,
+
+            -- Lowercase, without "www.": the host a link is looked up by.
+            domain           TEXT    NOT NULL,
+            position         INTEGER NOT NULL,
+            host             TEXT    NOT NULL,
+
+            -- "/en" for a mirror that translates when asked; NULL for none.
+            translate_suffix TEXT,
+
+            PRIMARY KEY (guild_id, domain, position)
+        ) WITHOUT ROWID;
+
+        -- Members who asked for their links to be left alone. Per guild, and
+        -- kept: the Java /toggle forgot on every restart.
+        CREATE TABLE url_opt_outs (
+            guild_id INTEGER NOT NULL,
+            user_id  INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, user_id)
+        ) WITHOUT ROWID;
+
+        -- Every mirror a rule has ever used, and never pruned: the backfill
+        -- recognises the bot's old messages by these hosts, and they do not
+        -- stop existing when a rule changes (plan v4 9.7).
+        CREATE TABLE known_mirrors (
+            guild_id INTEGER NOT NULL,
+            host     TEXT    NOT NULL,
+            domain   TEXT    NOT NULL,
+            PRIMARY KEY (guild_id, host)
+        ) WITHOUT ROWID;
+
+        -- One row per message the bot posted in place of somebody's links.
+        -- Reaction statistics hang off it, so rows are kept after the message
+        -- is gone (plan v4 9.6).
+        CREATE TABLE replacement_messages (
+            message_id          INTEGER PRIMARY KEY,
+            guild_id            INTEGER NOT NULL,
+            channel_id          INTEGER NOT NULL,
+
+            -- NULL for an old message whose original could not be found.
+            original_message_id INTEGER,
+            original_author_id  INTEGER,
+
+            -- pending | ok | failed | retrying
+            state               TEXT    NOT NULL,
+
+            -- Unix seconds.
+            created_at          INTEGER NOT NULL,
+            retried_at          INTEGER
+        );
+
+        CREATE INDEX replacement_messages_by_author ON replacement_messages (guild_id, original_author_id);
+
+        -- The links in one replacement, so Retry still knows what to try after
+        -- a restart. Mirrors are not stored: Retry uses the rule as it is now.
+        CREATE TABLE replacement_links (
+            message_id   INTEGER NOT NULL REFERENCES replacement_messages (message_id) ON DELETE CASCADE,
+            position     INTEGER NOT NULL,
+            original_url TEXT    NOT NULL,
+            domain       TEXT    NOT NULL,
+            spoilered    INTEGER NOT NULL,
+            PRIMARY KEY (message_id, position)
+        ) WITHOUT ROWID;
      )sql"},
 }};
 

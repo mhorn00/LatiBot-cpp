@@ -5,19 +5,19 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-291 test cases across 9 components, including 53 sections.
+357 test cases across 9 components, including 77 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 71 | 4 |
+| [db](#db) | 84 | 4 |
 | [config](#config) | 20 | 15 |
 | [commands](#commands) | 60 | 20 |
-| [events](#events) | 73 | 13 |
+| [events](#events) | 109 | 27 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
-| [util](#util) | 16 | 1 |
+| [util](#util) | 33 | 11 |
 
 ## db
 
@@ -83,6 +83,11 @@ Database (`src/core/db`)
 | a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:190](../../tests/db/nickname_store_test.cpp#L190) |
 | the members of a guild are listed once each |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
 | an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:218](../../tests/db/nickname_store_test.cpp#L218) |
+| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:39](../../tests/db/replacement_store_test.cpp#L39) |
+| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:59](../../tests/db/replacement_store_test.cpp#L59) |
+| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:72](../../tests/db/replacement_store_test.cpp#L72) |
+| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:87](../../tests/db/replacement_store_test.cpp#L87) |
+| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:100](../../tests/db/replacement_store_test.cpp#L100) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:58](../../tests/db/trigger_store_test.cpp#L58) |
 | guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:77](../../tests/db/trigger_store_test.cpp#L77) |
 | updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:94](../../tests/db/trigger_store_test.cpp#L94) |
@@ -96,6 +101,14 @@ Database (`src/core/db`)
 | respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:212](../../tests/db/trigger_store_test.cpp#L212) |
 | a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:231](../../tests/db/trigger_store_test.cpp#L231) |
 | a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:249](../../tests/db/trigger_store_test.cpp#L249) |
+| a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
+| setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
+| rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
+| removing a rule says whether there was one |  |  | [tests/db/url_rule_store_test.cpp:72](../../tests/db/url_rule_store_test.cpp#L72) |
+| a mirror is remembered after its rule is gone |  |  | [tests/db/url_rule_store_test.cpp:81](../../tests/db/url_rule_store_test.cpp#L81) |
+| an opt-out toggles, and is kept per guild |  |  | [tests/db/url_rule_store_test.cpp:93](../../tests/db/url_rule_store_test.cpp#L93) |
+| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:105](../../tests/db/url_rule_store_test.cpp#L105) |
+| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:124](../../tests/db/url_rule_store_test.cpp#L124) |
 
 ## config
 
@@ -197,6 +210,30 @@ Message pipeline and triggers (`src/core/events`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:111](../../tests/unit/embed_watch_test.cpp#L111) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:121](../../tests/unit/embed_watch_test.cpp#L121) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:129](../../tests/unit/embed_watch_test.cpp#L129) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:144](../../tests/unit/embed_watch_test.cpp#L144) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:154](../../tests/unit/embed_watch_test.cpp#L154) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:160](../../tests/unit/embed_watch_test.cpp#L160) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:169](../../tests/unit/embed_watch_test.cpp#L169) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:180](../../tests/unit/embed_watch_test.cpp#L180) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:193](../../tests/unit/embed_watch_test.cpp#L193) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:208](../../tests/unit/embed_watch_test.cpp#L208) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:246](../../tests/unit/embed_watch_test.cpp#L246) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:271](../../tests/unit/embed_watch_test.cpp#L271) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:283](../../tests/unit/embed_watch_test.cpp#L283) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:293](../../tests/unit/embed_watch_test.cpp#L293) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:302](../../tests/unit/embed_watch_test.cpp#L302) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:316](../../tests/unit/embed_watch_test.cpp#L316) |
+| Retry says why there is nothing to retry |  | 4 | [tests/unit/embed_watch_test.cpp:357](../../tests/unit/embed_watch_test.cpp#L357) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:386](../../tests/unit/embed_watch_test.cpp#L386) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:417](../../tests/unit/embed_watch_test.cpp#L417) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:431](../../tests/unit/embed_watch_test.cpp#L431) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:463](../../tests/unit/embed_watch_test.cpp#L463) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:479](../../tests/unit/embed_watch_test.cpp#L479) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:513](../../tests/unit/embed_watch_test.cpp#L513) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:525](../../tests/unit/embed_watch_test.cpp#L525) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
@@ -270,6 +307,18 @@ Message pipeline and triggers (`src/core/events`)
 | a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:108](../../tests/unit/triggers_test.cpp#L108) |
 | cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:120](../../tests/unit/triggers_test.cpp#L120) |
 | a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:129](../../tests/unit/triggers_test.cpp#L129) |
+| a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:31](../../tests/unit/url_rules_test.cpp#L31) |
+| each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:41](../../tests/unit/url_rules_test.cpp#L41) |
+| a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:52](../../tests/unit/url_rules_test.cpp#L52) |
+| www and letter case do not hide a link from its rule |  |  | [tests/unit/url_rules_test.cpp:58](../../tests/unit/url_rules_test.cpp#L58) |
+| the spoiler survives into the plan |  |  | [tests/unit/url_rules_test.cpp:64](../../tests/unit/url_rules_test.cpp#L64) |
+| links Discord would not have embedded are left alone |  |  | [tests/unit/url_rules_test.cpp:70](../../tests/unit/url_rules_test.cpp#L70) |
+| the same link twice is replaced once |  |  | [tests/unit/url_rules_test.cpp:75](../../tests/unit/url_rules_test.cpp#L75) |
+| a message of links is capped |  |  | [tests/unit/url_rules_test.cpp:80](../../tests/unit/url_rules_test.cpp#L80) |
+| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:88](../../tests/unit/url_rules_test.cpp#L88) |
+| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:92](../../tests/unit/url_rules_test.cpp#L92) |
+| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:100](../../tests/unit/url_rules_test.cpp#L100) |
+| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:106](../../tests/unit/url_rules_test.cpp#L106) |
 
 ## ui
 
@@ -371,4 +420,21 @@ Utilities (`src/core/util`, `src/core/version`)
 | is_inside_spoiler follows an odd count of markers |  |  | [tests/unit/text_test.cpp:22](../../tests/unit/text_test.cpp#L22) |
 | trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:36](../../tests/unit/text_test.cpp#L36) |
 | is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
+| every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
+| a spoiler is an odd number of || before the link |  | 4 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
+| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:86](../../tests/unit/url_scan_test.cpp#L86) |
+| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:93](../../tests/unit/url_scan_test.cpp#L93) |
+| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |
+| a link written as <…> is marked as having its preview turned off |  |  | [tests/unit/url_scan_test.cpp:105](../../tests/unit/url_scan_test.cpp#L105) |
+| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:112](../../tests/unit/url_scan_test.cpp#L112) |
+| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:134](../../tests/unit/url_scan_test.cpp#L134) |
+| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:139](../../tests/unit/url_scan_test.cpp#L139) |
+| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:143](../../tests/unit/url_scan_test.cpp#L143) |
+| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:154](../../tests/unit/url_scan_test.cpp#L154) |
+| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:168](../../tests/unit/url_scan_test.cpp#L168) |
+| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:176](../../tests/unit/url_scan_test.cpp#L176) |
+| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:182](../../tests/unit/url_scan_test.cpp#L182) |
+| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:204](../../tests/unit/url_scan_test.cpp#L204) |
+| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:222](../../tests/unit/url_scan_test.cpp#L222) |
+| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:234](../../tests/unit/url_scan_test.cpp#L234) |
 | version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |

@@ -3,6 +3,8 @@
 #include "core/ports/discord_gateway.hpp"
 
 #include <deque>
+#include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -27,12 +29,31 @@ public:
     };
     std::vector<history_request> history_requests;
 
+    struct suppression {
+        dpp::snowflake channel_id;
+        dpp::snowflake message_id;
+        bool suppressed;
+    };
+    std::vector<suppression> suppressions;
+
+    struct reaction_request {
+        dpp::snowflake message_id;
+        std::string emoji;
+        dpp::snowflake after;
+    };
+    std::vector<reaction_request> reaction_requests;
+
     /// Scripted outcomes. When a queue is empty a sensible default is used.
     std::deque<result<dpp::message>> send_results;
     std::deque<result<dpp::message>> edit_results;
     std::deque<result<void>> delete_results;
+    std::deque<result<void>> suppress_results;
     std::deque<result<std::vector<dpp::message>>> message_pages;
     std::deque<result<std::vector<dpp::snowflake>>> reaction_pages;
+
+    /// What `get_message` finds, by id. Anything else is a 404, as it would
+    /// be for a message that has been deleted.
+    std::map<dpp::snowflake, dpp::message> stored_messages;
 
     dpp::task<result<dpp::message>> send_message(dpp::message message) override {
         sent.push_back(message);
@@ -65,6 +86,24 @@ public:
         co_return result<void>{};
     }
 
+    dpp::task<result<void>> set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) override {
+        suppressions.push_back({channel_id, message_id, suppressed});
+        if (!suppress_results.empty()) {
+            auto scripted = std::move(suppress_results.front());
+            suppress_results.pop_front();
+            co_return scripted;
+        }
+        co_return result<void>{};
+    }
+
+    dpp::task<result<dpp::message>> get_message(dpp::snowflake /*channel_id*/, dpp::snowflake message_id) override {
+        const auto found = stored_messages.find(message_id);
+        if (found == stored_messages.end()) {
+            co_return api_error{.http_status = 404, .message = "Unknown Message"};
+        }
+        co_return found->second;
+    }
+
     dpp::task<result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id, dpp::snowflake before,
                                                               std::uint64_t limit) override {
         history_requests.push_back({channel_id, before, limit});
@@ -78,9 +117,10 @@ public:
         co_return std::vector<dpp::message>{};
     }
 
-    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake /*message_id*/,
-                                                                      std::string /*emoji*/, dpp::snowflake /*after*/,
+    dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake message_id,
+                                                                      std::string emoji, dpp::snowflake after,
                                                                       std::uint64_t /*limit*/) override {
+        reaction_requests.push_back({message_id, emoji, after});
         if (!reaction_pages.empty()) {
             auto scripted = std::move(reaction_pages.front());
             reaction_pages.pop_front();

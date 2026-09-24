@@ -25,12 +25,17 @@ add_library(latibot_core STATIC
     core/events/nickname_import.cpp
     core/events/nicknames.cpp
     core/events/triggers.cpp
+    core/events/embed_watch.cpp
+    core/events/replacements.cpp
+    core/events/url_replacer.cpp
+    core/events/url_rules.cpp
     core/ports/clock.cpp
     core/ui/paginator.cpp
     core/util/ca_certificates.cpp
     core/util/env.cpp
     core/util/log.cpp
     core/util/text.cpp
+    core/util/url_scan.cpp
 )
 
 # Headers are included as "core/<area>/<file>.hpp".

@@ -12,6 +12,8 @@
 #include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
 #include "core/events/triggers.hpp"
+#include "core/events/url_replacer.hpp"
+#include "core/events/url_rules.hpp"
 #include "core/ports/clock.hpp"
 
 #include <dpp/dpp.h>
@@ -96,6 +98,15 @@ private:
     /// Writes down nicknames that changed while the bot was not running.
     void reconcile_nicknames(const dpp::guild& guild);
 
+    /// Copies the Java bot's URL rules into a guild, once (plan v4 §9.5).
+    void import_url_rules(const dpp::guild& guild);
+
+    /// Somebody pressed Retry on a replacement that found no preview.
+    void retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who);
+
+    /// Runs what the embed tracker decided, without holding up the caller.
+    void carry_out(std::vector<events::embed_action> actions);
+
     /// Applies one change to a trigger from the panel and logs what happened.
     /// `change` returns the past-tense verb for the log, so the two toggles
     /// differ only in the field they flip.
@@ -121,6 +132,9 @@ private:
     events::trigger_responder trigger_responder_;
     events::midnight_store midnight_;
     events::midnight_scheduler midnight_scheduler_;
+    events::url_rule_store url_rules_;
+    events::replacement_store replacements_;
+    events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 };
 

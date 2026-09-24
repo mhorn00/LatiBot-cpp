@@ -95,6 +95,38 @@ std::optional<dpp::audit_change> nickname_change_in(const dpp::audit_entry& entr
     return std::nullopt;
 }
 
+/// Runs a coroutine to the end with nobody waiting on it.
+///
+/// `dpp::job` is DPP's fire-and-forget coroutine. The catch is the point of
+/// this function: an exception leaving a job is rethrown on whichever DPP
+/// thread resumed it, which would end the process.
+dpp::job detach(dpp::task<void> work, std::string what) {
+    try {
+        co_await std::move(work);
+    } catch (const std::exception& error) {
+        util::log().error("{} threw: {}", what, error.what());
+    } catch (...) {
+        util::log().error("{} threw an unknown exception", what);
+    }
+}
+
+/// The URLs of a message's previews, which is all the embed tracker needs.
+std::vector<std::string> embed_urls_of(const dpp::message& message) {
+    std::vector<std::string> urls;
+    urls.reserve(message.embeds.size());
+    for (const dpp::embed& embed : message.embeds) {
+        urls.push_back(embed.url);
+    }
+    return urls;
+}
+
+/// The Java bot's rules, if its file was left beside the database.
+constexpr std::string_view legacy_url_rules_file = "UrlReplacements.txt";
+
+/// Set once a guild has had the Java bot's rules, so that removing one later
+/// is not undone by the next restart.
+constexpr std::string_view url_rules_imported_key = "url_rules_imported";
+
 /// Makes sure the folder holding the database exists, so a first run on a
 /// clean machine works without setup. Returns by value: handing back a
 /// reference to the parameter would dangle if a caller ever passed a
@@ -121,7 +153,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       triggers_(database_),
       trigger_responder_(triggers_, clock_),
       midnight_(database_),
-      midnight_scheduler_(midnight_, clock_) {
+      midnight_scheduler_(midnight_, clock_),
+      url_rules_(database_),
+      replacements_(database_),
+      embed_tracker_(replacements_, clock_) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -176,8 +211,9 @@ void bot::register_commands() {
 
 void bot::register_stages() {
     // The order is plan v4 §5.4, and it is a list so that changing it is one
-    // line. URL replacement and the LLM stages join it in phases 3 and 5.
+    // line. The LLM stages join it in phase 5.
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
+    pipeline_.add("url replacement", events::url_replacer(url_rules_));
     pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
 }
 
@@ -239,6 +275,7 @@ void bot::register_events() {
 
         check_permissions(guild);
         reconcile_nicknames(guild);
+        import_url_rules(guild);
 
         const int seeded = triggers_.seed_defaults(guild.id);
         if (seeded > 0) {
@@ -251,6 +288,16 @@ void bot::register_events() {
     });
 
     cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
+
+    // Discord adds link previews by updating the message a moment after it
+    // was posted, which is how the embed tracker learns that a mirror worked
+    // (plan v4 §9.3). Every update goes to it: the one for our message often
+    // arrives without an author, so there is nothing to filter on here.
+    cluster_.on_message_update([this](const dpp::message_update_t& event) {
+        const std::vector<std::string> urls = embed_urls_of(event.msg);
+        carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
+    });
+    cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
 
     // Only when tracking is on, because DPP warns about a handler attached
     // without the intent that feeds it — which would be true and useless
@@ -283,6 +330,11 @@ void bot::register_timers() {
                          static_cast<std::uint64_t>(events::midnight_tick.count()));
 
     util::log().debug("midnight messages checked every {}", events::midnight_tick);
+
+    // One timer for every replacement being watched, rather than one each:
+    // the tracker knows whose time is up, and a second is as fine as DPP's
+    // timers go. Most ticks find nothing and cost a lock.
+    cluster_.start_timer([this](dpp::timer) { carry_out(embed_tracker_.tick()); }, 1);
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -470,6 +522,48 @@ void bot::reconcile_nicknames(const dpp::guild& guild) {
                       recorded);
 }
 
+void bot::import_url_rules(const dpp::guild& guild) {
+    if (guild_settings_.get_bool(guild.id, url_rules_imported_key, false)) {
+        return;
+    }
+
+    // Marked only once a file was actually read, so dropping the file in
+    // after a first run still works.
+    const std::filesystem::path legacy = settings_.database_path.parent_path() / legacy_url_rules_file;
+    const auto imported = events::import_url_rules_file(url_rules_, guild.id, legacy);
+    if (!imported) {
+        return;
+    }
+
+    guild_settings_.set_bool(guild.id, url_rules_imported_key, true);
+    util::log().info("{}: imported {} URL rule(s) from {}", guild.name, *imported, legacy.generic_string());
+}
+
+void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) {
+    auto plan = events::plan_retry(replacements_, url_rules_, message_id, event.command.guild_id);
+    if (const auto* reason = std::get_if<std::string>(&plan)) {
+        dpp::message note(*reason);
+        note.set_flags(dpp::m_ephemeral);
+        event.reply(note);
+        return;
+    }
+
+    auto& retry = std::get<events::retry_plan>(plan);
+    replacements_.set_state(message_id, events::replacement_state::retrying);
+    util::log().info("{} pressed Retry on replacement {} in guild {}", who, message_id, event.command.guild_id);
+
+    // Answering the button with the edit is the first attempt, so it cannot
+    // be overtaken by another press. Anyone may press it (plan v4 §9.4).
+    event.reply(dpp::ir_update_message, events::build_edit(retry.first));
+    carry_out(embed_tracker_.watch(std::move(retry.request)));
+}
+
+void bot::carry_out(std::vector<events::embed_action> actions) {
+    if (!actions.empty()) {
+        detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
+    }
+}
+
 void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
                          const std::function<std::string_view(events::trigger&)>& change) {
     auto entry = triggers_.find(id, guild);
@@ -536,6 +630,8 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
             return entry.respond_to_bots ? "set to answer bots" : "set to ignore bots";
         });
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
+    } else if (state->view == events::url_retry_view) {
+        retry_replacement(event, dpp::snowflake(state->argument), who);
     } else if (state->view == commands::trigger_add_view) {
         event.dialog(commands::trigger_form(state->page, nullptr));
     } else if (state->view == commands::trigger_edit_view) {
@@ -601,6 +697,8 @@ events::incoming_message bot::describe(const dpp::message& message) const {
     described.from_self = message.author.id == cluster_.me.id;
     described.from_bot = message.author.is_bot();
     described.author_is_allowed_bot = described.from_bot && bot_allowlist_.contains(message.guild_id, message.author.id);
+    described.message_id = message.id;
+    described.embeds_suppressed = (message.flags & dpp::m_suppress_embeds) != 0;
     described.content = message.content;
 
     // Administrator is a guild-level question, so it needs the guild and the
@@ -629,6 +727,8 @@ void bot::carry_out(const std::vector<events::action>& actions) {
                     reply.set_flags(dpp::m_suppress_notifications);
                     cluster_.message_create(reply);
                     util::log().info("replied in channel {}: \"{}\"", step.channel_id, step.content);
+                } else if constexpr (std::is_same_v<step_type, events::replace_links>) {
+                    detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
                     // Detached, so the pause does not block DPP's event
