@@ -6,6 +6,7 @@ add_executable(latibot_tests
     db/bot_allowlist_test.cpp
     db/database_test.cpp
     db/trigger_store_test.cpp
+    db/reaction_store_test.cpp
     db/replacement_store_test.cpp
     db/url_rule_store_test.cpp
     db/guild_settings_test.cpp
@@ -28,11 +29,13 @@ add_executable(latibot_tests
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp
     unit/paginator_test.cpp
+    unit/linkstats_command_test.cpp
     unit/log_color_test.cpp
     unit/log_test.cpp
     unit/ports_test.cpp
     unit/preflight_test.cpp
     unit/raw_api_test.cpp
+    unit/reactions_test.cpp
     unit/registry_test.cpp
     unit/trigger_command_test.cpp
     unit/triggers_test.cpp

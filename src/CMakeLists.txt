@@ -9,6 +9,7 @@ add_library(latibot_core STATIC
     core/db/migrations.cpp
     core/db/statement.cpp
     core/commands/basic.cpp
+    core/commands/linkstats.cpp
     core/commands/bots.cpp
     core/commands/midnight.cpp
     core/commands/nickname.cpp
@@ -25,6 +26,7 @@ add_library(latibot_core STATIC
     core/events/midnight.cpp
     core/events/nickname_import.cpp
     core/events/nicknames.cpp
+    core/events/reactions.cpp
     core/events/triggers.cpp
     core/events/embed_watch.cpp
     core/events/replacements.cpp

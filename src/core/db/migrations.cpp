@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 6> all_migrations{{
+constexpr std::array<migration, 7> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -181,6 +181,54 @@ constexpr std::array<migration, 6> all_migrations{{
             domain       TEXT    NOT NULL,
             spoilered    INTEGER NOT NULL,
             PRIMARY KEY (message_id, position)
+        ) WITHOUT ROWID;
+     )sql"},
+    {.version = 7, .name = "reaction_stats", .sql = R"sql(
+        -- Who reacted with what on a replacement message (plan v4 9.6). The
+        -- poster comes from replacement_messages, so one row answers both
+        -- "who received" and "who gave". Kept forever.
+        CREATE TABLE reactions (
+            message_id INTEGER NOT NULL REFERENCES replacement_messages (message_id),
+            user_id    INTEGER NOT NULL,
+
+            -- u:<unicode> or c:<custom emoji id>
+            emoji_key  TEXT    NOT NULL,
+
+            -- Unix seconds, NULL when backfilled: Discord says who reacted,
+            -- never when (plan v4 9.7).
+            reacted_at INTEGER,
+
+            PRIMARY KEY (message_id, user_id, emoji_key)
+        ) WITHOUT ROWID;
+
+        CREATE INDEX reactions_by_user ON reactions (user_id);
+
+        -- Every add and remove seen live, for questions nobody has asked yet.
+        CREATE TABLE reaction_log (
+            id         INTEGER PRIMARY KEY,
+            message_id INTEGER NOT NULL,
+            user_id    INTEGER NOT NULL,
+            emoji_key  TEXT    NOT NULL,
+            action     TEXT    NOT NULL,   -- add | remove
+            at         INTEGER NOT NULL
+        );
+
+        -- What a key looks like, for showing it: a custom emoji is only an id
+        -- in the rows above.
+        CREATE TABLE emojis (
+            emoji_key TEXT    PRIMARY KEY,
+            name      TEXT    NOT NULL,
+            animated  INTEGER NOT NULL DEFAULT 0
+        ) WITHOUT ROWID;
+
+        -- Emojis that should count as one: the same emote from another server,
+        -- or one deleted and re-added. Applied when stats are read, so adding
+        -- or removing one changes all of history at once.
+        CREATE TABLE emoji_aliases (
+            guild_id      INTEGER NOT NULL,
+            emoji_key     TEXT    NOT NULL,
+            canonical_key TEXT    NOT NULL,
+            PRIMARY KEY (guild_id, emoji_key)
         ) WITHOUT ROWID;
      )sql"},
 }};

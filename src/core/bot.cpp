@@ -2,6 +2,7 @@
 
 #include "core/commands/basic.hpp"
 #include "core/commands/bots.hpp"
+#include "core/commands/linkstats.hpp"
 #include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
@@ -157,6 +158,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       midnight_scheduler_(midnight_, clock_),
       url_rules_(database_),
       replacements_(database_),
+      reactions_(database_),
       embed_tracker_(replacements_, clock_) {
     util::log().set_level(settings_.log_level);
 
@@ -210,6 +212,7 @@ void bot::register_commands() {
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
+    commands_.add(std::make_unique<commands::linkstats_command>(reactions_));
 }
 
 void bot::register_stages() {
@@ -301,6 +304,34 @@ void bot::register_events() {
         carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
     });
     cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
+
+    // Reaction statistics (plan v4 §9.6). Every reaction in every channel
+    // arrives here; the store counts the ones on our replacements and
+    // ignores the rest in the same statement that would have recorded them.
+    cluster_.on_message_reaction_add([this](const dpp::message_reaction_add_t& event) {
+        const dpp::emoji& emoji = event.reacting_emoji;
+        const auto reacted = events::reaction_emoji(emoji.id, emoji.name, emoji.is_animated());
+        if (reactions_.add(event.message_id, event.reacting_user.id, reacted, now_seconds())) {
+            util::log().debug("{} reacted {} to replacement {}", event.reacting_user.id, reacted.key, event.message_id);
+        }
+    });
+    cluster_.on_message_reaction_remove([this](const dpp::message_reaction_remove_t& event) {
+        const auto reacted = events::reaction_emoji(event.reacting_emoji.id, event.reacting_emoji.name);
+        if (reactions_.remove(event.message_id, event.reacting_user_id, reacted.key, now_seconds())) {
+            util::log().debug("{} took back {} on replacement {}", event.reacting_user_id, reacted.key, event.message_id);
+        }
+    });
+    cluster_.on_message_reaction_remove_emoji([this](const dpp::message_reaction_remove_emoji_t& event) {
+        const auto reacted = events::reaction_emoji(event.reacting_emoji.id, event.reacting_emoji.name);
+        if (const int gone = reactions_.remove_emoji(event.message_id, reacted.key, now_seconds()); gone > 0) {
+            util::log().debug("{} cleared from replacement {}: {} reaction(s)", reacted.key, event.message_id, gone);
+        }
+    });
+    cluster_.on_message_reaction_remove_all([this](const dpp::message_reaction_remove_all_t& event) {
+        if (const int gone = reactions_.remove_all(event.message_id, now_seconds()); gone > 0) {
+            util::log().debug("every reaction cleared from replacement {}: {}", event.message_id, gone);
+        }
+    });
 
     // Only when tracking is on, because DPP warns about a handler attached
     // without the intent that feeds it — which would be true and useless
@@ -559,6 +590,10 @@ void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowfla
     // be overtaken by another press. Anyone may press it (plan v4 §9.4).
     event.reply(dpp::ir_update_message, events::build_edit(retry.first));
     carry_out(embed_tracker_.watch(std::move(retry.request)));
+}
+
+std::chrono::sys_seconds bot::now_seconds() const {
+    return std::chrono::floor<std::chrono::seconds>(clock_.now());
 }
 
 void bot::carry_out(std::vector<events::embed_action> actions) {

@@ -1,0 +1,501 @@
+#include "core/commands/linkstats.hpp"
+
+#include "core/util/log.hpp"
+#include "core/util/text.hpp"
+
+#include <dpp/cluster.h>
+#include <dpp/dispatcher.h>
+#include <dpp/permissions.h>
+
+#include <algorithm>
+#include <cctype>
+#include <charconv>
+#include <format>
+#include <utility>
+#include <vector>
+
+namespace latibot::commands {
+namespace {
+
+/// Autocomplete shows at most this many choices; Discord's limit is 25.
+constexpr std::size_t emoji_choices = 25;
+
+dpp::message ack(std::string_view text) {
+    dpp::message reply(text);
+    reply.set_flags(dpp::m_ephemeral);
+    return reply;
+}
+
+/// A statistic everybody can see. Mentions show names without pinging
+/// anyone, which DPP's default of parsing no mentions already ensures.
+dpp::message post(std::string_view text) {
+    return dpp::message(text);
+}
+
+std::string string_option(const dpp::slashcommand_t& event, const char* name) {
+    const dpp::command_value value = event.get_parameter(name);
+    const auto* text = std::get_if<std::string>(&value);
+    return text == nullptr ? std::string{} : *text;
+}
+
+/// "group action" for a subcommand in a group, "action" otherwise.
+std::pair<std::string, std::string> subcommand_path(const dpp::slashcommand_t& event) {
+    const dpp::command_interaction interaction = event.command.get_command_interaction();
+    if (interaction.options.empty()) {
+        return {};
+    }
+    const dpp::command_data_option& first = interaction.options.front();
+    if (first.type == dpp::co_sub_command_group && !first.options.empty()) {
+        return {first.name, first.options.front().name};
+    }
+    return {std::string{}, first.name};
+}
+
+dpp::permission invoker_permissions(const dpp::slashcommand_t& event) {
+    const auto& resolved = event.command.resolved.member_permissions;
+    const auto found = resolved.find(event.command.get_issuing_user().id);
+    return found == resolved.end() ? dpp::permission{} : found->second;
+}
+
+bool is_word(std::string_view text) {
+    return !text.empty() && std::ranges::all_of(text, [](unsigned char letter) { return std::isalnum(letter) != 0 || letter == '_'; });
+}
+
+bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) {
+    return std::ranges::equal(lhs, rhs, [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+}
+
+std::string format_day(std::chrono::sys_seconds when) {
+    return std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(when));
+}
+
+/// "since 2024-01-01", "until 2024-06-30", both, or nothing for all time.
+std::string describe_window(const events::stat_query& query) {
+    std::string text;
+    if (query.since) {
+        text += " since " + format_day(*query.since);
+    }
+    if (query.until) {
+        // The bound is exclusive, and the day before it is the one typed.
+        text += " until " + format_day(*query.until - std::chrono::days{1});
+    }
+    return text;
+}
+
+/// The since and until options, or what was wrong with them.
+std::optional<std::string> read_window(const dpp::slashcommand_t& event, events::stat_query& query) {
+    const std::string since = string_option(event, "since");
+    const std::string until = string_option(event, "until");
+
+    if (!since.empty()) {
+        const auto day = parse_day(since);
+        if (!day) {
+            return std::format("\"{}\" isn't a date I can read; use YYYY-MM-DD", since);
+        }
+        query.since = std::chrono::sys_seconds(*day);
+    }
+    if (!until.empty()) {
+        const auto day = parse_day(until);
+        if (!day) {
+            return std::format("\"{}\" isn't a date I can read; use YYYY-MM-DD", until);
+        }
+        // Inclusive as typed, so the whole of that day counts.
+        query.until = std::chrono::sys_seconds(*day + std::chrono::days{1});
+    }
+    if (query.since && query.until && *query.since >= *query.until) {
+        return std::string("that range ends before it starts");
+    }
+    return std::nullopt;
+}
+
+std::string emoji_list(std::span<const events::emoji_tally> tallies) {
+    std::string text;
+    for (const events::emoji_tally& tally : tallies) {
+        if (!text.empty()) {
+            text += ", ";
+        }
+        text += std::format("{} {}", events::display_emoji(tally.emoji), tally.count);
+    }
+    return text;
+}
+
+dpp::command_option date_option(const char* name, const char* description) {
+    return dpp::command_option(dpp::co_string, name, description, false).set_max_length(10);
+}
+
+dpp::command_option emoji_option(const char* name, const char* description, bool required) {
+    return dpp::command_option(dpp::co_string, name, description, required).set_auto_complete(true).set_max_length(100);
+}
+
+} // namespace
+
+std::optional<std::chrono::sys_days> parse_day(std::string_view text) {
+    text = util::trim(text);
+    if (text.size() != 10 || text[4] != '-' || text[7] != '-') {
+        return std::nullopt;
+    }
+
+    const auto number = [&](std::size_t at, std::size_t length) -> std::optional<int> {
+        int value = 0;
+        const char* begin = text.data() + at;
+        const auto [stop, error] = std::from_chars(begin, begin + length, value);
+        if (error != std::errc{} || stop != begin + length) {
+            return std::nullopt;
+        }
+        return value;
+    };
+
+    const auto year = number(0, 4);
+    const auto month = number(5, 2);
+    const auto day = number(8, 2);
+    if (!year || !month || !day) {
+        return std::nullopt;
+    }
+
+    const std::chrono::year_month_day date{std::chrono::year{*year}, std::chrono::month{static_cast<unsigned>(*month)},
+                                           std::chrono::day{static_cast<unsigned>(*day)}};
+    if (!date.ok()) {
+        return std::nullopt;
+    }
+    return std::chrono::sys_days(date);
+}
+
+std::optional<board> board_from_string(std::string_view name) {
+    if (name.empty() || name == "received") {
+        return board::received;
+    }
+    if (name == "given") {
+        return board::given;
+    }
+    if (name == "self") {
+        return board::self;
+    }
+    if (name == "emoji") {
+        return board::emoji;
+    }
+    return std::nullopt;
+}
+
+std::optional<events::emoji_ref> resolve_emoji(const events::reaction_store& store, dpp::snowflake guild_id, std::string_view typed) {
+    std::string_view text = util::trim(typed);
+    if (text.size() > 2 && text.starts_with(':') && text.ends_with(':')) {
+        text = text.substr(1, text.size() - 2);
+    }
+
+    auto parsed = events::parse_emoji(text);
+    if (!parsed) {
+        return std::nullopt;
+    }
+
+    // A name rather than an emoji: find the one this guild has used.
+    if (parsed->key.starts_with("u:") && is_word(parsed->name)) {
+        for (const events::emoji_tally& known : store.known_emojis(guild_id, parsed->name, emoji_choices)) {
+            if (equals_ignoring_case(known.emoji.name, parsed->name)) {
+                return known.emoji;
+            }
+        }
+        return std::nullopt;
+    }
+
+    // A key from autocomplete carries no name; fill it in for showing.
+    if (parsed->name.empty()) {
+        return store.describe(parsed->key);
+    }
+    return parsed;
+}
+
+std::string render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query) {
+    const std::string window = describe_window(query);
+    const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
+
+    std::string title;
+    switch (which) {
+    case board::received:
+        title = std::format("Most {}received on replaced links{}", emoji, window);
+        break;
+    case board::given:
+        title = std::format("Most {}given on replaced links{}", emoji, window);
+        break;
+    case board::self:
+        title = std::format("Most {}on their own links{}", emoji, window);
+        break;
+    case board::emoji:
+        title = std::format("Most used reactions on replaced links{}", window);
+        break;
+    }
+
+    std::string text = std::format("**{}**\n", title);
+    std::size_t place = 0;
+
+    if (which == board::emoji) {
+        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, leaderboard_size)) {
+            text += std::format("{}. {} {}\n", ++place, events::display_emoji(tally.emoji), tally.count);
+        }
+    } else {
+        for (const events::person_tally& tally : store.leaderboard(guild_id, query, leaderboard_size)) {
+            text += std::format("{}. <@{}> {}\n", ++place, tally.user_id, tally.count);
+        }
+    }
+
+    if (place == 0) {
+        text +=
+            "Nothing counted yet. Reactions are counted from when the bot first saw them; `/linkstats recompute` fills in "
+            "older ones.";
+    }
+    return text;
+}
+
+std::string render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id,
+                           const events::stat_query& window) {
+    events::stat_query query = window;
+    query.user_id = user_id;
+
+    query.kind = events::stat_kind::received;
+    const std::int64_t received = store.total(guild_id, query);
+    const auto received_top = store.emoji_breakdown(guild_id, query, profile_emojis);
+
+    query.kind = events::stat_kind::given;
+    const std::int64_t given = store.total(guild_id, query);
+    const auto given_top = store.emoji_breakdown(guild_id, query, profile_emojis);
+
+    query.kind = events::stat_kind::self;
+    const std::int64_t self = store.total(guild_id, query);
+
+    std::string text = std::format("**Link stats for <@{}>{}**\n", user_id, describe_window(window));
+    text += std::format("Reactions received: {}{}\n", received, received_top.empty() ? "" : " (" + emoji_list(received_top) + ")");
+    text += std::format("Reactions given: {}{}\n", given, given_top.empty() ? "" : " (" + emoji_list(given_top) + ")");
+    text += std::format("Reacted to their own links: {} time{}\n", self, self == 1 ? "" : "s");
+    return text;
+}
+
+std::string render_duplicates(const events::reaction_store& store, dpp::snowflake guild_id) {
+    const auto groups = store.likely_duplicates(guild_id);
+    if (groups.empty()) {
+        return "No two custom emojis here share a name, so nothing looks duplicated.";
+    }
+
+    std::string text = "**Custom emojis that share a name**\nMerge one into another with `/linkstats alias add`.\n";
+    for (const auto& group : groups) {
+        text += std::format("- **{}**: {}\n", group.front().emoji.name, emoji_list(group));
+        if (text.size() > 1800) {
+            text += "…and more\n";
+            break;
+        }
+    }
+    return text;
+}
+
+std::string render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) {
+    const auto aliases = store.aliases(guild_id);
+    if (aliases.empty()) {
+        return "No emoji aliases here. `/linkstats emojis` lists likely candidates.";
+    }
+
+    std::string text = "**Emoji aliases**\n";
+    for (const events::emoji_alias& alias : aliases) {
+        text += std::format("- {} counts as {}\n", events::display_emoji(alias.emoji), events::display_emoji(alias.canonical));
+        if (text.size() > 1800) {
+            text += "…and more\n";
+            break;
+        }
+    }
+    return text;
+}
+
+// --------------------------------------------------------------------------
+
+linkstats_command::linkstats_command(events::reaction_store& store)
+    : info_{.name = "linkstats",
+            .description = "Who gets the most reactions on the links the bot replaced.",
+            .aliases = {},
+            .required_bot_permissions = dpp::p_send_messages,
+            .default_member_permissions = std::nullopt,
+            .guild_only = true},
+      store_(&store) {}
+
+dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowflake application_id) const {
+    dpp::slashcommand payload = command::build(name, application_id);
+
+    dpp::command_option by(dpp::co_string, "by", "What to rank. Received if left out.", false);
+    by.add_choice(dpp::command_option_choice("Reactions received", std::string("received")));
+    by.add_choice(dpp::command_option_choice("Reactions given", std::string("given")));
+    by.add_choice(dpp::command_option_choice("Reactions to your own links", std::string("self")));
+    by.add_choice(dpp::command_option_choice("Most used emojis", std::string("emoji")));
+
+    dpp::command_option top(dpp::co_sub_command, "top", "A leaderboard.");
+    top.add_option(by);
+    top.add_option(emoji_option("emoji", "Only this emoji.", false));
+    top.add_option(date_option("since", "From this day, YYYY-MM-DD."));
+    top.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
+
+    dpp::command_option user(dpp::co_sub_command, "user", "One person's reactions, received and given.");
+    user.add_option(dpp::command_option(dpp::co_user, "user", "You, if left out.", false));
+    user.add_option(date_option("since", "From this day, YYYY-MM-DD."));
+    user.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
+
+    const dpp::command_option emojis(dpp::co_sub_command, "emojis", "Custom emojis that share a name, likely the same emote twice.");
+
+    dpp::command_option alias_add(dpp::co_sub_command, "add", "Count one emoji as another, in all history.");
+    alias_add.add_option(emoji_option("emoji", "The one to merge away.", true));
+    alias_add.add_option(emoji_option("as", "The one it counts as.", true));
+
+    dpp::command_option alias_remove(dpp::co_sub_command, "remove", "Count an emoji as itself again.");
+    alias_remove.add_option(emoji_option("emoji", "The alias to remove.", true));
+
+    const dpp::command_option alias_list(dpp::co_sub_command, "list", "Show this server's emoji aliases.");
+
+    dpp::command_option alias(dpp::co_sub_command_group, "alias", "Emojis that should count as one.");
+    alias.add_option(alias_add);
+    alias.add_option(alias_remove);
+    alias.add_option(alias_list);
+
+    payload.add_option(top);
+    payload.add_option(user);
+    payload.add_option(emojis);
+    payload.add_option(alias);
+    return payload;
+}
+
+void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
+    const dpp::command_option* focused = focused_option(event.options);
+    if (focused == nullptr || (focused->name != "emoji" && focused->name != "as") || event.owner == nullptr) {
+        return;
+    }
+
+    const auto* typed = std::get_if<std::string>(&focused->value);
+    std::string_view filter = typed == nullptr ? std::string_view{} : std::string_view(*typed);
+    if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) {
+        filter = filter.substr(1, filter.size() - 2);
+    }
+
+    dpp::interaction_response reply(dpp::ir_autocomplete_reply);
+    for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices)) {
+        // A custom emoji cannot be drawn in a choice, so it shows by name.
+        const std::string label = known.emoji.key.starts_with("c:") ? std::format(":{}: ({})", known.emoji.name, known.count)
+                                                                    : std::format("{} ({})", known.emoji.name, known.count);
+        reply.add_autocomplete_choice(dpp::command_option_choice(label.substr(0, 100), known.emoji.key));
+    }
+
+    event.owner->interaction_response_create(event.command.id, event.command.token, reply);
+}
+
+dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
+    const auto [group, action] = subcommand_path(event);
+
+    if (group == "alias") {
+        co_await this->alias(event, action);
+    } else if (action == "top") {
+        co_await this->top(event);
+    } else if (action == "user") {
+        co_await this->user(event);
+    } else if (action == "emojis") {
+        co_await event.co_reply(post(render_duplicates(*store_, event.command.guild_id)));
+    } else {
+        co_await event.co_reply(ack("i don't know that subcommand"));
+    }
+}
+
+dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
+    const dpp::snowflake guild = event.command.guild_id;
+    const auto which = board_from_string(string_option(event, "by"));
+
+    events::stat_query query;
+    if (const auto problem = read_window(event, query)) {
+        co_await event.co_reply(ack(*problem));
+        co_return;
+    }
+
+    const std::string typed = string_option(event, "emoji");
+    if (!typed.empty()) {
+        const auto emoji = resolve_emoji(*store_, guild, typed);
+        if (!emoji) {
+            co_await event.co_reply(ack(std::format("nobody has reacted with \"{}\" on a replaced link here", typed)));
+            co_return;
+        }
+        query.emoji_key = emoji->key;
+    }
+
+    const board chosen = which.value_or(board::received);
+    switch (chosen) {
+    case board::given:
+        query.kind = events::stat_kind::given;
+        break;
+    case board::self:
+        query.kind = events::stat_kind::self;
+        break;
+    case board::received:
+    case board::emoji:
+        query.kind = events::stat_kind::received;
+        break;
+    }
+
+    co_await event.co_reply(post(render_board(*store_, guild, chosen, query)));
+}
+
+dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
+    events::stat_query window;
+    if (const auto problem = read_window(event, window)) {
+        co_await event.co_reply(ack(*problem));
+        co_return;
+    }
+
+    const dpp::command_value chosen = event.get_parameter("user");
+    const auto* other = std::get_if<dpp::snowflake>(&chosen);
+    const dpp::snowflake subject = other == nullptr ? event.command.get_issuing_user().id : *other;
+
+    co_await event.co_reply(post(render_profile(*store_, event.command.guild_id, subject, window)));
+}
+
+dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const std::string& action) {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    if (action == "list") {
+        co_await event.co_reply(post(render_aliases(*store_, guild)));
+        co_return;
+    }
+
+    if (!invoker_permissions(event).can(dpp::p_manage_messages)) {
+        co_await event.co_reply(ack("changing emoji aliases needs Manage Messages"));
+        co_return;
+    }
+
+    const auto emoji = resolve_emoji(*store_, guild, string_option(event, "emoji"));
+    if (!emoji) {
+        co_await event.co_reply(ack("i don't know that emoji; pick one from the list as you type"));
+        co_return;
+    }
+
+    const user_label who = describe_user(event.command.get_issuing_user());
+
+    if (action == "remove") {
+        if (!store_->remove_alias(guild, emoji->key)) {
+            co_await event.co_reply(ack(std::format("{} isn't an alias", events::display_emoji(*emoji))));
+            co_return;
+        }
+        util::log().info("emoji alias for {} removed in guild {} by {}", emoji->key, guild, who);
+        co_await event.co_reply(ack(std::format("{} counts as itself again.", events::display_emoji(*emoji))));
+        co_return;
+    }
+
+    const auto canonical = resolve_emoji(*store_, guild, string_option(event, "as"));
+    if (!canonical) {
+        co_await event.co_reply(ack("i don't know the emoji to count it as; pick one from the list as you type"));
+        co_return;
+    }
+
+    // Whichever way they were typed, remember what they look like so the
+    // alias can be shown.
+    store_->remember(*emoji);
+    store_->remember(*canonical);
+
+    if (const auto problem = store_->set_alias(guild, emoji->key, canonical->key)) {
+        co_await event.co_reply(ack(*problem));
+        co_return;
+    }
+
+    util::log().info("emoji {} now counts as {} in guild {}, set by {}", emoji->key, canonical->key, guild, who);
+    co_await event.co_reply(ack(std::format("{} counts as {} now, in every statistic back to the start.", events::display_emoji(*emoji),
+                                            events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
+}
+
+} // namespace latibot::commands

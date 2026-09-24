@@ -11,6 +11,7 @@
 #include "core/events/message_pipeline.hpp"
 #include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
+#include "core/events/reactions.hpp"
 #include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
@@ -121,6 +122,9 @@ private:
     /// Runs what the embed tracker decided, without holding up the caller.
     void carry_out(std::vector<events::embed_action> actions);
 
+    /// The clock's time to the second, which is what the database stores.
+    [[nodiscard]] std::chrono::sys_seconds now_seconds() const;
+
     /// Applies one change to a trigger from the panel and logs what happened.
     /// `change` returns the past-tense verb for the log, so the two toggles
     /// differ only in the field they flip.
@@ -148,6 +152,7 @@ private:
     events::midnight_scheduler midnight_scheduler_;
     events::url_rule_store url_rules_;
     events::replacement_store replacements_;
+    events::reaction_store reactions_;
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 };

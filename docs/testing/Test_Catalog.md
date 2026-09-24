@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-373 test cases across 9 components, including 77 sections.
+398 test cases across 9 components, including 84 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 84 | 4 |
+| [db](#db) | 96 | 11 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 75 | 20 |
-| [events](#events) | 110 | 27 |
+| [commands](#commands) | 84 | 20 |
+| [events](#events) | 114 | 27 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -83,6 +83,18 @@ Database (`src/core/db`)
 | a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:190](../../tests/db/nickname_store_test.cpp#L190) |
 | the members of a guild are listed once each |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
 | an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:218](../../tests/db/nickname_store_test.cpp#L218) |
+| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:77](../../tests/db/reaction_store_test.cpp#L77) |
+| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:89](../../tests/db/reaction_store_test.cpp#L89) |
+| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:98](../../tests/db/reaction_store_test.cpp#L98) |
+| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:115](../../tests/db/reaction_store_test.cpp#L115) |
+| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:155](../../tests/db/reaction_store_test.cpp#L155) |
+| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:167](../../tests/db/reaction_store_test.cpp#L167) |
+| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:179](../../tests/db/reaction_store_test.cpp#L179) |
+| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:204](../../tests/db/reaction_store_test.cpp#L204) |
+| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:225](../../tests/db/reaction_store_test.cpp#L225) |
+| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:244](../../tests/db/reaction_store_test.cpp#L244) |
+| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:252](../../tests/db/reaction_store_test.cpp#L252) |
+| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:262](../../tests/db/reaction_store_test.cpp#L262) |
 | a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:39](../../tests/db/replacement_store_test.cpp#L39) |
 | an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:59](../../tests/db/replacement_store_test.cpp#L59) |
 | state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:72](../../tests/db/replacement_store_test.cpp#L72) |
@@ -167,6 +179,15 @@ Command framework (`src/core/commands`)
 | the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:148](../../tests/unit/command_log_test.cpp#L148) |
 | nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:164](../../tests/unit/command_log_test.cpp#L164) |
 | a user's id keeps its colour inside name (id) |  |  | [tests/unit/command_log_test.cpp:171](../../tests/unit/command_log_test.cpp#L171) |
+| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:51](../../tests/unit/linkstats_command_test.cpp#L51) |
+| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:60](../../tests/unit/linkstats_command_test.cpp#L60) |
+| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:70](../../tests/unit/linkstats_command_test.cpp#L70) |
+| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:79](../../tests/unit/linkstats_command_test.cpp#L79) |
+| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:85](../../tests/unit/linkstats_command_test.cpp#L85) |
+| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:94](../../tests/unit/linkstats_command_test.cpp#L94) |
+| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:103](../../tests/unit/linkstats_command_test.cpp#L103) |
+| /linkstats is open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:119](../../tests/unit/linkstats_command_test.cpp#L119) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:132](../../tests/unit/linkstats_command_test.cpp#L132) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
@@ -310,6 +331,10 @@ Message pipeline and triggers (`src/core/events`)
 | an imported history line says nothing about who |  |  | [tests/unit/nicknames_test.cpp:227](../../tests/unit/nicknames_test.cpp#L227) |
 | the attachment spells out times rather than leaving markup in a file |  |  | [tests/unit/nicknames_test.cpp:234](../../tests/unit/nicknames_test.cpp#L234) |
 | one entry is not described as one entries |  |  | [tests/unit/nicknames_test.cpp:253](../../tests/unit/nicknames_test.cpp#L253) |
+| a reaction is keyed by id when custom, by itself when Unicode |  |  | [tests/unit/reactions_test.cpp:11](../../tests/unit/reactions_test.cpp#L11) |
+| the colour-form selector does not make a second emoji |  |  | [tests/unit/reactions_test.cpp:20](../../tests/unit/reactions_test.cpp#L20) |
+| typed emojis are understood in every form a command sees |  |  | [tests/unit/reactions_test.cpp:25](../../tests/unit/reactions_test.cpp#L25) |
+| an emoji is shown the way Discord draws it |  |  | [tests/unit/reactions_test.cpp:38](../../tests/unit/reactions_test.cpp#L38) |
 | whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
 | a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
 | substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |
