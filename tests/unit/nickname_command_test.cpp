@@ -82,14 +82,22 @@ TEST_CASE("a page number from a stale button is brought back in range", "[comman
     CHECK(reply.content.find("Page 1 of 1") != std::string::npos);
 }
 
+TEST_CASE("a history is posted for the room, not just for whoever asked", "[commands]") {
+    // The one list this bot posts publicly: half the point of a nickname
+    // history is showing it to the person it is about.
+    CHECK((render_nickname_history(history_of(3), member, 0).flags & dpp::m_ephemeral) == 0);
+    CHECK((render_nickname_history({}, member, 0).flags & dpp::m_ephemeral) == 0);
+}
+
 TEST_CASE("a history reply cannot ping the people it names", "[commands]") {
     auto history = history_of(1);
     history.front().changed_by = dpp::snowflake{4000};
 
     const dpp::message reply = render_nickname_history(history, member, 0);
 
-    // Mentions are how somebody who has left the server still gets a name,
-    // which must not also be a way to ping a room.
+    // Mentions are how somebody who has left the server still gets a name.
+    // The message is public, so without this every person in the history
+    // would be pinged by somebody else looking it up.
     CHECK(reply.content.find("<@4000>") != std::string::npos);
     CHECK_FALSE(reply.allowed_mentions.parse_users);
     CHECK_FALSE(reply.allowed_mentions.parse_everyone);

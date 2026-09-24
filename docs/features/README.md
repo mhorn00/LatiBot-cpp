@@ -32,9 +32,10 @@ the design and the order of work behind it are in
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
 
-Every command replies **ephemerally** — only the person who ran it sees the
-answer. Where a command posts something publicly, such as `/say`, that is a
-separate message and is called out below.
+Commands reply **ephemerally** by default — only the person who ran it sees the
+answer. Two exceptions, both called out below: `/say` posts a separate public
+message, and [`/nicknames`](#nicknames) answers publicly, because a nickname
+history is something a room reads together.
 
 **Who may run what** is set as Discord's *default member permission*. Server
 admins can override any of it per role or per channel in
@@ -316,6 +317,11 @@ Every nickname somebody has had in this server.
 | **Who** | everyone |
 | **Where** | servers only |
 | **Bot needs** | Send Messages |
+
+**The reply is public**, unlike every other list here. A nickname history is
+something a room reads together, and half the point of it is showing somebody
+their own. Anybody who can see the message can page through it, and the pages
+change for everyone — which is what a shared message should do.
 
 Newest first, ten to a page, with ◀ / ▶ the way [`/trigger list`](#trigger)
 pages. Each line is the nickname, when it changed, and who changed it:

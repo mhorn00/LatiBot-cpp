@@ -80,11 +80,14 @@ dpp::message render_nickname_history(std::span<const events::nickname_change> hi
         body += std::format("\n_{}_", ui::page_label(current, history.size(), nicknames_per_page));
     }
 
+    // Public, unlike every other list this bot posts: a nickname history is
+    // something a room reads together, and half its point is being shown to
+    // the person it is about. The ◀ / ▶ buttons therefore page for everybody
+    // who can see the message, which is the behaviour a shared message wants.
     dpp::message reply(body);
-    reply.set_flags(dpp::m_ephemeral);
 
-    // Mentions are how a name is shown for somebody who has left, and they
-    // must not also be a way to ping a room full of people.
+    // Mentions are how a name is shown for somebody who has left. In a public
+    // message that would otherwise ping every person named in the history.
     reply.set_allowed_mentions();
 
     const auto row = ui::controls({.view = std::string(nickname_history_view), .page = current, .argument = user_id.str()}, history.size(),
@@ -202,9 +205,10 @@ dpp::task<void> nicknames_command::execute(const dpp::slashcommand_t& event) {
     const std::vector<events::nickname_change> history = store_->history(event.command.guild_id, target->id);
 
     if (history.size() > nickname_attachment_threshold) {
-        // Ten pages of buttons is worse than one file.
+        // Ten pages of buttons is worse than one file. Public for the same
+        // reason the paged version is, so the file can be opened by anybody
+        // in the channel rather than only by whoever asked.
         dpp::message reply(std::format("**Nickname history for <@{}>** — {} entries, attached.", target->id.str(), history.size()));
-        reply.set_flags(dpp::m_ephemeral);
         reply.set_allowed_mentions();
         reply.add_file(std::format("nicknames-{}.txt", target->id.str()),
                        events::render_history_text(history, std::format("{} ({})", target->name, target->id.str())), "text/plain");

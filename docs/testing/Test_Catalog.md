@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-267 test cases across 9 components, including 53 sections.
+268 test cases across 9 components, including 53 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 71 | 4 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 58 | 20 |
+| [commands](#commands) | 59 | 20 |
 | [events](#events) | 73 | 13 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
@@ -162,7 +162,8 @@ Command framework (`src/core/commands`)
 | a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:44](../../tests/unit/nickname_command_test.cpp#L44) |
 | a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:54](../../tests/unit/nickname_command_test.cpp#L54) |
 | a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:76](../../tests/unit/nickname_command_test.cpp#L76) |
-| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:85](../../tests/unit/nickname_command_test.cpp#L85) |
+| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:85](../../tests/unit/nickname_command_test.cpp#L85) |
+| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:92](../../tests/unit/nickname_command_test.cpp#L92) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
