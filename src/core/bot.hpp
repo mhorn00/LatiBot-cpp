@@ -9,6 +9,7 @@
 #include "core/discord/raw_api.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/message_pipeline.hpp"
+#include "core/events/nicknames.hpp"
 #include "core/events/triggers.hpp"
 #include "core/ports/clock.hpp"
 
@@ -65,6 +66,23 @@ private:
     /// Modal submissions.
     void on_form(const dpp::form_submit_t& event);
 
+    /// Records a nickname change, if it is one, and says which row it wrote.
+    ///
+    /// Shared by the gateway event and the startup sweep, because "is this
+    /// different from what we last saw" is the same question either way
+    /// (plan v4 §8.4).
+    std::optional<std::int64_t> record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                                events::nickname_source source);
+
+    /// A nickname change seen on the gateway.
+    void on_member_update(const dpp::guild_member& member);
+
+    /// An audit entry that may name who made a change already recorded.
+    void on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id);
+
+    /// Writes down nicknames that changed while the bot was not running.
+    void reconcile_nicknames(const dpp::guild& guild);
+
     /// Applies one change to a trigger from the panel and logs what happened.
     /// `change` returns the past-tense verb for the log, so the two toggles
     /// differ only in the field they flip.
@@ -84,6 +102,8 @@ private:
     ports::system_clock clock_;
 
     events::bot_allowlist bot_allowlist_;
+    events::nickname_store nicknames_;
+    events::pending_nicknames pending_nicknames_;
     events::trigger_store triggers_;
     events::trigger_responder trigger_responder_;
     events::pipeline pipeline_;

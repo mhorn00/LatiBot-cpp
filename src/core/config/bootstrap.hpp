@@ -35,6 +35,15 @@ struct bootstrap {
     int backups_to_keep = 7;
     std::chrono::minutes backup_interval{360};
 
+    /// Whether to watch for nickname changes (plan v4 §8).
+    ///
+    /// This is the one setting that decides which intents the bot asks for:
+    /// nickname changes only arrive with the privileged Server Members
+    /// intent, which must also be switched on in the Discord developer
+    /// portal. A bot that asks for an intent it was not granted is refused
+    /// the gateway entirely, so this is the way to turn the request off.
+    bool track_nicknames = true;
+
     std::string llm_provider{"anthropic"};
     std::string llm_model{"claude-haiku-4-5"};
     double spend_cap_daily_usd = 2.0;

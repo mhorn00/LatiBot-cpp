@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 3> all_migrations{{
+constexpr std::array<migration, 4> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -58,6 +58,40 @@ constexpr std::array<migration, 3> all_migrations{{
         -- Hearing a bot is not the same as answering it, so each trigger opts
         -- in separately. Existing triggers keep the old behaviour.
         ALTER TABLE triggers ADD COLUMN respond_to_bots INTEGER NOT NULL DEFAULT 0;
+     )sql"},
+    {.version = 4, .name = "nickname_history", .sql = R"sql(
+        -- Every nickname a member has had here, however the change was made
+        -- (plan v4 8). Ids are stored raw and names resolved at display time,
+        -- so a member who has left still has a readable history.
+        CREATE TABLE nickname_history (
+            id           INTEGER PRIMARY KEY,
+            guild_id     INTEGER NOT NULL,
+            user_id      INTEGER NOT NULL,
+
+            -- NULL means the nickname was cleared, which is not the same as "".
+            nickname     TEXT,
+
+            -- Unix seconds. Compared against dates, so it is wall clock.
+            changed_at   INTEGER NOT NULL,
+
+            -- NULL means nobody could be named. The Java bot guessed "they did
+            -- it themselves", which was usually wrong (plan v4 8.1).
+            changed_by   INTEGER,
+
+            -- command | audit_log | seen | startup | imported: how far the
+            -- attribution above can be trusted.
+            source       TEXT    NOT NULL,
+
+            -- The original timestamp text from nicknames.json, so the timezone
+            -- conversion can be redone (plan v4 8.3).
+            imported_raw TEXT
+        );
+
+        -- Every read is "this member, newest first"; the partial index is for
+        -- the audit log looking for a row it can still attribute.
+        CREATE INDEX nickname_history_by_member ON nickname_history (guild_id, user_id, changed_at DESC);
+        CREATE INDEX nickname_history_unattributed ON nickname_history (guild_id, user_id, changed_at)
+            WHERE changed_by IS NULL;
      )sql"},
 }};
 

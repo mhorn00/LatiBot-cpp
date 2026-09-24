@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-172 test cases across 9 components, including 48 sections.
+215 test cases across 9 components, including 48 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 40 | 4 |
-| [config](#config) | 19 | 15 |
-| [commands](#commands) | 45 | 20 |
-| [events](#events) | 23 | 8 |
+| [db](#db) | 55 | 4 |
+| [config](#config) | 20 | 15 |
+| [commands](#commands) | 50 | 20 |
+| [events](#events) | 45 | 8 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -52,6 +52,21 @@ Database (`src/core/db`)
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:91](../../tests/db/migrations_test.cpp#L91) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:104](../../tests/db/migrations_test.cpp#L104) |
 | an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:116](../../tests/db/migrations_test.cpp#L116) |
+| a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:39](../../tests/db/nickname_store_test.cpp#L39) |
+| a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:60](../../tests/db/nickname_store_test.cpp#L60) |
+| history reads newest first |  |  | [tests/db/nickname_store_test.cpp:72](../../tests/db/nickname_store_test.cpp#L72) |
+| two changes in the same second keep the order they were recorded |  |  | [tests/db/nickname_store_test.cpp:86](../../tests/db/nickname_store_test.cpp#L86) |
+| history is per guild |  |  | [tests/db/nickname_store_test.cpp:99](../../tests/db/nickname_store_test.cpp#L99) |
+| the latest row is what a new sighting is compared against |  |  | [tests/db/nickname_store_test.cpp:113](../../tests/db/nickname_store_test.cpp#L113) |
+| an audit entry finds the row it describes |  |  | [tests/db/nickname_store_test.cpp:126](../../tests/db/nickname_store_test.cpp#L126) |
+| an audit entry does not attach itself to an older identical change |  |  | [tests/db/nickname_store_test.cpp:136](../../tests/db/nickname_store_test.cpp#L136) |
+| an audit entry for a different nickname matches nothing |  |  | [tests/db/nickname_store_test.cpp:146](../../tests/db/nickname_store_test.cpp#L146) |
+| a row that already names somebody is not offered for attribution |  |  | [tests/db/nickname_store_test.cpp:154](../../tests/db/nickname_store_test.cpp#L154) |
+| attributing a row fills in the author and where it came from |  |  | [tests/db/nickname_store_test.cpp:164](../../tests/db/nickname_store_test.cpp#L164) |
+| the first audit entry to attribute a row wins |  |  | [tests/db/nickname_store_test.cpp:177](../../tests/db/nickname_store_test.cpp#L177) |
+| a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:190](../../tests/db/nickname_store_test.cpp#L190) |
+| the members of a guild are listed once each |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
+| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:218](../../tests/db/nickname_store_test.cpp#L218) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:58](../../tests/db/trigger_store_test.cpp#L58) |
 | guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:77](../../tests/db/trigger_store_test.cpp#L77) |
 | updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:94](../../tests/db/trigger_store_test.cpp#L94) |
@@ -87,10 +102,11 @@ Configuration (`src/core/config`)
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:63](../../tests/unit/bootstrap_test.cpp#L63) |
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:92](../../tests/unit/bootstrap_test.cpp#L92) |
 | bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:99](../../tests/unit/bootstrap_test.cpp#L99) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:137](../../tests/unit/bootstrap_test.cpp#L137) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:145](../../tests/unit/bootstrap_test.cpp#L145) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:179](../../tests/unit/bootstrap_test.cpp#L179) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:140](../../tests/unit/bootstrap_test.cpp#L140) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:148](../../tests/unit/bootstrap_test.cpp#L148) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:156](../../tests/unit/bootstrap_test.cpp#L156) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:190](../../tests/unit/bootstrap_test.cpp#L190) |
 
 ## commands
 
@@ -118,6 +134,11 @@ Command framework (`src/core/commands`)
 | a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:93](../../tests/unit/command_log_test.cpp#L93) |
 | a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:105](../../tests/unit/command_log_test.cpp#L105) |
 | a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:112](../../tests/unit/command_log_test.cpp#L112) |
+| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:35](../../tests/unit/nickname_command_test.cpp#L35) |
+| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:44](../../tests/unit/nickname_command_test.cpp#L44) |
+| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:54](../../tests/unit/nickname_command_test.cpp#L54) |
+| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:76](../../tests/unit/nickname_command_test.cpp#L76) |
+| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:85](../../tests/unit/nickname_command_test.cpp#L85) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -161,6 +182,28 @@ Message pipeline and triggers (`src/core/events`)
 | an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
+| a first sighting is recorded only when there is a nickname to record |  |  | [tests/unit/nicknames_test.cpp:40](../../tests/unit/nicknames_test.cpp#L40) |
+| the same nickname again is not a change |  |  | [tests/unit/nicknames_test.cpp:48](../../tests/unit/nicknames_test.cpp#L48) |
+| clearing a nickname is a change |  |  | [tests/unit/nicknames_test.cpp:55](../../tests/unit/nicknames_test.cpp#L55) |
+| an audit entry describes a row by member and resulting nickname |  |  | [tests/unit/nicknames_test.cpp:70](../../tests/unit/nicknames_test.cpp#L70) |
+| an audit entry can describe a cleared nickname |  |  | [tests/unit/nicknames_test.cpp:79](../../tests/unit/nicknames_test.cpp#L79) |
+| the bot is never recorded as the one who made a change |  |  | [tests/unit/nicknames_test.cpp:86](../../tests/unit/nicknames_test.cpp#L86) |
+| an audit entry with no actor attributes nothing |  |  | [tests/unit/nicknames_test.cpp:95](../../tests/unit/nicknames_test.cpp#L95) |
+| a row that already names somebody is left alone |  |  | [tests/unit/nicknames_test.cpp:99](../../tests/unit/nicknames_test.cpp#L99) |
+| an audit entry's nickname arrives as JSON rather than as text |  |  | [tests/unit/nicknames_test.cpp:106](../../tests/unit/nicknames_test.cpp#L106) |
+| an unreadable audit value is treated as no nickname |  |  | [tests/unit/nicknames_test.cpp:118](../../tests/unit/nicknames_test.cpp#L118) |
+| a change the bot just made is claimed once |  |  | [tests/unit/nicknames_test.cpp:127](../../tests/unit/nicknames_test.cpp#L127) |
+| an expectation only matches the change it was made for |  |  | [tests/unit/nicknames_test.cpp:140](../../tests/unit/nicknames_test.cpp#L140) |
+| an expectation stops applying once it has expired |  |  | [tests/unit/nicknames_test.cpp:151](../../tests/unit/nicknames_test.cpp#L151) |
+| expired expectations are cleared out as new ones arrive |  |  | [tests/unit/nicknames_test.cpp:161](../../tests/unit/nicknames_test.cpp#L161) |
+| a change Discord refused stops being expected |  |  | [tests/unit/nicknames_test.cpp:172](../../tests/unit/nicknames_test.cpp#L172) |
+| clearing a nickname is expected and claimed like any other change |  |  | [tests/unit/nicknames_test.cpp:182](../../tests/unit/nicknames_test.cpp#L182) |
+| a cleared nickname reads as cleared rather than as a blank |  |  | [tests/unit/nicknames_test.cpp:195](../../tests/unit/nicknames_test.cpp#L195) |
+| who changed it is a mention, unknown, or nothing |  |  | [tests/unit/nicknames_test.cpp:201](../../tests/unit/nicknames_test.cpp#L201) |
+| a history line carries the nickname, the time and the author |  |  | [tests/unit/nicknames_test.cpp:215](../../tests/unit/nicknames_test.cpp#L215) |
+| an imported history line says nothing about who |  |  | [tests/unit/nicknames_test.cpp:227](../../tests/unit/nicknames_test.cpp#L227) |
+| the attachment spells out times rather than leaving markup in a file |  |  | [tests/unit/nicknames_test.cpp:234](../../tests/unit/nicknames_test.cpp#L234) |
+| one entry is not described as one entries |  |  | [tests/unit/nicknames_test.cpp:253](../../tests/unit/nicknames_test.cpp#L253) |
 | whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
 | a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
 | substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |

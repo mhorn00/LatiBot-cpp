@@ -10,6 +10,7 @@ add_library(latibot_core STATIC
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/bots.cpp
+    core/commands/nickname.cpp
     core/commands/trigger.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
@@ -19,6 +20,7 @@ add_library(latibot_core STATIC
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/message_pipeline.cpp
+    core/events/nicknames.cpp
     core/events/triggers.cpp
     core/ports/clock.cpp
     core/ui/paginator.cpp

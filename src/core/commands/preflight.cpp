@@ -30,12 +30,14 @@ constexpr std::array<std::pair<std::uint64_t, std::string_view>, 16> permission_
     {dpp::p_manage_webhooks, "Manage Webhooks"},
 }};
 
-// Passive features, as they land. Phase 1 has one: the message pipeline reads
-// messages and answers in the same channel. The entries plan v4 §7 lists for
-// nickname tracking, URL replacement and voice are added by the phases that
-// build them, so a warning always names something that actually exists.
-constexpr std::array<requirement, 1> passive{{
+// Passive features, as they land: the message pipeline reads messages and
+// answers in the same channel, and nickname tracking reads the audit log to
+// find out who made a change. The entries plan v4 §7 lists for URL
+// replacement and voice are added by the phases that build them, so a warning
+// always names something that actually exists.
+constexpr std::array<requirement, 2> passive{{
     {.permissions = dpp::p_view_channel | dpp::p_send_messages, .purpose = "replying to messages"},
+    {.permissions = dpp::p_view_audit_log, .purpose = "naming who changed a nickname"},
 }};
 
 } // namespace

@@ -126,6 +126,17 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     }
 }
 
+TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
+    // This is the one setting that decides which gateway intents are asked
+    // for, so a wrong value is the difference between connecting and being
+    // turned away (plan v4 §8).
+    CHECK(bootstrap::from_json("{}").track_nicknames);
+    CHECK_FALSE(bootstrap::from_json(R"({"track_nicknames": false})").track_nicknames);
+
+    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"track_nicknames": "yes"})"), config_error,
+                           Catch::Matchers::MessageMatches(ContainsSubstring("track_nicknames")));
+}
+
 TEST_CASE("the log level is read from the config", "[config]") {
     // With nothing configured the build decides: a debug build is being
     // diagnosed, a release build is being used by other people.

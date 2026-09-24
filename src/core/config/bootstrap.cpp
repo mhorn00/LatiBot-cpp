@@ -60,34 +60,30 @@ std::vector<dpp::snowflake> require_snowflakes(const json& object, std::string_v
     return ids;
 }
 
-} // namespace
+bool require_bool(const json& object, std::string_view key) {
+    const auto& value = object.at(std::string(key));
+    if (!value.is_boolean()) wrong_type(key, "true or false");
+    return value.get<bool>();
+}
 
-bootstrap bootstrap::from_json(std::string_view text) {
-    json parsed = json::parse(text, nullptr, /*allow_exceptions=*/false);
-    if (parsed.is_discarded()) throw config_error("config file is not valid JSON");
-    if (!parsed.is_object()) throw config_error("config file must contain a JSON object");
-
-    bootstrap config;
-
-    static constexpr std::array<std::string_view, 12> known_keys{
-        "log_level", "database_path",       "backup_directory",      "backups_to_keep", "backup_interval_minutes", "llm_provider",
-        "llm_model", "spend_cap_daily_usd", "spend_cap_monthly_usd", "llm_tool_rounds", "trusted_guilds",          "trusted_users",
+/// Rejects anything we do not recognise, so a typo in a hand-edited file is
+/// reported instead of silently doing nothing.
+void reject_unknown_keys(const json& parsed) {
+    static constexpr std::array<std::string_view, 13> known_keys{
+        "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
+        "track_nicknames", "llm_provider",   "llm_model",        "spend_cap_daily_usd", "spend_cap_monthly_usd",
+        "llm_tool_rounds", "trusted_guilds", "trusted_users",
     };
 
-    // Check for unknown keys before validating known keys
     for (const auto& [key, unused] : parsed.items()) {
         if (std::ranges::find(known_keys, key) == known_keys.end()) {
             throw config_error("unknown config key \"" + key + "\"");
         }
     }
+}
 
-    if (parsed.contains("log_level")) {
-        const std::string name = require_string(parsed, "log_level");
-        const auto level = util::log_level_from_string(name);
-        if (!level) throw config_error(R"(config key "log_level" has ")" + name + R"(", expected: trace, debug, info, warn, error, off)");
-        config.log_level = *level;
-    }
-
+/// Where the database lives and how often it is copied.
+void read_storage_keys(const json& parsed, bootstrap& config) {
     if (parsed.contains("database_path")) config.database_path = require_string(parsed, "database_path");
     if (parsed.contains("backup_directory")) config.backup_directory = require_string(parsed, "backup_directory");
 
@@ -101,7 +97,10 @@ bootstrap bootstrap::from_json(std::string_view text) {
         if (minutes <= 0) throw config_error("config key \"backup_interval_minutes\" must be positive");
         config.backup_interval = std::chrono::minutes{minutes};
     }
+}
 
+/// Which model answers, and what it is allowed to cost (plan v4 §14).
+void read_llm_keys(const json& parsed, bootstrap& config) {
     if (parsed.contains("llm_provider")) config.llm_provider = require_string(parsed, "llm_provider");
     if (parsed.contains("llm_model")) config.llm_model = require_string(parsed, "llm_model");
     if (parsed.contains("spend_cap_daily_usd")) config.spend_cap_daily_usd = require_number(parsed, "spend_cap_daily_usd");
@@ -111,6 +110,30 @@ bootstrap bootstrap::from_json(std::string_view text) {
         config.llm_tool_rounds = require_int(parsed, "llm_tool_rounds");
         if (config.llm_tool_rounds < 1) throw config_error("config key \"llm_tool_rounds\" must be at least 1");
     }
+}
+
+} // namespace
+
+bootstrap bootstrap::from_json(std::string_view text) {
+    const json parsed = json::parse(text, nullptr, /*allow_exceptions=*/false);
+    if (parsed.is_discarded()) throw config_error("config file is not valid JSON");
+    if (!parsed.is_object()) throw config_error("config file must contain a JSON object");
+
+    reject_unknown_keys(parsed);
+
+    bootstrap config;
+
+    if (parsed.contains("log_level")) {
+        const std::string name = require_string(parsed, "log_level");
+        const auto level = util::log_level_from_string(name);
+        if (!level) throw config_error(R"(config key "log_level" has ")" + name + R"(", expected: trace, debug, info, warn, error, off)");
+        config.log_level = *level;
+    }
+
+    read_storage_keys(parsed, config);
+    read_llm_keys(parsed, config);
+
+    if (parsed.contains("track_nicknames")) config.track_nicknames = require_bool(parsed, "track_nicknames");
 
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
     if (parsed.contains("trusted_users")) config.trusted_users = require_snowflakes(parsed, "trusted_users");
