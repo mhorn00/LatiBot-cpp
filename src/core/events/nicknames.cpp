@@ -279,6 +279,18 @@ bool nickname_store::attribute(std::int64_t id, dpp::snowflake changed_by, nickn
     return db_->changes() > 0;
 }
 
+bool nickname_store::already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                      std::chrono::system_clock::time_point at) const {
+    const auto guard = db_->lock();
+
+    // `IS` rather than `=`, so a cleared nickname matches a cleared nickname:
+    // NULL = NULL is never true in SQL.
+    auto query = db_->prepare("SELECT 1 FROM nickname_history WHERE guild_id = ? AND user_id = ? AND nickname IS ? AND changed_at = ?",
+                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id), nickname, to_unix(at));
+
+    return query.step();
+}
+
 bool nickname_store::remove(std::int64_t id) {
     const auto guard = db_->lock();
 

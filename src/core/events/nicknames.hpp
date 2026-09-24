@@ -187,6 +187,13 @@ public:
     /// or somebody has already been named.
     bool attribute(std::int64_t id, dpp::snowflake changed_by, nickname_source source);
 
+    /// Whether this exact row is already there.
+    ///
+    /// What makes importing the Java bot's file idempotent, so it can simply
+    /// be left where it is rather than having to be moved after one run.
+    [[nodiscard]] bool already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                        std::chrono::system_clock::time_point at) const;
+
     /// Removes a row, for when a change the bot recorded did not go through.
     bool remove(std::int64_t id);
 

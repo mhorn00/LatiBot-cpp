@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-215 test cases across 9 components, including 48 sections.
+234 test cases across 9 components, including 53 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 55 | 4 |
+| [db](#db) | 61 | 4 |
 | [config](#config) | 20 | 15 |
 | [commands](#commands) | 50 | 20 |
-| [events](#events) | 45 | 8 |
+| [events](#events) | 58 | 13 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -52,6 +52,12 @@ Database (`src/core/db`)
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:91](../../tests/db/migrations_test.cpp#L91) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:104](../../tests/db/migrations_test.cpp#L104) |
 | an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:116](../../tests/db/migrations_test.cpp#L116) |
+| an import writes the history it read |  |  | [tests/db/nickname_import_test.cpp:42](../../tests/db/nickname_import_test.cpp#L42) |
+| importing the same file twice adds nothing the second time |  |  | [tests/db/nickname_import_test.cpp:56](../../tests/db/nickname_import_test.cpp#L56) |
+| an import does not disturb history the bot recorded itself |  |  | [tests/db/nickname_import_test.cpp:68](../../tests/db/nickname_import_test.cpp#L68) |
+| a cleared nickname is imported once, not once per run |  |  | [tests/db/nickname_import_test.cpp:89](../../tests/db/nickname_import_test.cpp#L89) |
+| no file to import is not a problem | `fs` |  | [tests/db/nickname_import_test.cpp:106](../../tests/db/nickname_import_test.cpp#L106) |
+| a file beside the database is read and imported | `fs` |  | [tests/db/nickname_import_test.cpp:113](../../tests/db/nickname_import_test.cpp#L113) |
 | a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:39](../../tests/db/nickname_store_test.cpp#L39) |
 | a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:60](../../tests/db/nickname_store_test.cpp#L60) |
 | history reads newest first |  |  | [tests/db/nickname_store_test.cpp:72](../../tests/db/nickname_store_test.cpp#L72) |
@@ -182,6 +188,19 @@ Message pipeline and triggers (`src/core/events`)
 | an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
+| a winter timestamp is read as Central Standard Time |  |  | [tests/unit/nickname_import_test.cpp:34](../../tests/unit/nickname_import_test.cpp#L34) |
+| a summer timestamp is read as Central Daylight Time |  |  | [tests/unit/nickname_import_test.cpp:39](../../tests/unit/nickname_import_test.cpp#L39) |
+| the hour that happens twice each November takes the earlier one |  |  | [tests/unit/nickname_import_test.cpp:44](../../tests/unit/nickname_import_test.cpp#L44) |
+| the hour that never happens each March is shifted forward |  |  | [tests/unit/nickname_import_test.cpp:51](../../tests/unit/nickname_import_test.cpp#L51) |
+| dates before the 2007 rule change use the rules of their own year |  |  | [tests/unit/nickname_import_test.cpp:61](../../tests/unit/nickname_import_test.cpp#L61) |
+| a timestamp that is not one is refused rather than guessed at |  |  | [tests/unit/nickname_import_test.cpp:68](../../tests/unit/nickname_import_test.cpp#L68) |
+| an imported author is kept only when it is not the guess |  |  | [tests/unit/nickname_import_test.cpp:79](../../tests/unit/nickname_import_test.cpp#L79) |
+| a member's entries are read with their guild and id |  |  | [tests/unit/nickname_import_test.cpp:94](../../tests/unit/nickname_import_test.cpp#L94) |
+| an imported entry keeps the text its time was read from |  |  | [tests/unit/nickname_import_test.cpp:123](../../tests/unit/nickname_import_test.cpp#L123) |
+| a cleared nickname imports as nothing rather than as an empty name |  |  | [tests/unit/nickname_import_test.cpp:140](../../tests/unit/nickname_import_test.cpp#L140) |
+| one unreadable entry does not lose the rest |  |  | [tests/unit/nickname_import_test.cpp:154](../../tests/unit/nickname_import_test.cpp#L154) |
+| malformed shapes are named rather than dropped quietly |  | 5 | [tests/unit/nickname_import_test.cpp:173](../../tests/unit/nickname_import_test.cpp#L173) |
+| an empty file imports nothing and complains about nothing |  |  | [tests/unit/nickname_import_test.cpp:198](../../tests/unit/nickname_import_test.cpp#L198) |
 | a first sighting is recorded only when there is a nickname to record |  |  | [tests/unit/nicknames_test.cpp:40](../../tests/unit/nicknames_test.cpp#L40) |
 | the same nickname again is not a change |  |  | [tests/unit/nicknames_test.cpp:48](../../tests/unit/nicknames_test.cpp#L48) |
 | clearing a nickname is a change |  |  | [tests/unit/nicknames_test.cpp:55](../../tests/unit/nicknames_test.cpp#L55) |

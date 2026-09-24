@@ -7,6 +7,7 @@
 #include "core/commands/trigger.hpp"
 #include "core/db/migrations.hpp"
 #include "core/events/goodbye.hpp"
+#include "core/events/nickname_import.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
@@ -130,6 +131,14 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     // heading rather than before the bot has said it is starting.
     const int version = db::migrate(database_);
     util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
+
+    // Years of history from the Java bot, if its file was left beside the
+    // database. Importing is idempotent, so this needs no marker file and no
+    // "have I done this already" flag (plan v4 §8.3).
+    const std::filesystem::path legacy = settings_.database_path.parent_path() / "nicknames.json";
+    if (const auto imported = events::import_nicknames_file(nicknames_, legacy); imported.value_or(0) > 0) {
+        util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
+    }
 
     register_commands();
     register_stages();

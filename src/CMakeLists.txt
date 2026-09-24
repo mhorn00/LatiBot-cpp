@@ -20,6 +20,7 @@ add_library(latibot_core STATIC
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/message_pipeline.cpp
+    core/events/nickname_import.cpp
     core/events/nicknames.cpp
     core/events/triggers.cpp
     core/ports/clock.cpp
