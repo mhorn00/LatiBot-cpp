@@ -156,6 +156,45 @@ TEST_CASE("a restart moments after posting does not post again", "[db]") {
     CHECK(after.tick().empty());
 }
 
+TEST_CASE("a night the bot slept through is given up on, not posted at breakfast", "[db]") {
+    store_fixture fixture;
+    latibot::testing::mock_clock clock;
+    midnight_scheduler scheduler(fixture.store, clock);
+
+    const std::int64_t id = fixture.store.add(entry_in("UTC", guild, "2026-09-22"));
+
+    // The bot comes back mid-morning, hours after the midnight it was meant
+    // to post at.
+    clock.set(utc(2026, 9, 23, 9, 0, 0));
+    CHECK(scheduler.tick().empty());
+
+    // Nothing is written down for a day that was missed: `last_fired_date`
+    // means "posted", and it would be a lie there.
+    CHECK(fixture.store.find(id, guild)->last_fired_date == "2026-09-22");
+
+    // It stays quiet for the rest of that day...
+    clock.set(utc(2026, 9, 23, 18, 0, 0));
+    CHECK(scheduler.tick().empty());
+
+    // ...and posts normally at the next midnight.
+    clock.set(utc(2026, 9, 24, 0, 0, 10));
+    CHECK(scheduler.tick().size() == 1);
+}
+
+TEST_CASE("a restart a minute after midnight still posts", "[db]") {
+    store_fixture fixture;
+    latibot::testing::mock_clock clock;
+
+    fixture.store.add(entry_in("UTC", guild, "2026-09-22"));
+
+    // A scheduler that has only just started, a minute into the new day: the
+    // window is wider than the tick precisely so this counts as being there.
+    clock.set(utc(2026, 9, 23, 0, 1, 0));
+    midnight_scheduler scheduler(fixture.store, clock);
+
+    CHECK(scheduler.tick().size() == 1);
+}
+
 TEST_CASE("each timezone posts at its own midnight", "[db]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;

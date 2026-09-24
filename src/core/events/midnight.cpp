@@ -51,21 +51,32 @@ std::optional<local_reading> read_local(std::string_view timezone, std::chrono::
                          .since_midnight = std::chrono::duration_cast<std::chrono::seconds>(local - midnight)};
 }
 
-bool due(const midnight_entry& entry, std::chrono::system_clock::time_point now) {
+midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now) {
     if (!entry.enabled) {
-        return false;
+        return midnight_verdict::wait;
     }
 
     const auto local = read_local(entry.timezone, now);
     if (!local) {
         // A zone this machine does not know. Saying nothing beats posting at
         // the wrong time, and the command refuses unknown zones anyway.
-        return false;
+        return midnight_verdict::wait;
     }
 
     // Comparing the local date against the one saved is what survives a
     // suspend, a clock jump and a restart alike (plan v4 §10).
-    return local->since_midnight >= midnight_grace && local->date != entry.last_fired_date;
+    if (local->date == entry.last_fired_date || local->since_midnight < midnight_grace) {
+        return midnight_verdict::wait;
+    }
+
+    // A new day, but how new? Far enough past midnight and the bot cannot have
+    // been running for it, and yesterday's midnight message over breakfast is
+    // worse than no midnight message.
+    //
+    // Nothing is written down for a missed day, and nothing needs to be: the
+    // time since midnight only grows, so the rest of the day answers `wait`
+    // on its own and the next midnight starts clean.
+    return local->since_midnight <= midnight_window ? midnight_verdict::post : midnight_verdict::missed;
 }
 
 std::string already_posted_today(std::string_view timezone, std::chrono::system_clock::time_point now) {
@@ -193,13 +204,37 @@ bool midnight_store::mark_fired(std::int64_t id, std::string_view date) {
 
 // --------------------------------------------------------------------------
 
+void midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now) {
+    const auto local = read_local(entry.timezone, now);
+    if (!local) {
+        return;
+    }
+
+    std::string& reported = reported_misses_[entry.id];
+    if (reported == local->date) {
+        return;
+    }
+    reported = local->date;
+
+    // Info rather than debug: a message that was meant to go out and did not
+    // is exactly the thing somebody comes looking for the next morning.
+    util::log().info("midnight message {} missed midnight on {} in {} (it is already {} there); waiting for the next one", entry.id,
+                     local->date, entry.timezone, std::format("{:%H:%M}", local->since_midnight));
+}
+
 std::vector<action> midnight_scheduler::tick() {
     const auto now = clock_->now();
 
     std::vector<action> posts;
     for (const midnight_entry& entry : store_->enabled()) {
-        if (!due(entry, now)) {
+        switch (verdict_for(entry, now)) {
+        case midnight_verdict::wait:
             continue;
+        case midnight_verdict::missed:
+            note_missed(entry, now);
+            continue;
+        case midnight_verdict::post:
+            break;
         }
 
         const auto local = read_local(entry.timezone, now);

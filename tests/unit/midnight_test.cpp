@@ -6,11 +6,12 @@
 #include <chrono>
 #include <string>
 
-using latibot::events::due;
 using latibot::events::is_known_timezone;
 using latibot::events::matching_timezones;
 using latibot::events::midnight_entry;
+using latibot::events::midnight_verdict;
 using latibot::events::read_local;
+using latibot::events::verdict_for;
 using namespace std::chrono_literals;
 
 namespace {
@@ -63,27 +64,58 @@ TEST_CASE("an entry fires just after local midnight", "[events]") {
 
     // A few seconds of slack, so a tick landing a moment early does not post
     // for yesterday.
-    CHECK_FALSE(due(entry, utc(2026, 9, 23, 0, 0, 1)));
-    CHECK(due(entry, utc(2026, 9, 23, 0, 0, 5)));
-    CHECK(due(entry, utc(2026, 9, 23, 0, 0, 30)));
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 1)) == midnight_verdict::wait);
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 5)) == midnight_verdict::post);
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::post);
 }
 
 TEST_CASE("an entry that has posted today does not post again", "[events]") {
     const midnight_entry entry = entry_in("UTC", "2026-09-23");
 
     // Which is what makes a restart at 00:00:30 safe (plan v4 §10).
-    CHECK_FALSE(due(entry, utc(2026, 9, 23, 0, 0, 30)));
-    CHECK_FALSE(due(entry, utc(2026, 9, 23, 23, 59, 0)));
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::wait);
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 23, 59, 0)) == midnight_verdict::wait);
 
     // Tomorrow is a different day.
-    CHECK(due(entry, utc(2026, 9, 24, 0, 0, 10)));
+    CHECK(verdict_for(entry, utc(2026, 9, 24, 0, 0, 10)) == midnight_verdict::post);
+}
+
+TEST_CASE("a midnight the bot was not running for is skipped, not posted late", "[events]") {
+    const midnight_entry entry = entry_in("UTC", "2026-09-22");
+
+    // The bot was down overnight and comes back mid-morning. Yesterday's
+    // midnight message over breakfast is worse than no midnight message, so
+    // the day is given up on rather than delivered hours late.
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 9, 0, 0)) == midnight_verdict::missed);
+
+    // And it stays given up on for the rest of that day, without anything
+    // having to be written down.
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 23, 59, 0)) == midnight_verdict::missed);
+
+    // The next midnight is untouched by any of that.
+    CHECK(verdict_for(entry, utc(2026, 9, 24, 0, 0, 10)) == midnight_verdict::post);
+}
+
+TEST_CASE("a restart shortly after midnight still posts", "[events]") {
+    const midnight_entry entry = entry_in("UTC", "2026-09-22");
+
+    // The window is wider than the tick on purpose: a bot restarted a minute
+    // after midnight was there for it in every sense that matters.
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 1, 0)) == midnight_verdict::post);
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 5, 0)) == midnight_verdict::post);
+
+    // A second past the window is a second too late.
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 5, 1)) == midnight_verdict::missed);
 }
 
 TEST_CASE("an entry off is an entry that does not post", "[events]") {
     midnight_entry entry = entry_in("UTC");
     entry.enabled = false;
 
-    CHECK_FALSE(due(entry, utc(2026, 9, 23, 0, 0, 30)));
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::wait);
+
+    // Not even as a miss: an entry nobody wants posted has missed nothing.
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 9, 0, 0)) == midnight_verdict::wait);
 }
 
 TEST_CASE("two entries in different timezones fire at different times", "[events]") {
@@ -93,10 +125,10 @@ TEST_CASE("two entries in different timezones fire at different times", "[events
     // Midnight in Tokyo on the 23rd is 15:00 UTC on the 22nd; midnight in
     // Chicago is 05:00 UTC on the 23rd. At the first of those it is still
     // mid-morning in Chicago, and the day there is already spoken for.
-    CHECK(due(tokyo, utc(2026, 9, 22, 15, 0, 10)));
-    CHECK_FALSE(due(chicago, utc(2026, 9, 22, 15, 0, 10)));
+    CHECK(verdict_for(tokyo, utc(2026, 9, 22, 15, 0, 10)) == midnight_verdict::post);
+    CHECK(verdict_for(chicago, utc(2026, 9, 22, 15, 0, 10)) == midnight_verdict::wait);
 
-    CHECK(due(chicago, utc(2026, 9, 23, 5, 0, 10)));
+    CHECK(verdict_for(chicago, utc(2026, 9, 23, 5, 0, 10)) == midnight_verdict::post);
 }
 
 TEST_CASE("an entry added this afternoon waits for the next midnight", "[events]") {
@@ -107,10 +139,10 @@ TEST_CASE("an entry added this afternoon waits for the next midnight", "[events]
     const midnight_entry added_today = entry_in("America/Chicago", latibot::events::already_posted_today("America/Chicago", afternoon));
 
     CHECK(added_today.last_fired_date == "2026-09-23");
-    CHECK_FALSE(due(added_today, afternoon));
+    CHECK(verdict_for(added_today, afternoon) == midnight_verdict::wait);
 
-    // Midnight in Chicago that night is 05:00 UTC on the 24th.
-    CHECK(due(added_today, utc(2026, 9, 24, 5, 0, 10)));
+    // Waiting, not missing: nothing has been missed on the day it was added.
+    CHECK(verdict_for(added_today, utc(2026, 9, 24, 5, 0, 10)) == midnight_verdict::post);
 }
 
 TEST_CASE("a spring-forward night still has a midnight to fire at", "[events]") {
@@ -118,7 +150,7 @@ TEST_CASE("a spring-forward night still has a midnight to fire at", "[events]") 
     // nowhere near midnight but is the day most likely to be got wrong.
     const midnight_entry entry = entry_in("America/Chicago");
 
-    CHECK(due(entry, utc(2026, 3, 8, 6, 0, 10)));
+    CHECK(verdict_for(entry, utc(2026, 3, 8, 6, 0, 10)) == midnight_verdict::post);
 }
 
 TEST_CASE("a fall-back night does not post twice", "[events]") {
@@ -126,12 +158,15 @@ TEST_CASE("a fall-back night does not post twice", "[events]") {
     // midnight has already been claimed for the day.
     const midnight_entry fired = entry_in("America/Chicago", "2026-11-01");
 
-    CHECK_FALSE(due(fired, utc(2026, 11, 1, 6, 30, 0)));
-    CHECK_FALSE(due(fired, utc(2026, 11, 1, 7, 30, 0)));
+    CHECK(verdict_for(fired, utc(2026, 11, 1, 6, 30, 0)) == midnight_verdict::wait);
+    CHECK(verdict_for(fired, utc(2026, 11, 1, 7, 30, 0)) == midnight_verdict::wait);
 }
 
 TEST_CASE("a bad timezone in the database keeps quiet rather than posting wrongly", "[events]") {
-    CHECK_FALSE(due(entry_in("Nowhere/Nothing"), utc(2026, 9, 23, 0, 0, 30)));
+    const midnight_entry entry = entry_in("Nowhere/Nothing");
+
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::wait);
+    CHECK(verdict_for(entry, utc(2026, 9, 23, 9, 0, 0)) == midnight_verdict::wait);
 }
 
 // --------------------------------------------------------------------------

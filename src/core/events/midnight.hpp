@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -27,6 +28,16 @@ namespace latibot::events {
 /// A few seconds of slack, so a tick landing a moment early does not post for
 /// yesterday (plan v4 §10).
 inline constexpr std::chrono::seconds midnight_grace{5};
+
+/// How long after local midnight an entry may still post.
+///
+/// Past this the day is skipped rather than posted late. A bot that was not
+/// running at midnight should wait for the next one, not announce yesterday's
+/// midnight over breakfast.
+///
+/// Comfortably wider than the tick, so ordinary scheduling jitter and a quick
+/// restart still post. Changing how late is too late is this one line.
+inline constexpr std::chrono::minutes midnight_window{5};
 
 /// How often the scheduler looks at the clock.
 ///
@@ -69,10 +80,22 @@ struct local_reading {
 /// Reads `now` in `timezone`, or nothing when the zone is not a real one.
 [[nodiscard]] std::optional<local_reading> read_local(std::string_view timezone, std::chrono::system_clock::time_point now);
 
-/// Whether an entry should post now.
+/// What a tick should do about one entry.
+enum class midnight_verdict : std::uint8_t {
+    /// Nothing: still the day it last posted for, not yet past midnight, or
+    /// switched off.
+    wait,
+    /// Post it.
+    post,
+    /// A new local day, but midnight was long enough ago that the bot cannot
+    /// have been running for it. Skipped, not posted late.
+    missed,
+};
+
+/// What to do about an entry now.
 ///
 /// Pure, so every daylight-saving case can be tested without waiting for one.
-[[nodiscard]] bool due(const midnight_entry& entry, std::chrono::system_clock::time_point now);
+[[nodiscard]] midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now);
 
 /// The date a new entry should start out having "already posted" for.
 ///
@@ -142,8 +165,17 @@ public:
     [[nodiscard]] std::vector<action> tick();
 
 private:
+    /// Says once that a day went by without the bot being there for it.
+    void note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now);
+
     midnight_store* store_;
     ports::clock* clock_;
+
+    /// The local date each entry was last reported as having missed, so a day
+    /// the bot slept through is mentioned once rather than every thirty
+    /// seconds. A missed day is deliberately not written to the database:
+    /// `last_fired_date` means "posted", and it would be a lie there.
+    std::map<std::int64_t, std::string> reported_misses_;
 };
 
 } // namespace latibot::events

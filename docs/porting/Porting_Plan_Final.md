@@ -798,12 +798,21 @@ constructed as tomorrow.)
 
 **The fix is to poll the wall clock.** A 30 s tick compares
 `zoned_time{tz, now}`'s local date against `last_fired_date` and fires once the
-local time is ≥ 00:00:05, saving the date in the same transaction. That is
-immune to suspend, clock jumps and DST, and the saved date makes a double post
-impossible even across a restart at 00:00:30.
+local time is ≥ 00:00:05, saving the date in the same statement that claims it.
+That is immune to suspend, clock jumps and DST, and the saved date makes a
+double post impossible even across a restart at 00:00:30.
+
+**A midnight the bot was not running for is skipped, not posted late.** The
+window closes five minutes into the local day: past that, the bot cannot have
+been there for it, and yesterday's midnight message over breakfast is worse
+than none. Nothing is written down for a missed day — `last_fired_date` means
+"posted", and the time since midnight only grows, so the rest of that day
+answers "wait" on its own and the next midnight starts clean. The window is
+deliberately wider than the tick, so jitter and a quick restart still post.
 
 `/midnight list | add | edit | remove | toggle`, with timezone autocomplete.
-`due(entry, now)` is a pure function, so DST cases are unit-testable. MSVC's
+`verdict_for(entry, now)` is a pure function returning *wait*, *post* or
+*missed*, so both DST nights and the overnight gap are unit-testable. MSVC's
 `<chrono>` uses Windows' ICU time-zone data (1903+), so no dependency is needed.
 
 ---
@@ -1177,7 +1186,7 @@ them, or a tag nobody recognises.
 
 **Functional core, thin shell.** Features are functions from plain data to
 **decisions** as plain data — `plan_join(target, bot_channel)`,
-`midnight::due(entry, now)`, `is_goodbye(content, phrase)`. The DPP handler
+`midnight::verdict_for(entry, now)`, `is_goodbye(content, phrase)`. The DPP handler
 converts, calls, and carries out. Most logic then needs no mock at all.
 
 **Ports** wrap the outside world where a feature needs I/O mid-logic:
@@ -1212,7 +1221,7 @@ backup taken during an open write transaction that then passes
 | Reaction stats | received / given / self split, alias merge and un-merge, backfill idempotency |
 | Nicknames ✅ | pending expectation claimed once and expiring, bot-as-actor never overwrites, first attribution wins, unmatched → unknown, cleared ≠ empty, the window that stops an old identical change being credited. The 10 s fallback itself lives in the shell and is untested (§17.9) |
 | CT import ✅ | CST, CDT, ambiguous 1:30, nonexistent 2:30, pre-2007, idempotent re-import, malformed rows named not dropped |
-| Midnight ✅ | `due()` across both DST nights, per-timezone firing, no double fire across a restart, a new entry waiting for the next midnight |
+| Midnight ✅ | `verdict_for()` across both DST nights, per-timezone firing, no double fire across a restart, a new entry waiting for the next midnight, an overnight gap skipped rather than posted late |
 | Triggers | word vs substring, cooldown 0 and N, per-channel isolation, bot opt-in |
 | Paginator | `custom_id` round-trip, the 100-character limit, bounds |
 | Modals | every label, id and placeholder against Discord's limits (§21.4) |
@@ -1495,14 +1504,24 @@ it is not a marginal call: in the file being ported, all 140 entries name
 somebody other than the member. Dropping imported attribution outright would
 have thrown away every one of them.
 
-### 21.10 "Fire once per local day" needs a starting point
+### 21.10 "Fire once per local day" needs a start and an end
 
 §10's rule — fire when the local date differs from `last_fired_date` and the
-local time is past 00:00:05 — is correct for every day after the first and
-wrong on the first. A new entry has never fired, so its date always differs,
-and adding one at three in the afternoon posts it within thirty seconds.
+local time is past 00:00:05 — turned out to be open at both ends.
 
+**No starting point.** A new entry has never fired, so its date always differs,
+and adding one at three in the afternoon posts it within thirty seconds.
 `/midnight add` therefore records today, in the entry's own zone, as already
-posted. Adding one means "from the next midnight", which is what anybody typing
-it expects. Found by a test that failed, which is the argument for `due()`
-being a pure function in the first place.
+posted, so adding one means "from the next midnight" — which is what anybody
+typing it expects. Found by a test that failed, which is the argument for the
+decision being a pure function in the first place.
+
+**No end.** The same openness means a bot that was down all night posts at
+whatever time it comes back: the date differs, so it fires at nine in the
+morning. That is the *shape* of the Java bug the section exists to fix,
+arrived at from the other direction. The window now closes five minutes into
+the local day, and a day past it is skipped.
+
+The general lesson: "once per day" is two questions, not one. A day that has
+not started yet and a day that is nearly over both need an answer, and neither
+is the answer for an ordinary day.

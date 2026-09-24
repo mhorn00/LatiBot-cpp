@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-263 test cases across 9 components, including 53 sections.
+267 test cases across 9 components, including 53 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 69 | 4 |
+| [db](#db) | 71 | 4 |
 | [config](#config) | 20 | 15 |
 | [commands](#commands) | 58 | 20 |
-| [events](#events) | 71 | 13 |
+| [events](#events) | 73 | 13 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -52,7 +52,9 @@ Database (`src/core/db`)
 | editing an entry leaves the day it last posted alone |  |  | [tests/db/midnight_store_test.cpp:99](../../tests/db/midnight_store_test.cpp#L99) |
 | a tick posts an entry once and then leaves it alone |  |  | [tests/db/midnight_store_test.cpp:114](../../tests/db/midnight_store_test.cpp#L114) |
 | a restart moments after posting does not post again |  |  | [tests/db/midnight_store_test.cpp:140](../../tests/db/midnight_store_test.cpp#L140) |
-| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:159](../../tests/db/midnight_store_test.cpp#L159) |
+| a night the bot slept through is given up on, not posted at breakfast |  |  | [tests/db/midnight_store_test.cpp:159](../../tests/db/midnight_store_test.cpp#L159) |
+| a restart a minute after midnight still posts |  |  | [tests/db/midnight_store_test.cpp:184](../../tests/db/midnight_store_test.cpp#L184) |
+| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:198](../../tests/db/midnight_store_test.cpp#L198) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
@@ -204,19 +206,21 @@ Message pipeline and triggers (`src/core/events`)
 | an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
-| the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:40](../../tests/unit/midnight_test.cpp#L40) |
-| a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:50](../../tests/unit/midnight_test.cpp#L50) |
-| an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:61](../../tests/unit/midnight_test.cpp#L61) |
-| an entry that has posted today does not post again |  |  | [tests/unit/midnight_test.cpp:71](../../tests/unit/midnight_test.cpp#L71) |
-| an entry off is an entry that does not post |  |  | [tests/unit/midnight_test.cpp:82](../../tests/unit/midnight_test.cpp#L82) |
-| two entries in different timezones fire at different times |  |  | [tests/unit/midnight_test.cpp:89](../../tests/unit/midnight_test.cpp#L89) |
-| an entry added this afternoon waits for the next midnight |  |  | [tests/unit/midnight_test.cpp:102](../../tests/unit/midnight_test.cpp#L102) |
-| a spring-forward night still has a midnight to fire at |  |  | [tests/unit/midnight_test.cpp:116](../../tests/unit/midnight_test.cpp#L116) |
-| a fall-back night does not post twice |  |  | [tests/unit/midnight_test.cpp:124](../../tests/unit/midnight_test.cpp#L124) |
-| a bad timezone in the database keeps quiet rather than posting wrongly |  |  | [tests/unit/midnight_test.cpp:133](../../tests/unit/midnight_test.cpp#L133) |
-| timezone completion matches anywhere in the name |  |  | [tests/unit/midnight_test.cpp:141](../../tests/unit/midnight_test.cpp#L141) |
-| timezone completion never offers more than it is asked for |  |  | [tests/unit/midnight_test.cpp:148](../../tests/unit/midnight_test.cpp#L148) |
-| timezone completion finds nothing for nonsense |  |  | [tests/unit/midnight_test.cpp:155](../../tests/unit/midnight_test.cpp#L155) |
+| the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:41](../../tests/unit/midnight_test.cpp#L41) |
+| a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:51](../../tests/unit/midnight_test.cpp#L51) |
+| an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:62](../../tests/unit/midnight_test.cpp#L62) |
+| an entry that has posted today does not post again |  |  | [tests/unit/midnight_test.cpp:72](../../tests/unit/midnight_test.cpp#L72) |
+| a midnight the bot was not running for is skipped, not posted late |  |  | [tests/unit/midnight_test.cpp:83](../../tests/unit/midnight_test.cpp#L83) |
+| a restart shortly after midnight still posts |  |  | [tests/unit/midnight_test.cpp:99](../../tests/unit/midnight_test.cpp#L99) |
+| an entry off is an entry that does not post |  |  | [tests/unit/midnight_test.cpp:111](../../tests/unit/midnight_test.cpp#L111) |
+| two entries in different timezones fire at different times |  |  | [tests/unit/midnight_test.cpp:121](../../tests/unit/midnight_test.cpp#L121) |
+| an entry added this afternoon waits for the next midnight |  |  | [tests/unit/midnight_test.cpp:134](../../tests/unit/midnight_test.cpp#L134) |
+| a spring-forward night still has a midnight to fire at |  |  | [tests/unit/midnight_test.cpp:148](../../tests/unit/midnight_test.cpp#L148) |
+| a fall-back night does not post twice |  |  | [tests/unit/midnight_test.cpp:156](../../tests/unit/midnight_test.cpp#L156) |
+| a bad timezone in the database keeps quiet rather than posting wrongly |  |  | [tests/unit/midnight_test.cpp:165](../../tests/unit/midnight_test.cpp#L165) |
+| timezone completion matches anywhere in the name |  |  | [tests/unit/midnight_test.cpp:176](../../tests/unit/midnight_test.cpp#L176) |
+| timezone completion never offers more than it is asked for |  |  | [tests/unit/midnight_test.cpp:183](../../tests/unit/midnight_test.cpp#L183) |
+| timezone completion finds nothing for nonsense |  |  | [tests/unit/midnight_test.cpp:190](../../tests/unit/midnight_test.cpp#L190) |
 | a winter timestamp is read as Central Standard Time |  |  | [tests/unit/nickname_import_test.cpp:34](../../tests/unit/nickname_import_test.cpp#L34) |
 | a summer timestamp is read as Central Daylight Time |  |  | [tests/unit/nickname_import_test.cpp:39](../../tests/unit/nickname_import_test.cpp#L39) |
 | the hour that happens twice each November takes the earlier one |  |  | [tests/unit/nickname_import_test.cpp:44](../../tests/unit/nickname_import_test.cpp#L44) |

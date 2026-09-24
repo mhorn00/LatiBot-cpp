@@ -507,9 +507,14 @@ version computed a delay from the wall clock and then waited on a monotonic
 timer, so whenever the machine slept the message arrived at whatever time it
 happened to wake up — and then behaved normally again for a while.
 
-**An entry that missed its midnight posts when the bot comes back.** If the bot
-was not running at midnight, the first check after it starts sees a new local
-date and posts then. Late is treated as better than never.
+**A midnight the bot was not running for is skipped.** If the bot comes back
+more than five minutes into the new local day, that day is given up on and the
+entry waits for the next midnight — yesterday's midnight message over
+breakfast is worse than none. The log says so, once, naming the entry and how
+late it already is.
+
+A restart *inside* those five minutes still posts, which covers the ordinary
+case of the bot being bounced a moment after midnight.
 
 ### Permission warnings
 
