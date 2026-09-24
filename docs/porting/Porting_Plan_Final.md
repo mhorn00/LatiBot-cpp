@@ -28,13 +28,13 @@ the order of work behind it.
 |---|---|---|
 | 0 | Build split, tests, tooling, CI, database, config, ports, registry | ✅ done |
 | 1 | Basic commands, goodbye phrase, preflight, pipeline, triggers, panel UI, bot allowlist | ✅ done |
-| 2 | Nicknames and midnight | ⏳ next |
-| 3 | URL replacement, reaction statistics, backfill | ⏳ |
+| 2 | Nicknames, the import, midnight, scheduled backups | ✅ done |
+| 3 | URL replacement, reaction statistics, backfill | ⏳ next |
 | 4 | DECtalk, mixer, voice sessions | ⏳ |
 | 5 | LLM | ⏳ |
 | — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
 
-161 tests pass in Debug, Release and under AddressSanitizer; clang-tidy is
+263 tests pass in Debug, Release and under AddressSanitizer; clang-tidy is
 clean over `src/` and CI is green on every push.
 
 ---
@@ -312,14 +312,15 @@ src/
     version.*
     config/   bootstrap.*  guild_settings.*
     db/       database.*  statement.*  migrations.*  backup.*
-              import_legacy.*                              (phase 2/3)
+              import_legacy.*                              (phase 3)
     discord/  raw_api.*  dpp_gateway.*  dpp_http_client.*
     commands/ registry.*  basic.*  trigger.*  bots.*  preflight.*
-              nickname.*  urlrepl.*  linkstats.*  midnight.*
-              speak.*  voice.*  llm_admin.*                (phases 2-5)
+              nickname.*  midnight.*
+              urlrepl.*  linkstats.*
+              speak.*  voice.*  llm_admin.*                (phases 3-5)
     events/   message_pipeline.*  goodbye.*  triggers.*  bot_allowlist.*
-              nickname_tracker.*  reaction_tracker.*
-              url_replacer.*  embed_watch.*                (phases 2-3)
+              nicknames.*  nickname_import.*  midnight.*
+              reaction_tracker.*  url_replacer.*  embed_watch.*  (phase 3)
     ui/       paginator.*
               panel.*  modal_forms.*                       (when a second panel exists)
     audio/    voice_mixer.*  resample.*  wav.*
@@ -328,7 +329,7 @@ src/
               tools.*  documents.*  responder.*  spend.*   (phase 5)
     ports/    clock.hpp  discord_gateway.hpp  http_client.hpp  tts_engine.hpp
     util/     log.*  text.*  env.*  ca_certificates.*
-              url_scan.*  scheduler.*                      (phases 2-3)
+              url_scan.*                                   (phase 3)
 tests/
   unit/  db/  mocks/  support/  fuzz/  live/  fixtures/
 third_party/  DPP/  dectalk/
@@ -347,7 +348,8 @@ it.
 **`config.json`** — global, rarely edited, read once at startup. Unknown keys
 are rejected rather than ignored, so a typo is reported instead of silently
 doing nothing. Keys: `log_level`, `database_path`, `backup_directory`,
-`backups_to_keep`, `backup_interval_minutes`, `llm_provider`, `llm_model`,
+`backups_to_keep`, `backup_interval_minutes`, `track_nicknames`,
+`llm_provider`, `llm_model`,
 `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `llm_tool_rounds`,
 `trusted_guilds`, `trusted_users`. Discord ids are given as **strings**,
 because a JSON number cannot hold a snowflake exactly.
@@ -418,13 +420,13 @@ llm_usage(id, guild_id, model, input_tokens, output_tokens, cost_usd, at)
 tts_voices(guild_id, name, base_voice, params, created_by, updated_at)
 ```
 
-**Backups** 🚧 use SQLite's online backup API, so a copy can be taken while the
+**Backups** ✅ use SQLite's online backup API, so a copy can be taken while the
 bot runs; `create_backup` writes a timestamped file and rotates to the newest
-N. It is implemented and tested, including taking a backup during an open write
-transaction and checking the copy passes `PRAGMA integrity_check` — but
-**nothing schedules it yet**. `backup_interval_minutes` and `backups_to_keep`
-are read from config and currently unused. Wiring it to a timer is small and
-belongs with the next phase that touches startup.
+N. Tested including taking a backup during an open write transaction and
+checking the copy passes `PRAGMA integrity_check`. A cluster timer runs it
+every `backup_interval_minutes`, keeping `backups_to_keep`; a failure is logged
+and never propagates, and either setting at zero turns backups off, which the
+startup log says.
 
 ### 5.3 Command registry ✅
 
@@ -523,9 +525,9 @@ with unknown bits shown as hex. The list grows as features land:
 
 ---
 
-## 8. Nickname tracking ⏳ (phase 2)
+## 8. Nickname tracking ✅
 
-### 8.1 Attribution
+### 8.1 Attribution ✅
 
 1. `on_guild_member_update` with a changed nickname → write a history row
    immediately, `changed_by = NULL`. Recording must never depend on the audit
@@ -559,7 +561,7 @@ the actor, as it has for years; "who actually did it" comes from
 The Java owner-confirmation flow stays dropped. The server owner's nickname
 cannot be changed by bots, so `/nickname` just says so.
 
-### 8.2 Storage and display
+### 8.2 Storage and display ✅
 
 Raw ids are stored and names resolved at display time. The Java version resolved
 live `Guild` and `Member` objects at load time, which is why loading had to wait
@@ -571,7 +573,7 @@ nicknames stored as null, and a null member during load.
 `custom_id`, falling back to a `.txt` attachment for very long histories. The
 Java version gave up entirely past 2000 characters.
 
-### 8.3 Importing `nicknames.json`
+### 8.3 Importing `nicknames.json` ✅
 
 The Java times are local wall-clock in US Central with no zone recorded:
 
@@ -587,7 +589,7 @@ to know which was meant. Each row keeps the original text in `imported_raw`, so
 the conversion can be redone. Tested across CST, CDT, both edge cases and
 pre-2007 dates.
 
-### 8.4 Startup reconciliation
+### 8.4 Startup reconciliation ✅
 
 Changes made while the bot was offline are recorded with `source = 'startup'`
 and `changed_by = NULL`.
@@ -779,7 +781,7 @@ gives messages scanned, replacements found, attributed, unattributed, unparsed
 
 ---
 
-## 10. Midnight ⏳ (phase 2)
+## 10. Midnight ✅
 
 Per guild, any number of `{timezone, channel, message, enabled,
 last_fired_date}` entries.
@@ -1208,9 +1210,9 @@ backup taken during an open write transaction that then passes
 | Embed flow | coroutine tests with `mock_discord` + `mock_clock`: success, retry schedule, all-fail → un-suppress + button, retry success → re-suppress |
 | Legacy parser | each of the six formats; format 2 skipped; unknown reported not guessed; the preceding-link rule with chat in between, with no candidate, with a path mismatch |
 | Reaction stats | received / given / self split, alias merge and un-merge, backfill idempotency |
-| Nicknames | pending expectation, bot-as-actor never overwrites, 10 s fallback, unmatched → unknown |
-| CT import | CST, CDT, ambiguous 1:30, nonexistent 2:30, pre-2007 |
-| Midnight | `due()` across DST, offline gap, no double fire |
+| Nicknames ✅ | pending expectation claimed once and expiring, bot-as-actor never overwrites, first attribution wins, unmatched → unknown, cleared ≠ empty, the window that stops an old identical change being credited. The 10 s fallback itself lives in the shell and is untested (§17.9) |
+| CT import ✅ | CST, CDT, ambiguous 1:30, nonexistent 2:30, pre-2007, idempotent re-import, malformed rows named not dropped |
+| Midnight ✅ | `due()` across both DST nights, per-timezone firing, no double fire across a restart, a new entry waiting for the next midnight |
 | Triggers | word vs substring, cooldown 0 and N, per-channel isolation, bot opt-in |
 | Paginator | `custom_id` round-trip, the 100-character limit, bounds |
 | Modals | every label, id and placeholder against Discord's limits (§21.4) |
@@ -1265,6 +1267,26 @@ the reason logic lives behind ports rather than inside event handlers.
   bugs carried over from Java, and to anything found in production (§21.4).
 - Only synthetic data in `tests/`.
 
+### 17.9 What the shell keeps, and what that costs
+
+`bot` is not tested, by design: it wires DPP to the core, and testing it would
+mean mocking `dpp::cluster`, which is what the ports exist to avoid. The price
+is that a handful of decisions live where no test reaches them, and they are
+worth naming rather than assuming away:
+
+- **Component and modal routing.** `on_component` and `on_form` dispatch by
+  view name. Everything they call is tested; the routing between them is not.
+- **The nickname handlers.** Turning a member update into "is this a change",
+  and an audit entry into "does this describe a row", are both pure and
+  tested. What is not tested is that they are hooked to the right events, that
+  the guild comes out of the raw frame correctly, or that the delayed fallback
+  fires.
+- **The timers.** That the midnight tick and the backup schedule are started
+  at all, and at the right interval.
+
+These are covered by running the bot rather than by CI, which is the honest
+description. `[live]` tests are where they would go.
+
 ---
 
 ## 18. Dependencies
@@ -1297,12 +1319,12 @@ and their mocks; command registry, raw-API helper, logging.
 Basic commands and the goodbye phrase; permission preflight; message pipeline;
 simple triggers; paginator and a concrete panel; the bot allowlist (§11.1).
 
-**Phase 2 — data features** ⏳ next
+**Phase 2 — data features** ✅
 `nicknames.json` import (CT/DST); nickname tracking, `/nickname` attribution,
-startup reconciliation, `/nicknames`; midnight. Scheduling the database backups
-(§5.2) belongs here too.
+startup reconciliation, `/nicknames`; midnight; the database backups from §5.2
+are now scheduled.
 
-**Phase 3 — URL replacement**
+**Phase 3 — URL replacement** ⏳ next
 CTRE scanner, each Java bug as a failing test first; posting and embed
 verification; failure and Retry; `UrlReplacements.txt` import; reaction
 tracking; `/linkstats` views; emoji aliases; the legacy parser and backfill;
@@ -1377,10 +1399,12 @@ trigger silently do nothing while the slash commands keep working, so the bot
 looks half alive rather than broken. DPP warns about this at startup, and that
 warning is the only clue.
 
-`i_guild_members` is deliberately **not** requested. The only thing needing a
-member object is the Administrator check on the goodbye phrase, and Discord
-sends a partial member with every guild message, which DPP caches before our
-handler runs — so a second privileged intent would buy nothing.
+`i_guild_members` was deliberately **not** requested through phase 1: the only
+thing needing a member object was the Administrator check on the goodbye
+phrase, and Discord sends a partial member with every guild message, which DPP
+caches before our handler runs. Phase 2 changed that — nickname tracking (§8)
+needs it, and it is the only way `GUILD_MEMBER_UPDATE` or a complete member
+list arrives at all. See §21.7.
 
 ### 21.3 OpenSSL on Windows has no certificates
 
@@ -1425,3 +1449,60 @@ The test catalog links to tests by line number, so a formatting pass invalidates
 it. CI caught this a commit late; `tools/Invoke-ClangFormat.ps1` now regenerates
 the catalog whenever it reformats anything under `tests/`, so the two cannot
 disagree in the first place.
+
+### 21.7 A privileged intent is refused, not degraded
+
+Phase 2 needs `i_guild_members`, and a bot that requests a privileged intent it
+was not granted does not lose that feature — Discord closes the gateway with
+**4014 Disallowed intent(s)** and the bot reconnects in a loop, never
+connecting at all. DPP reports it as
+`OOF! Error from underlying websocket: 4014`, which says nothing about which
+toggle is missing.
+
+So the intent is requested only when `track_nicknames` is on, which is the
+escape hatch if the portal toggle cannot be enabled, and the log handler
+watches for 4014 and prints the setting and the portal page by name. The
+general rule: a privileged intent is a deployment prerequisite, not a runtime
+capability to probe for.
+
+### 21.8 DPP updates its cache before it calls the handler
+
+`guild_member_update` writes the new member into `guild.members` **before**
+dispatching, so "what were they called a moment ago" is not knowable from the
+cache inside the handler. The old nickname has to come from our own history.
+
+This turned out to be a simplification rather than a problem: comparing an
+observed nickname against the last one recorded is the same question at startup
+as it is mid-run, so the startup reconciliation of §8.4 needed no separate rule
+— it is `is_new_nickname` over the member list, with a different `source`.
+
+Two related shapes, both worth knowing before reaching for them:
+`dpp::audit_entry` carries **no guild id**, so the guild has to be read out of
+the event's raw frame; and `audit_change::new_value` is stored as **dumped
+JSON**, so a nickname arrives quoted and a cleared one arrives as the four
+characters `null`.
+
+### 21.9 The Java attribution is worth more than it looks
+
+§8.1 says imported rows should carry no author, on the grounds that the Java
+bot guessed. That is half right. It wrote the member's own id whenever it could
+not identify the actor, so **self-attribution carries no information** — but a
+*different* id could only have come from its `/nickname`, which is the one case
+it did know for certain.
+
+Keeping the second kind and dropping the first is what the importer does, and
+it is not a marginal call: in the file being ported, all 140 entries name
+somebody other than the member. Dropping imported attribution outright would
+have thrown away every one of them.
+
+### 21.10 "Fire once per local day" needs a starting point
+
+§10's rule — fire when the local date differs from `last_fired_date` and the
+local time is past 00:00:05 — is correct for every day after the first and
+wrong on the first. A new entry has never fired, so its date always differs,
+and adding one at three in the afternoon posts it within thirty seconds.
+
+`/midnight add` therefore records today, in the entry's own zone, as already
+posted. Adding one means "from the next midnight", which is what anybody typing
+it expects. Found by a test that failed, which is the argument for `due()`
+being a pure function in the first place.

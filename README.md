@@ -157,12 +157,19 @@ the shell already set. Run it from the repo root so it finds both `.env` and
 In VS Code, **F5** does both: `.vscode/launch.json` builds the executable and
 runs it from the repo root, so the same `.env` applies.
 
-The bot needs the **Message Content** privileged intent, which has to be
-enabled for the application at
-*Discord Developer Portal → your app → Bot → Privileged Gateway Intents*.
-Without it Discord delivers guild messages with an empty `content`, and
-everything that reads a message — the goodbye phrase, the triggers — goes
-quiet while the slash commands keep working.
+The bot needs two **privileged intents**, both enabled for the application at
+*Discord Developer Portal → your app → Bot → Privileged Gateway Intents*:
+
+- **Message Content.** Without it Discord delivers guild messages with an empty
+  `content`, and everything that reads a message — the goodbye phrase, the
+  triggers — goes quiet while the slash commands keep working.
+- **Server Members.** Without it no nickname change is ever seen. Set
+  `"track_nicknames": false` in `config.json` to turn nickname tracking off
+  and stop the bot asking for this one.
+
+An intent the application was not granted is not a warning: Discord refuses the
+gateway outright and the bot reconnects in a loop. The log says which toggle to
+go and find when that happens.
 
 ### Logging
 
@@ -199,7 +206,7 @@ To keep the output to one file:
 
 ### What it does so far
 
-Phase 1 is done: the framework, and enough features to prove it works.
+Phases 1 and 2 are done: the framework, and the features that keep records.
 [docs/features/](docs/features/README.md) documents all of this properly —
 options, replies and edge cases.
 
@@ -213,9 +220,14 @@ options, replies and edge cases.
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
 | `/trigger` | `add`, `edit`, `remove`, `list`, `panel` — automatic replies |
 | `/bots` | `allow`, `deny`, `list` — which other bots the bot may hear |
+| `/nickname` | change somebody's nickname, and record who did it |
+| `/nicknames` | every nickname somebody has had here, paginated |
+| `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
 
 Without being asked: an administrator saying the goodbye phrase stops the bot,
-trigger patterns get weighted replies with a per-channel cooldown, and anything
+trigger patterns get weighted replies with a per-channel cooldown, every
+nickname change is recorded with whoever made it, each midnight message posts
+once per local day, the database backs itself up on a schedule, and anything
 the bot lacks permission to do is reported per server at startup as a warning
 rather than an error.
 
@@ -224,12 +236,17 @@ trigger only answers one if it was added with `bots:true`. Hearing and answering
 are separate on purpose: the first is a server-wide decision, the second belongs
 to each trigger.
 
+Nickname attribution is the part Discord's own audit log gets wrong: it records
+the bot for anything the bot did. The history records the person instead, and
+says **unknown** rather than guessing when nobody can be named. Dropping the
+Java bot's `nicknames.json` into `data/` imports years of history, timezones
+and all.
+
 **Still to come** — [the plan](docs/porting/Porting_Plan_Final.md), and
 [what each feature should do](docs/features/Planned.md):
 
 | Phase | Features |
 |---|---|
-| 2 | nickname history and attribution, the midnight message |
 | 3 | URL replacement, reaction statistics, the history backfill |
 | 4 | DECtalk speech, `/speak`, custom voices, voice sessions |
 | 5 | the LLM: replies, memory, personality, advanced triggers |

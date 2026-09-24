@@ -85,6 +85,14 @@ private:
     /// An audit entry that may name who made a change already recorded.
     void on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id);
 
+    /// Asks Discord for the audit log a little later, for the one row it was
+    /// hoping to attribute.
+    ///
+    /// The safety net for a gateway entry that never arrived — a reconnect, a
+    /// dropped event (plan v4 §8.1). Costs one API call per change that is
+    /// still unattributed when it runs, which is normally none of them.
+    void attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row);
+
     /// Writes down nicknames that changed while the bot was not running.
     void reconcile_nicknames(const dpp::guild& guild);
 

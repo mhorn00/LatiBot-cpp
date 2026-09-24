@@ -23,8 +23,13 @@ the design and the order of work behind it are in
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot |
 | 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases |
 | 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear |
+| 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record |
+| 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here |
+| 🌙 | [`/midnight`](#midnight) | Post a message at midnight |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command |
 | 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised |
+| 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
+| 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
 
 Every command replies **ephemerally** — only the person who ran it sees the
@@ -273,6 +278,106 @@ only consulted for messages from bots. It also refuses LatiBot itself.
 seen and removed. The empty state says so explicitly, since "no bots" and "bots
 are off" look identical in a list.
 
+### `/nickname`
+
+Changes somebody's nickname, and records **who ran the command**.
+
+| | |
+|---|---|
+| **Options** | `user` (required) · `nickname` (optional, up to 32 characters — leave it out to clear theirs) |
+| **Who** | Manage Nicknames, by default |
+| **Where** | servers only |
+| **Bot needs** | Manage Nicknames |
+
+| Situation | Reply |
+|---|---|
+| Normal | `ok, worm is now **worm scientist**` |
+| No `nickname` given | `ok, cleared worm's nickname` |
+| The target owns the server | `worm owns this server, and Discord will not let me touch the owner's nickname.` |
+| Refused by Discord | `Discord says no: they are probably above me in the role list, or i am missing Manage Nicknames.` |
+| Any other failure | Discord's own explanation, rather than a guess |
+
+The point of the command is the record, not the rename: Discord's audit log
+attributes the change to **the bot**, because the bot is what called the API.
+This writes the row itself, with the invoker on it, before asking Discord —
+and removes it again if Discord refuses, so the history never claims something
+that did not happen.
+
+Bots cannot change the server owner's nickname at all, which Discord enforces.
+Saying so beats a refusal that reads like a permissions problem.
+
+### `/nicknames`
+
+Every nickname somebody has had in this server.
+
+| | |
+|---|---|
+| **Options** | `user` (required) |
+| **Who** | everyone |
+| **Where** | servers only |
+| **Bot needs** | Send Messages |
+
+Newest first, ten to a page, with ◀ / ▶ the way [`/trigger list`](#trigger)
+pages. Each line is the nickname, when it changed, and who changed it:
+
+```
+**Nickname history for @worm**
+**worm scientist** — 25 November 2023 01:58 by @latios
+**worm** — 2 October 2023 14:07 by unknown
+*(cleared)* — 27 September 2023 09:31
+```
+
+Times use Discord's own timestamp markup, so **everybody sees them in their own
+timezone** rather than in the bot's.
+
+**Who** is one of three things, and the difference matters:
+
+| Shown | Means |
+|---|---|
+| a name | somebody was identified: the command's invoker, or the audit log's actor |
+| **unknown** | the change was seen, and nothing could attribute it |
+| nothing at all | imported, and the old bot's guess was not worth keeping |
+
+Cleared nicknames show as *(cleared)* rather than as a blank line. People who
+have left the server still appear; Discord resolves the mention to a name where
+it can, and shows the id where it cannot. Mentions in the reply **never ping
+anyone**.
+
+Past a hundred entries the whole history comes back as a `.txt` attachment
+instead of ten pages of buttons, with plain UTC timestamps. The Java version
+simply gave up past 2000 characters, which by now is most histories.
+
+### `/midnight`
+
+Posts a message at midnight. Any number per server, each with its own timezone,
+channel and text.
+
+| | |
+|---|---|
+| **Who** | Manage Server, by default |
+| **Where** | servers only |
+| **Bot needs** | Send Messages |
+
+| Subcommand | Options | Reply |
+|---|---|---|
+| `list` | none | Each entry with its id, channel, timezone, text and the date it last posted |
+| `add` | `timezone` (required, autocompleted) · `channel` (required) · `message` (required) | `ok, that posts in #general at the next midnight in America/Chicago` |
+| `edit` | `id` (required) plus any of `timezone`, `channel`, `message` | The entry as it now stands |
+| `remove` | `id` (required) | `gone: midnight message 4` |
+| `toggle` | `id` (required) | `midnight message 4 is off` |
+
+`timezone` autocompletes from the machine's own timezone database as you type,
+matching anywhere in the name — typing `chicago` finds `America/Chicago`.
+Discord allows 25 suggestions at a time. A timezone the machine does not know
+is refused rather than stored.
+
+**Adding one means "from the next midnight".** The entry is recorded as having
+already posted for today, where it lives, so adding one at three in the
+afternoon does not post it half a minute later.
+
+`edit` changes only what is given, and never disturbs the date an entry last
+posted for — otherwise fixing a typo would post it again the same day.
+
 ---
 
 ## Passive behaviour
@@ -330,6 +435,82 @@ should not turn every existing trigger loose on it.
 
 The bot never answers itself, and no setting changes that.
 
+### Nickname tracking
+
+Every nickname change in the server is recorded, however it was made: through
+[`/nickname`](#nickname), through Discord's own UI by a moderator, or by the
+person themselves. [`/nicknames`](#nicknames) shows the result.
+
+**Recording never waits on attribution.** The change is written down the moment
+it is seen, with nobody against it; the audit log entry that follows fills in
+who made it. A change with no name on it is much better than a change that was
+missed. If no entry has turned up ten seconds later, the bot asks Discord for
+the audit log directly — cover for a reconnect or a dropped event.
+
+**The bot is never recorded as the one who did it.** Discord's audit log names
+the bot for anything the bot did, which is exactly how the only certain
+attribution — the person who ran `/nickname` — would be lost.
+
+Anything still unattributed stays **unknown**. The Java version guessed "they
+did it themselves", which was often wrong.
+
+Changes made while the bot was **not running** are noticed the next time it
+starts and recorded with nobody against them, since there is no way to know.
+
+**This needs the Server Members intent**, which is privileged: it has to be
+enabled for the application under *Bot → Privileged Gateway Intents* in the
+Discord developer portal. Without it, nickname changes never arrive.
+`"track_nicknames": false` in `config.json` turns the whole thing off,
+including the request for that intent — `/nickname` still works and still
+records its own changes, but changes made anywhere else go unseen. A bot that
+asks for an intent it was not granted is refused the gateway outright, which
+the log explains if it happens.
+
+Naming who made a change also needs **View Audit Log** in the server. Without
+it, changes are still recorded; they just say *unknown*.
+
+#### History from the Java bot
+
+If `nicknames.json` from the old bot is left next to the database — at
+`data/nicknames.json` — its history is imported at startup. Importing the same
+file twice adds nothing, so it can simply be left there.
+
+Its timestamps are local wall-clock from a machine in US Central with no
+timezone recorded, so each is converted using the full daylight-saving history
+for `America/Chicago`, including the 2007 rule change. Two dates a year need a
+decision rather than a conversion: the hour that happens twice each November
+takes the earlier reading, and the hour that never happens each March is
+shifted forward, so 02:30 becomes 03:30. **The original text is kept** against
+every imported row, so the whole conversion can be redone if the timezone turns
+out to be wrong.
+
+Attribution comes across only where it is worth anything. The Java bot wrote
+the member's own id whenever it could not tell who made a change, so that value
+says nothing and is dropped; an id belonging to somebody else could only have
+come from its own `/nickname`, so that one is kept.
+
+Anything unreadable is named in the log and skipped — one bad entry does not
+lose the rest.
+
+### The midnight message
+
+Each entry posts **once per local day**, shortly after midnight in its own
+timezone, in the channel it was given. Configure them with
+[`/midnight`](#midnight).
+
+The date an entry last posted for is saved with the post, which is what makes a
+restart at 00:00:30 not post a second time.
+
+The bot checks the clock every thirty seconds rather than scheduling a delay.
+That is deliberate, and it is the fix for a Java bug worth naming: the old
+version computed a delay from the wall clock and then waited on a monotonic
+timer, so whenever the machine slept the message arrived at whatever time it
+happened to wake up — and then behaved normally again for a while.
+
+**An entry that missed its midnight posts when the bot comes back.** If the bot
+was not running at midnight, the first check after it starts sees a new local
+date and posts then. Late is treated as better than never.
+
 ### Permission warnings
 
 When the bot joins a server — and for every server it is already in, each time
@@ -359,11 +540,13 @@ never see each other's anything.
 rolls back and keeps the previous version rather than leaving a half-migrated
 database.
 
-**Backups exist but are not automatic yet.** The code to take a consistent
-backup while the bot runs, and to keep the newest few, is written and tested,
-but nothing schedules it. `backup_interval_minutes` and `backups_to_keep` in
-`config.json` are read and currently ignored. Copy `data/bot.db` by hand if it
-matters before then.
+**Backups run on a schedule.** Every `backup_interval_minutes` (six hours by
+default) the bot writes a consistent copy of the database to
+`backup_directory` as `bot-YYYYMMDD-HHMMSS.db`, and deletes all but the
+`backups_to_keep` newest. The copy is taken through SQLite's online backup
+API, so it is a complete, valid database even though the bot is still running.
+A backup that fails is logged and never stops the bot. Setting the interval or
+the retention to zero turns backups off, which the startup log says.
 
 **Commands are registered globally** when the bot starts, once per run. Discord
 can take a little while to show changes to a command's options.
@@ -376,9 +559,18 @@ what a cooldown had left to run. Nothing is posted to Discord; it all goes to
 the bot's own log. See [Logging](../../README.md#logging) for how to set the
 level.
 
-**The bot needs the Message Content intent**, enabled for the application in the
-Discord developer portal. Without it every message arrives empty: slash commands
-keep working while the goodbye phrase and every trigger silently do nothing.
+**The bot needs two privileged intents**, both enabled for the application
+under *Bot → Privileged Gateway Intents* in the Discord developer portal:
+
+- **Message Content.** Without it every message arrives empty: slash commands
+  keep working while the goodbye phrase and every trigger silently do nothing.
+- **Server Members.** Without it no nickname change is ever seen. This one can
+  be turned off with `"track_nicknames": false`, which also stops the bot
+  asking for it.
+
+A bot that asks for an intent it was not granted is refused the gateway
+entirely, and reconnects in a loop. The log says which toggle to go and find
+when that happens.
 
 ---
 
@@ -388,7 +580,6 @@ In order, with the detail in [Planned.md](Planned.md):
 
 | Phase | Features |
 |---|---|
-| 2 | Nickname history and attribution · the midnight message |
 | 3 | URL replacement · reaction statistics · the history backfill |
 | 4 | DECtalk speech · `/speak` · custom voices · voice sessions |
 | 5 | The LLM: replies, memory, personality, advanced triggers |

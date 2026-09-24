@@ -120,6 +120,14 @@ struct nickname_change {
 /// to the same nickname later is not mistaken for it (plan v4 §8.1).
 inline constexpr std::chrono::seconds pending_nickname_ttl{30};
 
+/// How long to wait for Discord's audit entry before going and asking.
+///
+/// The gateway entry normally arrives within a second, so this is the cover
+/// for a reconnect or a dropped event rather than the usual path
+/// (plan v4 §8.1). It is comfortably inside `pending_nickname_ttl`, so a row
+/// the fallback finds is still one the window would accept.
+inline constexpr std::chrono::seconds audit_fallback_delay{10};
+
 /// Changes `/nickname` has just made, so the member update that follows is not
 /// recorded a second time.
 ///

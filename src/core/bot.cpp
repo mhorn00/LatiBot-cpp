@@ -60,6 +60,12 @@ std::uint32_t intents_for(const config::bootstrap& settings) {
     return intents;
 }
 
+/// How many audit entries the delayed fallback asks for.
+///
+/// Enough to find one change among the moderation that happened around it,
+/// small enough to stay one page.
+constexpr std::uint32_t audit_fallback_entries = 25;
+
 /// The guild an audit entry belongs to.
 ///
 /// `dpp::audit_entry` does not carry it, and the event's own payload is the
@@ -356,11 +362,56 @@ void bot::on_member_update(const dpp::guild_member& member) {
         return;
     }
 
-    if (!record_nickname(member.guild_id, member.user_id, nickname, events::nickname_source::seen)) {
+    const auto row = record_nickname(member.guild_id, member.user_id, nickname, events::nickname_source::seen);
+    if (!row) {
         // Member updates fire for roles, timeouts and avatars too, so most of
         // them are not about a nickname at all.
         util::log().trace("member update for {} in guild {} changed no nickname", member.user_id.str(), member.guild_id.str());
+        return;
     }
+
+    // Recording never waits on attribution, so this is the only thing that
+    // notices the audit entry never turning up (plan v4 §8.1).
+    attribute_later(member.guild_id, member.user_id, *row);
+}
+
+void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) {
+    // A self-cancelling repeat, which is the one-shot DPP does not have. The
+    // handle arrives in the callback, so nothing has to be kept alive here.
+    cluster_.start_timer(
+        [this, guild_id, user_id, row](dpp::timer handle) {
+            cluster_.stop_timer(handle);
+
+            const auto waiting = nicknames_.find(row);
+            if (!waiting || waiting->changed_by) {
+                // The gateway entry arrived, which is the ordinary path.
+                return;
+            }
+
+            util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
+            cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
+                                        [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
+                                            if (reply.is_error()) {
+                                                // Almost always a missing View Audit Log, which the
+                                                // permission preflight already warns about per guild.
+                                                util::log().debug("could not read the audit log for guild {}: {}", guild_id.str(),
+                                                                  reply.get_error().message);
+                                                return;
+                                            }
+
+                                            const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
+                                            if (entries == nullptr) {
+                                                return;
+                                            }
+
+                                            for (const dpp::audit_entry& entry : entries->entries) {
+                                                if (entry.target_id == user_id) {
+                                                    on_audit_entry(entry, guild_id);
+                                                }
+                                            }
+                                        });
+        },
+        static_cast<std::uint64_t>(events::audit_fallback_delay.count()));
 }
 
 void bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) {
