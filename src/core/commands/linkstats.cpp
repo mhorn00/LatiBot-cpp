@@ -1,5 +1,6 @@
 #include "core/commands/linkstats.hpp"
 
+#include "core/ports/discord_gateway.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
@@ -304,14 +305,76 @@ std::string render_aliases(const events::reaction_store& store, dpp::snowflake g
 
 // --------------------------------------------------------------------------
 
-linkstats_command::linkstats_command(events::reaction_store& store)
+std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) {
+    std::string range = std::format("since {}", format_day(request.since));
+    if (request.until) {
+        range += std::format(" until {}", format_day(*request.until - std::chrono::days{1}));
+    }
+
+    if (!finished) {
+        return std::format(
+            "Recomputing link stats {}…\nChannel {} of {}: {} messages scanned, {} replacements found, {} reactions "
+            "recorded.\n`/linkstats recompute cancel` stops it; running it again carries on from here.",
+            range, std::min(report.channels_done + 1, report.channels_total), report.channels_total, report.scanned, report.replacements,
+            report.reactions);
+    }
+
+    std::string text = std::format("**Link stats {} {}**\n", report.cancelled ? "recompute stopped" : "recomputed", range);
+    text += std::format("Channels: {} of {}\n", report.channels_done, report.channels_total);
+    text += std::format("Messages scanned: {}\n", report.scanned);
+    text += std::format("Replacements found: {} ({} credited to whoever posted the link, {} not)\n", report.replacements, report.attributed,
+                        report.unattributed);
+    if (report.webhooks_skipped > 0) {
+        text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
+    }
+    text += std::format("Reactions recorded: {}\n", report.reactions);
+
+    // Listed by id rather than guessed at (plan v4 §9.7). The log has all of
+    // them; a message has room for some.
+    if (!report.unparsed.empty()) {
+        text += std::format("Not understood: {}", report.unparsed.size());
+        std::string ids;
+        for (std::size_t index = 0; index < std::min<std::size_t>(report.unparsed.size(), 15); ++index) {
+            ids += std::format(" `{}`", report.unparsed[index]);
+        }
+        text += ids;
+        text += report.unparsed.size() > 15 ? " and more, all in the log\n" : "\n";
+    }
+
+    for (std::size_t index = 0; index < std::min<std::size_t>(report.problems.size(), 5); ++index) {
+        text += std::format("- {}\n", report.problems[index]);
+    }
+
+    if (report.cancelled) {
+        text += "Running it again with the same dates carries on from where it stopped.";
+    }
+    return text;
+}
+
+namespace {
+
+/// Shows a recompute's progress. A plain function rather than a capturing
+/// lambda, since a coroutine lambda's captures die with the lambda.
+dpp::task<void> show_progress(ports::discord_gateway& discord, dpp::message message) {
+    const auto edited = co_await discord.edit_message(std::move(message));
+    if (!edited.ok()) {
+        util::log().debug("could not update the recompute progress message: {}", edited.error().message);
+    }
+}
+
+} // namespace
+
+linkstats_command::linkstats_command(events::reaction_store& store, recompute_support recompute)
     : info_{.name = "linkstats",
             .description = "Who gets the most reactions on the links the bot replaced.",
             .aliases = {},
-            .required_bot_permissions = dpp::p_send_messages,
+            // History is only read by a recompute, but the permission check
+            // should name it before somebody runs one and gets nothing.
+            .required_bot_permissions = dpp::p_send_messages | dpp::p_read_message_history,
             .default_member_permissions = std::nullopt,
             .guild_only = true},
-      store_(&store) {}
+      store_(&store),
+      recompute_(std::move(recompute)) {}
 
 dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -349,10 +412,25 @@ dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowfla
     alias.add_option(alias_remove);
     alias.add_option(alias_list);
 
+    dpp::command_option start(dpp::co_sub_command, "start", "Rebuild the reaction counts from channel history. Administrators only.");
+    start.add_option(dpp::command_option(dpp::co_string, "since", "How far back, YYYY-MM-DD.", true).set_max_length(10));
+    start.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD. Today if left out."));
+    start.add_option(dpp::command_option(dpp::co_channel, "channel", "Only this channel. Every text channel if left out.", false)
+                         .add_channel_type(dpp::CHANNEL_TEXT)
+                         .add_channel_type(dpp::CHANNEL_ANNOUNCEMENT));
+    start.add_option(dpp::command_option(dpp::co_boolean, "fresh", "Start every channel over instead of carrying on.", false));
+
+    const dpp::command_option cancel(dpp::co_sub_command, "cancel", "Stop a recompute that is running.");
+
+    dpp::command_option recompute(dpp::co_sub_command_group, "recompute", "Rebuild reaction counts from history.");
+    recompute.add_option(start);
+    recompute.add_option(cancel);
+
     payload.add_option(top);
     payload.add_option(user);
     payload.add_option(emojis);
     payload.add_option(alias);
+    payload.add_option(recompute);
     return payload;
 }
 
@@ -384,6 +462,8 @@ dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
 
     if (group == "alias") {
         co_await this->alias(event, action);
+    } else if (group == "recompute") {
+        co_await this->recompute(event, action);
     } else if (action == "top") {
         co_await this->top(event);
     } else if (action == "user") {
@@ -496,6 +576,109 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
     util::log().info("emoji {} now counts as {} in guild {}, set by {}", emoji->key, canonical->key, guild, who);
     co_await event.co_reply(ack(std::format("{} counts as {} now, in every statistic back to the start.", events::display_emoji(*emoji),
                                             events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
+}
+
+dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, const std::string& action) {
+    if (recompute_.service == nullptr || recompute_.discord == nullptr) {
+        co_await event.co_reply(ack("recomputing isn't available in this build"));
+        co_return;
+    }
+
+    // Reading years of history is a lot of API calls; this one is for the
+    // people who run the server (plan v4 §9.7).
+    if (!invoker_permissions(event).can(dpp::p_administrator)) {
+        co_await event.co_reply(ack("recomputing link stats needs Administrator"));
+        co_return;
+    }
+
+    if (action == "cancel") {
+        const bool stopping = recompute_.service->cancel(event.command.guild_id);
+        if (stopping) {
+            util::log().info("link stats recompute in guild {} cancelled by {}", event.command.guild_id,
+                             describe_user(event.command.get_issuing_user()));
+        }
+        co_await event.co_reply(ack(stopping ? "Stopping at the next page of history." : "Nothing is being recomputed here."));
+    } else if (action == "start") {
+        co_await recompute_start(event);
+    } else {
+        co_await event.co_reply(ack("i don't know that subcommand"));
+    }
+}
+
+dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& event) {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    events::stat_query window;
+    if (const auto problem = read_window(event, window)) {
+        co_await event.co_reply(ack(*problem));
+        co_return;
+    }
+
+    events::backfill_request request{.guild_id = guild,
+                                     .channel_ids = {},
+                                     .since = window.since.value_or(std::chrono::sys_seconds{}),
+                                     .until = window.until,
+                                     .bot_id = recompute_.bot_id ? recompute_.bot_id() : dpp::snowflake{},
+                                     .fresh = false};
+
+    const dpp::command_value fresh = event.get_parameter("fresh");
+    if (const auto* flag = std::get_if<bool>(&fresh)) {
+        request.fresh = *flag;
+    }
+
+    const dpp::command_value named = event.get_parameter("channel");
+    if (const auto* channel = std::get_if<dpp::snowflake>(&named)) {
+        request.channel_ids.push_back(*channel);
+    } else if (recompute_.channels_of) {
+        request.channel_ids = recompute_.channels_of(guild);
+    }
+
+    if (request.channel_ids.empty() || request.bot_id.empty()) {
+        co_await event.co_reply(ack("there are no channels here i can look through"));
+        co_return;
+    }
+
+    if (!recompute_.service->begin(guild)) {
+        co_await event.co_reply(ack("a recompute is already running here; `/linkstats recompute cancel` stops it"));
+        co_return;
+    }
+
+    util::log().info("link stats recompute started in guild {} by {}: {} channel(s) since {}", guild,
+                     describe_user(event.command.get_issuing_user()), request.channel_ids.size(), format_day(request.since));
+
+    // The interaction's token lasts fifteen minutes and a recompute can take
+    // hours, so progress goes in an ordinary message instead.
+    co_await event.co_reply(ack("Started. Progress goes in this channel."));
+
+    ports::discord_gateway& discord = *recompute_.discord;
+    const dpp::snowflake channel = event.command.channel_id;
+    const auto posted = co_await discord.send_message(dpp::message(channel, render_backfill({}, request, false)));
+    const dpp::snowflake progress_id = posted.ok() ? posted.value().id : dpp::snowflake{};
+
+    const auto progress = [&discord, &request, channel, progress_id](const events::backfill_report& report) -> dpp::task<void> {
+        dpp::message update(channel, render_backfill(report, request, false));
+        update.id = progress_id;
+        return show_progress(discord, std::move(update));
+    };
+
+    events::backfill_report report;
+    try {
+        report = co_await recompute_.service->run(request, progress_id.empty() ? events::backfill_service::progress_fn{} : progress);
+    } catch (...) {
+        // Whatever went wrong, the guild must not stay claimed, or nobody
+        // could start another until a restart.
+        recompute_.service->end(guild);
+        throw;
+    }
+    recompute_.service->end(guild);
+
+    dpp::message final_report(channel, render_backfill(report, request, true));
+    if (progress_id.empty()) {
+        co_await discord.send_message(final_report);
+    } else {
+        final_report.id = progress_id;
+        co_await show_progress(discord, final_report);
+    }
 }
 
 } // namespace latibot::commands

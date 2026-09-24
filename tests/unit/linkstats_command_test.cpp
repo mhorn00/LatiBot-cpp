@@ -129,6 +129,67 @@ TEST_CASE("/linkstats is open to everyone, with aliases in a group", "[commands]
     CHECK(alias->options.size() == 3);
 }
 
+TEST_CASE("a recompute's report says what it found and what it could not read", "[commands]") {
+    const latibot::events::backfill_request request{.guild_id = guild,
+                                                    .channel_ids = {dpp::snowflake{1}, dpp::snowflake{2}},
+                                                    .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
+                                                    .until = std::chrono::sys_days{std::chrono::year{2022} / 1 / 1},
+                                                    .bot_id = dpp::snowflake{42},
+                                                    .fresh = false};
+
+    latibot::events::backfill_report report;
+    report.channels_total = 2;
+    report.channels_done = 2;
+    report.scanned = 1234;
+    report.replacements = 56;
+    report.attributed = 50;
+    report.unattributed = 6;
+    report.reactions = 789;
+    report.unparsed = {dpp::snowflake{111}, dpp::snowflake{222}};
+    report.problems = {"could not read channel 3: Missing Access"};
+
+    const std::string text = latibot::commands::render_backfill(report, request, true);
+    CHECK(text.starts_with("**Link stats recomputed since 2021-01-01 until 2021-12-31**"));
+    CHECK(text.find("Messages scanned: 1234") != std::string::npos);
+    CHECK(text.find("Replacements found: 56 (50 credited to whoever posted the link, 6 not)") != std::string::npos);
+    CHECK(text.find("Not understood: 2 `111` `222`") != std::string::npos);
+    CHECK(text.find("Missing Access") != std::string::npos);
+    CHECK(text.size() <= 2000);
+
+    SECTION("while it runs") {
+        report.channels_done = 1;
+        const std::string running = latibot::commands::render_backfill(report, request, false);
+        CHECK(running.find("Channel 2 of 2") != std::string::npos);
+        CHECK(running.find("/linkstats recompute cancel") != std::string::npos);
+    }
+
+    SECTION("stopped early") {
+        report.cancelled = true;
+        const std::string stopped = latibot::commands::render_backfill(report, request, true);
+        CHECK(stopped.starts_with("**Link stats recompute stopped"));
+        CHECK(stopped.find("carries on from where it stopped") != std::string::npos);
+    }
+}
+
+TEST_CASE("recompute is its own group, with a required start date", "[commands]") {
+    fixture test;
+    const latibot::commands::linkstats_command command(test.reactions);
+    const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
+
+    const auto recompute = std::ranges::find(payload.options, std::string("recompute"), &dpp::command_option::name);
+    REQUIRE(recompute != payload.options.end());
+    REQUIRE(recompute->options.size() == 2);
+
+    const dpp::command_option& start = recompute->options[0];
+    CHECK(start.name == "start");
+    REQUIRE_FALSE(start.options.empty());
+    CHECK(start.options[0].name == "since");
+    CHECK(start.options[0].required);
+
+    // Reading history is what a recompute does; the permission check names it.
+    CHECK((command.info().required_bot_permissions & dpp::p_read_message_history) != 0);
+}
+
 TEST_CASE("what a leaderboard ranks is read from its option", "[commands]") {
     CHECK(latibot::commands::board_from_string("") == board::received);
     CHECK(latibot::commands::board_from_string("given") == board::given);

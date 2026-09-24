@@ -20,8 +20,10 @@ add_library(latibot_core STATIC
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
     core/discord/raw_api.cpp
+    core/events/backfill.cpp
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
+    core/events/legacy_replacements.cpp
     core/events/message_pipeline.cpp
     core/events/midnight.cpp
     core/events/nickname_import.cpp

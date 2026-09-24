@@ -2,6 +2,7 @@ find_package(Catch2 3 REQUIRED)
 
 add_executable(latibot_tests
     support/quiet_log.cpp
+    db/backfill_test.cpp
     db/backup_test.cpp
     db/bot_allowlist_test.cpp
     db/database_test.cpp
@@ -22,6 +23,7 @@ add_executable(latibot_tests
     unit/embed_watch_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp
+    unit/legacy_replacements_test.cpp
     unit/message_pipeline_test.cpp
     unit/midnight_command_test.cpp
     unit/midnight_test.cpp

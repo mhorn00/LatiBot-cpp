@@ -7,6 +7,7 @@
 #include "core/discord/dpp_gateway.hpp"
 #include "core/discord/dpp_http_client.hpp"
 #include "core/discord/raw_api.hpp"
+#include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/midnight.hpp"
@@ -153,6 +154,8 @@ private:
     events::url_rule_store url_rules_;
     events::replacement_store replacements_;
     events::reaction_store reactions_;
+    events::backfill_progress_store backfill_progress_;
+    events::backfill_service backfill_;
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 };

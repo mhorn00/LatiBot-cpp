@@ -122,6 +122,25 @@ std::vector<std::string> embed_urls_of(const dpp::message& message) {
     return urls;
 }
 
+/// Every channel in a guild that holds ordinary messages, from DPP's cache,
+/// for a recompute that was not given one. Threads are left out: listing the
+/// archived ones is its own set of calls, and links in them are rare.
+std::vector<dpp::snowflake> text_channels(dpp::snowflake guild_id) {
+    std::vector<dpp::snowflake> found;
+    const dpp::guild* guild = dpp::find_guild(guild_id);
+    if (guild == nullptr) {
+        return found;
+    }
+
+    for (const dpp::snowflake id : guild->channels) {
+        const dpp::channel* channel = dpp::find_channel(id);
+        if (channel != nullptr && (channel->is_text_channel() || channel->is_news_channel())) {
+            found.push_back(id);
+        }
+    }
+    return found;
+}
+
 /// The Java bot's rules, if its file was left beside the database.
 constexpr std::string_view legacy_url_rules_file = "UrlReplacements.txt";
 
@@ -159,6 +178,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       url_rules_(database_),
       replacements_(database_),
       reactions_(database_),
+      backfill_progress_(database_),
+      backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
       embed_tracker_(replacements_, clock_) {
     util::log().set_level(settings_.log_level);
 
@@ -212,7 +233,11 @@ void bot::register_commands() {
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
-    commands_.add(std::make_unique<commands::linkstats_command>(reactions_));
+    commands_.add(std::make_unique<commands::linkstats_command>(
+        reactions_, commands::recompute_support{.service = &backfill_,
+                                                .discord = &gateway_,
+                                                .channels_of = [](dpp::snowflake guild) { return text_channels(guild); },
+                                                .bot_id = [this] { return cluster_.me.id; }}));
 }
 
 void bot::register_stages() {

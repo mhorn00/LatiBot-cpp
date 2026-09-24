@@ -25,7 +25,7 @@ endfunction()
 
 latibot_add_fuzzer(fuzz_text fuzz_text.cpp)
 latibot_add_fuzzer(fuzz_url_scan fuzz_url_scan.cpp)
+latibot_add_fuzzer(fuzz_legacy_parser fuzz_legacy_parser.cpp)
 
 # As the parsers land, add:
 #   latibot_add_fuzzer(fuzz_dectalk_sanitizer fuzz_sanitizer.cpp) (plan v4 §12.5)
-#   latibot_add_fuzzer(fuzz_legacy_parser fuzz_legacy_parser.cpp) (plan v4 §9.7)

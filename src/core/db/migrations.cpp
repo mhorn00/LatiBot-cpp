@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 7> all_migrations{{
+constexpr std::array<migration, 8> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -229,6 +229,27 @@ constexpr std::array<migration, 7> all_migrations{{
             emoji_key     TEXT    NOT NULL,
             canonical_key TEXT    NOT NULL,
             PRIMARY KEY (guild_id, emoji_key)
+        ) WITHOUT ROWID;
+     )sql"},
+    {.version = 8, .name = "backfill_progress", .sql = R"sql(
+        -- How far a /linkstats recompute got in each channel, so one that was
+        -- cancelled or cut short by a restart carries on rather than starting
+        -- over (plan v4 9.7). A row belongs to one date range; a run over a
+        -- different range starts that channel again.
+        CREATE TABLE backfill_progress (
+            guild_id          INTEGER NOT NULL,
+            channel_id        INTEGER NOT NULL,
+
+            -- The range, Unix seconds; until is NULL for "up to now".
+            since             INTEGER NOT NULL,
+            until             INTEGER,
+
+            -- The oldest message looked at so far; NULL before the first page.
+            oldest_scanned_id INTEGER,
+            complete          INTEGER NOT NULL DEFAULT 0,
+            updated_at        INTEGER NOT NULL,
+
+            PRIMARY KEY (guild_id, channel_id)
         ) WITHOUT ROWID;
      )sql"},
 }};

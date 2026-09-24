@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
+#include "core/events/backfill.hpp"
 #include "core/events/reactions.hpp"
 
 #include <dpp/appcommand.h>
@@ -8,9 +9,15 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
+
+namespace latibot::ports {
+class discord_gateway;
+}
 
 namespace latibot::commands {
 
@@ -52,6 +59,24 @@ enum class board : std::uint8_t { received, given, self, emoji };
 /// `/linkstats alias list`.
 [[nodiscard]] std::string render_aliases(const events::reaction_store& store, dpp::snowflake guild_id);
 
+/// A recompute's progress message: running while it runs, then the final
+/// report (plan v4 §9.7).
+[[nodiscard]] std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished);
+
+/// What `/linkstats recompute` needs from outside the statistics.
+struct recompute_support {
+    events::backfill_service* service = nullptr;
+
+    /// Where the progress message is posted and edited.
+    ports::discord_gateway* discord = nullptr;
+
+    /// The text channels to scan when none is named.
+    std::function<std::vector<dpp::snowflake>(dpp::snowflake guild_id)> channels_of;
+
+    /// The bot's own user, known once connected.
+    std::function<dpp::snowflake()> bot_id;
+};
+
 /// `/linkstats top | user | emojis | alias …` (plan v4 §9.6).
 ///
 /// Reading is open to everyone; changing aliases needs Manage Messages,
@@ -59,7 +84,9 @@ enum class board : std::uint8_t { received, given, self, emoji };
 /// per subcommand.
 class linkstats_command final : public command {
 public:
-    explicit linkstats_command(events::reaction_store& store);
+    /// Without `recompute`, the recompute subcommands say they are not
+    /// available rather than failing.
+    explicit linkstats_command(events::reaction_store& store, recompute_support recompute = {});
 
     [[nodiscard]] const command_info& info() const override { return info_; }
     [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
@@ -72,9 +99,12 @@ private:
     dpp::task<void> top(const dpp::slashcommand_t& event);
     dpp::task<void> user(const dpp::slashcommand_t& event);
     dpp::task<void> alias(const dpp::slashcommand_t& event, const std::string& action);
+    dpp::task<void> recompute(const dpp::slashcommand_t& event, const std::string& action);
+    dpp::task<void> recompute_start(const dpp::slashcommand_t& event);
 
     command_info info_;
     events::reaction_store* store_;
+    recompute_support recompute_;
 };
 
 } // namespace latibot::commands
