@@ -3,6 +3,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
+#include <variant>
+#include <vector>
 
 using latibot::commands::describe_invocation;
 using latibot::commands::describe_user;
@@ -117,4 +119,50 @@ TEST_CASE("a user is logged by name and id", "[commands]") {
     who.id = dpp::snowflake{42};
 
     CHECK(describe_user(who) == "latios (42)");
+}
+
+// --------------------------------------------------------------------------
+// Autocomplete
+// --------------------------------------------------------------------------
+
+namespace {
+
+dpp::command_option typed_option(const std::string& name, const std::string& value, bool focused) {
+    dpp::command_option built(dpp::co_string, name, "");
+    built.value = value;
+    built.focused = focused;
+    return built;
+}
+
+} // namespace
+
+TEST_CASE("the option being typed into is found at the top level", "[commands]") {
+    std::vector<dpp::command_option> options{typed_option("first", "a", false), typed_option("second", "b", true)};
+
+    const dpp::command_option* focused = latibot::commands::focused_option(options);
+    REQUIRE(focused != nullptr);
+    CHECK(focused->name == "second");
+}
+
+TEST_CASE("the option being typed into is found inside a subcommand", "[commands]") {
+    // "/midnight add timezone:chic" arrives as a subcommand holding the
+    // option, so the focused one is never at the top for a command with
+    // subcommands.
+    dpp::command_option add(dpp::co_sub_command, "add", "");
+    add.add_option(typed_option("channel", "", false));
+    add.add_option(typed_option("timezone", "chic", true));
+
+    const std::vector<dpp::command_option> options{add};
+
+    const dpp::command_option* focused = latibot::commands::focused_option(options);
+    REQUIRE(focused != nullptr);
+    CHECK(focused->name == "timezone");
+    CHECK(std::get<std::string>(focused->value) == "chic");
+}
+
+TEST_CASE("nothing focused is nothing to complete", "[commands]") {
+    const std::vector<dpp::command_option> options{typed_option("first", "a", false)};
+
+    CHECK(latibot::commands::focused_option(options) == nullptr);
+    CHECK(latibot::commands::focused_option({}) == nullptr);
 }

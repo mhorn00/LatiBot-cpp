@@ -8,6 +8,7 @@ add_executable(latibot_tests
     db/trigger_store_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
+    db/midnight_store_test.cpp
     db/nickname_import_test.cpp
     db/nickname_store_test.cpp
     unit/basic_commands_test.cpp
@@ -18,6 +19,8 @@ add_executable(latibot_tests
     unit/env_test.cpp
     unit/goodbye_test.cpp
     unit/message_pipeline_test.cpp
+    unit/midnight_command_test.cpp
+    unit/midnight_test.cpp
     unit/nickname_command_test.cpp
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp

@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 4> all_migrations{{
+constexpr std::array<migration, 5> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -92,6 +92,28 @@ constexpr std::array<migration, 4> all_migrations{{
         CREATE INDEX nickname_history_by_member ON nickname_history (guild_id, user_id, changed_at DESC);
         CREATE INDEX nickname_history_unattributed ON nickname_history (guild_id, user_id, changed_at)
             WHERE changed_by IS NULL;
+     )sql"},
+    {.version = 5, .name = "midnight_messages", .sql = R"sql(
+        -- A message posted once per local day, per timezone (plan v4 10).
+        CREATE TABLE midnight_messages (
+            id              INTEGER PRIMARY KEY,
+            guild_id        INTEGER NOT NULL,
+            channel_id      INTEGER NOT NULL,
+
+            -- An IANA name. Different entries in one guild may use different
+            -- zones, which is the point of there being any number of them.
+            timezone        TEXT    NOT NULL,
+
+            message         TEXT    NOT NULL,
+            enabled         INTEGER NOT NULL DEFAULT 1,
+
+            -- The local date this last posted, YYYY-MM-DD, NULL for never.
+            -- Saved rather than counted from, so a restart at 00:00:30 does
+            -- not post a second time.
+            last_fired_date TEXT
+        );
+
+        CREATE INDEX midnight_messages_by_guild ON midnight_messages (guild_id);
      )sql"},
 }};
 

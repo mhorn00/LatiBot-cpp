@@ -54,6 +54,13 @@ struct command_info {
 /// readable, so the log carries both.
 [[nodiscard]] std::string describe_user(const dpp::user& who);
 
+/// The option Discord is asking for completions on.
+///
+/// Options nest: a command holds a subcommand, which holds the option being
+/// typed into, so the focused one is not always at the top. Returns nullptr
+/// when nothing is focused, which happens if Discord's payload changes shape.
+[[nodiscard]] const dpp::command_option* focused_option(const std::vector<dpp::command_option>& options);
+
 /// One slash command.
 ///
 /// Handlers stay thin: turn the event into plain data, call a core function,
@@ -73,6 +80,13 @@ public:
     [[nodiscard]] virtual dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const;
 
     virtual dpp::task<void> execute(const dpp::slashcommand_t& event) = 0;
+
+    /// Offers completions for the option being typed into.
+    ///
+    /// Not a coroutine: Discord gives an autocomplete three seconds and there
+    /// is nothing to await, since the answer comes from what the bot already
+    /// knows. Commands without an autocompleted option leave it alone.
+    virtual void autocomplete(const dpp::autocomplete_t& event) const;
 };
 
 /// Holds the commands and routes interactions to them.
@@ -98,6 +112,12 @@ public:
     /// exception escaping a handler is logged too, since letting it leave the
     /// coroutine would take the process down.
     dpp::task<void> dispatch(std::string name, const dpp::slashcommand_t& event) const;
+
+    /// Routes an autocomplete to the command that owns it.
+    ///
+    /// Unknown names are ignored rather than logged at anything louder than
+    /// debug: these arrive on every keystroke.
+    void offer_completions(std::string_view name, const dpp::autocomplete_t& event) const;
 
 private:
     std::vector<std::unique_ptr<command>> commands_;

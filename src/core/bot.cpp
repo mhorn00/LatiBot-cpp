@@ -2,9 +2,11 @@
 
 #include "core/commands/basic.hpp"
 #include "core/commands/bots.hpp"
+#include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/trigger.hpp"
+#include "core/db/backup.hpp"
 #include "core/db/migrations.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
@@ -111,7 +113,9 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       bot_allowlist_(database_),
       nicknames_(database_),
       triggers_(database_),
-      trigger_responder_(triggers_, clock_) {
+      trigger_responder_(triggers_, clock_),
+      midnight_(database_),
+      midnight_scheduler_(midnight_, clock_) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -143,6 +147,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     register_commands();
     register_stages();
     register_events();
+    register_timers();
 
     std::string stages;
     for (const std::string_view name : pipeline_.stage_names()) {
@@ -160,6 +165,7 @@ void bot::register_commands() {
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
     commands_.add(std::make_unique<commands::nickname_command>(nicknames_, pending_nicknames_, clock_, cluster_));
     commands_.add(std::make_unique<commands::nicknames_command>(nicknames_));
+    commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
 }
 
 void bot::register_stages() {
@@ -245,11 +251,47 @@ void bot::register_events() {
     cluster_.on_guild_audit_log_entry_create(
         [this](const dpp::guild_audit_log_entry_create_t& event) { on_audit_entry(event.entry, guild_of(event)); });
 
+    cluster_.on_autocomplete([this](const dpp::autocomplete_t& event) { commands_.offer_completions(event.name, event); });
+
     cluster_.on_button_click([this](const dpp::button_click_t& event) { on_component(event, event.custom_id, {}); });
     cluster_.on_select_click([this](const dpp::select_click_t& event) {
         on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
     });
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
+}
+
+void bot::register_timers() {
+    // Polling the wall clock is the fix for the Java bot's random-fire bug: it
+    // computed a delay from the wall clock and then waited on a monotonic
+    // timer, so a machine that slept woke up and posted at whatever time it
+    // happened to be (plan v4 §10).
+    cluster_.start_timer([this](dpp::timer) { carry_out(midnight_scheduler_.tick()); },
+                         static_cast<std::uint64_t>(events::midnight_tick.count()));
+
+    util::log().debug("midnight messages checked every {}s", events::midnight_tick.count());
+
+    if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
+        util::log().info("database backups are off");
+        return;
+    }
+
+    const auto every = std::chrono::duration_cast<std::chrono::seconds>(settings_.backup_interval);
+    cluster_.start_timer(
+        [this](dpp::timer) {
+            try {
+                const auto written =
+                    db::create_backup(database_, settings_.backup_directory, "bot", settings_.backups_to_keep, clock_.now());
+                util::log().info("wrote {}", written.generic_string());
+            } catch (const std::exception& error) {
+                // A backup that fails is worth knowing about and is never
+                // worth taking the bot down for.
+                util::log().error("could not write a backup to {}: {}", settings_.backup_directory.generic_string(), error.what());
+            }
+        },
+        static_cast<std::uint64_t>(every.count()));
+
+    util::log().info("backing up to {} every {} minutes, keeping {}", settings_.backup_directory.generic_string(),
+                     settings_.backup_interval.count(), settings_.backups_to_keep);
 }
 
 namespace {

@@ -98,6 +98,27 @@ std::string describe_user(const dpp::user& who) {
     return std::format("{} ({})", who.username, who.id.str());
 }
 
+// Recursive for the same reason `append_options` is, and bounded the same way:
+// Discord allows a group, a subcommand, then plain options.
+// NOLINTNEXTLINE(misc-no-recursion)
+const dpp::command_option* focused_option(const std::vector<dpp::command_option>& options) {
+    for (const dpp::command_option& option : options) {
+        if (option.focused) {
+            return &option;
+        }
+        if (const dpp::command_option* nested = focused_option(option.options); nested != nullptr) {
+            return nested;
+        }
+    }
+    return nullptr;
+}
+
+void command::autocomplete(const dpp::autocomplete_t& event) const {
+    // Most commands have nothing to complete. Saying so at debug beats a
+    // silent return when somebody is wondering why a box stays empty.
+    util::log().debug("no completions to offer for /{}", event.name);
+}
+
 dpp::slashcommand command::build(const std::string& name, dpp::snowflake application_id) const {
     const command_info& details = info();
 
@@ -189,6 +210,16 @@ dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& 
 
     const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
     util::log().debug("{} finished in {} ms", what, took.count());
+}
+
+void registry::offer_completions(std::string_view name, const dpp::autocomplete_t& event) const {
+    const command* target = find(name);
+    if (target == nullptr) {
+        util::log().debug("no command registered for \"{}\" to autocomplete", name);
+        return;
+    }
+
+    target->autocomplete(event);
 }
 
 } // namespace latibot::commands

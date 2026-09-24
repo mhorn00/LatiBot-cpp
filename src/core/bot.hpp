@@ -9,6 +9,7 @@
 #include "core/discord/raw_api.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/message_pipeline.hpp"
+#include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
 #include "core/events/triggers.hpp"
 #include "core/ports/clock.hpp"
@@ -45,6 +46,10 @@ private:
     void register_commands();
     void register_stages();
     void register_events();
+
+    /// Starts the two things that happen on a clock rather than on an event:
+    /// the midnight messages and the database backups (plan v4 §10, §5.2).
+    void register_timers();
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot (plan v4 §7).
@@ -106,6 +111,8 @@ private:
     events::pending_nicknames pending_nicknames_;
     events::trigger_store triggers_;
     events::trigger_responder trigger_responder_;
+    events::midnight_store midnight_;
+    events::midnight_scheduler midnight_scheduler_;
     events::pipeline pipeline_;
 };
 

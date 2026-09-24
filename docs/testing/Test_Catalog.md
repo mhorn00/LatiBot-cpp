@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-234 test cases across 9 components, including 53 sections.
+263 test cases across 9 components, including 53 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 61 | 4 |
+| [db](#db) | 69 | 4 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 50 | 20 |
-| [events](#events) | 58 | 13 |
+| [commands](#commands) | 58 | 20 |
+| [events](#events) | 71 | 13 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -45,6 +45,14 @@ Database (`src/core/db`)
 | a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
+| an added entry comes back as it went in |  |  | [tests/db/midnight_store_test.cpp:49](../../tests/db/midnight_store_test.cpp#L49) |
+| entries belong to one guild |  |  | [tests/db/midnight_store_test.cpp:64](../../tests/db/midnight_store_test.cpp#L64) |
+| only enabled entries are looked at on a tick |  |  | [tests/db/midnight_store_test.cpp:76](../../tests/db/midnight_store_test.cpp#L76) |
+| a day can only be claimed once |  |  | [tests/db/midnight_store_test.cpp:89](../../tests/db/midnight_store_test.cpp#L89) |
+| editing an entry leaves the day it last posted alone |  |  | [tests/db/midnight_store_test.cpp:99](../../tests/db/midnight_store_test.cpp#L99) |
+| a tick posts an entry once and then leaves it alone |  |  | [tests/db/midnight_store_test.cpp:114](../../tests/db/midnight_store_test.cpp#L114) |
+| a restart moments after posting does not post again |  |  | [tests/db/midnight_store_test.cpp:140](../../tests/db/midnight_store_test.cpp#L140) |
+| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:159](../../tests/db/midnight_store_test.cpp#L159) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
@@ -130,16 +138,24 @@ Command framework (`src/core/commands`)
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
 | the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
-| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:28](../../tests/unit/command_log_test.cpp#L28) |
-| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:32](../../tests/unit/command_log_test.cpp#L32) |
-| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:39](../../tests/unit/command_log_test.cpp#L39) |
-| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:51](../../tests/unit/command_log_test.cpp#L51) |
-| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:66](../../tests/unit/command_log_test.cpp#L66) |
-| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:73](../../tests/unit/command_log_test.cpp#L73) |
-| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:86](../../tests/unit/command_log_test.cpp#L86) |
-| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:93](../../tests/unit/command_log_test.cpp#L93) |
-| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:105](../../tests/unit/command_log_test.cpp#L105) |
-| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:112](../../tests/unit/command_log_test.cpp#L112) |
+| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:30](../../tests/unit/command_log_test.cpp#L30) |
+| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:34](../../tests/unit/command_log_test.cpp#L34) |
+| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:41](../../tests/unit/command_log_test.cpp#L41) |
+| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:53](../../tests/unit/command_log_test.cpp#L53) |
+| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:68](../../tests/unit/command_log_test.cpp#L68) |
+| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:75](../../tests/unit/command_log_test.cpp#L75) |
+| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:88](../../tests/unit/command_log_test.cpp#L88) |
+| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:95](../../tests/unit/command_log_test.cpp#L95) |
+| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:107](../../tests/unit/command_log_test.cpp#L107) |
+| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:114](../../tests/unit/command_log_test.cpp#L114) |
+| the option being typed into is found at the top level |  |  | [tests/unit/command_log_test.cpp:139](../../tests/unit/command_log_test.cpp#L139) |
+| the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:147](../../tests/unit/command_log_test.cpp#L147) |
+| nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:163](../../tests/unit/command_log_test.cpp#L163) |
+| an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
+| a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
+| an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
+| an entry that has posted says when |  |  | [tests/unit/midnight_command_test.cpp:49](../../tests/unit/midnight_command_test.cpp#L49) |
+| every entry appears in the list |  |  | [tests/unit/midnight_command_test.cpp:59](../../tests/unit/midnight_command_test.cpp#L59) |
 | an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:35](../../tests/unit/nickname_command_test.cpp#L35) |
 | a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:44](../../tests/unit/nickname_command_test.cpp#L44) |
 | a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:54](../../tests/unit/nickname_command_test.cpp#L54) |
@@ -188,6 +204,19 @@ Message pipeline and triggers (`src/core/events`)
 | an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
+| the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:40](../../tests/unit/midnight_test.cpp#L40) |
+| a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:50](../../tests/unit/midnight_test.cpp#L50) |
+| an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:61](../../tests/unit/midnight_test.cpp#L61) |
+| an entry that has posted today does not post again |  |  | [tests/unit/midnight_test.cpp:71](../../tests/unit/midnight_test.cpp#L71) |
+| an entry off is an entry that does not post |  |  | [tests/unit/midnight_test.cpp:82](../../tests/unit/midnight_test.cpp#L82) |
+| two entries in different timezones fire at different times |  |  | [tests/unit/midnight_test.cpp:89](../../tests/unit/midnight_test.cpp#L89) |
+| an entry added this afternoon waits for the next midnight |  |  | [tests/unit/midnight_test.cpp:102](../../tests/unit/midnight_test.cpp#L102) |
+| a spring-forward night still has a midnight to fire at |  |  | [tests/unit/midnight_test.cpp:116](../../tests/unit/midnight_test.cpp#L116) |
+| a fall-back night does not post twice |  |  | [tests/unit/midnight_test.cpp:124](../../tests/unit/midnight_test.cpp#L124) |
+| a bad timezone in the database keeps quiet rather than posting wrongly |  |  | [tests/unit/midnight_test.cpp:133](../../tests/unit/midnight_test.cpp#L133) |
+| timezone completion matches anywhere in the name |  |  | [tests/unit/midnight_test.cpp:141](../../tests/unit/midnight_test.cpp#L141) |
+| timezone completion never offers more than it is asked for |  |  | [tests/unit/midnight_test.cpp:148](../../tests/unit/midnight_test.cpp#L148) |
+| timezone completion finds nothing for nonsense |  |  | [tests/unit/midnight_test.cpp:155](../../tests/unit/midnight_test.cpp#L155) |
 | a winter timestamp is read as Central Standard Time |  |  | [tests/unit/nickname_import_test.cpp:34](../../tests/unit/nickname_import_test.cpp#L34) |
 | a summer timestamp is read as Central Daylight Time |  |  | [tests/unit/nickname_import_test.cpp:39](../../tests/unit/nickname_import_test.cpp#L39) |
 | the hour that happens twice each November takes the earlier one |  |  | [tests/unit/nickname_import_test.cpp:44](../../tests/unit/nickname_import_test.cpp#L44) |

@@ -10,6 +10,7 @@ add_library(latibot_core STATIC
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/bots.cpp
+    core/commands/midnight.cpp
     core/commands/nickname.cpp
     core/commands/trigger.cpp
     core/commands/preflight.cpp
@@ -20,6 +21,7 @@ add_library(latibot_core STATIC
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/message_pipeline.cpp
+    core/events/midnight.cpp
     core/events/nickname_import.cpp
     core/events/nicknames.cpp
     core/events/triggers.cpp
