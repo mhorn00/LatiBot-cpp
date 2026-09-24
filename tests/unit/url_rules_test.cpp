@@ -85,6 +85,29 @@ TEST_CASE("a message of links is capped", "[events]") {
     CHECK(plan_replacements(content, sample_rules()).size() == latibot::events::max_links_per_message);
 }
 
+TEST_CASE("every link gets a verdict, and the plan is the replaced ones", "[events]") {
+    using latibot::events::link_decision;
+
+    std::string content = "https://x.com/a/status/1 https://x.com/a/status/1 https://example.com/b <https://x.com/c> `https://x.com/d` ";
+    for (int index = 2; index < 8; ++index) {
+        content += "https://x.com/a/status/" + std::to_string(index) + " ";
+    }
+
+    const auto verdicts = latibot::events::explain_links(content, sample_rules());
+    REQUIRE(verdicts.size() == 11);
+    CHECK(verdicts[0].decision == link_decision::replaced);
+    CHECK(verdicts[1].decision == link_decision::duplicate);
+    CHECK(verdicts[2].decision == link_decision::no_rule);
+    CHECK(verdicts[2].link.domain == "example.com");
+    CHECK(verdicts[3].decision == link_decision::preview_off);
+    CHECK(verdicts[4].decision == link_decision::in_code);
+    // The first link plus four more make five; the rest are over the limit.
+    CHECK(verdicts[9].decision == link_decision::over_limit);
+    CHECK(verdicts[10].decision == link_decision::over_limit);
+
+    CHECK(plan_replacements(content, sample_rules()).size() == latibot::events::max_links_per_message);
+}
+
 TEST_CASE("no rules means no plan", "[events]") {
     CHECK(plan_replacements("https://x.com/b/status/1", {}).empty());
 }

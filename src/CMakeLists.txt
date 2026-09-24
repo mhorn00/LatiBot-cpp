@@ -13,6 +13,7 @@ add_library(latibot_core STATIC
     core/commands/midnight.cpp
     core/commands/nickname.cpp
     core/commands/trigger.cpp
+    core/commands/urlrepl.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
     core/discord/dpp_gateway.cpp

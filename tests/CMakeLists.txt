@@ -39,6 +39,7 @@ add_executable(latibot_tests
     unit/version_test.cpp
     unit/text_test.cpp
     unit/url_rules_test.cpp
+    unit/urlrepl_command_test.cpp
     unit/url_scan_test.cpp
 )
 

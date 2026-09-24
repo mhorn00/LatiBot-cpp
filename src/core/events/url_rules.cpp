@@ -53,40 +53,80 @@ std::optional<std::string> normalise_domain(std::string_view text) {
     return domain;
 }
 
+std::string_view to_string(link_decision decision) noexcept {
+    switch (decision) {
+    case link_decision::replaced:
+        return "replaced";
+    case link_decision::no_rule:
+        return "no rule for this site";
+    case link_decision::preview_off:
+        return "written as <link>, which turns its preview off";
+    case link_decision::in_code:
+        return "inside code, where Discord never previews it";
+    case link_decision::duplicate:
+        return "the same link again";
+    case link_decision::over_limit:
+        return "past the limit of links per message";
+    }
+    return "unknown";
+}
+
+std::vector<link_verdict> explain_links(std::string_view content, std::span<const url_rule> rules) {
+    std::vector<link_verdict> verdicts;
+    std::size_t replaced = 0;
+
+    for (const util::found_link& found : util::find_links(content)) {
+        const auto parts = util::split_url(found.url);
+        if (!parts) {
+            continue;
+        }
+
+        link_verdict verdict{.decision = link_decision::replaced,
+                             .link = {.original_url = std::string(found.url),
+                                      .domain = util::rule_host(parts->authority),
+                                      .spoilered = found.spoilered,
+                                      .mirrors = {}}};
+
+        const auto rule = std::ranges::find(rules, verdict.link.domain, &url_rule::domain);
+        const bool seen_before = std::ranges::any_of(verdicts, [&](const link_verdict& earlier) {
+            return earlier.decision == link_decision::replaced && earlier.link.original_url == found.url;
+        });
+
+        // In order of what the person could do about it: a link they wrote
+        // to have no preview is theirs to decide, before any rule matters.
+        if (found.embed_suppressed) {
+            verdict.decision = link_decision::preview_off;
+        } else if (found.in_code) {
+            verdict.decision = link_decision::in_code;
+        } else if (rule == rules.end() || rule->mirrors.empty()) {
+            verdict.decision = link_decision::no_rule;
+        } else if (seen_before) {
+            // The same link twice is one preview, not two.
+            verdict.decision = link_decision::duplicate;
+        } else if (replaced == max_links_per_message) {
+            verdict.decision = link_decision::over_limit;
+        } else {
+            verdict.link.mirrors = rule->mirrors;
+            ++replaced;
+        }
+
+        verdicts.push_back(std::move(verdict));
+    }
+
+    return verdicts;
+}
+
 std::vector<planned_link> plan_replacements(std::string_view content, std::span<const url_rule> rules) {
     std::vector<planned_link> planned;
     if (rules.empty()) {
         return planned;
     }
 
-    for (const util::found_link& found : util::find_links(content)) {
-        if (found.embed_suppressed || found.in_code) {
-            continue;
-        }
-
-        const auto parts = util::split_url(found.url);
-        if (!parts) {
-            continue;
-        }
-
-        const std::string host = util::rule_host(parts->authority);
-        const auto rule = std::ranges::find(rules, host, &url_rule::domain);
-        if (rule == rules.end() || rule->mirrors.empty()) {
-            continue;
-        }
-
-        // The same link twice is one preview, not two.
-        if (std::ranges::any_of(planned, [&](const planned_link& earlier) { return earlier.original_url == found.url; })) {
-            continue;
-        }
-
-        planned.push_back(
-            {.original_url = std::string(found.url), .domain = rule->domain, .spoilered = found.spoilered, .mirrors = rule->mirrors});
-        if (planned.size() == max_links_per_message) {
-            break;
+    for (link_verdict& verdict : explain_links(content, rules)) {
+        if (verdict.decision == link_decision::replaced) {
+            planned.push_back(std::move(verdict.link));
         }
     }
-
     return planned;
 }
 

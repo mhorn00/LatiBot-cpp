@@ -3,6 +3,7 @@
 #include <dpp/snowflake.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -68,6 +69,32 @@ struct planned_link {
 /// a message that is mostly links is somebody pasting a list, and a wall of
 /// previews would bury the conversation.
 inline constexpr std::size_t max_links_per_message = 5;
+
+/// What happened to one link, and why.
+enum class link_decision : std::uint8_t {
+    replaced,
+    no_rule,
+    preview_off,
+    in_code,
+    duplicate,
+    over_limit,
+};
+
+/// Why, in words, for `/urlrepl test`.
+[[nodiscard]] std::string_view to_string(link_decision decision) noexcept;
+
+struct link_verdict {
+    link_decision decision = link_decision::replaced;
+
+    /// Mirrors are filled in only for a replaced link.
+    planned_link link;
+};
+
+/// Every link in `content`, with what URL replacement makes of it.
+///
+/// `plan_replacements` is this, filtered, so the dry run in `/urlrepl test`
+/// cannot disagree with what a real message gets.
+[[nodiscard]] std::vector<link_verdict> explain_links(std::string_view content, std::span<const url_rule> rules);
 
 /// The links in `content` that a rule covers, in the order they appear, each
 /// once.

@@ -15,6 +15,7 @@
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
 #include "core/ports/clock.hpp"
+#include "core/ui/paginator.hpp"
 
 #include <dpp/dpp.h>
 
@@ -72,6 +73,19 @@ private:
 
     /// Modal submissions.
     void on_form(const dpp::form_submit_t& event);
+
+    /// The URL rule modal: add, edit, or rename a rule.
+    void on_url_form(const dpp::form_submit_t& event, const ui::page_state& state);
+
+    /// The trigger panel's and list's buttons and menu. False when the view
+    /// is not one of theirs.
+    bool on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                              const commands::user_label& who);
+
+    /// The URL rule panel's buttons and menu. False when `view` is not one of
+    /// its views.
+    bool on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                          const commands::user_label& who);
 
     /// Records a nickname change, if it is one, and says which row it wrote.
     ///

@@ -6,6 +6,7 @@
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/trigger.hpp"
+#include "core/commands/urlrepl.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/migrations.hpp"
 #include "core/events/goodbye.hpp"
@@ -207,6 +208,8 @@ void bot::register_commands() {
     commands_.add(std::make_unique<commands::nickname_command>(nicknames_, pending_nicknames_, clock_, cluster_));
     commands_.add(std::make_unique<commands::nicknames_command>(nicknames_));
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
+    commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
+    commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
 }
 
 void bot::register_stages() {
@@ -589,8 +592,6 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     }
 
     const dpp::snowflake guild = event.command.guild_id;
-    const std::int64_t id = chosen.empty() ? argument_id(*state) : 0;
-
     const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
     util::log().debug("{} used panel {} page {} argument \"{}\"{} in guild {}", who, state->view, state->page, state->argument,
                       chosen.empty() ? std::string{} : std::format(" chose \"{}\"", chosen), guild);
@@ -601,51 +602,136 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     if (state->view == commands::nickname_history_view) {
         const dpp::snowflake subject(state->argument);
         event.reply(dpp::ir_update_message, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state->page));
-    } else if (state->view == commands::trigger_list_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_list(triggers_, guild, state->page));
-    } else if (state->view == commands::trigger_panel_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
-    } else if (state->view == commands::trigger_pick_view) {
+    } else if (state->view == events::url_retry_view) {
+        retry_replacement(event, dpp::snowflake(state->argument), who);
+    } else if (!on_trigger_component(event, *state, chosen, who) && !on_url_component(event, *state, chosen, who)) {
+        util::log().debug("no panel handles the view \"{}\"", state->view);
+    }
+}
+
+bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                               const commands::user_label& who) {
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::int64_t id = chosen.empty() ? argument_id(state) : 0;
+
+    if (state.view == commands::trigger_list_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_list(triggers_, guild, state.page));
+    } else if (state.view == commands::trigger_panel_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
+    } else if (state.view == commands::trigger_pick_view) {
         std::int64_t picked = 0;
         const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
         if (error != std::errc{} || stop != chosen.data() + chosen.size()) {
             picked = 0;
         }
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, picked));
-    } else if (state->view == commands::trigger_delete_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
-    } else if (state->view == commands::trigger_confirm_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, picked));
+    } else if (state.view == commands::trigger_delete_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
+    } else if (state.view == commands::trigger_confirm_view) {
         util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
         triggers_.remove(id, guild);
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
-    } else if (state->view == commands::trigger_toggle_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
+    } else if (state.view == commands::trigger_toggle_view) {
         toggle_trigger(id, guild, who, [](events::trigger& entry) {
             entry.enabled = !entry.enabled;
             return entry.enabled ? "enabled" : "disabled";
         });
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
-    } else if (state->view == commands::trigger_bots_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id));
+    } else if (state.view == commands::trigger_bots_view) {
         toggle_trigger(id, guild, who, [](events::trigger& entry) {
             entry.respond_to_bots = !entry.respond_to_bots;
             return entry.respond_to_bots ? "set to answer bots" : "set to ignore bots";
         });
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id));
-    } else if (state->view == events::url_retry_view) {
-        retry_replacement(event, dpp::snowflake(state->argument), who);
-    } else if (state->view == commands::trigger_add_view) {
-        event.dialog(commands::trigger_form(state->page, nullptr));
-    } else if (state->view == commands::trigger_edit_view) {
+        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id));
+    } else if (state.view == commands::trigger_add_view) {
+        event.dialog(commands::trigger_form(state.page, nullptr));
+    } else if (state.view == commands::trigger_edit_view) {
         const auto entry = triggers_.find(id, guild);
-        if (!entry) {
-            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
-            return;
+        if (entry) {
+            event.dialog(commands::trigger_form(state.page, &*entry));
+        } else {
+            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
         }
-        event.dialog(commands::trigger_form(state->page, &*entry));
+    } else {
+        return false;
     }
+    return true;
+}
+
+bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                           const commands::user_label& who) {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    if (state.view == commands::url_list_view) {
+        event.reply(dpp::ir_update_message, commands::render_url_rule_list(url_rules_, guild, state.page));
+    } else if (state.view == commands::url_panel_view) {
+        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+    } else if (state.view == commands::url_pick_view) {
+        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page, chosen));
+    } else if (state.view == commands::url_delete_view) {
+        event.reply(dpp::ir_update_message,
+                    commands::render_url_panel(url_rules_, guild, state.page, state.argument, /*confirming_delete=*/true));
+    } else if (state.view == commands::url_confirm_view) {
+        if (url_rules_.remove(guild, state.argument)) {
+            util::log().info("URL rule for {} removed from guild {} by {} from the panel", state.argument, guild, who);
+        }
+        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+    } else if (state.view == commands::url_add_view) {
+        event.dialog(commands::url_rule_form(state.page, nullptr));
+    } else if (state.view == commands::url_edit_view) {
+        // Removed from another client while this panel was open.
+        const auto rule = url_rules_.find(guild, state.argument);
+        if (!rule) {
+            event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+        } else {
+            event.dialog(commands::url_rule_form(state.page, &*rule));
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) {
+    const dpp::snowflake guild = event.command.guild_id;
+    const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
+
+    const auto built = commands::build_rule(field_of(event, "domain"), field_of(event, "mirrors"));
+    if (const auto* problem = std::get_if<std::string>(&built)) {
+        util::log().debug("{} submitted an unusable URL rule in guild {}: {}", who, guild, *problem);
+        dpp::message complaint(*problem);
+        complaint.set_flags(dpp::m_ephemeral);
+        event.reply(complaint);
+        return;
+    }
+
+    const auto& rule = std::get<events::url_rule>(built);
+
+    // The argument is the domain the modal was opened for, so a changed site
+    // is a rename rather than a second rule.
+    const std::string& previous = state.argument;
+    if (!previous.empty() && previous != rule.domain) {
+        url_rules_.remove(guild, previous);
+    }
+    url_rules_.set(guild, rule);
+
+    std::string what = "changed";
+    if (previous.empty()) {
+        what = "added";
+    } else if (previous != rule.domain) {
+        what = std::format("renamed from {}", previous);
+    }
+    util::log().info("URL rule for {} {} in guild {} by {} from the panel: {}", rule.domain, what, guild, who,
+                     commands::describe_mirrors(rule.mirrors));
+    event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page, rule.domain));
 }
 
 void bot::on_form(const dpp::form_submit_t& event) {
     const auto state = ui::decode(event.custom_id);
+    if (state && state->view == commands::url_form_view) {
+        on_url_form(event, *state);
+        return;
+    }
     if (!state || state->view != commands::trigger_form_view) {
         util::log().debug("ignoring a modal submission with an unrecognised id \"{}\"", event.custom_id);
         return;

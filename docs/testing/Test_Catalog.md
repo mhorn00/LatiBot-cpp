@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-357 test cases across 9 components, including 77 sections.
+373 test cases across 9 components, including 77 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 84 | 4 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 60 | 20 |
-| [events](#events) | 109 | 27 |
+| [commands](#commands) | 75 | 20 |
+| [events](#events) | 110 | 27 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -203,6 +203,21 @@ Command framework (`src/core/commands`)
 | the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:134](../../tests/unit/trigger_command_test.cpp#L134) |
 | the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:152](../../tests/unit/trigger_command_test.cpp#L152) |
 | a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:186](../../tests/unit/trigger_command_test.cpp#L186) |
+| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:69](../../tests/unit/urlrepl_command_test.cpp#L69) |
+| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:82](../../tests/unit/urlrepl_command_test.cpp#L82) |
+| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:86](../../tests/unit/urlrepl_command_test.cpp#L86) |
+| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:91](../../tests/unit/urlrepl_command_test.cpp#L91) |
+| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:99](../../tests/unit/urlrepl_command_test.cpp#L99) |
+| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:108](../../tests/unit/urlrepl_command_test.cpp#L108) |
+| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:119](../../tests/unit/urlrepl_command_test.cpp#L119) |
+| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:124](../../tests/unit/urlrepl_command_test.cpp#L124) |
+| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:130](../../tests/unit/urlrepl_command_test.cpp#L130) |
+| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:146](../../tests/unit/urlrepl_command_test.cpp#L146) |
+| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:153](../../tests/unit/urlrepl_command_test.cpp#L153) |
+| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:169](../../tests/unit/urlrepl_command_test.cpp#L169) |
+| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:187](../../tests/unit/urlrepl_command_test.cpp#L187) |
+| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:198](../../tests/unit/urlrepl_command_test.cpp#L198) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:225](../../tests/unit/urlrepl_command_test.cpp#L225) |
 
 ## events
 
@@ -315,10 +330,11 @@ Message pipeline and triggers (`src/core/events`)
 | links Discord would not have embedded are left alone |  |  | [tests/unit/url_rules_test.cpp:70](../../tests/unit/url_rules_test.cpp#L70) |
 | the same link twice is replaced once |  |  | [tests/unit/url_rules_test.cpp:75](../../tests/unit/url_rules_test.cpp#L75) |
 | a message of links is capped |  |  | [tests/unit/url_rules_test.cpp:80](../../tests/unit/url_rules_test.cpp#L80) |
-| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:88](../../tests/unit/url_rules_test.cpp#L88) |
-| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:92](../../tests/unit/url_rules_test.cpp#L92) |
-| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:100](../../tests/unit/url_rules_test.cpp#L100) |
-| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:106](../../tests/unit/url_rules_test.cpp#L106) |
+| every link gets a verdict, and the plan is the replaced ones |  |  | [tests/unit/url_rules_test.cpp:88](../../tests/unit/url_rules_test.cpp#L88) |
+| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:111](../../tests/unit/url_rules_test.cpp#L111) |
+| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:115](../../tests/unit/url_rules_test.cpp#L115) |
+| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:123](../../tests/unit/url_rules_test.cpp#L123) |
+| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:129](../../tests/unit/url_rules_test.cpp#L129) |
 
 ## ui
 
