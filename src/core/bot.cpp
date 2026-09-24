@@ -250,12 +250,18 @@ void bot::register_events() {
 
     cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
 
+    // Only when tracking is on, because DPP warns about a handler attached
+    // without the intent that feeds it — which would be true and useless
+    // noise for somebody who turned the feature off deliberately.
+    //
     // Recording and attributing are separate events on purpose: the change is
     // written down the moment it is seen, and the audit log fills in who did
     // it if and when it arrives (plan v4 §8.1).
-    cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
-    cluster_.on_guild_audit_log_entry_create(
-        [this](const dpp::guild_audit_log_entry_create_t& event) { on_audit_entry(event.entry, guild_of(event)); });
+    if (settings_.track_nicknames) {
+        cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
+        cluster_.on_guild_audit_log_entry_create(
+            [this](const dpp::guild_audit_log_entry_create_t& event) { on_audit_entry(event.entry, guild_of(event)); });
+    }
 
     cluster_.on_autocomplete([this](const dpp::autocomplete_t& event) { commands_.offer_completions(event.name, event); });
 
