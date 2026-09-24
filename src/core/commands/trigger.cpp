@@ -243,9 +243,10 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
                                          .respond_to_bots = answer_bots != nullptr && *answer_bots,
                                          .responses = responses});
 
-    util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={}s bots={} responses={}", id,
-                     event.command.guild_id.str(), describe_user(event.command.get_issuing_user()), pattern, events::to_string(mode),
-                     cooldown.value_or(events::default_trigger_cooldown.count()), answer_bots != nullptr && *answer_bots, responses.size());
+    util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={} bots={} responses={}", id,
+                     event.command.guild_id, describe_user(event.command.get_issuing_user()), pattern, events::to_string(mode),
+                     std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
+                     answer_bots != nullptr && *answer_bots, responses.size());
 
     co_await event.co_reply(ack(
         std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(), responses.size() == 1 ? "" : "s")));
@@ -303,7 +304,7 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
         co_return;
     }
 
-    util::log().info("trigger {} updated in guild {} by {}: {}", *id, event.command.guild_id.str(),
+    util::log().info("trigger {} updated in guild {} by {}: {}", *id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()), describe(*entry));
     co_await event.co_reply(ack(std::format("updated {}", describe(*entry))));
 }
@@ -320,7 +321,7 @@ dpp::task<void> trigger_command::remove(const dpp::slashcommand_t& event) {
         co_return;
     }
 
-    util::log().info("trigger {} removed from guild {} by {}", *id, event.command.guild_id.str(),
+    util::log().info("trigger {} removed from guild {} by {}", *id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
     co_await event.co_reply(ack(std::format("removed trigger `{}`", *id)));
 }

@@ -198,8 +198,8 @@ dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
                                        .last_fired_date = events::already_posted_today(timezone, clock_->now())};
 
     const std::int64_t id = store_->add(entry);
-    util::log().info("midnight message {} added in guild {} by {}: {} in channel {}", id, event.command.guild_id.str(),
-                     describe_user(event.command.get_issuing_user()), timezone, channel->str());
+    util::log().info("midnight message {} added in guild {} by {}: {} in channel {}", id, event.command.guild_id,
+                     describe_user(event.command.get_issuing_user()), timezone, *channel);
 
     co_await event.co_reply(ack(std::format("ok, that posts in <#{}> at the next midnight in {}", channel->str(), timezone)));
 }
@@ -226,8 +226,8 @@ dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
     }
 
     store_->update(*found);
-    util::log().info("midnight message {} edited in guild {} by {}: {} in channel {}", found->id, event.command.guild_id.str(),
-                     describe_user(event.command.get_issuing_user()), found->timezone, found->channel_id.str());
+    util::log().info("midnight message {} edited in guild {} by {}: {} in channel {}", found->id, event.command.guild_id,
+                     describe_user(event.command.get_issuing_user()), found->timezone, found->channel_id);
 
     co_await event.co_reply(
         ack(std::format("ok, {} posts in <#{}> at midnight in {}", found->id, found->channel_id.str(), found->timezone)));
@@ -241,7 +241,7 @@ dpp::task<void> midnight_command::remove(const dpp::slashcommand_t& event) {
     }
 
     store_->remove(found->id, event.command.guild_id);
-    util::log().info("midnight message {} removed from guild {} by {}", found->id, event.command.guild_id.str(),
+    util::log().info("midnight message {} removed from guild {} by {}", found->id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
 
     co_await event.co_reply(ack(std::format("gone: midnight message {}", found->id)));
@@ -258,7 +258,7 @@ dpp::task<void> midnight_command::toggle(const dpp::slashcommand_t& event) {
     store_->update(*found);
 
     const std::string_view became = found->enabled ? "on" : "off";
-    util::log().info("midnight message {} turned {} in guild {} by {}", found->id, became, event.command.guild_id.str(),
+    util::log().info("midnight message {} turned {} in guild {} by {}", found->id, became, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
 
     co_await event.co_reply(ack(std::format("midnight message {} is {}", found->id, became)));

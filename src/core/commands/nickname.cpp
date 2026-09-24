@@ -165,13 +165,13 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
         pending_->forget(guild_id, target->id, wanted);
 
         const dpp::error_info error = outcome.get_error();
-        util::log().warn("could not set {}'s nickname in guild {}: {} ({})", target->id.str(), guild_id.str(), error.message, error.code);
+        util::log().warn("could not set {}'s nickname in guild {}: {} ({})", target->id, guild_id, error.message, error.code);
         co_await event.co_reply(ack(explain(error)));
         co_return;
     }
 
-    util::log().info("{} set {}'s nickname in guild {} to {}", describe_user(event.command.get_issuing_user()), target->id.str(),
-                     guild_id.str(), wanted ? std::format("\"{}\"", *wanted) : "nothing");
+    util::log().info("{} set {}'s nickname in guild {} to {}", describe_user(event.command.get_issuing_user()), target->id, guild_id,
+                     wanted ? std::format("\"{}\"", *wanted) : "nothing");
 
     co_await event.co_reply(
         ack(wanted ? std::format("ok, {} is now **{}**", target->name, *wanted) : std::format("ok, cleared {}'s nickname", target->name)));

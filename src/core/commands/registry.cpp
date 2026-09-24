@@ -94,8 +94,8 @@ std::string describe_invocation(const dpp::command_interaction& interaction) {
     return line;
 }
 
-std::string describe_user(const dpp::user& who) {
-    return std::format("{} ({})", who.username, who.id.str());
+user_label describe_user(const dpp::user& who) {
+    return {.name = who.username, .id = who.id};
 }
 
 // Recursive for the same reason `append_options` is, and bounded the same way:
@@ -183,11 +183,17 @@ std::uint64_t registry::required_bot_permissions() const {
 dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& event) const {
     // Logged before the command runs, so an invocation that hangs or crashes
     // the process still leaves a record of what was asked.
-    const std::string who = describe_user(event.command.get_issuing_user());
+    const user_label who = describe_user(event.command.get_issuing_user());
     const std::string what = describe_invocation(event.command.get_command_interaction());
     const dpp::snowflake guild = event.command.guild_id;
 
-    util::log().info("{} ran {} in {}", who, what, guild.empty() ? std::string("a DM") : "guild " + guild.str());
+    // Two calls rather than one with a conditional, so the guild id reaches
+    // the logger as an id and is coloured like every other.
+    if (guild.empty()) {
+        util::log().info("{} ran {} in a DM", who, what);
+    } else {
+        util::log().info("{} ran {} in guild {}", who, what, guild);
+    }
 
     command* target = find(name);
     if (target == nullptr) {
@@ -209,7 +215,7 @@ dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& 
     }
 
     const auto took = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
-    util::log().debug("{} finished in {} ms", what, took.count());
+    util::log().debug("{} finished in {}", what, took);
 }
 
 void registry::offer_completions(std::string_view name, const dpp::autocomplete_t& event) const {

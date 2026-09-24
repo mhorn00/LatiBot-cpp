@@ -37,6 +37,9 @@ set(DPP_BUILD_TEST OFF CACHE BOOL "" FORCE)
 set(DPP_INSTALL OFF CACHE BOOL "" FORCE)
 set(BUILD_VOICE_SUPPORT ON CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+# std::formatter<dpp::snowflake>, so an id can go straight into std::format and
+# the logger can see it is an id (core/util/log.hpp colours it by type).
+set(DPP_FORMATTERS ON CACHE BOOL "" FORCE)
 # DPP only detects opus on Windows via its bundled-binaries path, so voice
 # support must be switched on explicitly when using external dependencies.
 set(HAVE_OPUS_OPUS_H ON)

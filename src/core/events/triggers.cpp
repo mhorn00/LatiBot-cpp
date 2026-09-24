@@ -281,8 +281,8 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
         const auto last = seen == last_fired_.end() ? std::nullopt : std::optional<std::chrono::steady_clock::time_point>(seen->second);
         if (!off_cooldown(last, now, entry.cooldown)) {
             const auto waited = std::chrono::duration_cast<std::chrono::seconds>(now - *last);
-            util::log().debug("trigger {} matched but is on cooldown in channel {}: {}s of {}s", entry.id, message.channel_id.str(),
-                              waited.count(), entry.cooldown.count());
+            util::log().debug("trigger {} matched but is on cooldown in channel {}: {} of {}", entry.id, message.channel_id, waited,
+                              entry.cooldown);
             continue;
         }
 
@@ -292,7 +292,7 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
             continue;
         }
 
-        util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id.str());
+        util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id);
         last_fired_[key] = now;
         result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = reply->text});
     }

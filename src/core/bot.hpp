@@ -99,7 +99,7 @@ private:
     /// Applies one change to a trigger from the panel and logs what happened.
     /// `change` returns the past-tense verb for the log, so the two toggles
     /// differ only in the field they flip.
-    void toggle_trigger(std::int64_t id, dpp::snowflake guild, std::string_view who,
+    void toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
                         const std::function<std::string_view(events::trigger&)>& change);
 
     config::bootstrap settings_;

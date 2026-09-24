@@ -183,9 +183,11 @@ void bot::register_stages() {
 
 void bot::register_events() {
     // DPP's own logging goes through our logger, so there is one format and
-    // one level to configure.
+    // one level to configure. DPP hands over finished text, so there are no
+    // types left to colour; the [dpp] tag is coloured instead, which is what
+    // tells its lines apart from ours at a glance.
     cluster_.on_log([this](const dpp::log_t& event) {
-        util::log().write(from_dpp(event.severity), "[dpp] " + event.message);
+        util::log().log(from_dpp(event.severity), "{} {}", util::log_source{"dpp"}, event.message);
 
         // 4014 is the gateway refusing a privileged intent, and DPP reports it
         // as a websocket number in a reconnect loop. The cause is always the
@@ -203,7 +205,7 @@ void bot::register_events() {
     });
 
     cluster_.on_ready([this](const dpp::ready_t& event) {
-        util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id.str());
+        util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
 
         if (!dpp::run_once<struct register_bot_commands>()) {
             // on_ready fires again after a reconnect; the commands are global
@@ -233,7 +235,7 @@ void bot::register_events() {
     // for without a separate sweep on ready.
     cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
         const dpp::guild& guild = event.created;
-        util::log().info("in guild {} ({})", guild.name, guild.id.str());
+        util::log().info("in guild {} ({})", guild.name, guild.id);
 
         check_permissions(guild);
         reconcile_nicknames(guild);
@@ -280,7 +282,7 @@ void bot::register_timers() {
     cluster_.start_timer([this](dpp::timer) { carry_out(midnight_scheduler_.tick()); },
                          static_cast<std::uint64_t>(events::midnight_tick.count()));
 
-    util::log().debug("midnight messages checked every {}s", events::midnight_tick.count());
+    util::log().debug("midnight messages checked every {}", events::midnight_tick);
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -302,8 +304,8 @@ void bot::register_timers() {
         },
         static_cast<std::uint64_t>(every.count()));
 
-    util::log().info("backing up to {} every {} minutes, keeping {}", settings_.backup_directory.generic_string(),
-                     settings_.backup_interval.count(), settings_.backups_to_keep);
+    util::log().info("backing up to {} every {}, keeping {}", settings_.backup_directory.generic_string(), settings_.backup_interval,
+                     settings_.backups_to_keep);
 }
 
 namespace {
@@ -349,7 +351,7 @@ std::optional<std::int64_t> bot::record_nickname(dpp::snowflake guild_id, dpp::s
                                                 .source = source,
                                                 .imported_raw = {}});
 
-    util::log().info("{} in guild {} is now called {} (recorded as {})", user_id.str(), guild_id.str(),
+    util::log().info("{} in guild {} is now called {} (recorded as {})", user_id, guild_id,
                      nickname ? std::format("\"{}\"", *nickname) : "nothing", events::to_string(source));
     return row;
 }
@@ -363,8 +365,7 @@ void bot::on_member_update(const dpp::guild_member& member) {
     // A change the bot just made is already in the history with the invoker
     // against it, and recording it again would lose that (plan v4 §8.1).
     if (pending_nicknames_.claim(member.guild_id, member.user_id, nickname, clock_.now())) {
-        util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id.str(),
-                          member.guild_id.str());
+        util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id, member.guild_id);
         return;
     }
 
@@ -372,7 +373,7 @@ void bot::on_member_update(const dpp::guild_member& member) {
     if (!row) {
         // Member updates fire for roles, timeouts and avatars too, so most of
         // them are not about a nickname at all.
-        util::log().trace("member update for {} in guild {} changed no nickname", member.user_id.str(), member.guild_id.str());
+        util::log().trace("member update for {} in guild {} changed no nickname", member.user_id, member.guild_id);
         return;
     }
 
@@ -400,7 +401,7 @@ void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::
                                             if (reply.is_error()) {
                                                 // Almost always a missing View Audit Log, which the
                                                 // permission preflight already warns about per guild.
-                                                util::log().debug("could not read the audit log for guild {}: {}", guild_id.str(),
+                                                util::log().debug("could not read the audit log for guild {}: {}", guild_id,
                                                                   reply.get_error().message);
                                                 return;
                                             }
@@ -433,19 +434,19 @@ void bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id)
     const std::optional<std::string> nickname = events::audit_nickname(change->new_value);
     const auto row = nicknames_.unattributed(guild_id, entry.target_id, nickname, clock_.now(), events::pending_nickname_ttl);
     if (!row) {
-        util::log().debug("audit entry {} names no change we are still waiting to attribute", entry.id.str());
+        util::log().debug("audit entry {} names no change we are still waiting to attribute", entry.id);
         return;
     }
 
     if (!events::may_attribute(*row, entry.user_id, cluster_.me.id)) {
         // Discord names the bot whenever the bot called the API, which would
         // overwrite the one attribution that was never in doubt.
-        util::log().debug("audit entry {} attributes a change to the bot itself; leaving row {} alone", entry.id.str(), row->id);
+        util::log().debug("audit entry {} attributes a change to the bot itself; leaving row {} alone", entry.id, row->id);
         return;
     }
 
     if (nicknames_.attribute(row->id, entry.user_id, events::nickname_source::audit_log)) {
-        util::log().info("{}'s nickname change in guild {} was made by {}", row->user_id.str(), guild_id.str(), entry.user_id.str());
+        util::log().info("{}'s nickname change in guild {} was made by {}", row->user_id, guild_id, entry.user_id);
     }
 }
 
@@ -469,19 +470,19 @@ void bot::reconcile_nicknames(const dpp::guild& guild) {
                       recorded);
 }
 
-void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, std::string_view who,
+void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
                          const std::function<std::string_view(events::trigger&)>& change) {
     auto entry = triggers_.find(id, guild);
     if (!entry) {
         // Deleted from another client while this panel was open. The caller
         // re-renders either way, which is what puts the panel back in step.
-        util::log().debug("panel asked to change trigger {}, which is no longer in guild {}", id, guild.str());
+        util::log().debug("panel asked to change trigger {}, which is no longer in guild {}", id, guild);
         return;
     }
 
     const std::string_view became = change(*entry);
     triggers_.update(*entry);
-    util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild.str(), became, who);
+    util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild, became, who);
 }
 
 void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) {
@@ -496,9 +497,9 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = chosen.empty() ? argument_id(*state) : 0;
 
-    const std::string who = commands::describe_user(event.command.get_issuing_user());
+    const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
     util::log().debug("{} used panel {} page {} argument \"{}\"{} in guild {}", who, state->view, state->page, state->argument,
-                      chosen.empty() ? std::string{} : std::format(" chose \"{}\"", chosen), guild.str());
+                      chosen.empty() ? std::string{} : std::format(" chose \"{}\"", chosen), guild);
 
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
@@ -520,7 +521,7 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     } else if (state->view == commands::trigger_delete_view) {
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, id, /*confirming_delete=*/true));
     } else if (state->view == commands::trigger_confirm_view) {
-        util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild.str(), who);
+        util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
         triggers_.remove(id, guild);
         event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
     } else if (state->view == commands::trigger_toggle_view) {
@@ -556,7 +557,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
 
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = argument_id(*state);
-    const std::string who = commands::describe_user(event.command.get_issuing_user());
+    const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
 
     // Zero means add. Anything else has to still exist: somebody could have
     // deleted it from another client while the modal was open.
@@ -579,7 +580,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
                                        .cooldown = field_of(event, "cooldown")};
 
     if (const auto problem = commands::apply_form(entry, fields)) {
-        util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild.str(), *problem);
+        util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild, *problem);
         dpp::message complaint(*problem);
         complaint.set_flags(dpp::m_ephemeral);
         event.reply(complaint);
@@ -587,7 +588,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
     }
 
     const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
-    util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild.str(), who,
+    util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
                      commands::describe(entry));
     event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, saved));
 }
@@ -627,7 +628,7 @@ void bot::carry_out(const std::vector<events::action>& actions) {
                     // jokes and acknowledgements, not things to be pinged for.
                     reply.set_flags(dpp::m_suppress_notifications);
                     cluster_.message_create(reply);
-                    util::log().info("replied in channel {}: \"{}\"", step.channel_id.str(), step.content);
+                    util::log().info("replied in channel {}: \"{}\"", step.channel_id, step.content);
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
                     // Detached, so the pause does not block DPP's event
@@ -660,7 +661,7 @@ void bot::check_permissions(const dpp::guild& guild) const {
     const std::uint64_t granted = guild.base_permissions(self->second);
     const std::vector<commands::gap> gaps = commands::unmet(required, granted);
     for (const commands::gap& missing : gaps) {
-        util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id.str(), commands::describe_permissions(missing.permissions),
+        util::log().warn("{} ({}): missing {} for {}", guild.name, guild.id, commands::describe_permissions(missing.permissions),
                          missing.purpose);
     }
 

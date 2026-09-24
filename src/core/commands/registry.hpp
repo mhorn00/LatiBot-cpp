@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/util/log.hpp"
+
 #include <dpp/appcommand.h>
 #include <dpp/coro/task.h>
 #include <dpp/dispatcher.h>
@@ -8,6 +10,7 @@
 #include <dpp/user.h>
 
 #include <cstdint>
+#include <format>
 #include <map>
 #include <memory>
 #include <optional>
@@ -50,9 +53,17 @@ struct command_info {
 /// single 2000-character `/say` would bury everything around it.
 [[nodiscard]] std::string describe_invocation(const dpp::command_interaction& interaction);
 
-/// Who ran something, as `name (id)`. Names are not unique and ids are not
-/// readable, so the log carries both.
-[[nodiscard]] std::string describe_user(const dpp::user& who);
+/// Who ran something, as the log shows them: `name (id)`.
+///
+/// A type rather than a string so the id keeps its colour in the log; the
+/// formatter below writes it with `util::paint_to`.
+struct user_label {
+    std::string name;
+    dpp::snowflake id;
+};
+
+/// Names are not unique and ids are not readable, so the log carries both.
+[[nodiscard]] user_label describe_user(const dpp::user& who);
 
 /// The option Discord is asking for completions on.
 ///
@@ -125,3 +136,16 @@ private:
 };
 
 } // namespace latibot::commands
+
+/// `name (id)`, with the id in its colour when the line is being coloured.
+template <>
+struct std::formatter<latibot::commands::user_label, char> {
+    static constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(const latibot::commands::user_label& who, FormatContext& ctx) const {
+        auto out = std::format_to(ctx.out(), "{} (", who.name);
+        out = latibot::util::paint_to(out, who.id);
+        return std::format_to(out, ")");
+    }
+};

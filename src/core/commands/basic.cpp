@@ -212,7 +212,7 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
         co_await event.co_reply(ack("ok"));
         const dpp::message post(event.command.channel_id, message);
         co_await cluster_->co_message_create(post);
-        util::log().info("said {} characters in channel {} for {}", message.size(), event.command.channel_id.str(),
+        util::log().info("said {} characters in channel {} for {}", message.size(), event.command.channel_id,
                          describe_user(event.command.get_issuing_user()));
         co_return;
     }
@@ -223,7 +223,7 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
         // show the caller.
         const auto target = co_await cluster_->co_message_get(decision.reply_to, event.command.channel_id);
         if (target.is_error()) {
-            util::log().debug("/say could not fetch message {} in channel {}", decision.reply_to.str(), event.command.channel_id.str());
+            util::log().debug("/say could not fetch message {} in channel {}", decision.reply_to, event.command.channel_id);
             co_await event.co_reply(ack(std::format("couldn't find message {} in this channel", decision.reply_to.str())));
             co_return;
         }
@@ -232,8 +232,8 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
         dpp::message post(event.command.channel_id, message);
         post.set_reference(decision.reply_to);
         co_await cluster_->co_message_create(post);
-        util::log().info("said {} characters in channel {} replying to {} for {}", message.size(), event.command.channel_id.str(),
-                         decision.reply_to.str(), describe_user(event.command.get_issuing_user()));
+        util::log().info("said {} characters in channel {} replying to {} for {}", message.size(), event.command.channel_id,
+                         decision.reply_to, describe_user(event.command.get_issuing_user()));
         co_return;
     }
     }
@@ -304,7 +304,7 @@ dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
     dpp::discord_client* shard = event.from();
     switch (decision.action) {
     case join_action::target_not_in_voice:
-        util::log().debug("/join: {} is not in a voice channel in guild {}", target.str(), event.command.guild_id.str());
+        util::log().debug("/join: {} is not in a voice channel in guild {}", target, event.command.guild_id);
         co_await event.co_reply(ack(following_someone_else ? "they're not in a voice channel" : "you're not in a voice channel"));
         co_return;
 
@@ -320,7 +320,7 @@ dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
         }
         shard->connect_voice(event.command.guild_id, decision.channel_id);
         util::log().info("{} voice channel {} in guild {} for {}", decision.action == join_action::move ? "moved to" : "joined",
-                         decision.channel_id.str(), event.command.guild_id.str(), describe_user(event.command.get_issuing_user()));
+                         decision.channel_id, event.command.guild_id, describe_user(event.command.get_issuing_user()));
         co_await event.co_reply(ack(decision.action == join_action::move ? "ok moving" : "ok joining"));
         co_return;
     }
@@ -346,8 +346,7 @@ dpp::task<void> leave_command::execute(const dpp::slashcommand_t& event) {
     }
 
     shard->disconnect_voice(event.command.guild_id);
-    util::log().info("left the voice channel in guild {} for {}", event.command.guild_id.str(),
-                     describe_user(event.command.get_issuing_user()));
+    util::log().info("left the voice channel in guild {} for {}", event.command.guild_id, describe_user(event.command.get_issuing_user()));
     co_await event.co_reply(ack("ok bye"));
 }
 
@@ -403,7 +402,7 @@ dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
         // Stored empty rather than erased, so the guild keeps saying "off"
         // instead of falling back to the default on the next restart.
         settings_->set(guild, events::goodbye_phrase_key, "");
-        util::log().info("goodbye phrase turned off in guild {} by {}", guild.str(), describe_user(event.command.get_issuing_user()));
+        util::log().info("goodbye phrase turned off in guild {} by {}", guild, describe_user(event.command.get_issuing_user()));
         co_await event.co_reply(ack("the goodbye phrase is off; set one to turn it back on"));
         co_return;
     }
@@ -417,8 +416,7 @@ dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
     }
 
     settings_->set(guild, events::goodbye_phrase_key, wanted);
-    util::log().info("goodbye phrase in guild {} set to \"{}\" by {}", guild.str(), wanted,
-                     describe_user(event.command.get_issuing_user()));
+    util::log().info("goodbye phrase in guild {} set to \"{}\" by {}", guild, wanted, describe_user(event.command.get_issuing_user()));
     co_await event.co_reply(ack(std::format("an administrator saying \"{}\" now stops the bot", wanted)));
 }
 

@@ -5,18 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-268 test cases across 9 components, including 53 sections.
+291 test cases across 9 components, including 53 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 71 | 4 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 59 | 20 |
+| [commands](#commands) | 60 | 20 |
 | [events](#events) | 73 | 13 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
-| [log](#log) | 6 | 0 |
+| [log](#log) | 28 | 0 |
 | [util](#util) | 16 | 1 |
 
 ## db
@@ -140,19 +140,20 @@ Command framework (`src/core/commands`)
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
 | the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
-| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:30](../../tests/unit/command_log_test.cpp#L30) |
-| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:34](../../tests/unit/command_log_test.cpp#L34) |
-| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:41](../../tests/unit/command_log_test.cpp#L41) |
-| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:53](../../tests/unit/command_log_test.cpp#L53) |
-| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:68](../../tests/unit/command_log_test.cpp#L68) |
-| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:75](../../tests/unit/command_log_test.cpp#L75) |
-| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:88](../../tests/unit/command_log_test.cpp#L88) |
-| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:95](../../tests/unit/command_log_test.cpp#L95) |
-| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:107](../../tests/unit/command_log_test.cpp#L107) |
-| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:114](../../tests/unit/command_log_test.cpp#L114) |
-| the option being typed into is found at the top level |  |  | [tests/unit/command_log_test.cpp:139](../../tests/unit/command_log_test.cpp#L139) |
-| the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:147](../../tests/unit/command_log_test.cpp#L147) |
-| nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:163](../../tests/unit/command_log_test.cpp#L163) |
+| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:31](../../tests/unit/command_log_test.cpp#L31) |
+| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:35](../../tests/unit/command_log_test.cpp#L35) |
+| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:42](../../tests/unit/command_log_test.cpp#L42) |
+| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:54](../../tests/unit/command_log_test.cpp#L54) |
+| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:69](../../tests/unit/command_log_test.cpp#L69) |
+| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:76](../../tests/unit/command_log_test.cpp#L76) |
+| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:89](../../tests/unit/command_log_test.cpp#L89) |
+| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:96](../../tests/unit/command_log_test.cpp#L96) |
+| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:108](../../tests/unit/command_log_test.cpp#L108) |
+| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:115](../../tests/unit/command_log_test.cpp#L115) |
+| the option being typed into is found at the top level |  |  | [tests/unit/command_log_test.cpp:140](../../tests/unit/command_log_test.cpp#L140) |
+| the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:148](../../tests/unit/command_log_test.cpp#L148) |
+| nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:164](../../tests/unit/command_log_test.cpp#L164) |
+| a user's id keeps its colour inside name (id) |  |  | [tests/unit/command_log_test.cpp:171](../../tests/unit/command_log_test.cpp#L171) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
@@ -320,6 +321,28 @@ Logging (`src/core/util/log`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| uncoloured output is exactly what std::format would give |  |  | [tests/unit/log_color_test.cpp:48](../../tests/unit/log_color_test.cpp#L48) |
+| text in the format string stays the terminal's own colour |  |  | [tests/unit/log_color_test.cpp:56](../../tests/unit/log_color_test.cpp#L56) |
+| a number is coloured as a number |  |  | [tests/unit/log_color_test.cpp:60](../../tests/unit/log_color_test.cpp#L60) |
+| true and false are coloured differently |  |  | [tests/unit/log_color_test.cpp:67](../../tests/unit/log_color_test.cpp#L67) |
+| a Discord id is coloured as an id |  |  | [tests/unit/log_color_test.cpp:73](../../tests/unit/log_color_test.cpp#L73) |
+| an id already turned into a string is only a string |  |  | [tests/unit/log_color_test.cpp:79](../../tests/unit/log_color_test.cpp#L79) |
+| strings and characters stay plain |  |  | [tests/unit/log_color_test.cpp:87](../../tests/unit/log_color_test.cpp#L87) |
+| a duration has a colour of its own |  |  | [tests/unit/log_color_test.cpp:94](../../tests/unit/log_color_test.cpp#L94) |
+| format specs still apply inside the colour |  |  | [tests/unit/log_color_test.cpp:98](../../tests/unit/log_color_test.cpp#L98) |
+| a format colour cannot pass through falls back to a plain line |  |  | [tests/unit/log_color_test.cpp:106](../../tests/unit/log_color_test.cpp#L106) |
+| a forwarded line's source tag is the coloured part |  |  | [tests/unit/log_color_test.cpp:113](../../tests/unit/log_color_test.cpp#L113) |
+| the default palette is the one that was asked for |  |  | [tests/unit/log_color_test.cpp:122](../../tests/unit/log_color_test.cpp#L122) |
+| paint_to colours only while a coloured line is being formatted |  |  | [tests/unit/log_color_test.cpp:137](../../tests/unit/log_color_test.cpp#L137) |
+| an uncoloured line is the format the log has always had |  |  | [tests/unit/log_color_test.cpp:160](../../tests/unit/log_color_test.cpp#L160) |
+| a coloured line colours the timestamp and the level |  |  | [tests/unit/log_color_test.cpp:166](../../tests/unit/log_color_test.cpp#L166) |
+| each level has its own colour |  |  | [tests/unit/log_color_test.cpp:172](../../tests/unit/log_color_test.cpp#L172) |
+| the colour setting accepts the obvious spellings |  |  | [tests/unit/log_color_test.cpp:185](../../tests/unit/log_color_test.cpp#L185) |
+| colour follows the terminal unless told otherwise |  |  | [tests/unit/log_color_test.cpp:201](../../tests/unit/log_color_test.cpp#L201) |
+| NO_COLOR turns colour off, and an explicit always overrides it |  |  | [tests/unit/log_color_test.cpp:207](../../tests/unit/log_color_test.cpp#L207) |
+| never and always mean exactly that |  |  | [tests/unit/log_color_test.cpp:213](../../tests/unit/log_color_test.cpp#L213) |
+| a replacement sink gets plain text even with colours on |  |  | [tests/unit/log_color_test.cpp:222](../../tests/unit/log_color_test.cpp#L222) |
+| colours are off until something turns them on |  |  | [tests/unit/log_color_test.cpp:235](../../tests/unit/log_color_test.cpp#L235) |
 | level names round trip |  |  | [tests/unit/log_test.cpp:17](../../tests/unit/log_test.cpp#L17) |
 | level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:25](../../tests/unit/log_test.cpp#L25) |
 | messages below the level are dropped |  |  | [tests/unit/log_test.cpp:32](../../tests/unit/log_test.cpp#L32) |

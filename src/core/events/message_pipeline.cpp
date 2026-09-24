@@ -22,13 +22,12 @@ std::vector<action> pipeline::run(const incoming_message& message) const {
     if (message.from_bot && !message.author_is_allowed_bot) {
         // Debug rather than trace: "why did the bot ignore the other bot" is a
         // question worth being able to answer without raising the level twice.
-        util::log().debug("ignoring a message from bot {}, which guild {} has not allowed", message.author_id.str(),
-                          message.guild_id.str());
+        util::log().debug("ignoring a message from bot {}, which guild {} has not allowed", message.author_id, message.guild_id);
         return actions;
     }
 
-    util::log().trace("message {} from {} in channel {}: \"{}\"", message.from_bot ? "(bot)" : "", message.author_id.str(),
-                      message.channel_id.str(), message.content);
+    util::log().trace("message {} from {} in channel {}: \"{}\"", message.from_bot ? "(bot)" : "", message.author_id, message.channel_id,
+                      message.content);
 
     for (const stage& entry : stages_) {
         stage_result result;

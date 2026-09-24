@@ -204,6 +204,27 @@ To keep the output to one file:
 .\build\bin\Release\LatiBot.exe 2> latibot.log
 ```
 
+**Colour.** In a terminal, arguments are coloured by their type — numbers,
+`true` and `false`, Discord ids, durations — along with the timestamp, the
+level, and the `[dpp]` tag on lines forwarded from DPP. The text around them
+stays the terminal's own colour. Callers do nothing for this: the logger sees
+each argument's type and picks the colour itself, which is why ids are logged
+as the snowflake rather than `id.str()`.
+
+| `LATIBOT_LOG_COLOR` | |
+|---|---|
+| `auto` (default) | colour when stderr is a terminal, so a redirected log stays plain |
+| `never` | no colour; `off`, `false` and `0` work too |
+| `always` | colour even into a pipe or a file |
+
+The widely used `NO_COLOR` convention is honoured as well, and an explicit
+`LATIBOT_LOG_COLOR=always` overrides it. Both work from `.env`.
+
+The colours themselves live in code: `palette` in
+[src/core/util/log.hpp](src/core/util/log.hpp) says what each one is, and
+`log_style` in the same file says which type gets which. Colouring another
+type is one specialisation of `log_style`.
+
 ### What it does so far
 
 Phases 1 and 2 are done: the framework, and the features that keep records.

@@ -21,6 +21,10 @@ int main(int argc, char** argv) {
         // populated from this file first).
         latibot::util::load_dotenv(".env");
 
+        // After .env, so LATIBOT_LOG_COLOR set there counts; before anything
+        // else, so every line from here on looks the same.
+        latibot::util::apply_log_colors_from_environment();
+
         // Before the configuration is read, so that reading it is itself
         // logged at the level asked for.
         if (const auto wanted = latibot::config::log_level_from_environment()) {

@@ -59,12 +59,12 @@ pipeline::stage_fn goodbye_stage(const config::guild_settings& settings) {
         // the bot is about to stop, or somebody just found out they cannot
         // stop it, which is the question that otherwise gets asked out loud.
         if (!message.author_is_administrator) {
-            util::log().debug("{} said the goodbye phrase in guild {} without Administrator; ignoring it", message.author_id.str(),
-                              message.guild_id.str());
+            util::log().debug("{} said the goodbye phrase in guild {} without Administrator; ignoring it", message.author_id,
+                              message.guild_id);
             return {};
         }
 
-        util::log().info("{} said the goodbye phrase in guild {}; stopping", message.author_id.str(), message.guild_id.str());
+        util::log().info("{} said the goodbye phrase in guild {}; stopping", message.author_id, message.guild_id);
         return {.actions = {send_message{.channel_id = message.channel_id, .content = std::string(goodbye_reply)},
                             stop_bot{.after = goodbye_delay}},
                 .consumed = true};

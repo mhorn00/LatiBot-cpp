@@ -2,6 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <format>
 #include <string>
 #include <variant>
 #include <vector>
@@ -118,7 +119,7 @@ TEST_CASE("a user is logged by name and id", "[commands]") {
     who.username = "latios";
     who.id = dpp::snowflake{42};
 
-    CHECK(describe_user(who) == "latios (42)");
+    CHECK(std::format("{}", describe_user(who)) == "latios (42)");
 }
 
 // --------------------------------------------------------------------------
@@ -165,4 +166,17 @@ TEST_CASE("nothing focused is nothing to complete", "[commands]") {
 
     CHECK(latibot::commands::focused_option(options) == nullptr);
     CHECK(latibot::commands::focused_option({}) == nullptr);
+}
+
+TEST_CASE("a user's id keeps its colour inside name (id)", "[commands]") {
+    // The most common line in the log is "somebody ran /something", so the
+    // id in it should look like every other id.
+    dpp::user who;
+    who.username = "latios";
+    who.id = dpp::snowflake{42};
+
+    const std::string colored = latibot::util::detail::format_message(true, "{} ran /ping", describe_user(who));
+
+    CHECK(colored == std::format("latios (\x1b[{}m42\x1b[0m) ran /ping", latibot::util::palette.snowflake.sgr));
+    CHECK(latibot::util::detail::format_message(false, "{} ran /ping", describe_user(who)) == "latios (42) ran /ping");
 }

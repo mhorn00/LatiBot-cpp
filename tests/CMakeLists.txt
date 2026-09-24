@@ -25,6 +25,7 @@ add_executable(latibot_tests
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp
     unit/paginator_test.cpp
+    unit/log_color_test.cpp
     unit/log_test.cpp
     unit/ports_test.cpp
     unit/preflight_test.cpp
