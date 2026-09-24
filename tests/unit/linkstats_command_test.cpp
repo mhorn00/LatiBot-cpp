@@ -118,7 +118,7 @@ TEST_CASE("an emoji can be named rather than drawn", "[commands]") {
     CHECK_FALSE(latibot::commands::resolve_emoji(test.reactions, guild, "nothing_like_it").has_value());
 }
 
-TEST_CASE("/linkstats is open to everyone, with aliases in a group", "[commands]") {
+TEST_CASE("link stats are open to everyone, with aliases in a group", "[commands]") {
     fixture test;
     const latibot::commands::linkstats_command command(test.reactions);
 

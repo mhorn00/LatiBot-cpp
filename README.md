@@ -227,7 +227,8 @@ type is one specialisation of `log_style`.
 
 ### What it does so far
 
-Phases 1 and 2 are done: the framework, and the features that keep records.
+Phases 1 to 3 are done: the framework, the features that keep records, and URL
+replacement with its reaction statistics.
 [docs/features/](docs/features/README.md) documents all of this properly —
 options, replies and edge cases.
 
@@ -244,13 +245,23 @@ options, replies and edge cases.
 | `/nickname` | change somebody's nickname, and record who did it |
 | `/nicknames` | every nickname somebody has had here, paginated |
 | `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
+| `/urlrepl` | `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
+| `/urltoggle` | have your own links left alone, or not |
+| `/linkstats` | `top`, `user`, `emojis`, `alias`, `recompute` — reactions on replaced links |
 
 Without being asked: an administrator saying the goodbye phrase stops the bot,
-trigger patterns get weighted replies with a per-channel cooldown, every
-nickname change is recorded with whoever made it, each midnight message posts
-once per local day, the database backs itself up on a schedule, and anything
-the bot lacks permission to do is reported per server at startup as a warning
-rather than an error.
+trigger patterns get weighted replies with a per-channel cooldown, links to
+sites with poor previews are posted again on a mirror that previews properly,
+reactions on those are counted, every nickname change is recorded with
+whoever made it, each midnight message posts once per local day, the database
+backs itself up on a schedule, and anything the bot lacks permission to do is
+reported per server at startup as a warning rather than an error.
+
+URL replacement watches for Discord to actually build the preview rather than
+guessing from a timer, tries each mirror twice before moving on, and when none
+works leaves a **Retry** button instead of deleting its message. Every link in a
+message is handled, spoilers stay spoilered, and each of the Java bot's bugs
+here has a test written against it.
 
 Other bots are ignored unless `/bots allow` says otherwise, and even then a
 trigger only answers one if it was added with `bots:true`. Hearing and answering
@@ -261,14 +272,15 @@ Nickname attribution is the part Discord's own audit log gets wrong: it records
 the bot for anything the bot did. The history records the person instead, and
 says **unknown** rather than guessing when nobody can be named. Dropping the
 Java bot's `nicknames.json` into `data/` imports years of history, timezones
-and all.
+and all; its `UrlReplacements.txt` in the same place becomes each server's URL
+rules, once. `/linkstats recompute` then reads years of channel history back
+into the reaction statistics.
 
 **Still to come** — [the plan](docs/porting/Porting_Plan_Final.md), and
 [what each feature should do](docs/features/Planned.md):
 
 | Phase | Features |
 |---|---|
-| 3 | URL replacement, reaction statistics, the history backfill |
 | 4 | DECtalk speech, `/speak`, custom voices, voice sessions |
 | 5 | the LLM: replies, memory, personality, advanced triggers |
 
@@ -319,7 +331,7 @@ cmake --preset asan; cmake --build build-asan --config Debug; ctest --preset asa
 
 # Fuzzing (runs until stopped; -max_total_time=60 for a short run)
 cmake --preset fuzz; cmake --build build-fuzz --config Debug
-.\build-fuzz\bin\Debug\fuzz_text.exe -max_total_time=60
+.\build-fuzz\bin\Debug\fuzz_url_scan.exe -max_total_time=60      # also fuzz_text, fuzz_legacy_parser
 
 # clang-tidy and clang-format, through the scripts in tools/
 pwsh tools/Invoke-ClangTidy.ps1                  # src/
@@ -416,6 +428,16 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   VS 2026 install (LLVM 22) is new enough; the one in VS 2022 is not, so use
   the 2026 path:
   `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"`.
+- **`IMPORTED_LOCATION not set for imported target "CONAN_LIB::…_RELEASE"
+  configuration "Debug"`** (and the reverse), dozens of times, during a
+  configure of `build/`. This comes from CMake 4.4 answering the codemodel
+  query VS Code's CMake Tools leaves in `build/.cmake/api/v1/query/`: to
+  describe every target for both configurations it asks each of Conan's
+  per-configuration libraries where it lives in the *other* configuration.
+  The generated projects are still correct and configure exits 0, but the
+  first `cmake --build` after a `CMakeLists.txt` edit can finish without
+  compiling newly added files. Build again. A fresh build folder without the
+  query configures cleanly.
 - **To upgrade DPP:** `git -C third_party/DPP fetch --depth 1 origin tag vX.Y.Z`,
   check out that tag, commit the submodule change, then rebuild.
 - **To add a dependency:** add it to `requirements()` in `conanfile.py`, re-run

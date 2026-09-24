@@ -71,6 +71,18 @@ foreach ($file in Get-ChildItem -Path $TestRoot -Recurse -Filter '*.cpp' | Sort-
                 $problems.Add("$relative`:$lineNumber unknown tag(s): [$($unknown -join '][')]")
             }
 
+            # CTest hands each name to the test binary on its command line. On
+            # Windows, Catch2 reads a leading '/' as an option, and anything
+            # outside ASCII is mangled by the console code page, so either one
+            # makes a test that passes when run directly fail under ctest.
+            $name = $match.Groups[1].Value
+            if ($name.StartsWith('/')) {
+                $problems.Add("$relative`:$lineNumber test name starts with '/', which Catch2 on Windows reads as an option")
+            }
+            if ($name -match '[^\x00-\x7F]') {
+                $problems.Add("$relative`:$lineNumber test name has characters outside ASCII, which ctest mangles on Windows")
+            }
+
             $current = [pscustomobject]@{
                 Name      = $match.Groups[1].Value
                 Component = if ($component.Count -ge 1) { $component[0] } else { 'unknown' }
@@ -91,7 +103,7 @@ foreach ($file in Get-ChildItem -Path $TestRoot -Recurse -Filter '*.cpp' | Sort-
 
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Error $_ -ErrorAction Continue }
-    throw "$($problems.Count) tagging problem(s); fix them and re-run."
+    throw "$($problems.Count) problem(s) with test names or tags; fix them and re-run."
 }
 
 $builder = [System.Text.StringBuilder]::new()

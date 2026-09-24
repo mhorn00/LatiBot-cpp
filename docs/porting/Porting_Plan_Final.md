@@ -29,13 +29,14 @@ the order of work behind it.
 | 0 | Build split, tests, tooling, CI, database, config, ports, registry | ✅ done |
 | 1 | Basic commands, goodbye phrase, preflight, pipeline, triggers, panel UI, bot allowlist | ✅ done |
 | 2 | Nicknames, the import, midnight, scheduled backups | ✅ done |
-| 3 | URL replacement, reaction statistics, backfill | ⏳ next |
-| 4 | DECtalk, mixer, voice sessions | ⏳ |
+| 3 | URL replacement, reaction statistics, backfill | ✅ done |
+| 4 | DECtalk, mixer, voice sessions | ⏳ next |
 | 5 | LLM | ⏳ |
 | — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
 
-263 tests pass in Debug, Release and under AddressSanitizer; clang-tidy is
-clean over `src/` and CI is green on every push.
+432 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
+clean over `src/`. Three libFuzzer targets cover the text that arrives from
+people: the text helpers, the URL scanner and the legacy replacement parser.
 
 ---
 
@@ -312,15 +313,14 @@ src/
     version.*
     config/   bootstrap.*  guild_settings.*
     db/       database.*  statement.*  migrations.*  backup.*
-              import_legacy.*                              (phase 3)
     discord/  raw_api.*  dpp_gateway.*  dpp_http_client.*
     commands/ registry.*  basic.*  trigger.*  bots.*  preflight.*
-              nickname.*  midnight.*
-              urlrepl.*  linkstats.*
-              speak.*  voice.*  llm_admin.*                (phases 3-5)
+              nickname.*  midnight.*  urlrepl.*  linkstats.*
+              speak.*  voice.*  llm_admin.*                (phases 4-5)
     events/   message_pipeline.*  goodbye.*  triggers.*  bot_allowlist.*
               nicknames.*  nickname_import.*  midnight.*
-              reaction_tracker.*  url_replacer.*  embed_watch.*  (phase 3)
+              url_rules.*  url_replacer.*  embed_watch.*  replacements.*
+              reactions.*  legacy_replacements.*  backfill.*
     ui/       paginator.*
               panel.*  modal_forms.*                       (when a second panel exists)
     audio/    voice_mixer.*  resample.*  wav.*
@@ -328,8 +328,7 @@ src/
     llm/      provider.hpp  anthropic.*  conversation.*  memory.*
               tools.*  documents.*  responder.*  spend.*   (phase 5)
     ports/    clock.hpp  discord_gateway.hpp  http_client.hpp  tts_engine.hpp
-    util/     log.*  text.*  env.*  ca_certificates.*
-              url_scan.*                                   (phase 3)
+    util/     log.*  text.*  env.*  ca_certificates.*  url_scan.*
 tests/
   unit/  db/  mocks/  support/  fuzz/  live/  fixtures/
 third_party/  DPP/  dectalk/
@@ -393,23 +392,45 @@ trigger_responses(trigger_id -> triggers(id) ON DELETE CASCADE, response, weight
 -- 3: bot allowlist
 allowed_bots(guild_id, bot_id)                           -- PK (guild_id, bot_id)
 triggers.respond_to_bots                                 -- added, default 0
+
+-- 4: nickname_history
+nickname_history(id, guild_id, user_id, nickname NULL, changed_by NULL,
+                 changed_at, source, imported_raw NULL)
+
+-- 5: midnight_messages
+midnight_messages(id, guild_id, channel_id, timezone, message, enabled, last_fired_date NULL)
+
+-- 6: url_replacement
+url_rules(guild_id, domain, position, host, translate_suffix NULL)
+url_opt_outs(guild_id, user_id)
+known_mirrors(guild_id, host, domain)                    -- never pruned (§9.7)
+replacement_messages(message_id PK, guild_id, channel_id, original_message_id NULL,
+                     original_author_id NULL, state, created_at, retried_at NULL)
+                                                  -- state: pending | ok | failed | retrying
+replacement_links(message_id -> replacement_messages, position, original_url,
+                  domain, spoilered)
+
+-- 7: reaction_stats
+reactions(message_id -> replacement_messages, user_id, emoji_key, reacted_at NULL)
+reaction_log(id, message_id, user_id, emoji_key, action, at)    -- live only
+emojis(emoji_key PK, name, animated)
+emoji_aliases(guild_id, emoji_key, canonical_key)
+
+-- 8: backfill_progress
+backfill_progress(guild_id, channel_id, since, until NULL, oldest_scanned_id NULL,
+                  complete, updated_at)
 ```
+
+`replacement_messages` lost the plan's `domain` and `alternate_index` columns
+to `replacement_links`: a replacement carries up to five links, each on its own
+mirror, which one row per message could not describe. `known_mirrors` and
+`emojis` are new: the first so a changed rule does not hide its old messages
+from the backfill, the second because a custom emoji is only an id in
+`reactions` and has to be shown by name.
 
 Planned, refined as each phase lands:
 
 ```sql
-nickname_history(id, guild_id, user_id, nickname NULL, changed_by NULL,
-                 changed_at, source, imported_raw NULL)
-url_rules(guild_id, domain, position, host, translate_suffix NULL)
-url_opt_outs(guild_id, user_id)
-replacement_messages(message_id PK, guild_id, channel_id, original_message_id NULL,
-                     original_author_id NULL, domain, alternate_index,
-                     state, created_at)          -- state: ok | failed | retrying
-reactions(message_id, user_id, emoji_key, reacted_at NULL)
-reaction_log(id, message_id, user_id, emoji_key, action, at)    -- live only
-emoji_aliases(guild_id, emoji_key, canonical_key)
-backfill_progress(guild_id, channel_id, oldest_scanned_id, updated_at)
-midnight_entries(id, guild_id, timezone, channel_id, message, enabled, last_fired_date)
 llm_triggers(id, guild_id, pattern, match_mode, context_prompt, probability,
              cooldown_s, enabled, created_by)
 llm_settings(guild_id, key, value)
@@ -449,7 +470,7 @@ changing it is one line:
 ```
 ignore self / bots this guild has not allowed
 → admin goodbye phrase          (consumes)
-→ URL replacement               (does not consume)          phase 3
+→ URL replacement               (does not consume)
 → simple trigger responses      (does not consume; suppresses advanced triggers)
 → LLM addressed / advanced trigger (consumes)               phase 5
 ```
@@ -521,7 +542,10 @@ Administrator short-circuits the check, since Discord treats it as everything.
 Only the *missing* bits are reported, named rather than printed as a bitmask,
 with unknown bits shown as hex. The list grows as features land:
 `VIEW_AUDIT_LOG` (§8), `MANAGE_NICKNAMES` (§8), `READ_MESSAGE_HISTORY` (§9.7),
-`MANAGE_MESSAGES` (§9.2), `CONNECT` and `SPEAK` (§12).
+`MANAGE_MESSAGES` and `EMBED_LINKS` (§9.2), `CONNECT` and `SPEAK` (§12). Embed
+Links was not on the original list and is the one most worth having there: a
+replacement posted without it shows no preview, which looks exactly like a
+broken mirror.
 
 ---
 
@@ -603,16 +627,26 @@ arrives is fine.
 
 ---
 
-## 9. URL replacement ⏳ (phase 3)
+## 9. URL replacement ✅
 
 The most-used feature, and the one with the most accumulated problems. Each
-reported bug has an identified root cause in the Java source, and each gets a
-failing test before its fix (§17.8).
+reported bug has an identified root cause in the Java source, and each has a
+test written against the behaviour it got wrong (§17.8).
 
-### 9.1 Scanner
+### 9.1 Scanner ✅
 
 CTRE, `ctre::search_all` over the message, host looked up in `url_rules`, output
 spliced using match offsets.
+
+*As built:* `util::find_links` also trims what Discord leaves off a link
+(trailing punctuation, a closing bracket the link did not open) and marks links
+inside code and links written as `<…>`; `plan_replacements` leaves both alone,
+since Discord was never going to embed them. A link is matched by host after
+lowercasing and dropping `www.`, credentials and port. At most five links are
+replaced per message, and links are dropped from the end if the post would pass
+Discord's 2000 characters. `explain_links` gives every link a verdict and
+`plan_replacements` is that list filtered, so the dry run in `/urlrepl test`
+cannot disagree with a real message.
 
 **Bug: multiple links in one message.** The Java regex wrapped the URL pattern
 in greedy `(?<before>.*)` and `(?<after>.*)` groups, so on a message with two
@@ -640,7 +674,7 @@ that sees every message. CTRE compiles the pattern into ordinary C++ at build
 time, so a typo is a compile error, and matching uses no heap. A test still
 feeds 100 KB of URL-like fragments and checks it finishes quickly.
 
-### 9.2 Posting
+### 9.2 Posting ✅
 
 The replacement is a **plain message, never a reply**:
 
@@ -653,7 +687,15 @@ embeds suppressed. Replies were tried during the Java version's development and
 rejected on looks; the bot is fast enough that its message is almost always the
 next one anyway. This is also the format the backfill expects to find (§9.7).
 
-### 9.3 Embed verification
+*As built:* one `🔗 [_](link)` line per link, with the emoji itself rather than
+the `:link:` shortcode (Discord shows the two identically; the Java bot sent the
+emoji too), and the spoiler bars around the link rather than the line. Posting
+comes before suppressing the original, so a post that fails leaves the original
+its preview. Notifications are suppressed and no mention is parsed. The
+suppression is `discord_gateway::set_embeds_suppressed`, a flags-only PATCH,
+which is the one edit Discord allows on somebody else's message.
+
+### 9.3 Embed verification ✅
 
 Polling was the Java approach and produced false failures: it checked 5 seconds
 later, treated `embeds.size() < replaceCount` as failure, retried up to 10 times
@@ -668,7 +710,20 @@ advances to the next attempt and edits our message. Messages with several links
 track each link independently. With coroutines the whole flow is one linear
 function.
 
-### 9.4 Failure and Retry
+*As built:* not one coroutine per message but a state machine,
+`events::embed_tracker`, fed by `on_message_update` and a one-second cluster
+timer, returning what to edit as plain data. That tests with a mock clock and no
+waiting at all, and one timer serves every message. A preview is matched to a
+link by path, since mirrors usually report the original site as their URL,
+with left-over previews going to waiting links in order; several previews with
+one URL (a post with four images) all belong to one link. A preview update can
+overtake the reply to our own post, so updates for a message nobody is watching
+yet are held for thirty seconds (§21.11). If one link of several embeds, the
+replacement counts as working and the others stay on their last mirror. The
+timeout is one constant rather than the per-guild setting §20 suggested; nobody
+has needed another value.
+
+### 9.4 Failure and Retry ✅
 
 When every attempt fails, the Java version deleted its message. Instead:
 
@@ -683,7 +738,13 @@ When every attempt fails, the Java version deleted its message. Instead:
 The state this needs — original message id, link, mirrors tried — lives in
 `replacement_messages`, so Retry still works after a restart.
 
-### 9.5 Management
+*As built:* the links live in `replacement_links`; the mirrors are not stored,
+because Retry uses the rule as it is when pressed, which is usually why
+somebody presses it. The button's answer is the first attempt itself (an
+`UPDATE_MESSAGE` response), so a second press finds the state already
+`retrying` and is told so.
+
+### 9.5 Management ✅
 
 `/urlrepl` with no arguments opens an ephemeral panel: one row per rule with
 the domain and its ordered mirrors, Edit and Delete buttons, Add rule, and
@@ -700,7 +761,17 @@ Java `/toggle` wrote to an in-memory list that reset on restart. A missing rules
 file starts an empty ruleset with a warning rather than throwing at class-load,
 as the Java static initializer did. Webhook mode is gone.
 
-### 9.6 Reaction statistics
+*As built:* a command with subcommands cannot also run bare, so the panel is
+`/urlrepl panel` (§21.13). `test` takes a whole message rather than one URL,
+which is what shows the spoiler and code rules at work. A mirror's translation
+suffix is written on the mirror itself, `fxtwitter.com/en`. The opt-out is its
+own command, `/urltoggle`, because default permissions are per command:
+`/urlrepl` needs Manage Server and opting yourself out should need nothing.
+`UrlReplacements.txt` is imported into each guild once, from beside the
+database, never over an existing rule; a missing file is the ordinary case and
+only means the guild starts with no rules.
+
+### 9.6 Reaction statistics ✅
 
 People-facing stats, in three groups:
 
@@ -726,7 +797,16 @@ likely duplicates by name.
 Live tracking updates `reactions` and appends to `reaction_log` on add and
 remove. Rows are kept forever — the data is wanted and it does not grow fast.
 
-### 9.7 Backfill
+*As built:* `/linkstats top [by] [emoji] [since] [until] [domain]` ranks
+received, given, self, or the emojis themselves, ten a page, with the board's
+filters carried in the buttons' `custom_id`; `/linkstats user` is one person's
+received and given totals with their top three emojis each. Both are public.
+Unicode keys drop U+FE0F, so the two spellings of one heart are one key. Alias
+chains are flattened when written and loops refused, so reading needs a single
+join. Emoji options autocomplete from the emojis actually used, and a bare name
+is looked up the same way.
+
+### 9.7 Backfill ✅
 
 `/linkstats recompute since:<date> [until:<date>] [channel:<#c>]`, admins only,
 to recover years of existing reactions.
@@ -778,6 +858,22 @@ interrupted run resume. **Re-running is safe** — for each scanned message the
 reaction rows are rebuilt from what Discord currently shows. The final report
 gives messages scanned, replacements found, attributed, unattributed, unparsed
 (with ids), and reactions recorded.
+
+*As built:* `recompute start | cancel`, a subcommand group, since Discord will
+not have `recompute` be both a subcommand and a group (§21.13); Manage Server,
+following the user-facing spec. A path mismatch is not accepted: the search
+keeps going, up to ten earlier links, and failing that the replacement is left
+unattributed, counted as such in the report and logged by id (§21.12). Each
+page is read together with the next, so an original just across a page boundary
+is still found, and a reply whose original is further back is fetched. Progress
+is saved per channel for one date range; running the same range again resumes,
+`fresh:true` starts over, and a finished channel is skipped. A reaction lookup
+that fails leaves the message's existing rows alone rather than erasing them. A
+replacement the bot recorded as it posted it keeps its author. Old
+replacements get `replacement_links` too, filed under the site each mirror stood
+in for, so the site filter covers history. Not covered: threads, when no
+channel is named, and super-reactions, which the reactions endpoint lists
+separately and DPP does not ask for.
 
 ---
 
@@ -1215,10 +1311,10 @@ backup taken during an open write transaction that then passes
 
 | Feature | Tests |
 |---|---|
-| URL scanner | multiple links, spoilers, `/en` with query/fragment/slash, unknown domains, opt-outs; 100 KB pathological input under a time limit; `BENCHMARK` |
-| Embed flow | coroutine tests with `mock_discord` + `mock_clock`: success, retry schedule, all-fail → un-suppress + button, retry success → re-suppress |
-| Legacy parser | each of the six formats; format 2 skipped; unknown reported not guessed; the preceding-link rule with chat in between, with no candidate, with a path mismatch |
-| Reaction stats | received / given / self split, alias merge and un-merge, backfill idempotency |
+| URL scanner ✅ | multiple links, spoilers (including the even-length case Java got wrong), `/en` with query/fragment/slash, unknown domains, opt-outs, code and `<link>`; 100 KB pathological input and 50 000 trailing brackets under a time limit; a hidden `BENCHMARK` (`[!benchmark]`); fuzzed |
+| Embed flow ✅ | tracker tests with `mock_clock`: success, the alt1-alt1-alt2-alt2 schedule, per-link tracking, a preview that overtakes the post, all-fail → un-suppress + button, retry success → re-suppress, retry failure; posting and carrying out through `mock_discord` |
+| Legacy parser ✅ | each of the six formats; format 2 skipped; unknown shapes reported not guessed; the preceding-link rule with chat in between, with no candidate, with a nearer link that is not ours, past the candidate limit; fuzzed |
+| Reaction stats ✅ | received / given / self split, alias merge and un-merge, chains flattened, loops refused, date filters for live and backfilled rows, site filter, paging; backfill idempotency, resume, cancel, an unreadable channel, a failed reaction lookup keeping old rows |
 | Nicknames ✅ | pending expectation claimed once and expiring, bot-as-actor never overwrites, first attribution wins, unmatched → unknown, cleared ≠ empty, the window that stops an old identical change being credited. The 10 s fallback itself lives in the shell and is untested (§17.9) |
 | CT import ✅ | CST, CDT, ambiguous 1:30, nonexistent 2:30, pre-2007, idempotent re-import, malformed rows named not dropped |
 | Midnight ✅ | `verdict_for()` across both DST nights, per-timezone firing, no double fire across a restart, a new entry waiting for the next midnight, an overnight gap skipped rather than posted late |
@@ -1290,8 +1386,12 @@ worth naming rather than assuming away:
   tested. What is not tested is that they are hooked to the right events, that
   the guild comes out of the raw frame correctly, or that the delayed fallback
   fires.
-- **The timers.** That the midnight tick and the backup schedule are started
-  at all, and at the right interval.
+- **The timers.** That the midnight tick, the embed tracker's one-second tick
+  and the backup schedule are started at all, and at the right interval.
+- **The URL replacement wiring.** `on_message_update` feeding the tracker,
+  `on_message_delete` forgetting a message, the four reaction events reaching
+  the reaction store, and `recompute`'s list of text channels coming from
+  DPP's cache. Each thing they call is tested; that they are called is not.
 
 These are covered by running the bot rather than by CI, which is the honest
 description. `[live]` tests are where they would go.
@@ -1333,13 +1433,13 @@ simple triggers; paginator and a concrete panel; the bot allowlist (§11.1).
 startup reconciliation, `/nicknames`; midnight; the database backups from §5.2
 are now scheduled.
 
-**Phase 3 — URL replacement** ⏳ next
-CTRE scanner, each Java bug as a failing test first; posting and embed
-verification; failure and Retry; `UrlReplacements.txt` import; reaction
-tracking; `/linkstats` views; emoji aliases; the legacy parser and backfill;
-commands, then the panel.
+**Phase 3 — URL replacement** ✅
+CTRE scanner, each Java bug with a test against it; posting and embed
+verification; failure and Retry; `UrlReplacements.txt` import; commands and the
+panel; reaction tracking; `/linkstats` views; emoji aliases; the legacy parser
+and backfill.
 
-**Phase 4 — voice**
+**Phase 4 — voice** ⏳ next
 DECtalk CMake and dictionary; the streaming spike (FIFO, reset, determinism,
 latency); sanitizer with fuzzing; `/tts stop` and the duration cap; resampler
 and mixer; `/speak`; voice sessions; custom voices and the voice lab; `/chat`
@@ -1378,7 +1478,7 @@ change, not a design decision.
 | 14 | Bot-to-bot pacing | 6 turns, daily cap, human resets | per guild |
 | 14a | Bot allowlist | empty: every bot ignored | per guild, `/bots` |
 | 14b | Trigger answers bots | off | per trigger, `/trigger … bots:` |
-| 15 | Embed timeout | ~6 s per attempt, 2 attempts per mirror | per guild |
+| 15 | Embed timeout | ~6 s per attempt, 2 attempts per mirror | a constant for now (§9.3) |
 | 16 | Simple + advanced trigger on one message | the simple trigger wins | §14.3 |
 | 17 | Goodbye phrase | "say goodbye latibot", Administrator only | per guild, `/goodbye` |
 
@@ -1451,6 +1551,14 @@ panel is concrete, and the part that genuinely is shared — encoding
 the panels have in common is better read off `/urlrepl` and `/llm settings` when
 they exist than guessed at from one example. The panel code will be abstracted
 when the second and third arrive, not before.
+
+The URL rule panel is the second, and it came out the same shape: a menu to
+pick an item, a selection row, and a footer with Add and paging, all state in
+the `custom_id`. Its routing sits beside the trigger panel's as
+`on_url_component` and `on_trigger_component`, each claiming its own view
+names. What a shared version would take is now visible — a list, a way to
+describe one item, and the buttons for a selected one — and `/llm settings` is
+the example that decides whether that is enough.
 
 ### 21.6 Formatting and generated files interact
 
@@ -1525,3 +1633,63 @@ the local day, and a day past it is skipped.
 The general lesson: "once per day" is two questions, not one. A day that has
 not started yet and a day that is nearly over both need an answer, and neither
 is the answer for an ordinary day.
+
+### 21.11 A preview can arrive before the message it belongs to
+
+§9.3 has the embed tracker start watching once the post returns our message's
+id. But Discord builds the preview on its own schedule, and the
+`MESSAGE_UPDATE` carrying it arrives on the gateway, while the reply to the post
+arrives over REST. When the preview is quick the update can win, reach a
+tracker that has never heard of the message, and be dropped — after which the
+tracker waits six seconds and "retries" a link that already worked.
+
+So an update for a message nobody is watching is held for thirty seconds, up to
+256 of them, and a new watch starts by absorbing any it finds. Every message
+update in every guild passes through, and almost none of them are ours, which
+is why the buffer is bounded both ways and holds only updates that carry
+previews. The general point: two channels from one service are not ordered
+relative to each other, and "I asked, then it happened" is not the order the
+events arrive in.
+
+### 21.12 The nearest link is not always the right link
+
+§9.7 said to take the first earlier message with a link and log a mismatch
+between its path and ours. Building it made the cost of that plain: a mismatch
+means somebody posted a link between the original and the bot's answer, and
+accepting it credits every reaction to the wrong person, silently apart from a
+log line. That is a wrong number on a leaderboard, not noise.
+
+So a mismatch is not accepted. The search continues past it, up to ten earlier
+links, and takes the first whose path matches; failing that the replacement is
+left unattributed, counted as a mismatch in the report and logged by id, and
+its reactions still count as given. A link to a site's front page matches
+nothing, since its empty path would match every other one. The rule the plan
+wrote down is still the rule for the common case — the nearest link *is* the
+original nearly every time — it just is not trusted when it disagrees.
+
+### 21.13 A command with subcommands cannot also run bare
+
+Two designs assumed shapes Discord does not allow. `/urlrepl` on its own was to
+open the panel, but a command with subcommands must be given one, so it is
+`/urlrepl panel`. `/linkstats recompute since:…` and `/linkstats recompute
+cancel` would make `recompute` a subcommand and a group at once, which is
+refused, so it is `recompute start` and `recompute cancel`. Default member
+permissions are per command as well, not per subcommand, which is why opting
+out is `/urltoggle` rather than a subcommand of the Manage Server `/urlrepl`,
+and why `/linkstats`, open to everyone, checks Manage Server itself for its
+alias and recompute subcommands.
+
+### 21.14 CMake 4.4 and VS Code's File API query
+
+Configuring `build/` began printing dozens of
+`IMPORTED_LOCATION not set for imported target "CONAN_LIB::…_RELEASE"
+configuration "Debug"` errors, and the reverse, while a fresh build folder
+configured cleanly with the same cache. The difference was
+`build/.cmake/api/v1/query/client-vscode`: VS Code's CMake Tools asks for the
+codemodel, and CMake 4.4 answering it asks each of Conan's per-configuration
+imported libraries where it lives in the other configuration, which it cannot
+say. The generated projects are unaffected and configure exits 0; the visible
+cost is that the first `cmake --build` after a `CMakeLists.txt` edit can skip
+newly added files, and a second build picks them up. Left alone rather than
+worked around in our CMake, since the fix belongs to Conan's `CMakeDeps` or to
+CMake; the README's notes describe it.

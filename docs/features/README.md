@@ -26,16 +26,21 @@ the design and the order of work behind it are in
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record |
 | 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here |
 | 🌙 | [`/midnight`](#midnight) | Post a message at midnight |
+| 🔗 | [`/urlrepl`](#urlrepl) | Choose which links get posted again with a working preview |
+| 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone |
+| 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command |
 | 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised |
+| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly |
+| 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways |
 | 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
-answer. Two exceptions, both called out below: `/say` posts a separate public
-message, and [`/nicknames`](#nicknames) answers publicly, because a nickname
-history is something a room reads together.
+answer. The exceptions are called out below: `/say` posts a separate public
+message, and [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats)
+views answer publicly, because those are things a room reads together.
 
 **Who may run what** is set as Discord's *default member permission*. Server
 admins can override any of it per role or per channel in
@@ -384,6 +389,184 @@ afternoon does not post it half a minute later.
 `edit` changes only what is given, and never disturbs the date an entry last
 posted for — otherwise fixing a typo would post it again the same day.
 
+### `/urlrepl`
+
+Manages which sites' links are posted again on a mirror. See
+[URL replacement](#url-replacement) for what happens to a link.
+
+| | |
+|---|---|
+| **Who** | Manage Server, by default |
+| **Where** | servers only |
+| **Bot needs** | Send Messages, Embed Links, Manage Messages |
+
+A **rule** is a site and its mirrors, in the order to try them. A mirror is a
+host, optionally followed by a path that is added to every link — `/en`, for
+mirrors that translate a post when asked. So `fxtwitter.com/en` is fxtwitter
+with translation on, and needs no option of its own.
+
+| Subcommand | Options | Reply |
+|---|---|---|
+| `list` | none | The rules, five a page: **x.com** → fxtwitter.com/en, vxtwitter.com |
+| `set` | `domain` (required, autocompleted) · `mirrors` (required) | `Added: links to x.com now go to fxtwitter.com/en, vxtwitter.com`, or `Updated: …` |
+| `remove` | `domain` (required, autocompleted) | `Links to x.com will be left alone from now on.` |
+| `test` | `text` (required: a whole message, or just a link) | A dry run, below |
+| `panel` | none | The rules with editing attached, below |
+
+`set` replaces a site's whole list, which is also how reordering works.
+`mirrors` may be separated by spaces, commas or new lines. The site is reduced
+to what links are matched by, so `https://www.X.com/home` sets the rule for
+`x.com`. `domain` suggests the sites that already have a rule, which is most of
+what makes `remove` usable. A rule that could not work is refused with the
+reason:
+
+| Refused | Because |
+|---|---|
+| `a rule needs at least one mirror to send links to` | no mirrors |
+| `x.com can't be its own mirror` | a mirror that is the site itself would "replace" a link with the same link |
+| `"localhost" doesn't look like a site; …` / `"abc" doesn't look like a mirror; …` | no dot in it |
+| `that's 9 mirrors; 8 is the most one rule takes` | each mirror gets two tries of six seconds; nobody waits for more |
+
+A mirror listed twice is kept once, in its first place.
+
+**`test`** posts nothing. It shows the message the bot would post, as text, and
+then what happened to **every** link in what you gave it and why:
+
+```
+Would post:
+🔗 ||[_](https://fxtwitter.com/a/status/1)||
+- https://x.com/a/status/1: replaced using the x.com rule, trying fxtwitter.com, vxtwitter.com (spoilered, so the replacement is too)
+- https://example.com/b: no rule for example.com
+- https://x.com/c: written as <link>, which turns its preview off
+```
+
+It is the same code the real thing runs, so the two cannot disagree. If you
+have opted out with [`/urltoggle`](#urltoggle) it says so, since that would
+explain a link of yours being left alone.
+
+**`panel`** lists a page of rules with a menu to pick one, then **Edit** and
+**Delete** for it, and **Add rule** with paging on the last row. Edit and Add
+open a form with the site and **the mirrors one per line** in the order they
+are tried, so reordering is rewriting lines; changing the site renames the rule
+rather than adding a second one. Delete asks to confirm in the panel itself.
+Like the trigger panel it keeps nothing on the bot's side, survives restarts,
+and is ephemeral.
+
+`/urlrepl` needs a subcommand; Discord does not let a command with
+subcommands run without one, so the panel is `/urlrepl panel` rather than
+`/urlrepl` on its own.
+
+### `/urltoggle`
+
+Stops the bot replacing your links in this server, or starts it again.
+
+| | |
+|---|---|
+| **Options** | `user` (optional — somebody else, which needs Manage Server) |
+| **Who** | everyone, for themselves |
+| **Where** | servers only |
+| **Bot needs** | nothing |
+
+| Situation | Reply |
+|---|---|
+| Opting yourself out | `Your links will be left alone here from now on. Run this again to undo it.` |
+| Opting back in | `Your links will be replaced again.` |
+| For somebody else | `Links from @worm will be left alone from now on.` (nobody is pinged) |
+| For somebody else, without Manage Server | `changing that for somebody else needs Manage Server` |
+
+The choice is **kept**, per server. The Java bot's `/toggle` kept it in memory,
+so every restart quietly undid everyone's choice, and it let anyone toggle
+anyone.
+
+### `/linkstats`
+
+Reactions on the bot's replacement messages. See
+[Reaction statistics](#reaction-statistics) for what is counted.
+
+| | |
+|---|---|
+| **Who** | everyone for the views; Manage Server for aliases and `recompute` |
+| **Where** | servers only |
+| **Bot needs** | Send Messages, and Read Message History for `recompute` |
+
+The views answer **publicly**, and nobody is pinged by appearing in one.
+
+#### `/linkstats top`
+
+A leaderboard, ten a page with ◀ / ▶ that anybody can use.
+
+| Option | Meaning |
+|---|---|
+| `by` | **Reactions received** (default), **Reactions given**, **Reactions to your own links**, or **Most used emojis** |
+| `emoji` | Only this emoji. Autocompleted from the ones used here; typing a name like `skull` also works |
+| `since` / `until` | `YYYY-MM-DD`, in UTC. `until` includes the day typed |
+| `domain` | Only links to this site. Autocompleted |
+
+```
+Most 💀 received on replaced x.com links since 2025-01-01
+1. @worm 42
+2. @latios 17
+```
+
+#### `/linkstats user`
+
+One person — you, unless `user` names somebody — with the same date and site
+filters:
+
+```
+Link stats for @worm
+Reactions received: 120 (💀 40, 😂 30, 🔥 12)
+Reactions given: 80 (💀 25, 😭 20, 👀 9)
+Reacted to their own links: 5 times
+```
+
+#### `/linkstats emojis`
+
+Custom emojis that share a name — usually one emote uploaded twice, or deleted
+and uploaded again, which Discord treats as a brand new emoji. Each group is a
+candidate for an alias.
+
+#### `/linkstats alias`
+
+| Subcommand | Options | Reply |
+|---|---|---|
+| `add` | `emoji` · `as` (both required, autocompleted) | `💀 counts as ☠️ now, in every statistic back to the start.` |
+| `remove` | `emoji` | `💀 counts as itself again.` |
+| `list` | none | Every alias here |
+
+Aliases apply **when statistics are read**, so adding one changes all of
+history at once and removing it puts history back. An alias of an alias is
+pointed straight at the end of the chain, and one that would make two emojis
+count as each other is refused.
+
+#### `/linkstats recompute`
+
+Reads channel history back into the statistics, so they start with years of
+reactions rather than from the day the bot began counting.
+
+| Subcommand | Options |
+|---|---|
+| `start` | `since` (required, `YYYY-MM-DD`) · `until` · `channel` (every text channel if left out) · `fresh` |
+| `cancel` | none |
+
+It replies `Started. Progress goes in this channel.` and posts a progress
+message there, updated every five hundred messages; an interaction's reply
+stops being editable after fifteen minutes, and a recompute can take hours.
+The finished message reports channels, messages scanned, replacements found,
+how many were credited to whoever posted the link and how many were not, any
+webhook replacements skipped, reactions recorded, the ids of anything it did
+not understand, and any channel it could not read.
+
+**It is safe to run again.** Each replacement's reactions are rebuilt to match
+what Discord shows now rather than added to, and a reaction the bot saw being
+added keeps the time it saw. How far it got is saved per channel, so running it
+again with the same dates carries on from where it stopped — after
+`cancel`, or a restart — and `fresh:true` starts every channel over. One runs
+per server at a time. Threads are not scanned.
+
+What it recognises, and how it finds whose link each one was, is under
+[Reaction statistics](#reaction-statistics).
+
 ---
 
 ## Passive behaviour
@@ -429,7 +612,7 @@ does not bring them back on the next restart.
 - **Weights** are relative: with `3 | nice` and `very nice`, the first is three
   times as likely.
 - Triggers **do not consume the message**. One containing both `420` and a link
-  will get the reply *and* the link replacement once that exists — the Java
+  gets the reply *and* the [link replacement](#url-replacement) — the Java
   version's early `return` meant it got only the first of those.
 
 **Other bots are ignored unless the server allows them.** Two bots answering
@@ -440,6 +623,117 @@ answering are deliberately two decisions: a server-wide "I'll listen to DiceBot"
 should not turn every existing trigger loose on it.
 
 The bot never answers itself, and no setting changes that.
+
+### URL replacement
+
+When somebody posts a link to a site with a [rule](#urlrepl) — x.com,
+tiktok.com, reddit.com, instagram.com — the bot posts it again on a mirror that
+previews properly, and turns the preview on the original off.
+
+The replacement is a **plain message, never a reply**, with notifications
+suppressed and one line per link:
+
+```
+🔗 [_](https://fxtwitter.com/somebody/status/1)
+🔗 ||[_](https://tfxktok.com/@somebody/video/2)||
+```
+
+- **Every link** in a message is handled, up to five. The Java version found
+  the first and silently ignored the rest.
+- **A spoilered link stays spoilered.** The Java version's spoiler check had
+  never worked: it was really testing whether the text around the link had an
+  even number of characters.
+- **A link to a site without a rule is skipped on its own.** In the Java
+  version one such link stopped every other replacement in the message.
+- **Query strings, fragments and trailing slashes survive**, and a mirror's
+  `/en` goes on the path where it belongs.
+- **Some links are left alone on purpose:** ones written as `<https://…>`,
+  which is how you ask Discord for no preview; ones inside `code`; the same
+  link twice; messages from bots; messages whose author already turned their
+  previews off; and anybody who opted out with [`/urltoggle`](#urltoggle).
+
+**The bot watches for the preview to actually appear.** Discord adds a link's
+preview a moment after the message is posted, and the bot waits for that
+rather than checking after a fixed delay. Each mirror gets **two tries of
+about six seconds**, then the next mirror; each link in a message is followed
+on its own, so one slow link does not hold up the rest. The Java version looked
+five seconds later and compared a count, so a slow network looked exactly like
+failure.
+
+**When no mirror works**, the bot does not delete its message. The original's
+own preview is turned back on, and the bot's message becomes a short note with
+its own previews off and a **Retry** button:
+
+```
+🔗 couldn't get a preview for that link from fxtwitter.com or vxtwitter.com. The
+original's own preview is back; press Retry to try the mirrors again.
+```
+
+**Anyone can press Retry.** It tries each mirror once, using the rule as it is
+now — so fixing a rule and pressing Retry works. If a preview appears, the
+replacement comes back and the original's preview goes off again; if not, the
+note and the button stay. The button keeps working after a restart. If just one
+of several links works, the message counts as working and the others stay on
+their last mirror.
+
+Turning the original's preview off needs **Manage Messages**; without it the
+replacement still posts and both previews show. Our message's preview needs
+**Embed Links**. Both are named at startup if missing.
+
+#### Rules from the Java bot
+
+If `UrlReplacements.txt` from the old bot is left next to the database — at
+`data/UrlReplacements.txt` — its rules are copied into each server the first
+time the bot sees it there. A rule the server already has is never
+overwritten, and a server is only ever imported once, so deleting a rule later
+is not undone by the next restart. Without the file, a server starts with no
+rules and [`/urlrepl set`](#urlrepl) adds them.
+
+### Reaction statistics
+
+Reactions on the bot's replacement messages are counted three ways:
+
+- **Received** — credited to whoever **posted the original link**. "Who gets
+  the most 💀."
+- **Given** — the same reactions, credited to **whoever reacted**. "Your top
+  three reactions."
+- **Self** — reacting to your own link. Recorded, **left out of both of the
+  above**, and counted on its own.
+
+Reactions are counted as they happen, including removals and a moderator
+clearing them, and kept forever. `❤` and `❤️` are the same heart whichever
+keyboard typed it. Custom emojis that should count as one can be merged with
+[aliases](#linkstats-alias).
+
+**History.** [`/linkstats recompute`](#linkstats-recompute) recovers the
+reactions on replacements the bot posted before it started counting — years of
+them. It recognises all six shapes the bot's replacements have had:
+
+| Shape | Whose link it was |
+|---|---|
+| A copy of the original message, as a reply | the message it replied to |
+| Webhook mode, posted as the member | skipped: the original was deleted, so there is nobody to credit |
+| A copy of the original, as a plain message | the nearest earlier link, below |
+| `[.](link)` | likewise |
+| `🔗 [.](link)` | likewise |
+| `🔗 [_](link)`, today's format | likewise |
+
+A message counts when the bot wrote it and it links to a mirror any rule has
+ever used — mirrors are remembered after a rule changes, so old messages are
+still recognised. Anything that looks like a replacement but matches none of
+these is **reported with its id, never guessed at**.
+
+**Finding who posted the link:** the nearest earlier message with a link,
+skipping bots and chat in between — the bot answers in a second or two, so
+that is nearly always the one. The link's path must match the replacement's.
+If the nearest link is somebody else's, the bot keeps looking a little further
+back; if nothing matches, the replacement is left **uncredited** and reported,
+rather than credited to the wrong person. An uncredited replacement's
+reactions still count as *given*.
+
+One limit is Discord's rather than a choice: **Discord does not say when a
+reaction was added.** Recovered reactions know who and which emoji, but not
+when, so date filters use the message's own date for them.
 
 ### Nickname tracking
 
@@ -531,9 +825,11 @@ itself: a server missing one permission loses one feature there, not the whole
 bot.
 
 The warning names the missing permissions and what they were for, for example
-`missing Send Messages for replying to messages`. Only what is actually missing
-is reported, and a server that granted Administrator is never warned about
-anything, since Discord treats it as everything.
+`missing Send Messages for replying to messages` or
+`missing Manage Messages for turning off the original preview when a link is
+replaced`. Only what is actually missing is reported, and a server that granted
+Administrator is never warned about anything, since Discord treats it as
+everything.
 
 Nothing is posted to Discord — this goes to the bot's own log.
 
@@ -543,9 +839,9 @@ Nothing is posted to Discord — this goes to the bot's own log.
 
 Not user-facing, but worth knowing when something looks wrong.
 
-**Settings are per server.** The goodbye phrase, triggers and the bot allowlist
-are all stored per server, in a SQLite database at `data/bot.db`. Two servers
-never see each other's anything.
+**Settings are per server.** The goodbye phrase, triggers, the bot allowlist,
+URL rules, opt-outs and emoji aliases are all stored per server, in a SQLite
+database at `data/bot.db`. Two servers never see each other's anything.
 
 **The database upgrades itself** on startup, in a transaction. A failed upgrade
 rolls back and keeps the previous version rather than leaving a half-migrated
@@ -591,7 +887,6 @@ In order, with the detail in [Planned.md](Planned.md):
 
 | Phase | Features |
 |---|---|
-| 3 | URL replacement · reaction statistics · the history backfill |
 | 4 | DECtalk speech · `/speak` · custom voices · voice sessions |
 | 5 | The LLM: replies, memory, personality, advanced triggers |
 | Later | Music · emote statistics · appearance tracking |

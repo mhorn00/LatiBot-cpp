@@ -186,7 +186,7 @@ Command framework (`src/core/commands`)
 | a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:87](../../tests/unit/linkstats_command_test.cpp#L87) |
 | a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:96](../../tests/unit/linkstats_command_test.cpp#L96) |
 | an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:105](../../tests/unit/linkstats_command_test.cpp#L105) |
-| /linkstats is open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:121](../../tests/unit/linkstats_command_test.cpp#L121) |
+| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:121](../../tests/unit/linkstats_command_test.cpp#L121) |
 | a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:134](../../tests/unit/linkstats_command_test.cpp#L134) |
 | recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:176](../../tests/unit/linkstats_command_test.cpp#L176) |
 | a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:195](../../tests/unit/linkstats_command_test.cpp#L195) |
@@ -501,7 +501,7 @@ Utilities (`src/core/util`, `src/core/version`)
 | trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:86](../../tests/unit/url_scan_test.cpp#L86) |
 | a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:93](../../tests/unit/url_scan_test.cpp#L93) |
 | an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |
-| a link written as <…> is marked as having its preview turned off |  |  | [tests/unit/url_scan_test.cpp:105](../../tests/unit/url_scan_test.cpp#L105) |
+| a link in angle brackets is marked as having its preview turned off |  |  | [tests/unit/url_scan_test.cpp:105](../../tests/unit/url_scan_test.cpp#L105) |
 | links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:112](../../tests/unit/url_scan_test.cpp#L112) |
 | a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:134](../../tests/unit/url_scan_test.cpp#L134) |
 | the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:139](../../tests/unit/url_scan_test.cpp#L139) |

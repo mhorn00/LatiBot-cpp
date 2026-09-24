@@ -102,7 +102,7 @@ TEST_CASE("an underscore at the end of a link is kept", "[util]") {
     CHECK(urls_in("https://x.com/somebody_") == std::vector<std::string_view>{"https://x.com/somebody_"});
 }
 
-TEST_CASE("a link written as <…> is marked as having its preview turned off", "[util]") {
+TEST_CASE("a link in angle brackets is marked as having its preview turned off", "[util]") {
     const auto links = find_links("no preview please <https://x.com/a/status/1>");
     REQUIRE(links.size() == 1);
     CHECK(links[0].embed_suppressed);

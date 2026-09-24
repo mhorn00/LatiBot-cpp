@@ -136,12 +136,24 @@ hash and sample count, and write the `.wav` next to it so a difference can be
 listened to rather than guessed at.
 
 **Fuzz targets** live in `tests/fuzz/` and are built by the `fuzz` preset.
-They exist for the parsers that read untrusted text: the URL scanner, the
-DECtalk sanitizer, the legacy message parser.
+They exist for the parsers that read untrusted text: `fuzz_text` for the text
+helpers, `fuzz_url_scan` for the link scanner and replacement planning, and
+`fuzz_legacy_parser` for recognising the bot's old replacements; the DECtalk
+sanitizer joins them in phase 4. Each checks invariants rather than just
+"did not crash" — the scanner's links are in order, inside the text and
+exactly what their offsets say, and spoilered exactly when an odd number of
+markers precede them.
 
 ```powershell
 cmake --preset fuzz; cmake --build build-fuzz --config Debug
-.\build-fuzz\bin\Debug\fuzz_text.exe -max_total_time=60
+.\build-fuzz\bin\Debug\fuzz_url_scan.exe -max_total_time=60
+```
+
+**Benchmarks** are hidden tests tagged `[!benchmark]` and `[.]`, so neither
+CTest nor a plain run of the binary includes them. Run one by name or tag:
+
+```powershell
+.\build\bin\Release\latibot_tests.exe "[!benchmark]"
 ```
 
 **Live tests** are tagged `[live]`, excluded by every test preset, and need
@@ -154,7 +166,11 @@ answer: modal behaviour, audit-log timing, whether embeds actually appear.
 
 - **Name a test after the behaviour it pins down**, as a statement:
   "a failing migration rolls back and keeps the previous version". The name is
-  what a failure prints, so it should say what is broken.
+  what a failure prints, so it should say what is broken. Keep it plain ASCII
+  and do not start it with `/`: CTest passes the name on the command line,
+  where Catch2 on Windows reads a leading `/` as an option and the console
+  mangles anything else, so the test passes when run directly and fails under
+  `ctest`. The catalog script refuses both.
 - **One behaviour per test.** Use `SECTION` for variations that share setup.
 - **Say why, not what, in comments.** The code shows what is asserted; a
   comment earns its place by explaining why the behaviour matters, especially
@@ -249,17 +265,25 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
   - `on_component` and `on_form` route a panel's buttons, select menus and
     modal submissions by view name, which is branching logic with no test
     behind it. The pure parts they call — `ui::decode`, `apply_form`,
-    `render_trigger_panel`, `render_nickname_history` — are tested; the
-    routing between them is not. If a third panel arrives and the chain grows
-    again, the routing should move into a function that takes a decoded
-    `page_state` and returns what to render, which is testable without an
-    interaction.
+    `build_rule`, `decode_board`, `plan_retry`, and every `render_*` — are
+    tested; the routing between them is not. With the URL rule panel it was
+    split per panel (`on_trigger_component`, `on_url_component`), each
+    claiming its own view names. If `/llm settings` makes a third, the routing
+    should move into a function that takes a decoded `page_state` and returns
+    what to render, which is testable without an interaction.
   - The nickname handlers. `is_new_nickname`, `describes`, `may_attribute` and
     `audit_nickname` are pure and tested; that they are hooked to the right
     events, that the guild is read correctly out of an audit entry's raw
     frame, and that the delayed audit-log fallback fires, are not.
-  - The timers. That the midnight tick and the backup schedule are started at
-    all, and at the intervals configured.
+  - The timers. That the midnight tick, the embed tracker's one-second tick
+    and the backup schedule are started at all, and at the intervals
+    configured.
+  - The URL replacement wiring. The tracker, the reaction store and the
+    backfill are tested against the mocks; that `on_message_update`,
+    `on_message_delete` and the four reaction events reach them, and that
+    `recompute` is handed the right text channels from DPP's cache, is not.
+    Whether a given mirror actually produces a preview is a question only
+    real Discord answers, which is what `[live]` tests are for.
 - **`dpp_gateway`, `dpp_http_client` and `raw_api` are only partly tested.**
   Their pure parts (endpoint building) have tests; the parts that call DPP do
   not, because there is no cluster to call. They are deliberately thin
