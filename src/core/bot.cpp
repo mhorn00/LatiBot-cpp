@@ -664,6 +664,12 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
         event.reply(dpp::ir_update_message, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state->page));
     } else if (state->view == events::url_retry_view) {
         retry_replacement(event, dpp::snowflake(state->argument), who);
+    } else if (state->view == commands::board_view) {
+        // The board's filters ride in the argument, so every page is the
+        // same board as the first.
+        if (const auto board = commands::decode_board(state->argument)) {
+            event.reply(dpp::ir_update_message, commands::render_board(reactions_, guild, board->first, board->second, state->page));
+        }
     } else if (!on_trigger_component(event, *state, chosen, who) && !on_url_component(event, *state, chosen, who)) {
         util::log().debug("no panel handles the view \"{}\"", state->view);
     }

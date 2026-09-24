@@ -187,12 +187,17 @@ TEST_CASE("with no matching link the replacement stays unattributed", "[events]"
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
 
     SECTION("no earlier link at all") {
-        CHECK_FALSE(attribute(ours, recognised(ours), {}, bot).author_id.has_value());
+        const auto found = attribute(ours, recognised(ours), {}, bot);
+        CHECK_FALSE(found.author_id.has_value());
+        // Nothing to report: there was nothing it could have been.
+        CHECK_FALSE(found.mismatched);
     }
 
-    SECTION("only other links") {
+    SECTION("only other links, which is reported rather than accepted") {
         const std::vector<history_message> older{from_person(bob, "https://x.com/b/status/2", dpp::snowflake{890})};
-        CHECK_FALSE(attribute(ours, recognised(ours), older, bot).author_id.has_value());
+        const auto found = attribute(ours, recognised(ours), older, bot);
+        CHECK_FALSE(found.author_id.has_value());
+        CHECK(found.mismatched);
     }
 
     SECTION("the match is too far back to be the one answered") {

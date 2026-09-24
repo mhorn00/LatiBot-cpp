@@ -53,6 +53,10 @@ struct backfill_report {
     std::int64_t replacements = 0;
     std::int64_t attributed = 0;
     std::int64_t unattributed = 0;
+
+    /// Of the unattributed: an earlier link was there, but its path did not
+    /// match, so it was reported rather than accepted (plan v4 §9.7).
+    std::int64_t mismatched = 0;
     std::int64_t webhooks_skipped = 0;
     std::int64_t reactions = 0;
 

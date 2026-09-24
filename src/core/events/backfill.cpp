@@ -5,6 +5,7 @@
 #include "core/ports/clock.hpp"
 #include "core/ports/discord_gateway.hpp"
 #include "core/util/log.hpp"
+#include "core/util/url_scan.hpp"
 
 #include <algorithm>
 #include <format>
@@ -29,6 +30,27 @@ void note(backfill_report& report, std::string problem) {
     if (report.problems.size() < problem_limit) {
         report.problems.push_back(std::move(problem));
     }
+}
+
+/// The links an old replacement carried, with the site each mirror stood in
+/// for, which is what lets the statistics be filtered by site.
+///
+/// The original link is not known for every format, so these hold the
+/// mirror link as posted; nothing retries an old replacement, so nothing
+/// needs the original.
+std::vector<planned_link> links_of(const legacy_match& match, const mirror_map& mirrors) {
+    std::vector<planned_link> links;
+    for (const std::string& url : match.mirror_urls) {
+        const auto parts = util::split_url(url);
+        if (!parts) {
+            continue;
+        }
+        const auto site = mirrors.find(util::rule_host(parts->authority));
+        if (site != mirrors.end()) {
+            links.push_back({.original_url = url, .domain = site->second, .spoilered = false, .mirrors = {}});
+        }
+    }
+    return links;
 }
 
 /// How the reactions endpoint wants an emoji: itself, or `name:id`.
@@ -306,6 +328,15 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
         if (found.skipped_a_link) {
             util::log().debug("link stats recompute: message {} answered a link further back than the nearest one", message.id);
         }
+        if (found.mismatched && !found.author_id) {
+            // Reported rather than accepted (plan v4 §9.7): crediting the
+            // nearest link regardless would credit the wrong person.
+            ++report.mismatched;
+            util::log().info(
+                "link stats recompute: message {} in channel {} follows links that are not the one it replaced; left "
+                "unattributed",
+                message.id, scan.channel_id);
+        }
 
         author = found.author_id;
         replacements_->record({.message_id = message.id,
@@ -316,7 +347,7 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
                                .state = replacement_state::ok,
                                .created_at = created_at(message.id),
                                .retried_at = std::nullopt,
-                               .links = existing ? existing->links : std::vector<planned_link>{}});
+                               .links = existing && !existing->links.empty() ? existing->links : links_of(match, *scan.mirrors)});
     }
 
     if (author) {

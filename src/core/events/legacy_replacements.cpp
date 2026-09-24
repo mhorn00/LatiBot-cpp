@@ -230,6 +230,7 @@ attribution attribute(const history_message& message, const legacy_match& match,
         }
     }
 
+    found.mismatched = candidates > 0;
     return found;
 }
 

@@ -5,6 +5,7 @@
 #include "core/db/migrations.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
+#include "core/ui/paginator.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -59,7 +60,7 @@ TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
 
 TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
     fixture test;
-    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received});
+    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received}).content;
 
     CHECK(text.starts_with("**Most reactions received on replaced links**"));
     CHECK(text.find("1. <@11> 2") != std::string::npos);
@@ -69,7 +70,7 @@ TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
 
 TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]") {
     fixture test;
-    const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received});
+    const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
 
     CHECK(text.find("💀 1") != std::string::npos);
     CHECK(text.find("<:skull:77> 1") != std::string::npos);
@@ -78,7 +79,8 @@ TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]")
 
 TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
     fixture test;
-    const std::string text = latibot::commands::render_board(test.reactions, dpp::snowflake{5}, board::given, {.kind = stat_kind::given});
+    const std::string text =
+        latibot::commands::render_board(test.reactions, dpp::snowflake{5}, board::given, {.kind = stat_kind::given}).content;
     CHECK(text.find("/linkstats recompute") != std::string::npos);
 }
 
@@ -96,7 +98,7 @@ TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
     const latibot::events::stat_query query{.kind = stat_kind::received,
                                             .since = std::chrono::sys_days{std::chrono::year{2026} / 1 / 1},
                                             .until = std::chrono::sys_days{std::chrono::year{2026} / 2 / 1}};
-    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, query);
+    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, query).content;
     CHECK(text.find("since 2026-01-01 until 2026-01-31") != std::string::npos);
 }
 
@@ -188,6 +190,93 @@ TEST_CASE("recompute is its own group, with a required start date", "[commands]"
 
     // Reading history is what a recompute does; the permission check names it.
     CHECK((command.info().required_bot_permissions & dpp::p_read_message_history) != 0);
+}
+
+TEST_CASE("a long leaderboard pages, and every page is the same board", "[commands]") {
+    fixture test;
+    // Twelve more posters, each with one skull from Bob.
+    for (std::uint64_t index = 0; index < 12; ++index) {
+        const dpp::snowflake message{600 + index};
+        test.replacements.record({.message_id = message,
+                                  .guild_id = guild,
+                                  .channel_id = dpp::snowflake{2},
+                                  .original_message_id = std::nullopt,
+                                  .original_author_id = dpp::snowflake{100 + index},
+                                  .state = latibot::events::replacement_state::ok,
+                                  .created_at = day_one,
+                                  .retried_at = std::nullopt,
+                                  .links = {}});
+        test.reactions.add(message, bob, reaction_emoji({}, "💀"), day_one);
+    }
+
+    const latibot::events::stat_query query{.kind = stat_kind::received, .emoji_key = "u:💀"};
+    const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::received, query);
+    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
+    CHECK(first.content.find("10. ") != std::string::npos);
+    CHECK(first.content.find("11. ") == std::string::npos);
+    REQUIRE(first.components.size() == 1);
+
+    // The ▶ button carries the filters; decoding them gives the same board.
+    const auto state = latibot::ui::decode(first.components[0].components[1].custom_id);
+    REQUIRE(state.has_value());
+    CHECK(state->view == latibot::commands::board_view);
+    const auto decoded = latibot::commands::decode_board(state->argument);
+    REQUIRE(decoded.has_value());
+    CHECK(decoded->first == board::received);
+    CHECK(decoded->second.emoji_key == "u:💀");
+
+    const dpp::message second = latibot::commands::render_board(test.reactions, guild, decoded->first, decoded->second, state->page);
+    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
+    CHECK(second.content.find("11. ") != std::string::npos);
+    CHECK(second.content.find("13. ") != std::string::npos);
+}
+
+TEST_CASE("a board's filters survive the trip through a button", "[commands]") {
+    const latibot::events::stat_query query{.kind = stat_kind::given,
+                                            .emoji_key = "c:77",
+                                            .user_id = {},
+                                            .since = std::chrono::sys_days{std::chrono::year{2025} / 1 / 1},
+                                            .until = std::chrono::sys_days{std::chrono::year{2025} / 7 / 1},
+                                            .domain = "x.com"};
+
+    const std::string packed = latibot::commands::encode_board(board::given, query);
+    CHECK(packed.size() < 60);
+
+    const auto unpacked = latibot::commands::decode_board(packed);
+    REQUIRE(unpacked.has_value());
+    CHECK(unpacked->first == board::given);
+    CHECK(unpacked->second.kind == stat_kind::given);
+    CHECK(unpacked->second.emoji_key == "c:77");
+    CHECK(unpacked->second.domain == "x.com");
+    CHECK(unpacked->second.since == query.since);
+    CHECK(unpacked->second.until == query.until);
+
+    CHECK_FALSE(latibot::commands::decode_board("nonsense").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("q;;;;").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("r;;;soon;").has_value());
+}
+
+TEST_CASE("a board can be limited to one site", "[commands]") {
+    fixture test;
+    test.replacements.record(
+        {.message_id = dpp::snowflake{700},
+         .guild_id = guild,
+         .channel_id = dpp::snowflake{2},
+         .original_message_id = std::nullopt,
+         .original_author_id = bob,
+         .state = latibot::events::replacement_state::ok,
+         .created_at = day_one,
+         .retried_at = std::nullopt,
+         .links = {{.original_url = "https://tiktok.com/@b/video/1", .domain = "tiktok.com", .spoilered = false, .mirrors = {}}}});
+    test.reactions.add(dpp::snowflake{700}, alice, reaction_emoji({}, "💀"), day_one);
+
+    const latibot::events::stat_query tiktok{.kind = stat_kind::received, .domain = "tiktok.com"};
+    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, tiktok).content;
+    CHECK(text.starts_with("**Most reactions received on replaced tiktok.com links**"));
+    CHECK(text.find("<@12> 1") != std::string::npos);
+    CHECK(text.find("<@11>") == std::string::npos);
+
+    CHECK(test.reactions.known_domains(guild) == std::vector<std::string>{"tiktok.com"});
 }
 
 TEST_CASE("what a leaderboard ranks is read from its option", "[commands]") {

@@ -1,6 +1,7 @@
 #include "core/commands/linkstats.hpp"
 
 #include "core/ports/discord_gateway.hpp"
+#include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
@@ -83,7 +84,7 @@ std::string describe_window(const events::stat_query& query) {
     return text;
 }
 
-/// The since and until options, or what was wrong with them.
+/// The since, until and domain options, or what was wrong with them.
 std::optional<std::string> read_window(const dpp::slashcommand_t& event, events::stat_query& query) {
     const std::string since = string_option(event, "since");
     const std::string until = string_option(event, "until");
@@ -106,6 +107,15 @@ std::optional<std::string> read_window(const dpp::slashcommand_t& event, events:
     if (query.since && query.until && *query.since >= *query.until) {
         return std::string("that range ends before it starts");
     }
+
+    // The site, reduced the way rules are, so "https://www.X.com" and
+    // "x.com" ask for the same thing.
+    if (const std::string site = string_option(event, "domain"); !site.empty()) {
+        query.domain = events::normalise_domain(site);
+        if (!query.domain) {
+            return std::format("\"{}\" doesn't look like a site; try something like x.com", site);
+        }
+    }
     return std::nullopt;
 }
 
@@ -122,6 +132,12 @@ std::string emoji_list(std::span<const events::emoji_tally> tallies) {
 
 dpp::command_option date_option(const char* name, const char* description) {
     return dpp::command_option(dpp::co_string, name, description, false).set_max_length(10);
+}
+
+dpp::command_option domain_option() {
+    return dpp::command_option(dpp::co_string, "domain", "Only links to this site, like x.com.", false)
+        .set_auto_complete(true)
+        .set_max_length(100);
 }
 
 dpp::command_option emoji_option(const char* name, const char* description, bool required) {
@@ -205,45 +221,163 @@ std::optional<events::emoji_ref> resolve_emoji(const events::reaction_store& sto
     return parsed;
 }
 
-std::string render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query) {
-    const std::string window = describe_window(query);
-    const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
+namespace {
 
-    std::string title;
+constexpr char board_separator = ';';
+
+char board_letter(board which) {
     switch (which) {
-    case board::received:
-        title = std::format("Most {}received on replaced links{}", emoji, window);
-        break;
     case board::given:
-        title = std::format("Most {}given on replaced links{}", emoji, window);
-        break;
+        return 'g';
     case board::self:
-        title = std::format("Most {}on their own links{}", emoji, window);
-        break;
+        return 's';
     case board::emoji:
-        title = std::format("Most used reactions on replaced links{}", window);
+        return 'e';
+    case board::received:
         break;
     }
+    return 'r';
+}
 
-    std::string text = std::format("**{}**\n", title);
-    std::size_t place = 0;
+/// Which side of a reaction a board counts. The emoji board counts what
+/// people received, leaving self-reactions out like every other board.
+events::stat_kind kind_for(board which) {
+    switch (which) {
+    case board::given:
+        return events::stat_kind::given;
+    case board::self:
+        return events::stat_kind::self;
+    case board::received:
+    case board::emoji:
+        break;
+    }
+    return events::stat_kind::received;
+}
 
-    if (which == board::emoji) {
-        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, leaderboard_size)) {
+std::optional<std::int64_t> whole_number(std::string_view text) {
+    std::int64_t value = 0;
+    const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (error != std::errc{} || stop != text.data() + text.size()) {
+        return std::nullopt;
+    }
+    return value;
+}
+
+std::string board_title(const events::reaction_store& store, board which, const events::stat_query& query) {
+    const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
+    const std::string site = query.domain ? *query.domain + " " : std::string{};
+    const std::string window = describe_window(query);
+
+    switch (which) {
+    case board::given:
+        return std::format("Most {}given on replaced {}links{}", emoji, site, window);
+    case board::self:
+        return std::format("Most {}on their own {}links{}", emoji, site, window);
+    case board::emoji:
+        return std::format("Most used reactions on replaced {}links{}", site, window);
+    case board::received:
+        break;
+    }
+    return std::format("Most {}received on replaced {}links{}", emoji, site, window);
+}
+
+} // namespace
+
+std::string encode_board(board which, const events::stat_query& query) {
+    const auto day = [](const std::optional<std::chrono::sys_seconds>& when) {
+        return when ? std::to_string(std::chrono::floor<std::chrono::days>(*when).time_since_epoch().count()) : std::string{};
+    };
+    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}", board_separator, board_letter(which), query.emoji_key.value_or(std::string{}),
+                       query.domain.value_or(std::string{}), day(query.since), day(query.until));
+}
+
+std::optional<std::pair<board, events::stat_query>> decode_board(std::string_view argument) {
+    std::vector<std::string_view> fields;
+    while (true) {
+        const std::size_t cut = argument.find(board_separator);
+        fields.push_back(argument.substr(0, cut));
+        if (cut == std::string_view::npos) {
+            break;
+        }
+        argument.remove_prefix(cut + 1);
+    }
+    if (fields.size() != 5 || fields[0].size() != 1) {
+        return std::nullopt;
+    }
+
+    board which = board::received;
+    switch (fields[0].front()) {
+    case 'r':
+        break;
+    case 'g':
+        which = board::given;
+        break;
+    case 's':
+        which = board::self;
+        break;
+    case 'e':
+        which = board::emoji;
+        break;
+    default:
+        return std::nullopt;
+    }
+
+    events::stat_query query;
+    query.kind = kind_for(which);
+    if (!fields[1].empty()) {
+        query.emoji_key = std::string(fields[1]);
+    }
+    if (!fields[2].empty()) {
+        query.domain = std::string(fields[2]);
+    }
+    for (const auto& [text, bound] : {std::pair{fields[3], &query.since}, std::pair{fields[4], &query.until}}) {
+        if (text.empty()) {
+            continue;
+        }
+        const auto days = whole_number(text);
+        if (!days) {
+            return std::nullopt;
+        }
+        *bound = std::chrono::sys_seconds(std::chrono::sys_days(std::chrono::days(*days)));
+    }
+    return std::pair{which, query};
+}
+
+dpp::message render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
+                          int page) {
+    const bool by_emoji = which == board::emoji;
+    const auto total =
+        static_cast<std::size_t>(std::max<std::int64_t>(0, by_emoji ? store.emojis(guild_id, query) : store.people(guild_id, query)));
+    const int current = ui::clamp_page(page, total, leaderboard_size);
+    const ui::page_range window = ui::range_for(current, total, leaderboard_size);
+
+    std::string text = std::format("**{}**\n", board_title(store, which, query));
+    std::size_t place = window.begin;
+
+    if (by_emoji) {
+        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, leaderboard_size, window.begin)) {
             text += std::format("{}. {} {}\n", ++place, events::display_emoji(tally.emoji), tally.count);
         }
     } else {
-        for (const events::person_tally& tally : store.leaderboard(guild_id, query, leaderboard_size)) {
+        for (const events::person_tally& tally : store.leaderboard(guild_id, query, leaderboard_size, window.begin)) {
             text += std::format("{}. <@{}> {}\n", ++place, tally.user_id, tally.count);
         }
     }
 
-    if (place == 0) {
+    if (total == 0) {
         text +=
             "Nothing counted yet. Reactions are counted from when the bot first saw them; `/linkstats recompute` fills in "
             "older ones.";
+    } else if (total > leaderboard_size) {
+        text += std::format("\n_{}_", ui::page_label(current, total, leaderboard_size));
     }
-    return text;
+
+    dpp::message reply(text);
+    if (const auto row = ui::controls({.view = std::string(board_view), .page = current, .argument = encode_board(which, query)}, total,
+                                      leaderboard_size)) {
+        reply.add_component(*row);
+    }
+    return reply;
 }
 
 std::string render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id,
@@ -262,7 +396,8 @@ std::string render_profile(const events::reaction_store& store, dpp::snowflake g
     query.kind = events::stat_kind::self;
     const std::int64_t self = store.total(guild_id, query);
 
-    std::string text = std::format("**Link stats for <@{}>{}**\n", user_id, describe_window(window));
+    const std::string site = window.domain ? std::format(" on {} links", *window.domain) : std::string{};
+    std::string text = std::format("**Link stats for <@{}>{}{}**\n", user_id, site, describe_window(window));
     text += std::format("Reactions received: {}{}\n", received, received_top.empty() ? "" : " (" + emoji_list(received_top) + ")");
     text += std::format("Reactions given: {}{}\n", given, given_top.empty() ? "" : " (" + emoji_list(given_top) + ")");
     text += std::format("Reacted to their own links: {} time{}\n", self, self == 1 ? "" : "s");
@@ -324,6 +459,10 @@ std::string render_backfill(const events::backfill_report& report, const events:
     text += std::format("Messages scanned: {}\n", report.scanned);
     text += std::format("Replacements found: {} ({} credited to whoever posted the link, {} not)\n", report.replacements, report.attributed,
                         report.unattributed);
+    if (report.mismatched > 0) {
+        // Reported rather than accepted (plan v4 §9.7); the log has each id.
+        text += std::format("Of those not credited, {} followed a link that wasn't the one replaced\n", report.mismatched);
+    }
     if (report.webhooks_skipped > 0) {
         text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
     }
@@ -390,11 +529,13 @@ dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowfla
     top.add_option(emoji_option("emoji", "Only this emoji.", false));
     top.add_option(date_option("since", "From this day, YYYY-MM-DD."));
     top.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
+    top.add_option(domain_option());
 
     dpp::command_option user(dpp::co_sub_command, "user", "One person's reactions, received and given.");
     user.add_option(dpp::command_option(dpp::co_user, "user", "You, if left out.", false));
     user.add_option(date_option("since", "From this day, YYYY-MM-DD."));
     user.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
+    user.add_option(domain_option());
 
     const dpp::command_option emojis(dpp::co_sub_command, "emojis", "Custom emojis that share a name, likely the same emote twice.");
 
@@ -412,7 +553,7 @@ dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowfla
     alias.add_option(alias_remove);
     alias.add_option(alias_list);
 
-    dpp::command_option start(dpp::co_sub_command, "start", "Rebuild the reaction counts from channel history. Administrators only.");
+    dpp::command_option start(dpp::co_sub_command, "start", "Rebuild the reaction counts from channel history. Needs Manage Server.");
     start.add_option(dpp::command_option(dpp::co_string, "since", "How far back, YYYY-MM-DD.", true).set_max_length(10));
     start.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD. Today if left out."));
     start.add_option(dpp::command_option(dpp::co_channel, "channel", "Only this channel. Every text channel if left out.", false)
@@ -436,22 +577,34 @@ dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowfla
 
 void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
     const dpp::command_option* focused = focused_option(event.options);
-    if (focused == nullptr || (focused->name != "emoji" && focused->name != "as") || event.owner == nullptr) {
+    if (focused == nullptr || event.owner == nullptr) {
         return;
     }
 
     const auto* typed = std::get_if<std::string>(&focused->value);
     std::string_view filter = typed == nullptr ? std::string_view{} : std::string_view(*typed);
-    if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) {
-        filter = filter.substr(1, filter.size() - 2);
-    }
-
     dpp::interaction_response reply(dpp::ir_autocomplete_reply);
-    for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices)) {
-        // A custom emoji cannot be drawn in a choice, so it shows by name.
-        const std::string label = known.emoji.key.starts_with("c:") ? std::format(":{}: ({})", known.emoji.name, known.count)
-                                                                    : std::format("{} ({})", known.emoji.name, known.count);
-        reply.add_autocomplete_choice(dpp::command_option_choice(label.substr(0, 100), known.emoji.key));
+
+    if (focused->name == "domain") {
+        std::size_t offered = 0;
+        for (const std::string& site : store_->known_domains(event.command.guild_id)) {
+            if (offered < emoji_choices && site.find(util::trim(filter)) != std::string::npos) {
+                reply.add_autocomplete_choice(dpp::command_option_choice(site, site));
+                ++offered;
+            }
+        }
+    } else if (focused->name == "emoji" || focused->name == "as") {
+        if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) {
+            filter = filter.substr(1, filter.size() - 2);
+        }
+        for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices)) {
+            // A custom emoji cannot be drawn in a choice, so it shows by name.
+            const std::string label = known.emoji.key.starts_with("c:") ? std::format(":{}: ({})", known.emoji.name, known.count)
+                                                                        : std::format("{} ({})", known.emoji.name, known.count);
+            reply.add_autocomplete_choice(dpp::command_option_choice(label.substr(0, 100), known.emoji.key));
+        }
+    } else {
+        return;
     }
 
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
@@ -496,20 +649,8 @@ dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
     }
 
     const board chosen = which.value_or(board::received);
-    switch (chosen) {
-    case board::given:
-        query.kind = events::stat_kind::given;
-        break;
-    case board::self:
-        query.kind = events::stat_kind::self;
-        break;
-    case board::received:
-    case board::emoji:
-        query.kind = events::stat_kind::received;
-        break;
-    }
-
-    co_await event.co_reply(post(render_board(*store_, guild, chosen, query)));
+    query.kind = kind_for(chosen);
+    co_await event.co_reply(render_board(*store_, guild, chosen, query));
 }
 
 dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
@@ -534,8 +675,8 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
         co_return;
     }
 
-    if (!invoker_permissions(event).can(dpp::p_manage_messages)) {
-        co_await event.co_reply(ack("changing emoji aliases needs Manage Messages"));
+    if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
+        co_await event.co_reply(ack("changing emoji aliases needs Manage Server"));
         co_return;
     }
 
@@ -586,8 +727,8 @@ dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, c
 
     // Reading years of history is a lot of API calls; this one is for the
     // people who run the server (plan v4 §9.7).
-    if (!invoker_permissions(event).can(dpp::p_administrator)) {
-        co_await event.co_reply(ack("recomputing link stats needs Administrator"));
+    if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
+        co_await event.co_reply(ack("recomputing link stats needs Manage Server"));
         co_return;
     }
 

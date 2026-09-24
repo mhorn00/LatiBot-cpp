@@ -87,8 +87,9 @@ kind_sql sql_for(stat_kind kind) {
 ///
 /// Aliases are applied here, at read time, which is what lets one added
 /// today change every count back to the first reaction (plan v4 §9.6). The
-/// parameters are numbered so each query binds the same six in the same
-/// order: guild, emoji, since, until, person, limit.
+/// parameters are numbered so every query binds the same six filters in the
+/// same order — guild, emoji, since, until, person, site — and a list adds
+/// its limit and offset as 7 and 8.
 std::string from_where(stat_kind kind) {
     const kind_sql parts = sql_for(kind);
     return std::format(
@@ -100,6 +101,7 @@ std::string from_where(stat_kind kind) {
         " AND (?3 IS NULL OR COALESCE(r.reacted_at, m.created_at) >= ?3)"
         " AND (?4 IS NULL OR COALESCE(r.reacted_at, m.created_at) < ?4)"
         " AND (?5 IS NULL OR {} = ?5)"
+        " AND (?6 IS NULL OR EXISTS (SELECT 1 FROM replacement_links l WHERE l.message_id = m.message_id AND l.domain = ?6))"
         " AND {}",
         parts.person, parts.filter);
 }
@@ -405,24 +407,40 @@ std::vector<emoji_alias> reaction_store::aliases(dpp::snowflake guild_id) const 
 // Reading
 // --------------------------------------------------------------------------
 
-std::int64_t reaction_store::total(dpp::snowflake guild_id, const stat_query& query) const {
+db::statement reaction_store::prepare_stat(std::string_view sql, dpp::snowflake guild_id, const stat_query& query) const {
+    // The alias is resolved first, so asking for an emoji that was merged
+    // away asks for what it now counts as.
     const std::optional<std::string> emoji =
         query.emoji_key ? std::optional<std::string>(canonical(guild_id, *query.emoji_key)) : std::nullopt;
 
-    auto statement = db_->prepare("SELECT COUNT(*)" + from_where(query.kind), static_cast<std::uint64_t>(guild_id), emoji,
-                                  seconds_or_null(query.since), seconds_or_null(query.until), id_or_null(query.user_id));
+    return db_->prepare(sql, static_cast<std::uint64_t>(guild_id), emoji, seconds_or_null(query.since), seconds_or_null(query.until),
+                        id_or_null(query.user_id), query.domain);
+}
+
+std::int64_t reaction_store::total(dpp::snowflake guild_id, const stat_query& query) const {
+    auto statement = prepare_stat("SELECT COUNT(*)" + from_where(query.kind), guild_id, query);
     return statement.step() ? statement.get<std::int64_t>(0) : 0;
 }
 
-std::vector<person_tally> reaction_store::leaderboard(dpp::snowflake guild_id, const stat_query& query, std::size_t limit) const {
-    const std::optional<std::string> emoji =
-        query.emoji_key ? std::optional<std::string>(canonical(guild_id, *query.emoji_key)) : std::nullopt;
-    const std::string_view person = sql_for(query.kind).person;
-
+std::int64_t reaction_store::people(dpp::snowflake guild_id, const stat_query& query) const {
     auto statement =
-        db_->prepare(std::format("SELECT {0}, COUNT(*) AS n{1} GROUP BY {0} ORDER BY n DESC, {0} LIMIT ?6", person, from_where(query.kind)),
-                     static_cast<std::uint64_t>(guild_id), emoji, seconds_or_null(query.since), seconds_or_null(query.until),
-                     id_or_null(query.user_id), static_cast<std::int64_t>(limit));
+        prepare_stat(std::format("SELECT COUNT(DISTINCT {}){}", sql_for(query.kind).person, from_where(query.kind)), guild_id, query);
+    return statement.step() ? statement.get<std::int64_t>(0) : 0;
+}
+
+std::int64_t reaction_store::emojis(dpp::snowflake guild_id, const stat_query& query) const {
+    auto statement =
+        prepare_stat("SELECT COUNT(DISTINCT COALESCE(a.canonical_key, r.emoji_key))" + from_where(query.kind), guild_id, query);
+    return statement.step() ? statement.get<std::int64_t>(0) : 0;
+}
+
+std::vector<person_tally> reaction_store::leaderboard(dpp::snowflake guild_id, const stat_query& query, std::size_t limit,
+                                                      std::size_t offset) const {
+    const std::string_view person = sql_for(query.kind).person;
+    auto statement = prepare_stat(
+        std::format("SELECT {0}, COUNT(*) AS n{1} GROUP BY {0} ORDER BY n DESC, {0} LIMIT ?7 OFFSET ?8", person, from_where(query.kind)),
+        guild_id, query);
+    statement.bind(7, static_cast<std::int64_t>(limit)).bind(8, static_cast<std::int64_t>(offset));
 
     std::vector<person_tally> board;
     while (statement.step()) {
@@ -431,16 +449,27 @@ std::vector<person_tally> reaction_store::leaderboard(dpp::snowflake guild_id, c
     return board;
 }
 
-std::vector<emoji_tally> reaction_store::emoji_breakdown(dpp::snowflake guild_id, const stat_query& query, std::size_t limit) const {
-    const std::optional<std::string> emoji =
-        query.emoji_key ? std::optional<std::string>(canonical(guild_id, *query.emoji_key)) : std::nullopt;
+std::vector<std::string> reaction_store::known_domains(dpp::snowflake guild_id) const {
+    std::vector<std::string> domains;
+    auto statement = db_->prepare(
+        "SELECT DISTINCT l.domain FROM replacement_links l "
+        "JOIN replacement_messages m ON m.message_id = l.message_id "
+        "WHERE m.guild_id = ? ORDER BY l.domain",
+        static_cast<std::uint64_t>(guild_id));
+    while (statement.step()) {
+        domains.push_back(statement.get<std::string>(0));
+    }
+    return domains;
+}
 
+std::vector<emoji_tally> reaction_store::emoji_breakdown(dpp::snowflake guild_id, const stat_query& query, std::size_t limit,
+                                                         std::size_t offset) const {
     std::vector<std::pair<std::string, std::int64_t>> counted;
     {
-        auto statement = db_->prepare("SELECT COALESCE(a.canonical_key, r.emoji_key) AS k, COUNT(*) AS n" + from_where(query.kind) +
-                                          " GROUP BY k ORDER BY n DESC, k LIMIT ?6",
-                                      static_cast<std::uint64_t>(guild_id), emoji, seconds_or_null(query.since),
-                                      seconds_or_null(query.until), id_or_null(query.user_id), static_cast<std::int64_t>(limit));
+        auto statement = prepare_stat("SELECT COALESCE(a.canonical_key, r.emoji_key) AS k, COUNT(*) AS n" + from_where(query.kind) +
+                                          " GROUP BY k ORDER BY n DESC, k LIMIT ?7 OFFSET ?8",
+                                      guild_id, query);
+        statement.bind(7, static_cast<std::int64_t>(limit)).bind(8, static_cast<std::int64_t>(offset));
         while (statement.step()) {
             counted.emplace_back(statement.get<std::string>(0), statement.get<std::int64_t>(1));
         }

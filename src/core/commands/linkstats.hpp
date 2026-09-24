@@ -5,6 +5,7 @@
 #include "core/events/reactions.hpp"
 
 #include <dpp/appcommand.h>
+#include <dpp/message.h>
 
 #include <chrono>
 #include <cstddef>
@@ -13,6 +14,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace latibot::ports {
@@ -45,9 +47,21 @@ enum class board : std::uint8_t { received, given, self, emoji };
 [[nodiscard]] std::optional<events::emoji_ref> resolve_emoji(const events::reaction_store& store, dpp::snowflake guild_id,
                                                              std::string_view typed);
 
-/// `/linkstats top`.
-[[nodiscard]] std::string render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which,
-                                       const events::stat_query& query);
+/// The view name on a leaderboard's ◀ / ▶ buttons.
+inline constexpr std::string_view board_view = "linkboard";
+
+/// A leaderboard's filters, packed into its buttons' custom_id so a page
+/// reached by paging is the same board: `r;<emoji>;<site>;<since>;<until>`,
+/// with the dates as days since 1970.
+[[nodiscard]] std::string encode_board(board which, const events::stat_query& query);
+[[nodiscard]] std::optional<std::pair<board, events::stat_query>> decode_board(std::string_view argument);
+
+/// `/linkstats top`, at `page`, with ◀ / ▶ when there is more than one.
+///
+/// Public, and anybody can page it, the way `/nicknames` works: a
+/// leaderboard is something a room reads together.
+[[nodiscard]] dpp::message render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which,
+                                        const events::stat_query& query, int page = 0);
 
 /// `/linkstats user`: received, given and self-reactions for one person.
 [[nodiscard]] std::string render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id,
@@ -79,7 +93,7 @@ struct recompute_support {
 
 /// `/linkstats top | user | emojis | alias …` (plan v4 §9.6).
 ///
-/// Reading is open to everyone; changing aliases needs Manage Messages,
+/// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// checked here because Discord's default permissions are per command, not
 /// per subcommand.
 class linkstats_command final : public command {

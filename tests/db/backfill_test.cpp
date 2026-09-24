@@ -133,6 +133,35 @@ TEST_CASE("a recompute credits an old replacement to whoever posted the link", "
     CHECK(test.discord.reaction_requests[1].emoji == "skull:7001");
 }
 
+TEST_CASE("an old replacement is filed under the site its mirror stood in for", "[events][coro]") {
+    fixture test;
+    test.script_history();
+    test.run(test.request());
+
+    const auto stored = test.replacements.find(id_at(10s));
+    REQUIRE(stored.has_value());
+    REQUIRE(stored->links.size() == 1);
+    CHECK(stored->links[0].domain == "x.com");
+
+    const latibot::events::stat_query on_x{.kind = stat_kind::received, .domain = "x.com"};
+    const latibot::events::stat_query on_tiktok{.kind = stat_kind::received, .domain = "tiktok.com"};
+    CHECK(test.reactions.total(guild, on_x) == 2);
+    CHECK(test.reactions.total(guild, on_tiktok) == 0);
+}
+
+TEST_CASE("a replacement after somebody else's link is reported, not credited to them", "[events][coro]") {
+    fixture test;
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{
+        message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true),
+        message(id_at(5s), bob, "https://x.com/bob/status/2"),
+    });
+
+    const backfill_report report = test.run(test.request());
+    CHECK(report.unattributed == 1);
+    CHECK(report.mismatched == 1);
+    CHECK_FALSE(test.replacements.find(id_at(10s))->original_author_id.has_value());
+}
+
 TEST_CASE("a recompute is safe to run twice", "[events][coro]") {
     fixture test;
     test.script_history();

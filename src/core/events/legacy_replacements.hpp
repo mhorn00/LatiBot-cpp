@@ -110,6 +110,10 @@ struct attribution {
     /// The nearest earlier link was not ours, and one further back was:
     /// worth a line in the log when a count looks off.
     bool skipped_a_link = false;
+
+    /// Earlier links were there but none matched, so the message is left
+    /// unattributed rather than credited to the wrong person. Reported.
+    bool mismatched = false;
 };
 
 /// How many earlier messages with links are looked at before giving up.

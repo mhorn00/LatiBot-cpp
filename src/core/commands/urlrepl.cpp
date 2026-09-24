@@ -366,7 +366,7 @@ urlrepl_command::urlrepl_command(events::url_rule_store& store)
             .description = "Manage which links get posted again on a mirror with a working preview.",
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages | dpp::p_embed_links | dpp::p_manage_messages,
-            .default_member_permissions = dpp::permission(dpp::p_manage_messages),
+            .default_member_permissions = dpp::permission(dpp::p_manage_guild),
             .guild_only = true},
       store_(&store) {}
 
@@ -497,7 +497,7 @@ urltoggle_command::urltoggle_command(events::url_rule_store& store)
 
 dpp::slashcommand urltoggle_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
-    payload.add_option(dpp::command_option(dpp::co_user, "user", "Somebody else. Needs Manage Messages.", false));
+    payload.add_option(dpp::command_option(dpp::co_user, "user", "Somebody else. Needs Manage Server.", false));
     return payload;
 }
 
@@ -510,8 +510,8 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
     const dpp::snowflake target = other == nullptr ? invoker.id : *other;
     const bool self = target == invoker.id;
 
-    if (!self && !invoker_permissions(event).can(dpp::p_manage_messages)) {
-        co_await event.co_reply(ack("changing that for somebody else needs Manage Messages"));
+    if (!self && !invoker_permissions(event).can(dpp::p_manage_guild)) {
+        co_await event.co_reply(ack("changing that for somebody else needs Manage Server"));
         co_return;
     }
 

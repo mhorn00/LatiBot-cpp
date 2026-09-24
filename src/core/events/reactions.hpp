@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/db/statement.hpp"
+
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -13,7 +15,7 @@
 
 namespace latibot::db {
 class database;
-}
+} // namespace latibot::db
 
 namespace latibot::events {
 
@@ -80,6 +82,10 @@ struct stat_query {
     /// one, which Discord never dated, when the message was posted.
     std::optional<std::chrono::sys_seconds> since;
     std::optional<std::chrono::sys_seconds> until;
+
+    /// Only replacements of links to this site ("x.com"). Nothing for every
+    /// site.
+    std::optional<std::string> domain;
 };
 
 struct person_tally {
@@ -158,10 +164,21 @@ public:
     [[nodiscard]] std::int64_t total(dpp::snowflake guild_id, const stat_query& query) const;
 
     /// People, most first.
-    [[nodiscard]] std::vector<person_tally> leaderboard(dpp::snowflake guild_id, const stat_query& query, std::size_t limit) const;
+    [[nodiscard]] std::vector<person_tally> leaderboard(dpp::snowflake guild_id, const stat_query& query, std::size_t limit,
+                                                        std::size_t offset = 0) const;
+
+    /// How many people a leaderboard has, for paging it.
+    [[nodiscard]] std::int64_t people(dpp::snowflake guild_id, const stat_query& query) const;
+
+    /// How many emojis, after aliases, for paging the emoji board.
+    [[nodiscard]] std::int64_t emojis(dpp::snowflake guild_id, const stat_query& query) const;
+
+    /// The sites this guild's replacements were for, for autocomplete.
+    [[nodiscard]] std::vector<std::string> known_domains(dpp::snowflake guild_id) const;
 
     /// Emojis, most first, after aliases.
-    [[nodiscard]] std::vector<emoji_tally> emoji_breakdown(dpp::snowflake guild_id, const stat_query& query, std::size_t limit) const;
+    [[nodiscard]] std::vector<emoji_tally> emoji_breakdown(dpp::snowflake guild_id, const stat_query& query, std::size_t limit,
+                                                           std::size_t offset = 0) const;
 
     /// Every emoji reacted with on this guild's replacements whose name
     /// contains `filter`, most used first, for autocomplete.
@@ -172,6 +189,10 @@ public:
     [[nodiscard]] std::vector<std::vector<emoji_tally>> likely_duplicates(dpp::snowflake guild_id) const;
 
 private:
+    /// A statistics query with its six shared filters bound (see
+    /// `from_where` in the source).
+    [[nodiscard]] db::statement prepare_stat(std::string_view sql, dpp::snowflake guild_id, const stat_query& query) const;
+
     void log_change(dpp::snowflake message_id, dpp::snowflake user_id, std::string_view emoji_key, std::string_view action,
                     std::chrono::sys_seconds at);
 

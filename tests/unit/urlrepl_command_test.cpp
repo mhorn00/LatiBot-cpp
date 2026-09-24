@@ -228,7 +228,7 @@ TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
     const latibot::commands::urltoggle_command toggle(fixture.store);
 
     const dpp::slashcommand repl = urlrepl.build("urlrepl", dpp::snowflake{1});
-    CHECK(repl.default_member_permissions.can(dpp::p_manage_messages));
+    CHECK(repl.default_member_permissions.can(dpp::p_manage_guild));
     REQUIRE(repl.options.size() == 5);
 
     const dpp::slashcommand opt_out = toggle.build("urltoggle", dpp::snowflake{1});

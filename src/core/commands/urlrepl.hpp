@@ -89,9 +89,10 @@ private:
 
 /// `/urltoggle [user]`: leave somebody's links alone, or stop doing so.
 ///
-/// Anyone can toggle themselves. Toggling somebody else needs Manage
-/// Messages, which the Java `/toggle` did not ask for. The choice is kept,
-/// per guild; the Java list was in memory and gone at the next restart.
+/// Anyone can toggle themselves. Toggling somebody else needs Manage Server,
+/// the permission that manages the rules, which the Java `/toggle` did not
+/// ask for at all. The choice is kept, per guild; the Java list was in memory
+/// and gone at the next restart.
 class urltoggle_command final : public command {
 public:
     explicit urltoggle_command(events::url_rule_store& store);
