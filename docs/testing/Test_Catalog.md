@@ -5,19 +5,19 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-470 test cases across 9 components, including 100 sections.
+474 test cases across 9 components, including 104 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 104 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 111 | 26 |
+| [commands](#commands) | 113 | 26 |
 | [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
-| [util](#util) | 33 | 11 |
+| [util](#util) | 35 | 15 |
 
 ## db
 
@@ -239,23 +239,25 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:237](../../tests/unit/registry_test.cpp#L237) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:252](../../tests/unit/registry_test.cpp#L252) |
-| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:21](../../tests/unit/trigger_command_test.cpp#L21) |
-| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:30](../../tests/unit/trigger_command_test.cpp#L30) |
-| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:40](../../tests/unit/trigger_command_test.cpp#L40) |
-| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:51](../../tests/unit/trigger_command_test.cpp#L51) |
-| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
-| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:66](../../tests/unit/trigger_command_test.cpp#L66) |
-| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:76](../../tests/unit/trigger_command_test.cpp#L76) |
-| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:103](../../tests/unit/trigger_command_test.cpp#L103) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:125](../../tests/unit/trigger_command_test.cpp#L125) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:140](../../tests/unit/trigger_command_test.cpp#L140) |
-| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:158](../../tests/unit/trigger_command_test.cpp#L158) |
-| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:175](../../tests/unit/trigger_command_test.cpp#L175) |
-| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:198](../../tests/unit/trigger_command_test.cpp#L198) |
-| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:207](../../tests/unit/trigger_command_test.cpp#L207) |
-| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:217](../../tests/unit/trigger_command_test.cpp#L217) |
-| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:257](../../tests/unit/trigger_command_test.cpp#L257) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:295](../../tests/unit/trigger_command_test.cpp#L295) |
+| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
+| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
+| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
+| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:54](../../tests/unit/trigger_command_test.cpp#L54) |
+| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:62](../../tests/unit/trigger_command_test.cpp#L62) |
+| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
+| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:79](../../tests/unit/trigger_command_test.cpp#L79) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:106](../../tests/unit/trigger_command_test.cpp#L106) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:128](../../tests/unit/trigger_command_test.cpp#L128) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:143](../../tests/unit/trigger_command_test.cpp#L143) |
+| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:161](../../tests/unit/trigger_command_test.cpp#L161) |
+| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:178](../../tests/unit/trigger_command_test.cpp#L178) |
+| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:201](../../tests/unit/trigger_command_test.cpp#L201) |
+| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:210](../../tests/unit/trigger_command_test.cpp#L210) |
+| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:220](../../tests/unit/trigger_command_test.cpp#L220) |
+| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:260](../../tests/unit/trigger_command_test.cpp#L260) |
+| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:298](../../tests/unit/trigger_command_test.cpp#L298) |
+| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:321](../../tests/unit/trigger_command_test.cpp#L321) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:340](../../tests/unit/trigger_command_test.cpp#L340) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |
@@ -533,6 +535,8 @@ Utilities (`src/core/util`, `src/core/version`)
 | is_inside_spoiler follows an odd count of markers |  |  | [tests/unit/text_test.cpp:22](../../tests/unit/text_test.cpp#L22) |
 | trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:36](../../tests/unit/text_test.cpp#L36) |
 | is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
+| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:54](../../tests/unit/text_test.cpp#L54) |
+| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:63](../../tests/unit/text_test.cpp#L63) |
 | every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
 | a spoiler is an odd number of || before the link |  | 4 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
 | trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:86](../../tests/unit/url_scan_test.cpp#L86) |

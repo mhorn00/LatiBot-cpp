@@ -19,6 +19,14 @@
 namespace latibot::commands {
 namespace {
 
+/// The longest pattern and response list, in characters, for the command
+/// and the panel's form alike.
+constexpr std::uint32_t pattern_length_limit = 200;
+constexpr std::uint32_t responses_length_limit = 2000;
+
+/// Discord's limit on a select option's label.
+constexpr std::size_t select_option_limit = 100;
+
 std::string string_option(const dpp::slashcommand_t& event, const char* name) {
     const dpp::command_value value = event.get_parameter(name);
     const auto* text = std::get_if<std::string>(&value);
@@ -164,10 +172,12 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
 
     dpp::command_option add(dpp::co_sub_command, "add", "Add a trigger.");
-    add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true).set_min_length(1).set_max_length(200));
+    add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true)
+                       .set_min_length(1)
+                       .set_max_length(pattern_length_limit));
     add.add_option(dpp::command_option(dpp::co_string, "responses", "One per line. Prefix with \"3 | \" to weight a line.", true)
                        .set_min_length(1)
-                       .set_max_length(2000));
+                       .set_max_length(responses_length_limit));
     add.add_option(mode);
     add.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 0 for none.", false)
                        .set_min_value(0)
@@ -177,8 +187,9 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change a trigger.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
-    edit.add_option(dpp::command_option(dpp::co_string, "pattern", "New text to look for.", false).set_max_length(200));
-    edit.add_option(dpp::command_option(dpp::co_string, "responses", "Replaces every response.", false).set_max_length(2000));
+    edit.add_option(dpp::command_option(dpp::co_string, "pattern", "New text to look for.", false).set_max_length(pattern_length_limit));
+    edit.add_option(
+        dpp::command_option(dpp::co_string, "responses", "Replaces every response.", false).set_max_length(responses_length_limit));
     edit.add_option(mode);
     edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(86400));
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
@@ -397,7 +408,11 @@ std::optional<dpp::component> pick_menu(std::span<const events::trigger> page_of
     dpp::component menu;
     menu.set_type(dpp::cot_selectmenu).set_placeholder("Pick a trigger to edit or delete").set_id(*id);
     for (const events::trigger& entry : page_of) {
-        menu.add_select_option(dpp::select_option(entry.pattern, std::to_string(entry.id), std::string(events::to_string(entry.mode)))
+        // A pattern may be 200 characters and an option's label only 100,
+        // and one label too long makes Discord refuse the whole panel. The
+        // lines above the menu show the pattern in full.
+        menu.add_select_option(dpp::select_option(util::truncate(entry.pattern, select_option_limit), std::to_string(entry.id),
+                                                  std::string(events::to_string(entry.mode)))
                                    .set_default(entry.id == selected));
     }
 
@@ -584,12 +599,15 @@ dpp::interaction_modal_response trigger_form(int page, const events::trigger* en
     dpp::interaction_modal_response form(custom_id.value_or(std::string(trigger_form_view) + ":0:0"),
                                          entry == nullptr ? "Add a trigger" : "Edit a trigger");
 
+    // The same limits as /trigger add, so the panel cannot save what the
+    // command would refuse.
     form.add_component(dpp::component()
                            .set_label("Pattern")
                            .set_id("pattern")
                            .set_type(dpp::cot_text)
                            .set_text_style(dpp::text_short)
                            .set_required(true)
+                           .set_max_length(pattern_length_limit)
                            .set_default_value(entry == nullptr ? "" : entry->pattern));
 
     form.add_row();
@@ -603,6 +621,7 @@ dpp::interaction_modal_response trigger_form(int page, const events::trigger* en
                            .set_type(dpp::cot_text)
                            .set_text_style(dpp::text_paragraph)
                            .set_required(true)
+                           .set_max_length(responses_length_limit)
                            .set_default_value(entry == nullptr ? "" : format_responses(entry->responses)));
 
     form.add_row();

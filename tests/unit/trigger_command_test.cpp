@@ -9,8 +9,11 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using latibot::commands::describe;
@@ -290,6 +293,48 @@ TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps 
         CHECK(cancel->view == latibot::commands::trigger_panel_view);
         CHECK(cancel->argument == std::to_string(id));
     }
+}
+
+TEST_CASE("the longest pattern the command takes still fits the panel", "[commands]") {
+    // /trigger add takes 200 characters and a menu option's label only 100.
+    // One label too long and Discord refuses the whole panel, for everybody.
+    latibot::db::database db{":memory:"};
+    latibot::db::migrate(db);
+    latibot::events::trigger_store store(db);
+    const dpp::snowflake guild{1000};
+
+    std::string accented;
+    for (int index = 0; index < 200; ++index) {
+        accented += "é";
+    }
+    for (const std::string& pattern : {std::string(200, 'a'), accented}) {
+        store.add({.guild_id = guild, .pattern = pattern, .cooldown = 30s, .enabled = true, .responses = {{.text = "nice", .weight = 1}}});
+    }
+
+    const auto panel = latibot::commands::render_trigger_panel(store, guild, 0);
+    latibot::testing::check_message_fits(panel);
+
+    // The list above the menu still shows the pattern in full.
+    CHECK(panel.content.find(std::string(200, 'a')) != std::string::npos);
+}
+
+TEST_CASE("the trigger modal takes no more than the command does", "[commands]") {
+    latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
+    const auto form = latibot::commands::trigger_form(0, &existing);
+
+    const auto max_length_of = [&](std::string_view id) -> std::optional<std::int32_t> {
+        for (const auto& row : form.components) {
+            for (const dpp::component& input : row) {
+                if (input.custom_id == id) {
+                    return input.max_length;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    CHECK(max_length_of("pattern") == 200);
+    CHECK(max_length_of("responses") == 2000);
 }
 
 TEST_CASE("each panel toggle flips one thing and names it for the log", "[commands]") {

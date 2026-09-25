@@ -50,3 +50,37 @@ TEST_CASE("is_blank treats whitespace as empty", "[util]") {
     CHECK_FALSE(latibot::util::is_blank("."));
     CHECK_FALSE(latibot::util::is_blank("  x  "));
 }
+
+TEST_CASE("character_count counts characters, not bytes", "[util]") {
+    using latibot::util::character_count;
+    CHECK(character_count("") == 0);
+    CHECK(character_count("abc") == 3);
+    CHECK(character_count("é") == 1);   // two bytes
+    CHECK(character_count("◀▶") == 2);  // three bytes each
+    CHECK(character_count("💀x") == 2); // four bytes, then one
+}
+
+TEST_CASE("truncate cuts to a character limit and marks the cut", "[util]") {
+    using latibot::util::character_count;
+    using latibot::util::truncate;
+
+    SECTION("text that fits is left alone") {
+        CHECK(truncate("", 5).empty());
+        CHECK(truncate("hello", 5) == "hello");
+        CHECK(truncate("héllo", 5) == "héllo"); // six bytes, five characters
+    }
+
+    SECTION("longer text ends in an ellipsis and stays within the limit") {
+        CHECK(truncate("hello world", 6) == "hello…");
+        CHECK(character_count(truncate(std::string(200, 'a'), 100)) == 100);
+    }
+
+    SECTION("a multi-byte character is never split") {
+        CHECK(truncate("ééééé", 3) == "éé…");
+        CHECK(truncate("💀💀💀", 2) == "💀…");
+    }
+
+    SECTION("a limit of zero leaves nothing") {
+        CHECK(truncate("hello", 0).empty());
+    }
+}

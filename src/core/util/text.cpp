@@ -1,9 +1,17 @@
 #include "core/util/text.hpp"
 
+#include <algorithm>
+
 namespace latibot::util {
 namespace {
 
 constexpr std::string_view whitespace = " \t\n\r\f\v";
+
+/// A UTF-8 continuation byte, 10xxxxxx: the second or later byte of a
+/// character, never the start of one.
+constexpr bool is_continuation(char byte) noexcept {
+    return (static_cast<unsigned char>(byte) & 0xC0U) == 0x80U;
+}
 
 } // namespace
 
@@ -30,6 +38,34 @@ std::string_view trim(std::string_view text) noexcept {
 
 bool is_blank(std::string_view text) noexcept {
     return trim(text).empty();
+}
+
+std::size_t character_count(std::string_view text) noexcept {
+    return static_cast<std::size_t>(std::ranges::count_if(text, [](char byte) { return !is_continuation(byte); }));
+}
+
+std::string truncate(std::string_view text, std::size_t limit) {
+    if (character_count(text) <= limit) {
+        return std::string(text);
+    }
+    if (limit == 0) {
+        return {};
+    }
+
+    // Keep limit - 1 characters, leaving room for the ellipsis: stop at the
+    // first byte that would start one more.
+    std::size_t kept = 0;
+    std::size_t cut = 0;
+    for (; cut < text.size(); ++cut) {
+        if (is_continuation(text[cut])) {
+            continue;
+        }
+        if (kept == limit - 1) {
+            break;
+        }
+        ++kept;
+    }
+    return std::string(text.substr(0, cut)) + "…";
 }
 
 bool is_inside_spoiler(std::string_view before) noexcept {

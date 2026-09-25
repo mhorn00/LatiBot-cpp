@@ -4,8 +4,12 @@
 // place. The API is the only thing that enforces them, and it does so by
 // refusing the whole message (plan §21.4), so every renderer's test runs its
 // output through these, the states that add rows included.
+//
+// Text is measured in characters, as Discord measures it, except custom IDs,
+// which are held to 100 bytes: the paginator refuses anything longer.
 
 #include "core/ui/paginator.hpp"
+#include "core/util/text.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/message.h>
@@ -36,7 +40,7 @@ inline constexpr std::size_t input_length = 4000;
 /// within its message, which is the rule a panel breaks when two of its rows
 /// happen to encode the same state.
 inline void check_message_fits(const dpp::message& message) {
-    CHECK(message.content.size() <= discord_limit::content);
+    CHECK(util::character_count(message.content) <= discord_limit::content);
     CHECK(message.components.size() <= discord_limit::rows);
 
     std::set<std::string> ids;
@@ -57,13 +61,13 @@ inline void check_message_fits(const dpp::message& message) {
             }
 
             if (part.type == dpp::cot_button) {
-                CHECK(part.label.size() <= discord_limit::button_label);
+                CHECK(util::character_count(part.label) <= discord_limit::button_label);
             }
 
             if (part.type == dpp::cot_selectmenu) {
                 // A select menu fills its row on its own.
                 CHECK(row.components.size() == 1);
-                CHECK(part.placeholder.size() <= discord_limit::select_placeholder);
+                CHECK(util::character_count(part.placeholder) <= discord_limit::select_placeholder);
                 CHECK_FALSE(part.options.empty());
                 CHECK(part.options.size() <= discord_limit::select_options);
 
@@ -71,9 +75,9 @@ inline void check_message_fits(const dpp::message& message) {
                 for (const dpp::select_option& option : part.options) {
                     INFO("option: " << option.label);
                     CHECK_FALSE(option.label.empty());
-                    CHECK(option.label.size() <= discord_limit::select_option_text);
-                    CHECK(option.value.size() <= discord_limit::select_option_text);
-                    CHECK(option.description.size() <= discord_limit::select_option_text);
+                    CHECK(util::character_count(option.label) <= discord_limit::select_option_text);
+                    CHECK(util::character_count(option.value) <= discord_limit::select_option_text);
+                    CHECK(util::character_count(option.description) <= discord_limit::select_option_text);
                     CHECK(values.insert(option.value).second);
                 }
             }
@@ -84,7 +88,7 @@ inline void check_message_fits(const dpp::message& message) {
 /// Checks a modal: its title, its ID, and each text input's.
 inline void check_modal_fits(const dpp::interaction_modal_response& form) {
     CHECK_FALSE(form.title.empty());
-    CHECK(form.title.size() <= discord_limit::modal_title);
+    CHECK(util::character_count(form.title) <= discord_limit::modal_title);
     CHECK_FALSE(form.custom_id.empty());
     CHECK(form.custom_id.size() <= ui::custom_id_limit);
     CHECK(form.components.size() <= discord_limit::rows);
@@ -96,8 +100,8 @@ inline void check_modal_fits(const dpp::interaction_modal_response& form) {
         for (const dpp::component& input : row) {
             INFO("input: " << input.custom_id << ", label: " << input.label);
             CHECK_FALSE(input.label.empty());
-            CHECK(input.label.size() <= discord_limit::input_label);
-            CHECK(input.placeholder.size() <= discord_limit::input_placeholder);
+            CHECK(util::character_count(input.label) <= discord_limit::input_label);
+            CHECK(util::character_count(input.placeholder) <= discord_limit::input_placeholder);
             CHECK_FALSE(input.custom_id.empty());
             CHECK(input.custom_id.size() <= ui::custom_id_limit);
             CHECK(ids.insert(input.custom_id).second);

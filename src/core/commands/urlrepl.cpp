@@ -248,12 +248,8 @@ std::optional<dpp::component> pick_menu(std::span<const events::url_rule> page_o
     menu.set_type(dpp::cot_selectmenu).set_placeholder("Pick a rule to edit or delete").set_id(*id);
     for (const events::url_rule& rule : page_of) {
         // A select option's description is capped at 100 characters.
-        std::string mirrors = describe_mirrors(rule.mirrors);
-        if (mirrors.size() > 100) {
-            mirrors.resize(97);
-            mirrors += "...";
-        }
-        menu.add_select_option(dpp::select_option(rule.domain, rule.domain, mirrors).set_default(rule.domain == selected));
+        menu.add_select_option(dpp::select_option(rule.domain, rule.domain, util::truncate(describe_mirrors(rule.mirrors), 100))
+                                   .set_default(rule.domain == selected));
     }
 
     dpp::component row;
@@ -279,7 +275,7 @@ std::optional<dpp::component> selection_row(int page, std::string_view selected,
         if (!yes || !no) {
             return std::nullopt;
         }
-        row.add_component(button(dpp::cos_danger, std::format("Delete {}", chosen).substr(0, 80), *yes));
+        row.add_component(button(dpp::cos_danger, util::truncate(std::format("Delete {}", chosen), 80), *yes));
         row.add_component(button(dpp::cos_secondary, "Cancel", *no));
         return row;
     }
