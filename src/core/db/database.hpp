@@ -17,6 +17,16 @@ namespace latibot::db {
 /// is tiny, so a single serialized connection is simpler than a pool and
 /// removes every question about which thread owns what. `prepare()` and
 /// `transaction` hold the lock for as long as they live.
+///
+/// So one statement is always atomic, and anything longer is not. A store
+/// method that runs more than one operation and needs them to agree takes
+/// `lock()` or a `transaction` first: a write followed by `changes()` or
+/// `last_insert_rowid()`, a read that decides a write, or several statements
+/// that must be consistent. Without it another thread's statement can land
+/// in between, and `changes()` would describe that one instead.
+///
+/// The mutex belongs to a thread. Never hold a statement, `lock()` or a
+/// `transaction` across a `co_await`, which can resume on another thread.
 class database {
 public:
     /// Path accepted by SQLite for a private in-memory database, used by tests.

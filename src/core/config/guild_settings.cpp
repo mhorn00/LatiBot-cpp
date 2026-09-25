@@ -103,6 +103,8 @@ void guild_settings::set_real(dpp::snowflake guild_id, std::string_view key, dou
 }
 
 bool guild_settings::erase(dpp::snowflake guild_id, std::string_view key) {
+    const auto guard = db_->lock();
+
     db_->prepare("DELETE FROM guild_settings WHERE guild_id = ? AND key = ?", static_cast<std::uint64_t>(guild_id), key).run();
     return db_->changes() > 0;
 }
