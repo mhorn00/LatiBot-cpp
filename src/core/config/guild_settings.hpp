@@ -24,6 +24,10 @@ namespace latibot::config {
 /// Values are stored as text. Numbers and booleans are parsed on read, and a
 /// value that cannot be parsed falls back to the caller's default rather than
 /// throwing, so one bad row cannot take a feature down.
+///
+/// The bot uses the text and boolean accessors today. The numeric ones,
+/// `erase` and `all` are tested but wait for `/llm settings` (plan §14),
+/// the panel of numbers they were written for.
 class guild_settings {
 public:
     explicit guild_settings(db::database& db) : db_(&db) {}

@@ -298,19 +298,6 @@ bool nickname_store::remove(std::int64_t id) {
     return db_->changes() > 0;
 }
 
-std::vector<dpp::snowflake> nickname_store::members(dpp::snowflake guild_id) const {
-    const auto guard = db_->lock();
-
-    auto query = db_->prepare("SELECT DISTINCT user_id FROM nickname_history WHERE guild_id = ? ORDER BY user_id",
-                              static_cast<std::uint64_t>(guild_id));
-
-    std::vector<dpp::snowflake> found;
-    while (query.step()) {
-        found.emplace_back(query.get<std::uint64_t>(0));
-    }
-    return found;
-}
-
 std::size_t nickname_store::count(dpp::snowflake guild_id, dpp::snowflake user_id) const {
     const auto guard = db_->lock();
 

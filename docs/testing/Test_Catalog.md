@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-489 test cases across 9 components, including 113 sections.
+488 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 109 | 11 |
+| [db](#db) | 108 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 117 | 27 |
 | [events](#events) | 150 | 37 |
@@ -84,8 +84,7 @@ Database (`src/core/db`)
 | attributing a row fills in the author and where it came from |  |  | [tests/db/nickname_store_test.cpp:164](../../tests/db/nickname_store_test.cpp#L164) |
 | the first audit entry to attribute a row wins |  |  | [tests/db/nickname_store_test.cpp:177](../../tests/db/nickname_store_test.cpp#L177) |
 | a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:190](../../tests/db/nickname_store_test.cpp#L190) |
-| the members of a guild are listed once each |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
-| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:218](../../tests/db/nickname_store_test.cpp#L218) |
+| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
 | only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:94](../../tests/db/reaction_store_test.cpp#L94) |
 | taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:106](../../tests/db/reaction_store_test.cpp#L106) |
 | a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:115](../../tests/db/reaction_store_test.cpp#L115) |

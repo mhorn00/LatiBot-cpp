@@ -147,6 +147,8 @@ public:
     /// Discord refused does not silently swallow the next matching change.
     void forget(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname);
 
+    /// How many expectations are waiting. For the tests, which check that
+    /// claiming and forgetting leave nothing behind.
     [[nodiscard]] std::size_t size() const;
 
 private:
@@ -205,9 +207,8 @@ public:
     /// Removes a row, for when a change the bot recorded did not go through.
     bool remove(std::int64_t id);
 
-    /// Every member with history in this guild.
-    [[nodiscard]] std::vector<dpp::snowflake> members(dpp::snowflake guild_id) const;
-
+    /// How many rows one member has. For the tests, which check what was
+    /// written; the bot itself reads whole histories.
     [[nodiscard]] std::size_t count(dpp::snowflake guild_id, dpp::snowflake user_id) const;
 
 private:

@@ -200,21 +200,6 @@ TEST_CASE("a change that did not go through can be taken back", "[db]") {
     CHECK_FALSE(fixture.store.remove(id));
 }
 
-TEST_CASE("the members of a guild are listed once each", "[db]") {
-    store_fixture fixture;
-
-    fixture.store.record(change_to("one", noon));
-    fixture.store.record(change_to("two", noon + 1h));
-
-    nickname_change other = change_to("elsewhere");
-    other.user_id = dpp::snowflake{5555};
-    fixture.store.record(other);
-
-    const auto members = fixture.store.members(guild);
-    REQUIRE(members.size() == 2);
-    CHECK(fixture.store.members(other_guild).empty());
-}
-
 TEST_CASE("an imported row keeps the text its timestamp was read from", "[db]") {
     store_fixture fixture;
 

@@ -43,15 +43,6 @@ public:
     /// Connects and blocks until the bot shuts down.
     void run();
 
-    [[nodiscard]] commands::registry& commands() noexcept { return commands_; }
-    [[nodiscard]] db::database& database() noexcept { return database_; }
-    [[nodiscard]] config::guild_settings& guild_settings() noexcept { return guild_settings_; }
-    [[nodiscard]] ports::discord_gateway& gateway() noexcept { return gateway_; }
-    [[nodiscard]] ports::http_client& http() noexcept { return http_; }
-    [[nodiscard]] discord::raw_api& raw() noexcept { return raw_; }
-    [[nodiscard]] ports::clock& clock() noexcept { return clock_; }
-    [[nodiscard]] const config::bootstrap& settings() const noexcept { return settings_; }
-
 private:
     void register_commands();
     void register_stages();
