@@ -6,7 +6,6 @@
 #
 # Why the disabled checks are disabled:
 #   misc-include-cleaner            unusable against the MSVC standard headers
-#   bugprone-implicit-widening-...  crashes clang-tidy 19.1.5 on DPP's cache.h
 #   modernize-return-braced-...     "return {a, b};" hides the returned type
 #   modernize-use-trailing-...      we write leading return types
 #   readability-braces-around-...   .clang-format allows a short if on one
@@ -26,7 +25,6 @@ Checks: >
   cppcoreguidelines-slicing,
   misc-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-implicit-widening-of-multiplication-result,
   -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -modernize-return-braced-init-list,
