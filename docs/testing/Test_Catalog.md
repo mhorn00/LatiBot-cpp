@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-474 test cases across 9 components, including 104 sections.
+476 test cases across 9 components, including 104 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 104 | 11 |
+| [db](#db) | 105 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 113 | 26 |
-| [events](#events) | 145 | 33 |
+| [events](#events) | 146 | 33 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -45,18 +45,19 @@ Database (`src/core/db`)
 | a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
-| an added entry comes back as it went in |  |  | [tests/db/midnight_store_test.cpp:49](../../tests/db/midnight_store_test.cpp#L49) |
-| entries belong to one guild |  |  | [tests/db/midnight_store_test.cpp:64](../../tests/db/midnight_store_test.cpp#L64) |
-| only enabled entries are looked at on a tick |  |  | [tests/db/midnight_store_test.cpp:76](../../tests/db/midnight_store_test.cpp#L76) |
-| a day can only be claimed once |  |  | [tests/db/midnight_store_test.cpp:89](../../tests/db/midnight_store_test.cpp#L89) |
-| editing an entry leaves the day it last posted alone |  |  | [tests/db/midnight_store_test.cpp:99](../../tests/db/midnight_store_test.cpp#L99) |
-| a tick posts an entry once and then leaves it alone |  |  | [tests/db/midnight_store_test.cpp:114](../../tests/db/midnight_store_test.cpp#L114) |
-| a restart moments after posting does not post again |  |  | [tests/db/midnight_store_test.cpp:140](../../tests/db/midnight_store_test.cpp#L140) |
-| a night the bot slept through is given up on, not posted at breakfast |  |  | [tests/db/midnight_store_test.cpp:159](../../tests/db/midnight_store_test.cpp#L159) |
-| a restart a minute after midnight still posts |  |  | [tests/db/midnight_store_test.cpp:184](../../tests/db/midnight_store_test.cpp#L184) |
-| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:198](../../tests/db/midnight_store_test.cpp#L198) |
-| a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:217](../../tests/db/midnight_store_test.cpp#L217) |
-| a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:234](../../tests/db/midnight_store_test.cpp#L234) |
+| an added entry comes back as it went in |  |  | [tests/db/midnight_store_test.cpp:51](../../tests/db/midnight_store_test.cpp#L51) |
+| entries belong to one guild |  |  | [tests/db/midnight_store_test.cpp:66](../../tests/db/midnight_store_test.cpp#L66) |
+| only enabled entries are looked at on a tick |  |  | [tests/db/midnight_store_test.cpp:78](../../tests/db/midnight_store_test.cpp#L78) |
+| a day can only be claimed once |  |  | [tests/db/midnight_store_test.cpp:91](../../tests/db/midnight_store_test.cpp#L91) |
+| editing an entry leaves the day it last posted alone |  |  | [tests/db/midnight_store_test.cpp:101](../../tests/db/midnight_store_test.cpp#L101) |
+| a tick posts an entry once and then leaves it alone |  |  | [tests/db/midnight_store_test.cpp:116](../../tests/db/midnight_store_test.cpp#L116) |
+| an entry that cannot be claimed does not cost the others their post |  |  | [tests/db/midnight_store_test.cpp:142](../../tests/db/midnight_store_test.cpp#L142) |
+| a restart moments after posting does not post again |  |  | [tests/db/midnight_store_test.cpp:172](../../tests/db/midnight_store_test.cpp#L172) |
+| a night the bot slept through is given up on, not posted at breakfast |  |  | [tests/db/midnight_store_test.cpp:191](../../tests/db/midnight_store_test.cpp#L191) |
+| a restart a minute after midnight still posts |  |  | [tests/db/midnight_store_test.cpp:216](../../tests/db/midnight_store_test.cpp#L216) |
+| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:230](../../tests/db/midnight_store_test.cpp#L230) |
+| a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:249](../../tests/db/midnight_store_test.cpp#L249) |
+| a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:266](../../tests/db/midnight_store_test.cpp#L266) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
@@ -300,31 +301,32 @@ Message pipeline and triggers (`src/core/events`)
 | a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:267](../../tests/db/backfill_test.cpp#L267) |
 | one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:280](../../tests/db/backfill_test.cpp#L280) |
 | without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:298](../../tests/db/backfill_test.cpp#L298) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:117](../../tests/unit/embed_watch_test.cpp#L117) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:127](../../tests/unit/embed_watch_test.cpp#L127) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:135](../../tests/unit/embed_watch_test.cpp#L135) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:149](../../tests/unit/embed_watch_test.cpp#L149) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:159](../../tests/unit/embed_watch_test.cpp#L159) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:165](../../tests/unit/embed_watch_test.cpp#L165) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:174](../../tests/unit/embed_watch_test.cpp#L174) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:185](../../tests/unit/embed_watch_test.cpp#L185) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:198](../../tests/unit/embed_watch_test.cpp#L198) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:213](../../tests/unit/embed_watch_test.cpp#L213) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:251](../../tests/unit/embed_watch_test.cpp#L251) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:276](../../tests/unit/embed_watch_test.cpp#L276) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:288](../../tests/unit/embed_watch_test.cpp#L288) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:298](../../tests/unit/embed_watch_test.cpp#L298) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:321](../../tests/unit/embed_watch_test.cpp#L321) |
-| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:362](../../tests/unit/embed_watch_test.cpp#L362) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:403](../../tests/unit/embed_watch_test.cpp#L403) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:434](../../tests/unit/embed_watch_test.cpp#L434) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:448](../../tests/unit/embed_watch_test.cpp#L448) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:480](../../tests/unit/embed_watch_test.cpp#L480) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:496](../../tests/unit/embed_watch_test.cpp#L496) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:516](../../tests/unit/embed_watch_test.cpp#L516) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:550](../../tests/unit/embed_watch_test.cpp#L550) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:562](../../tests/unit/embed_watch_test.cpp#L562) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:119](../../tests/unit/embed_watch_test.cpp#L119) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:129](../../tests/unit/embed_watch_test.cpp#L129) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:137](../../tests/unit/embed_watch_test.cpp#L137) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:151](../../tests/unit/embed_watch_test.cpp#L151) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:161](../../tests/unit/embed_watch_test.cpp#L161) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:167](../../tests/unit/embed_watch_test.cpp#L167) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:176](../../tests/unit/embed_watch_test.cpp#L176) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:187](../../tests/unit/embed_watch_test.cpp#L187) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:200](../../tests/unit/embed_watch_test.cpp#L200) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:215](../../tests/unit/embed_watch_test.cpp#L215) |
+| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:253](../../tests/unit/embed_watch_test.cpp#L253) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:306](../../tests/unit/embed_watch_test.cpp#L306) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:331](../../tests/unit/embed_watch_test.cpp#L331) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:343](../../tests/unit/embed_watch_test.cpp#L343) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:353](../../tests/unit/embed_watch_test.cpp#L353) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:362](../../tests/unit/embed_watch_test.cpp#L362) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:376](../../tests/unit/embed_watch_test.cpp#L376) |
+| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:417](../../tests/unit/embed_watch_test.cpp#L417) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:458](../../tests/unit/embed_watch_test.cpp#L458) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:489](../../tests/unit/embed_watch_test.cpp#L489) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:503](../../tests/unit/embed_watch_test.cpp#L503) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:535](../../tests/unit/embed_watch_test.cpp#L535) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:551](../../tests/unit/embed_watch_test.cpp#L551) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:571](../../tests/unit/embed_watch_test.cpp#L571) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:605](../../tests/unit/embed_watch_test.cpp#L605) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:617](../../tests/unit/embed_watch_test.cpp#L617) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |

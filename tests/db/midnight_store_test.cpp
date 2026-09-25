@@ -4,10 +4,12 @@
 #include "core/ports/clock.hpp"
 
 #include "mocks/mock_clock.hpp"
+#include "support/capture_log.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <format>
 #include <string>
 #include <variant>
 
@@ -135,6 +137,36 @@ TEST_CASE("a tick posts an entry once and then leaves it alone", "[db]") {
 
     clock.set(utc(2026, 9, 24, 0, 0, 10));
     CHECK(scheduler.tick().size() == 1);
+}
+
+TEST_CASE("an entry that cannot be claimed does not cost the others their post", "[db]") {
+    // The posts a tick has claimed are only sent if it returns, so an error on
+    // one entry that escaped would lose every other entry's message that day.
+    store_fixture fixture;
+    latibot::testing::mock_clock clock;
+    midnight_scheduler scheduler(fixture.store, clock);
+
+    fixture.store.add(entry_in("UTC"));
+    const std::int64_t broken = fixture.store.add(entry_in("UTC"));
+    fixture.store.add(entry_in("UTC"));
+
+    // Stands in for a disk error on that one row.
+    fixture.db.execute(
+        std::format("CREATE TRIGGER fail_claim BEFORE UPDATE ON midnight_messages WHEN NEW.id = {} "
+                    "BEGIN SELECT RAISE(ABORT, 'disk error'); END",
+                    broken));
+
+    clock.set(utc(2026, 9, 23, 0, 0, 30));
+    {
+        const latibot::testing::capture_log log;
+        CHECK(scheduler.tick().size() == 2);
+        CHECK(log.contains(latibot::util::log_level::error, std::format("midnight message {}", broken)));
+    }
+
+    // Once the error clears, the next tick posts the one it held up.
+    fixture.db.execute("DROP TRIGGER fail_claim");
+    CHECK(scheduler.tick().size() == 1);
+    CHECK(scheduler.tick().empty());
 }
 
 TEST_CASE("a restart moments after posting does not post again", "[db]") {

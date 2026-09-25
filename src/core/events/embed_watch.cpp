@@ -271,9 +271,19 @@ std::vector<embed_action> embed_tracker::tick() {
             continue;
         }
 
-        std::vector<embed_action> finished = finish(state);
-        actions.insert(actions.end(), std::make_move_iterator(finished.begin()), std::make_move_iterator(finished.end()));
-        entry = watches_.erase(entry);
+        // A watch whose ending cannot be recorded is kept, to try again
+        // once another timeout has passed, and the rest carry on. Letting
+        // the error out would lose the actions already gathered for watches
+        // this tick has erased: their Retry notes would never be posted.
+        try {
+            std::vector<embed_action> finished = finish(state);
+            actions.insert(actions.end(), std::make_move_iterator(finished.begin()), std::make_move_iterator(finished.end()));
+            entry = watches_.erase(entry);
+        } catch (const std::exception& error) {
+            util::log().error("could not record how message {} ended; trying again in {}: {}", entry->first, timeout_, error.what());
+            state.deadline = now + timeout_;
+            ++entry;
+        }
     }
 
     return actions;

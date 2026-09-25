@@ -409,12 +409,34 @@ void bot::register_events() {
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
 }
 
+namespace {
+
+/// A timer callback that logs what it throws rather than letting it reach
+/// DPP.
+///
+/// DPP runs timers on its socket thread and puts a repeating one back in its
+/// queue only after the callback returns, so one exception would stop that
+/// timer for the life of the process, leaving a single log line that does
+/// not say which timer it was.
+template <typename Work>
+auto guarded(std::string_view what, Work work) {
+    return [what, work = std::move(work)](dpp::timer handle) {
+        try {
+            work(handle);
+        } catch (const std::exception& error) {
+            util::log().error("{} failed: {}", what, error.what());
+        }
+    };
+}
+
+} // namespace
+
 void bot::register_timers() {
     // Polling the wall clock is the fix for the Java bot's random-fire bug: it
     // computed a delay from the wall clock and then waited on a monotonic
     // timer, so a machine that slept woke up and posted at whatever time it
     // happened to be (plan §10).
-    cluster_.start_timer([this](dpp::timer) { carry_out(midnight_scheduler_.tick()); },
+    cluster_.start_timer(guarded("the midnight tick", [this](dpp::timer) { carry_out(midnight_scheduler_.tick()); }),
                          static_cast<std::uint64_t>(events::midnight_tick.count()));
 
     util::log().debug("midnight messages checked every {}", events::midnight_tick);
@@ -422,7 +444,7 @@ void bot::register_timers() {
     // One timer for every replacement being watched, rather than one each:
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
-    cluster_.start_timer([this](dpp::timer) { carry_out(embed_tracker_.tick()); }, 1);
+    cluster_.start_timer(guarded("the preview tracker's tick", [this](dpp::timer) { carry_out(embed_tracker_.tick()); }), 1);
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -525,43 +547,43 @@ void bot::on_member_update(const dpp::guild_member& member) {
 void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) {
     // A self-cancelling repeat, which is the one-shot DPP does not have. The
     // handle arrives in the callback, so nothing has to be kept alive here.
-    cluster_.start_timer(
-        [this, guild_id, user_id, row](dpp::timer handle) {
-            cluster_.stop_timer(handle);
+    cluster_.start_timer(guarded("the audit log fallback",
+                                 [this, guild_id, user_id, row](dpp::timer handle) {
+                                     cluster_.stop_timer(handle);
 
-            const auto waiting = nicknames_.find(row);
-            if (!waiting || waiting->changed_by) {
-                // The gateway entry arrived, which is the ordinary path.
-                return;
-            }
+                                     const auto waiting = nicknames_.find(row);
+                                     if (!waiting || waiting->changed_by) {
+                                         // The gateway entry arrived, which is the ordinary path.
+                                         return;
+                                     }
 
-            util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
-            cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
-                                        [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
-                                            if (reply.is_error()) {
-                                                // Almost always a missing View Audit Log, which the
-                                                // permission preflight already warns about per guild.
-                                                util::log().debug("could not read the audit log for guild {}: {}", guild_id,
-                                                                  reply.get_error().message);
-                                                return;
-                                            }
+                                     util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
+                                     cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
+                                                                 [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
+                                                                     if (reply.is_error()) {
+                                                                         // Almost always a missing View Audit Log, which the
+                                                                         // permission preflight already warns about per guild.
+                                                                         util::log().debug("could not read the audit log for guild {}: {}",
+                                                                                           guild_id, reply.get_error().message);
+                                                                         return;
+                                                                     }
 
-                                            const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
-                                            if (entries == nullptr) {
-                                                return;
-                                            }
+                                                                     const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
+                                                                     if (entries == nullptr) {
+                                                                         return;
+                                                                     }
 
-                                            // Every recent entry about this member goes through
-                                            // the same path as a live one, which decides which
-                                            // row, if any, it attributes.
-                                            for (const dpp::audit_entry& entry : entries->entries) {
-                                                if (entry.target_id == user_id) {
-                                                    on_audit_entry(entry, guild_id);
-                                                }
-                                            }
-                                        });
-        },
-        static_cast<std::uint64_t>(events::audit_fallback_delay.count()));
+                                                                     // Every recent entry about this member goes through
+                                                                     // the same path as a live one, which decides which
+                                                                     // row, if any, it attributes.
+                                                                     for (const dpp::audit_entry& entry : entries->entries) {
+                                                                         if (entry.target_id == user_id) {
+                                                                             on_audit_entry(entry, guild_id);
+                                                                         }
+                                                                     }
+                                                                 });
+                                 }),
+                         static_cast<std::uint64_t>(events::audit_fallback_delay.count()));
 }
 
 void bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) {

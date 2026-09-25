@@ -251,8 +251,18 @@ std::vector<action> midnight_scheduler::tick() {
 
         // Claimed before it is posted: a crash in between costs one message,
         // where the other order would repeat it every thirty seconds.
-        if (!store_->mark_fired(entry.id, local->date)) {
-            util::log().debug("midnight message {} was already posted for {}", entry.id, local->date);
+        //
+        // A claim that fails is left for the next tick, and the rest go
+        // ahead: the posts already claimed here are only sent if this
+        // returns, so one entry's error must not cost the others theirs.
+        try {
+            if (!store_->mark_fired(entry.id, local->date)) {
+                util::log().debug("midnight message {} was already posted for {}", entry.id, local->date);
+                continue;
+            }
+        } catch (const std::exception& error) {
+            util::log().error("could not claim {} for midnight message {}; trying again next tick: {}", local->date, entry.id,
+                              error.what());
             continue;
         }
 

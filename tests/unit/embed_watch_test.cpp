@@ -12,11 +12,13 @@
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
+#include "support/capture_log.hpp"
 #include "support/discord_limits.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <format>
 #include <string>
 #include <variant>
 #include <vector>
@@ -246,6 +248,59 @@ TEST_CASE("each mirror gets two tries, then the next one", "[events]") {
         CHECK(test.tracker.on_embeds(ours, embeds({"https://x.com/a/status/1"})).empty());
         CHECK(test.state() == replacement_state::ok);
     }
+}
+
+TEST_CASE("a watch whose ending cannot be recorded waits, and the others still finish", "[events]") {
+    // What a tick has gathered is only carried out if it returns, so an error
+    // on one watch that escaped would lose the others' Retry notes, after
+    // they had already been dropped from the tracker.
+    fixture test;
+    constexpr dpp::snowflake broken{4001};
+
+    // One mirror, one try each, so a single timeout ends both.
+    watch_request mine = test.request({tiktok_link()});
+    mine.per_mirror = 1;
+    watch_request theirs = mine;
+    theirs.message_id = broken;
+    theirs.original_message_id = dpp::snowflake{3001};
+
+    test.record({tiktok_link()});
+    test.replacements.record({.message_id = broken,
+                              .guild_id = guild,
+                              .channel_id = channel,
+                              .original_message_id = theirs.original_message_id,
+                              .original_author_id = author,
+                              .state = replacement_state::pending,
+                              .created_at = std::chrono::floor<std::chrono::seconds>(test.clock.now()),
+                              .retried_at = std::nullopt,
+                              .links = {tiktok_link()}});
+    CHECK(test.tracker.watch(mine).empty());
+    CHECK(test.tracker.watch(theirs).empty());
+
+    // Stands in for a disk error on that one row.
+    test.db.execute(
+        std::format("CREATE TRIGGER fail_finish BEFORE UPDATE ON replacement_messages WHEN NEW.message_id = {} "
+                    "BEGIN SELECT RAISE(ABORT, 'disk error'); END",
+                    broken.str()));
+    {
+        const latibot::testing::capture_log log;
+
+        // Ours ends as it should: the original's preview back, then the note.
+        CHECK(test.time_out().size() == 2);
+        CHECK(test.state() == replacement_state::failed);
+
+        CHECK(test.tracker.watching(broken));
+        CHECK(test.replacements.find(broken)->state == replacement_state::pending);
+        CHECK(log.contains(latibot::util::log_level::error, std::format("message {}", broken.str())));
+    }
+
+    // Once the error clears, it is tried again after another timeout, not on
+    // every tick until then.
+    test.db.execute("DROP TRIGGER fail_finish");
+    CHECK(test.tracker.tick().empty());
+    CHECK(test.time_out().size() == 2);
+    CHECK_FALSE(test.tracker.watching(broken));
+    CHECK(test.replacements.find(broken)->state == replacement_state::failed);
 }
 
 TEST_CASE("each link in a message is tracked on its own", "[events]") {
