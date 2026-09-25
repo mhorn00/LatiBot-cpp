@@ -78,11 +78,19 @@ private:
     /// because DPP puts it on each event type rather than on their base.
     void on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen);
 
+    /// Does what a decoded component asks. False when no panel claims it,
+    /// which `on_component` answers.
+    bool route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                         const commands::user_label& who);
+
     /// Modal submissions.
     void on_form(const dpp::form_submit_t& event);
 
     /// The URL rule modal: add, edit, or rename a rule.
     void on_url_form(const dpp::form_submit_t& event, const ui::page_state& state);
+
+    /// The trigger modal: add a trigger, or edit one.
+    void on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state);
 
     /// The trigger panel's and list's buttons and menu. False when the view
     /// is not one of theirs.

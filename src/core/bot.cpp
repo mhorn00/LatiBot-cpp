@@ -124,6 +124,19 @@ void update_panel(const dpp::interaction_create_t& event, dpp::message message) 
     event.reply(dpp::ir_update_message, discord::apply_flags(message, kept, discord::channel_message_flags));
 }
 
+/// Answers a button, menu or form with a note only the person who used it
+/// sees.
+void answer_privately(const dpp::interaction_create_t& event, std::string_view text) {
+    dpp::message note{std::string(text)};
+    note.set_flags(dpp::m_ephemeral);
+    event.reply(note);
+}
+
+/// What a button, menu or form no panel claims hears back. It is one of ours,
+/// since Discord only sends the bot its own, so it is from a build whose
+/// panels were different.
+constexpr std::string_view stale_component_reply = "that's from an older version of me; run the command again for a fresh one";
+
 /// The URLs of a message's previews, which is all the embed tracker needs.
 std::vector<std::string> embed_urls_of(const dpp::message& message) {
     std::vector<std::string> urls;
@@ -729,9 +742,10 @@ void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::
 void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) {
     const auto state = ui::decode(custom_id);
     if (!state) {
-        // Someone else's component, or one of ours from a build that encoded
-        // them differently. Ignoring it is right; saying so is how you find out.
-        util::log().debug("ignoring a component with an unrecognised id \"{}\"", custom_id);
+        // Discord only sends the bot its own components, so this is one of
+        // ours from a build that encoded them differently.
+        util::log().debug("a component with an unrecognised id \"{}\"", custom_id);
+        answer_privately(event, stale_component_reply);
         return;
     }
 
@@ -740,25 +754,47 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     util::log().debug("{} used panel {} page {} argument \"{}\"{} in guild {}", who, state->view, state->page, state->argument,
                       chosen.empty() ? std::string{} : std::format(" chose \"{}\"", chosen), guild);
 
+    // A button that fails says so, as a command does, rather than leaving
+    // Discord to say the interaction failed. Only the catch and the unclaimed
+    // branch answer here, so nothing a panel already answered is answered
+    // twice, unless it threw after answering.
+    try {
+        if (!route_component(event, *state, chosen, who)) {
+            util::log().debug("no panel handles the view {} with argument '{}'", state->view, state->argument);
+            answer_privately(event, stale_component_reply);
+        }
+    } catch (const std::exception& error) {
+        util::log().error("panel {} failed for {} in guild {}: {}", state->view, who, guild, error.what());
+        answer_privately(event, commands::command_failed_reply);
+    }
+}
+
+bool bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                          const commands::user_label& who) {
+    const dpp::snowflake guild = event.command.guild_id;
+
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
     // is nothing here to expire, leak, or lose across a restart.
-    if (state->view == commands::nickname_history_view) {
-        const dpp::snowflake subject(state->argument);
-        update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state->page));
-    } else if (state->view == events::url_retry_view) {
-        retry_replacement(event, dpp::snowflake(state->argument), who);
-    } else if (state->view == commands::board_view) {
+    if (state.view == commands::nickname_history_view) {
+        const dpp::snowflake subject(state.argument);
+        update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state.page));
+    } else if (state.view == events::url_retry_view) {
+        retry_replacement(event, dpp::snowflake(state.argument), who);
+    } else if (state.view == commands::board_view) {
         // The board's filters ride in the argument, so every page is the
-        // same board as the first.
-        if (const auto board = commands::decode_board(state->argument)) {
-            update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state->page));
+        // same board as the first. Filters this build cannot read are as
+        // stale as a view it does not know.
+        const auto board = commands::decode_board(state.argument);
+        if (!board) {
+            return false;
         }
-    } else if (!on_trigger_component(event, *state, chosen, who) && !on_url_component(event, *state, chosen, who)) {
-        // Each panel's router says whether the view was one of its own; a
-        // view neither claims gets no answer.
-        util::log().debug("no panel handles the view \"{}\"", state->view);
+        update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state.page));
+    } else {
+        // Each panel's router says whether the view was one of its own.
+        return on_trigger_component(event, state, chosen, who) || on_url_component(event, state, chosen, who);
     }
+    return true;
 }
 
 bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
@@ -852,9 +888,7 @@ void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& sta
     const auto built = commands::build_rule(field_of(event, "domain"), field_of(event, "mirrors"));
     if (const auto* problem = std::get_if<std::string>(&built)) {
         util::log().debug("{} submitted an unusable URL rule in guild {}: {}", who, guild, *problem);
-        dpp::message complaint(*problem);
-        complaint.set_flags(dpp::m_ephemeral);
-        event.reply(complaint);
+        answer_privately(event, *problem);
         return;
     }
 
@@ -881,17 +915,27 @@ void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& sta
 
 void bot::on_form(const dpp::form_submit_t& event) {
     const auto state = ui::decode(event.custom_id);
-    if (state && state->view == commands::url_form_view) {
-        on_url_form(event, *state);
-        return;
-    }
-    if (!state || state->view != commands::trigger_form_view) {
-        util::log().debug("ignoring a modal submission with an unrecognised id \"{}\"", event.custom_id);
-        return;
-    }
 
+    // Answered when it fails or is not recognised, as a button is.
+    try {
+        if (state && state->view == commands::url_form_view) {
+            on_url_form(event, *state);
+        } else if (state && state->view == commands::trigger_form_view) {
+            on_trigger_form(event, *state);
+        } else {
+            util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
+            answer_privately(event, stale_component_reply);
+        }
+    } catch (const std::exception& error) {
+        util::log().error("form {} failed for {} in guild {}: {}", event.custom_id,
+                          commands::describe_user(event.command.get_issuing_user()), event.command.guild_id, error.what());
+        answer_privately(event, commands::command_failed_reply);
+    }
+}
+
+void bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) {
     const dpp::snowflake guild = event.command.guild_id;
-    const std::int64_t id = argument_id(*state);
+    const std::int64_t id = argument_id(state);
     const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
 
     // Zero means add. Anything else has to still exist: somebody could have
@@ -900,7 +944,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
     if (id != 0) {
         auto existing = triggers_.find(id, guild);
         if (!existing) {
-            update_panel(event, commands::render_trigger_panel(triggers_, guild, state->page));
+            update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
             return;
         }
         entry = std::move(*existing);
@@ -916,16 +960,14 @@ void bot::on_form(const dpp::form_submit_t& event) {
 
     if (const auto problem = commands::apply_form(entry, fields)) {
         util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild, *problem);
-        dpp::message complaint(*problem);
-        complaint.set_flags(dpp::m_ephemeral);
-        event.reply(complaint);
+        answer_privately(event, *problem);
         return;
     }
 
     const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
     util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
                      commands::describe(entry));
-    update_panel(event, commands::render_trigger_panel(triggers_, guild, state->page, saved));
+    update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, saved));
 }
 
 events::incoming_message bot::describe(const dpp::message& message) const {
