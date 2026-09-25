@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-465 test cases across 9 components, including 100 sections.
+466 test cases across 9 components, including 100 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 103 | 11 |
+| [db](#db) | 104 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 107 | 26 |
 | [events](#events) | 145 | 33 |
@@ -102,22 +102,23 @@ Database (`src/core/db`)
 | state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:72](../../tests/db/replacement_store_test.cpp#L72) |
 | recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:87](../../tests/db/replacement_store_test.cpp#L87) |
 | replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:100](../../tests/db/replacement_store_test.cpp#L100) |
-| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:58](../../tests/db/trigger_store_test.cpp#L58) |
-| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:77](../../tests/db/trigger_store_test.cpp#L77) |
-| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:94](../../tests/db/trigger_store_test.cpp#L94) |
-| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:110](../../tests/db/trigger_store_test.cpp#L110) |
-| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:122](../../tests/db/trigger_store_test.cpp#L122) |
-| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:133](../../tests/db/trigger_store_test.cpp#L133) |
-| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:155](../../tests/db/trigger_store_test.cpp#L155) |
-| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:172](../../tests/db/trigger_store_test.cpp#L172) |
-| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:185](../../tests/db/trigger_store_test.cpp#L185) |
-| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:197](../../tests/db/trigger_store_test.cpp#L197) |
-| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:212](../../tests/db/trigger_store_test.cpp#L212) |
-| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:231](../../tests/db/trigger_store_test.cpp#L231) |
-| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:249](../../tests/db/trigger_store_test.cpp#L249) |
-| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:262](../../tests/db/trigger_store_test.cpp#L262) |
-| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:285](../../tests/db/trigger_store_test.cpp#L285) |
-| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:302](../../tests/db/trigger_store_test.cpp#L302) |
+| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:61](../../tests/db/trigger_store_test.cpp#L61) |
+| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:80](../../tests/db/trigger_store_test.cpp#L80) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:97](../../tests/db/trigger_store_test.cpp#L97) |
+| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:113](../../tests/db/trigger_store_test.cpp#L113) |
+| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:125](../../tests/db/trigger_store_test.cpp#L125) |
+| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:136](../../tests/db/trigger_store_test.cpp#L136) |
+| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:158](../../tests/db/trigger_store_test.cpp#L158) |
+| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:175](../../tests/db/trigger_store_test.cpp#L175) |
+| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:188](../../tests/db/trigger_store_test.cpp#L188) |
+| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:227](../../tests/db/trigger_store_test.cpp#L227) |
+| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:239](../../tests/db/trigger_store_test.cpp#L239) |
+| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:254](../../tests/db/trigger_store_test.cpp#L254) |
+| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:273](../../tests/db/trigger_store_test.cpp#L273) |
+| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:291](../../tests/db/trigger_store_test.cpp#L291) |
+| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:304](../../tests/db/trigger_store_test.cpp#L304) |
+| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:327](../../tests/db/trigger_store_test.cpp#L327) |
+| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:344](../../tests/db/trigger_store_test.cpp#L344) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
 | rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |

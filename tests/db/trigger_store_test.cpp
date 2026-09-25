@@ -7,8 +7,11 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <chrono>
+#include <latch>
 #include <string>
+#include <thread>
 #include <vector>
 
 using latibot::events::match_mode;
@@ -180,6 +183,45 @@ TEST_CASE("cooldowns are per channel", "[db]") {
     CHECK(responder(message_saying("420", channel)).actions.size() == 1);
     CHECK(responder(message_saying("420", other_channel)).actions.size() == 1);
     CHECK(responder(message_saying("420", channel)).actions.empty());
+}
+
+TEST_CASE("messages arriving at once still get one reply per cooldown", "[db][threads]") {
+    // DPP runs message handlers on several threads, and a trigger's busiest
+    // moment is several people saying "420" together. The roll comes between
+    // finding the trigger ready and claiming its cooldown, so a slow one holds
+    // that gap open: a responder that did those in separate steps would reply
+    // more than once here.
+    store_fixture fixture;
+    fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] {
+        std::this_thread::sleep_for(5ms);
+        return std::uint64_t{0};
+    });
+
+    constexpr int thread_count = 8;
+    constexpr int per_thread = 25;
+
+    std::atomic<int> replies = 0;
+    std::latch start(thread_count);
+    std::vector<std::thread> senders;
+    senders.reserve(thread_count);
+    for (int t = 0; t < thread_count; ++t) {
+        senders.emplace_back([&] {
+            start.arrive_and_wait();
+            for (int i = 0; i < per_thread; ++i) {
+                replies += static_cast<int>(responder(message_saying("420")).actions.size());
+            }
+        });
+    }
+    for (std::thread& sender : senders) {
+        sender.join();
+    }
+
+    // The clock never moved, so the first reply started a cooldown that
+    // every other message fell inside.
+    CHECK(replies == 1);
 }
 
 TEST_CASE("a disabled trigger says nothing", "[db]") {

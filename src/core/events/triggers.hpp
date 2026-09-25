@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -132,6 +133,9 @@ private:
 /// Does not consume the message: a message with both "420" and a link should
 /// get the reply and the replacement (plan §5.4). It does suppress the
 /// advanced LLM triggers, which is a decision for the stage that adds them.
+///
+/// Safe to call from several threads at once, which is how DPP delivers
+/// messages.
 class trigger_responder {
 public:
     /// `roll` supplies the randomness for weighted responses. The default is
@@ -140,15 +144,16 @@ public:
 
     stage_result operator()(const incoming_message& message);
 
-    /// Cooldowns are per (trigger, channel) and kept here rather than in the
-    /// database: forgetting them across a restart costs one extra reply.
-    void forget_cooldowns();
-
 private:
     const trigger_store* store_;
     ports::clock* clock_;
+
+    /// Guards `roll_` and `last_fired_`.
+    std::mutex mutex_;
     std::function<std::uint64_t()> roll_;
 
+    /// Cooldowns are per (trigger, channel) and kept here rather than in the
+    /// database: forgetting them across a restart costs one extra reply.
     std::map<std::pair<std::int64_t, dpp::snowflake>, std::chrono::steady_clock::time_point> last_fired_;
 };
 

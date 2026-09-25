@@ -256,8 +256,10 @@ trigger_responder::trigger_responder(const trigger_store& store, ports::clock& c
 stage_result trigger_responder::operator()(const incoming_message& message) {
     stage_result result;
 
-    const auto now = clock_->steady_now();
-    for (const trigger& entry : store_->for_guild(message.guild_id)) {
+    // Read before any lock is taken, so no message waits on SQLite while
+    // holding up another's cooldown check.
+    const std::vector<trigger> triggers = store_->for_guild(message.guild_id);
+    for (const trigger& entry : triggers) {
         if (!matches(message.content, entry.pattern, entry.mode)) {
             continue;
         }
@@ -276,6 +278,14 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
             util::log().debug("trigger {} matched a bot's message but does not answer bots", entry.id);
             continue;
         }
+
+        // DPP hands messages to several threads at once, and the moment this
+        // exists for, 4:20, is several people posting at once. Checking the
+        // cooldown, picking a response and claiming the cooldown are one
+        // step under the lock, so two messages cannot both find the trigger
+        // ready, and the generator is never called from two threads.
+        const std::scoped_lock lock(mutex_);
+        const auto now = clock_->steady_now();
 
         const auto key = std::pair{entry.id, message.channel_id};
         const auto seen = last_fired_.find(key);
@@ -299,10 +309,6 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
     }
 
     return result;
-}
-
-void trigger_responder::forget_cooldowns() {
-    last_fired_.clear();
 }
 
 } // namespace latibot::events
