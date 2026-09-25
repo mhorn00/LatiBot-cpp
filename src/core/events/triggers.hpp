@@ -60,6 +60,11 @@ struct trigger {
     /// decides who is answered.
     bool respond_to_bots = false;
 
+    /// How its replies are posted: silent, and whether with link previews.
+    /// Only `discord::channel_message_flags` are kept. Silent by default, as
+    /// every trigger was before this could be chosen.
+    discord::message_flags message_flags = dpp::m_suppress_notifications;
+
     std::vector<weighted_response> responses;
 };
 

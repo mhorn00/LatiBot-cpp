@@ -1,5 +1,6 @@
 #include "core/commands/midnight.hpp"
 
+#include "core/commands/message_options.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 
@@ -16,12 +17,6 @@
 
 namespace latibot::commands {
 namespace {
-
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
 
 std::string subcommand_of(const dpp::slashcommand_t& event) {
     const dpp::command_interaction interaction = event.command.get_command_interaction();
@@ -69,8 +64,12 @@ lookup entry_named(const events::midnight_store& store, const dpp::slashcommand_
 
 std::string describe(const events::midnight_entry& entry) {
     std::string line = std::format("`{}` <#{}> **{}**", entry.id, entry.channel_id.str(), entry.timezone);
-    if (!entry.enabled) {
-        line += " (off)";
+    std::string notes = entry.enabled ? std::string{} : std::string("off");
+    if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) {
+        notes += notes.empty() ? options : ", " + options;
+    }
+    if (!notes.empty()) {
+        line += std::format(" ({})", notes);
     }
     line += std::format("\n> {}", entry.message);
 
@@ -101,7 +100,9 @@ midnight_command::midnight_command(events::midnight_store& store, ports::clock& 
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = dpp::permission(dpp::p_manage_guild),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       store_(&store),
       clock_(&clock) {}
 
@@ -118,12 +119,14 @@ dpp::slashcommand midnight_command::build(const std::string& name, dpp::snowflak
     add.add_option(timezone(true));
     add.add_option(dpp::command_option(dpp::co_channel, "channel", "Where to post it.", true));
     add.add_option(dpp::command_option(dpp::co_string, "message", "What to post.", true).set_min_length(1).set_max_length(2000));
+    add_message_options(add);
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change a midnight message.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /midnight list.", true).set_min_value(1));
     edit.add_option(timezone(false));
     edit.add_option(dpp::command_option(dpp::co_channel, "channel", "Where to post it.", false));
     edit.add_option(dpp::command_option(dpp::co_string, "message", "What to post.", false).set_max_length(2000));
+    add_message_options(edit);
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete a midnight message.");
     remove.add_option(dpp::command_option(dpp::co_integer, "id", "From /midnight list.", true).set_min_value(1));
@@ -170,50 +173,52 @@ dpp::task<void> midnight_command::execute(const dpp::slashcommand_t& event) {
     } else if (action == "list") {
         co_await this->list(event);
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
 dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
     const std::string timezone = string_option(event, "timezone");
     if (!events::is_known_timezone(timezone)) {
-        co_await event.co_reply(ack(std::format("\"{}\" is not a timezone i know. Pick one from the list as you type.", timezone)));
+        co_await event.co_reply(
+            refusal(event, std::format("\"{}\" is not a timezone i know. Pick one from the list as you type.", timezone)));
         co_return;
     }
 
     const auto channel = channel_option(event, "channel");
     if (!channel) {
-        co_await event.co_reply(ack("which channel?"));
+        co_await event.co_reply(refusal(event, "which channel?"));
         co_return;
     }
 
     // Today is recorded as already posted, so this first posts at the next
     // midnight rather than thirty seconds from now (plan v4 §10).
-    const events::midnight_entry entry{.id = 0,
-                                       .guild_id = event.command.guild_id,
-                                       .channel_id = *channel,
-                                       .timezone = timezone,
-                                       .message = string_option(event, "message"),
-                                       .enabled = true,
-                                       .last_fired_date = events::already_posted_today(timezone, clock_->now())};
+    events::midnight_entry entry{.id = 0,
+                                 .guild_id = event.command.guild_id,
+                                 .channel_id = *channel,
+                                 .timezone = timezone,
+                                 .message = string_option(event, "message"),
+                                 .enabled = true,
+                                 .last_fired_date = events::already_posted_today(timezone, clock_->now())};
+    apply_message_options(event, entry.message_flags);
 
     const std::int64_t id = store_->add(entry);
-    util::log().info("midnight message {} added in guild {} by {}: {} in channel {}", id, event.command.guild_id,
-                     describe_user(event.command.get_issuing_user()), timezone, *channel);
+    util::log().info("midnight message {} added in guild {} by {}: {} in channel {} ({})", id, event.command.guild_id,
+                     describe_user(event.command.get_issuing_user()), timezone, *channel, discord::describe_flags(entry.message_flags));
 
-    co_await event.co_reply(ack(std::format("ok, that posts in <#{}> at the next midnight in {}", channel->str(), timezone)));
+    co_await event.co_reply(result(event, std::format("ok, that posts in <#{}> at the next midnight in {}", channel->str(), timezone)));
 }
 
 dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
-        co_await event.co_reply(ack(problem));
+        co_await event.co_reply(refusal(event, problem));
         co_return;
     }
 
     if (const std::string timezone = string_option(event, "timezone"); !timezone.empty()) {
         if (!events::is_known_timezone(timezone)) {
-            co_await event.co_reply(ack(std::format("\"{}\" is not a timezone i know", timezone)));
+            co_await event.co_reply(refusal(event, std::format("\"{}\" is not a timezone i know", timezone)));
             co_return;
         }
         found->timezone = timezone;
@@ -224,19 +229,21 @@ dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
     if (const std::string message = string_option(event, "message"); !message.empty()) {
         found->message = message;
     }
+    apply_message_options(event, found->message_flags);
 
     store_->update(*found);
-    util::log().info("midnight message {} edited in guild {} by {}: {} in channel {}", found->id, event.command.guild_id,
-                     describe_user(event.command.get_issuing_user()), found->timezone, found->channel_id);
+    util::log().info("midnight message {} edited in guild {} by {}: {} in channel {} ({})", found->id, event.command.guild_id,
+                     describe_user(event.command.get_issuing_user()), found->timezone, found->channel_id,
+                     discord::describe_flags(found->message_flags));
 
     co_await event.co_reply(
-        ack(std::format("ok, {} posts in <#{}> at midnight in {}", found->id, found->channel_id.str(), found->timezone)));
+        result(event, std::format("ok, {} posts in <#{}> at midnight in {}", found->id, found->channel_id.str(), found->timezone)));
 }
 
 dpp::task<void> midnight_command::remove(const dpp::slashcommand_t& event) {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
-        co_await event.co_reply(ack(problem));
+        co_await event.co_reply(refusal(event, problem));
         co_return;
     }
 
@@ -244,13 +251,13 @@ dpp::task<void> midnight_command::remove(const dpp::slashcommand_t& event) {
     util::log().info("midnight message {} removed from guild {} by {}", found->id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
 
-    co_await event.co_reply(ack(std::format("gone: midnight message {}", found->id)));
+    co_await event.co_reply(result(event, std::format("gone: midnight message {}", found->id)));
 }
 
 dpp::task<void> midnight_command::toggle(const dpp::slashcommand_t& event) {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
-        co_await event.co_reply(ack(problem));
+        co_await event.co_reply(refusal(event, problem));
         co_return;
     }
 
@@ -261,11 +268,11 @@ dpp::task<void> midnight_command::toggle(const dpp::slashcommand_t& event) {
     util::log().info("midnight message {} turned {} in guild {} by {}", found->id, became, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
 
-    co_await event.co_reply(ack(std::format("midnight message {} is {}", found->id, became)));
+    co_await event.co_reply(result(event, std::format("midnight message {} is {}", found->id, became)));
 }
 
 dpp::task<void> midnight_command::list(const dpp::slashcommand_t& event) {
-    co_await event.co_reply(ack(render_midnight_list(store_->for_guild(event.command.guild_id))));
+    co_await event.co_reply(result(event, render_midnight_list(store_->for_guild(event.command.guild_id))));
 }
 
 } // namespace latibot::commands

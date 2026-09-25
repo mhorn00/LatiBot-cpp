@@ -22,18 +22,6 @@ namespace {
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t emoji_choices = 25;
 
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
-
-/// A statistic everybody can see. Mentions show names without pinging
-/// anyone, which DPP's default of parsing no mentions already ensures.
-dpp::message post(std::string_view text) {
-    return dpp::message(text);
-}
-
 std::string string_option(const dpp::slashcommand_t& event, const char* name) {
     const dpp::command_value value = event.get_parameter(name);
     const auto* text = std::get_if<std::string>(&value);
@@ -41,7 +29,7 @@ std::string string_option(const dpp::slashcommand_t& event, const char* name) {
 }
 
 /// "group action" for a subcommand in a group, "action" otherwise.
-std::pair<std::string, std::string> subcommand_path(const dpp::slashcommand_t& event) {
+std::pair<std::string, std::string> group_and_action(const dpp::slashcommand_t& event) {
     const dpp::command_interaction interaction = event.command.get_command_interaction();
     if (interaction.options.empty()) {
         return {};
@@ -511,7 +499,15 @@ linkstats_command::linkstats_command(events::reaction_store& store, recompute_su
             // should name it before somebody runs one and gets nothing.
             .required_bot_permissions = dpp::p_send_messages | dpp::p_read_message_history,
             .default_member_permissions = std::nullopt,
-            .guild_only = true},
+            .guild_only = true,
+            // The boards are for the room. Changing aliases and running a
+            // recompute are answered privately, and the recompute reports its
+            // progress in the channel, as a post.
+            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {{"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"alias remove", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"recompute start", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"recompute cancel", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}}},
       store_(&store),
       recompute_(std::move(recompute)) {}
 
@@ -611,7 +607,7 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
 }
 
 dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
-    const auto [group, action] = subcommand_path(event);
+    const auto [group, action] = group_and_action(event);
 
     if (group == "alias") {
         co_await this->alias(event, action);
@@ -622,9 +618,9 @@ dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
     } else if (action == "user") {
         co_await this->user(event);
     } else if (action == "emojis") {
-        co_await event.co_reply(post(render_duplicates(*store_, event.command.guild_id)));
+        co_await event.co_reply(result(event, render_duplicates(*store_, event.command.guild_id)));
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
@@ -634,7 +630,7 @@ dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
 
     events::stat_query query;
     if (const auto problem = read_window(event, query)) {
-        co_await event.co_reply(ack(*problem));
+        co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
 
@@ -642,7 +638,7 @@ dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
     if (!typed.empty()) {
         const auto emoji = resolve_emoji(*store_, guild, typed);
         if (!emoji) {
-            co_await event.co_reply(ack(std::format("nobody has reacted with \"{}\" on a replaced link here", typed)));
+            co_await event.co_reply(refusal(event, std::format("nobody has reacted with \"{}\" on a replaced link here", typed)));
             co_return;
         }
         query.emoji_key = emoji->key;
@@ -650,13 +646,13 @@ dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
 
     const board chosen = which.value_or(board::received);
     query.kind = kind_for(chosen);
-    co_await event.co_reply(render_board(*store_, guild, chosen, query));
+    co_await event.co_reply(result(event, render_board(*store_, guild, chosen, query)));
 }
 
 dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
     events::stat_query window;
     if (const auto problem = read_window(event, window)) {
-        co_await event.co_reply(ack(*problem));
+        co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
 
@@ -664,25 +660,25 @@ dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
     const auto* other = std::get_if<dpp::snowflake>(&chosen);
     const dpp::snowflake subject = other == nullptr ? event.command.get_issuing_user().id : *other;
 
-    co_await event.co_reply(post(render_profile(*store_, event.command.guild_id, subject, window)));
+    co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
 }
 
 dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const std::string& action) {
     const dpp::snowflake guild = event.command.guild_id;
 
     if (action == "list") {
-        co_await event.co_reply(post(render_aliases(*store_, guild)));
+        co_await event.co_reply(result(event, render_aliases(*store_, guild)));
         co_return;
     }
 
     if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(ack("changing emoji aliases needs Manage Server"));
+        co_await event.co_reply(refusal(event, "changing emoji aliases needs Manage Server"));
         co_return;
     }
 
     const auto emoji = resolve_emoji(*store_, guild, string_option(event, "emoji"));
     if (!emoji) {
-        co_await event.co_reply(ack("i don't know that emoji; pick one from the list as you type"));
+        co_await event.co_reply(refusal(event, "i don't know that emoji; pick one from the list as you type"));
         co_return;
     }
 
@@ -690,17 +686,17 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
 
     if (action == "remove") {
         if (!store_->remove_alias(guild, emoji->key)) {
-            co_await event.co_reply(ack(std::format("{} isn't an alias", events::display_emoji(*emoji))));
+            co_await event.co_reply(refusal(event, std::format("{} isn't an alias", events::display_emoji(*emoji))));
             co_return;
         }
         util::log().info("emoji alias for {} removed in guild {} by {}", emoji->key, guild, who);
-        co_await event.co_reply(ack(std::format("{} counts as itself again.", events::display_emoji(*emoji))));
+        co_await event.co_reply(result(event, std::format("{} counts as itself again.", events::display_emoji(*emoji))));
         co_return;
     }
 
     const auto canonical = resolve_emoji(*store_, guild, string_option(event, "as"));
     if (!canonical) {
-        co_await event.co_reply(ack("i don't know the emoji to count it as; pick one from the list as you type"));
+        co_await event.co_reply(refusal(event, "i don't know the emoji to count it as; pick one from the list as you type"));
         co_return;
     }
 
@@ -710,25 +706,26 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
     store_->remember(*canonical);
 
     if (const auto problem = store_->set_alias(guild, emoji->key, canonical->key)) {
-        co_await event.co_reply(ack(*problem));
+        co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
 
     util::log().info("emoji {} now counts as {} in guild {}, set by {}", emoji->key, canonical->key, guild, who);
-    co_await event.co_reply(ack(std::format("{} counts as {} now, in every statistic back to the start.", events::display_emoji(*emoji),
-                                            events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
+    co_await event.co_reply(
+        result(event, std::format("{} counts as {} now, in every statistic back to the start.", events::display_emoji(*emoji),
+                                  events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
 }
 
 dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, const std::string& action) {
     if (recompute_.service == nullptr || recompute_.discord == nullptr) {
-        co_await event.co_reply(ack("recomputing isn't available in this build"));
+        co_await event.co_reply(refusal(event, "recomputing isn't available in this build"));
         co_return;
     }
 
     // Reading years of history is a lot of API calls; this one is for the
     // people who run the server (plan v4 §9.7).
     if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(ack("recomputing link stats needs Manage Server"));
+        co_await event.co_reply(refusal(event, "recomputing link stats needs Manage Server"));
         co_return;
     }
 
@@ -738,11 +735,11 @@ dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, c
             util::log().info("link stats recompute in guild {} cancelled by {}", event.command.guild_id,
                              describe_user(event.command.get_issuing_user()));
         }
-        co_await event.co_reply(ack(stopping ? "Stopping at the next page of history." : "Nothing is being recomputed here."));
+        co_await event.co_reply(result(event, stopping ? "Stopping at the next page of history." : "Nothing is being recomputed here."));
     } else if (action == "start") {
         co_await recompute_start(event);
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
@@ -751,7 +748,7 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
 
     events::stat_query window;
     if (const auto problem = read_window(event, window)) {
-        co_await event.co_reply(ack(*problem));
+        co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
 
@@ -775,12 +772,12 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
     }
 
     if (request.channel_ids.empty() || request.bot_id.empty()) {
-        co_await event.co_reply(ack("there are no channels here i can look through"));
+        co_await event.co_reply(refusal(event, "there are no channels here i can look through"));
         co_return;
     }
 
     if (!recompute_.service->begin(guild)) {
-        co_await event.co_reply(ack("a recompute is already running here; `/linkstats recompute cancel` stops it"));
+        co_await event.co_reply(refusal(event, "a recompute is already running here; `/linkstats recompute cancel` stops it"));
         co_return;
     }
 
@@ -790,15 +787,16 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
 
     // The interaction's token lasts fifteen minutes and a recompute can take
     // hours, so progress goes in an ordinary message instead.
-    co_await event.co_reply(ack("Started. Progress goes in this channel."));
+    co_await event.co_reply(result(event, "Started. Progress goes in this channel."));
 
     ports::discord_gateway& discord = *recompute_.discord;
     const dpp::snowflake channel = event.command.channel_id;
-    const auto posted = co_await discord.send_message(dpp::message(channel, render_backfill({}, request, false)));
+    const auto posted = co_await discord.send_message(post(event, dpp::message(channel, render_backfill({}, request, false))));
     const dpp::snowflake progress_id = posted.ok() ? posted.value().id : dpp::snowflake{};
 
-    const auto progress = [&discord, &request, channel, progress_id](const events::backfill_report& report) -> dpp::task<void> {
-        dpp::message update(channel, render_backfill(report, request, false));
+    const auto progress = [this, &event, &discord, &request, channel,
+                           progress_id](const events::backfill_report& report) -> dpp::task<void> {
+        dpp::message update = post(event, dpp::message(channel, render_backfill(report, request, false)));
         update.id = progress_id;
         return show_progress(discord, std::move(update));
     };
@@ -814,7 +812,7 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
     }
     recompute_.service->end(guild);
 
-    dpp::message final_report(channel, render_backfill(report, request, true));
+    dpp::message final_report = post(event, dpp::message(channel, render_backfill(report, request, true)));
     if (progress_id.empty()) {
         co_await discord.send_message(final_report);
     } else {

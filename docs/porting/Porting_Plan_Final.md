@@ -34,7 +34,7 @@ the order of work behind it.
 | 5 | LLM | ⏳ |
 | — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
 
-442 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
+464 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
 clean over `src/`. Three libFuzzer targets cover the text that arrives from
 people: the text helpers, the URL scanner and the legacy replacement parser.
 
@@ -419,6 +419,10 @@ emoji_aliases(guild_id, emoji_key, canonical_key)
 -- 8: backfill_progress
 backfill_progress(guild_id, channel_id, since, until NULL, oldest_scanned_id NULL,
                   complete, updated_at)
+
+-- 9: message_flags
+triggers.message_flags                                   -- added, default 4096 (silent)
+midnight_messages.message_flags                          -- added, default 4096 (silent)
 ```
 
 `replacement_messages` lost the plan's `domain` and `alternate_index` columns
@@ -461,6 +465,16 @@ The registry can report the union of every registered command's bot
 permissions, which is what the preflight check uses (§7). A bulk registration
 with an empty list would **delete every registered command**, so an empty
 registry is refused with a warning rather than published.
+
+*Added after phase 3:* a command also declares the **message flags** for
+each kind of message it sends: its `result`, a `refusal`, and a `post` (an
+ordinary channel message sent on its behalf), with per-subcommand overrides
+that set only what differs. The helpers `result`, `refusal` and `post` are the
+only way a command builds a reply, so the flags are decided in one place, and
+`registry::add` refuses an override naming a subcommand the command does not
+have, or a flag the message cannot carry (§21.15). A command that throws now
+answers with its refusal flags instead of leaving Discord to report that the
+application did not respond.
 
 ### 5.4 Message pipeline ✅
 
@@ -1703,3 +1717,24 @@ cost is that the first `cmake --build` after a `CMakeLists.txt` edit can skip
 newly added files, and a second build picks them up. Left alone rather than
 worked around in our CMake, since the fix belongs to Conan's `CMakeDeps` or to
 CMake; the README's notes describe it.
+
+### 21.15 One set of message flags per command is not enough
+
+The first idea was one flags field per command: ephemeral, silent, no
+previews. Reading every reply showed why that would be wrong. `/say` answers
+its caller privately and then speaks publicly; `/linkstats` posts public
+boards, answers `alias add` privately, refuses a typo privately and reports a
+recompute's progress in the channel; `/nicknames` shows a history publicly but
+asks "whose nicknames?" privately; only `/urlrepl test` hides previews. And
+Discord constrains them differently: only a reply to a command can be
+ephemeral, and an edit cannot change whether a message is.
+
+So the flags are per **kind** of message (result, refusal, post) with
+per-subcommand overrides, checked at registration. Panel buttons, which edit a
+message rather than answer a command, keep the flags the message was sent
+with, since an edit that left out "no previews" would bring the previews back.
+Messages that are not command replies carry their own flags on
+`events::send_message`: a trigger's replies and a midnight message store
+theirs (migration 9), set with `silent` and `previews`, and default to silent
+as they always were. URL replacements keep fixed flags, since showing or
+hiding a preview is their whole job.

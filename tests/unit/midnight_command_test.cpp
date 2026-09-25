@@ -65,3 +65,12 @@ TEST_CASE("every entry appears in the list", "[commands]") {
     CHECK(body.find("`5`") != std::string::npos);
     CHECK(body.find("Asia/Tokyo") != std::string::npos);
 }
+
+TEST_CASE("an entry that notifies or hides previews says so", "[commands]") {
+    midnight_entry entry = entry_in("UTC");
+    entry.message_flags = dpp::m_suppress_embeds;
+    CHECK(describe(entry).find("(notifies, no previews)") != std::string::npos);
+
+    entry.enabled = false;
+    CHECK(describe(entry).find("(off, notifies, no previews)") != std::string::npos);
+}

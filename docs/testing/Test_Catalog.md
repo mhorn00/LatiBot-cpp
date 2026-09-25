@@ -5,16 +5,16 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-443 test cases across 9 components, including 96 sections.
+465 test cases across 9 components, including 100 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 98 | 11 |
+| [db](#db) | 103 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 93 | 22 |
+| [commands](#commands) | 107 | 26 |
 | [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
-| [discord](#discord) | 5 | 0 |
+| [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
 | [util](#util) | 33 | 11 |
@@ -55,6 +55,8 @@ Database (`src/core/db`)
 | a night the bot slept through is given up on, not posted at breakfast |  |  | [tests/db/midnight_store_test.cpp:159](../../tests/db/midnight_store_test.cpp#L159) |
 | a restart a minute after midnight still posts |  |  | [tests/db/midnight_store_test.cpp:184](../../tests/db/midnight_store_test.cpp#L184) |
 | each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:198](../../tests/db/midnight_store_test.cpp#L198) |
+| a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:217](../../tests/db/midnight_store_test.cpp#L217) |
+| a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:234](../../tests/db/midnight_store_test.cpp#L234) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
@@ -113,6 +115,9 @@ Database (`src/core/db`)
 | respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:212](../../tests/db/trigger_store_test.cpp#L212) |
 | a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:231](../../tests/db/trigger_store_test.cpp#L231) |
 | a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:249](../../tests/db/trigger_store_test.cpp#L249) |
+| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:262](../../tests/db/trigger_store_test.cpp#L262) |
+| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:285](../../tests/db/trigger_store_test.cpp#L285) |
+| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:302](../../tests/db/trigger_store_test.cpp#L302) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
 | rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
@@ -184,6 +189,11 @@ Command framework (`src/core/commands`)
 | the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:148](../../tests/unit/command_log_test.cpp#L148) |
 | nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:164](../../tests/unit/command_log_test.cpp#L164) |
 | a user's id keeps its colour inside name (id) |  |  | [tests/unit/command_log_test.cpp:171](../../tests/unit/command_log_test.cpp#L171) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:52](../../tests/unit/command_responses_test.cpp#L52) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:74](../../tests/unit/command_responses_test.cpp#L74) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:98](../../tests/unit/command_responses_test.cpp#L98) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:131](../../tests/unit/command_responses_test.cpp#L131) |
 | dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:52](../../tests/unit/linkstats_command_test.cpp#L52) |
 | the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:61](../../tests/unit/linkstats_command_test.cpp#L61) |
 | the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:71](../../tests/unit/linkstats_command_test.cpp#L71) |
@@ -203,6 +213,7 @@ Command framework (`src/core/commands`)
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
 | an entry that has posted says when |  |  | [tests/unit/midnight_command_test.cpp:49](../../tests/unit/midnight_command_test.cpp#L49) |
 | every entry appears in the list |  |  | [tests/unit/midnight_command_test.cpp:59](../../tests/unit/midnight_command_test.cpp#L59) |
+| an entry that notifies or hides previews says so |  |  | [tests/unit/midnight_command_test.cpp:69](../../tests/unit/midnight_command_test.cpp#L69) |
 | an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:35](../../tests/unit/nickname_command_test.cpp#L35) |
 | a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:44](../../tests/unit/nickname_command_test.cpp#L44) |
 | a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:54](../../tests/unit/nickname_command_test.cpp#L54) |
@@ -214,26 +225,34 @@ Command framework (`src/core/commands`)
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
 | a requirement of nothing is always met |  |  | [tests/unit/preflight_test.cpp:49](../../tests/unit/preflight_test.cpp#L49) |
 | permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
-| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:55](../../tests/unit/registry_test.cpp#L55) |
-| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:66](../../tests/unit/registry_test.cpp#L66) |
-| an empty name is refused |  |  | [tests/unit/registry_test.cpp:93](../../tests/unit/registry_test.cpp#L93) |
-| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:98](../../tests/unit/registry_test.cpp#L98) |
-| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:112](../../tests/unit/registry_test.cpp#L112) |
-| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:124](../../tests/unit/registry_test.cpp#L124) |
-| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:140](../../tests/unit/registry_test.cpp#L140) |
-| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:151](../../tests/unit/registry_test.cpp#L151) |
-| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:15](../../tests/unit/trigger_command_test.cpp#L15) |
-| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
-| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:34](../../tests/unit/trigger_command_test.cpp#L34) |
-| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:45](../../tests/unit/trigger_command_test.cpp#L45) |
-| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:53](../../tests/unit/trigger_command_test.cpp#L53) |
-| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:60](../../tests/unit/trigger_command_test.cpp#L60) |
-| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:70](../../tests/unit/trigger_command_test.cpp#L70) |
-| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:97](../../tests/unit/trigger_command_test.cpp#L97) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:119](../../tests/unit/trigger_command_test.cpp#L119) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:134](../../tests/unit/trigger_command_test.cpp#L134) |
-| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:152](../../tests/unit/trigger_command_test.cpp#L152) |
-| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:186](../../tests/unit/trigger_command_test.cpp#L186) |
+| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
+| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
+| an empty name is refused |  |  | [tests/unit/registry_test.cpp:94](../../tests/unit/registry_test.cpp#L94) |
+| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:99](../../tests/unit/registry_test.cpp#L99) |
+| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:113](../../tests/unit/registry_test.cpp#L113) |
+| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:125](../../tests/unit/registry_test.cpp#L125) |
+| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:141](../../tests/unit/registry_test.cpp#L141) |
+| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:152](../../tests/unit/registry_test.cpp#L152) |
+| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:207](../../tests/unit/registry_test.cpp#L207) |
+| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:219](../../tests/unit/registry_test.cpp#L219) |
+| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
+| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:237](../../tests/unit/registry_test.cpp#L237) |
+| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:252](../../tests/unit/registry_test.cpp#L252) |
+| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:18](../../tests/unit/trigger_command_test.cpp#L18) |
+| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:27](../../tests/unit/trigger_command_test.cpp#L27) |
+| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:37](../../tests/unit/trigger_command_test.cpp#L37) |
+| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:48](../../tests/unit/trigger_command_test.cpp#L48) |
+| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:56](../../tests/unit/trigger_command_test.cpp#L56) |
+| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:63](../../tests/unit/trigger_command_test.cpp#L63) |
+| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:73](../../tests/unit/trigger_command_test.cpp#L73) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:100](../../tests/unit/trigger_command_test.cpp#L100) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:122](../../tests/unit/trigger_command_test.cpp#L122) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:137](../../tests/unit/trigger_command_test.cpp#L137) |
+| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:155](../../tests/unit/trigger_command_test.cpp#L155) |
+| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:189](../../tests/unit/trigger_command_test.cpp#L189) |
+| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:198](../../tests/unit/trigger_command_test.cpp#L198) |
+| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:208](../../tests/unit/trigger_command_test.cpp#L208) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:251](../../tests/unit/trigger_command_test.cpp#L251) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:71](../../tests/unit/urlrepl_command_test.cpp#L71) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:84](../../tests/unit/urlrepl_command_test.cpp#L84) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:88](../../tests/unit/urlrepl_command_test.cpp#L88) |
@@ -430,6 +449,9 @@ Discord plumbing (`src/core/discord`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| applying flags replaces the choosable ones and leaves the rest |  |  | [tests/unit/message_flags_test.cpp:12](../../tests/unit/message_flags_test.cpp#L12) |
+| stored message flags are narrowed to what a channel message may carry |  |  | [tests/unit/message_flags_test.cpp:24](../../tests/unit/message_flags_test.cpp#L24) |
+| flags are named for the log |  |  | [tests/unit/message_flags_test.cpp:32](../../tests/unit/message_flags_test.cpp#L32) |
 | a bare path gets the API version prefix |  |  | [tests/unit/raw_api_test.cpp:9](../../tests/unit/raw_api_test.cpp#L9) |
 | a missing leading slash is added |  |  | [tests/unit/raw_api_test.cpp:13](../../tests/unit/raw_api_test.cpp#L13) |
 | a path that already names the API version is left alone |  |  | [tests/unit/raw_api_test.cpp:17](../../tests/unit/raw_api_test.cpp#L17) |

@@ -1,4 +1,7 @@
 #include "core/commands/trigger.hpp"
+#include "core/db/database.hpp"
+#include "core/db/migrations.hpp"
+#include "core/ui/paginator.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -190,4 +193,73 @@ TEST_CASE("a trigger that answers bots says so when described", "[commands]") {
 
     entry.respond_to_bots = true;
     CHECK(describe(entry).find("answers bots") != std::string::npos);
+}
+
+TEST_CASE("a trigger says when its replies notify or hide previews", "[commands]") {
+    latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
+
+    // Silent with previews is the default, and says nothing.
+    CHECK(describe(entry) == "`3` **420** (whole word, 30s) -> 1 response");
+
+    entry.message_flags = dpp::m_suppress_embeds;
+    CHECK(describe(entry) == "`3` **420** (whole word, 30s, notifies, no previews) -> 1 response");
+}
+
+TEST_CASE("the panel offers to change how a trigger's replies are posted", "[commands]") {
+    latibot::db::database db{":memory:"};
+    latibot::db::migrate(db);
+    latibot::events::trigger_store store(db);
+    const dpp::snowflake guild{1000};
+    const std::int64_t id =
+        store.add({.guild_id = guild, .pattern = "420", .cooldown = 30s, .enabled = true, .responses = {{.text = "nice", .weight = 1}}});
+
+    const auto labels_for = [&](std::string_view view, const dpp::message& panel) {
+        std::vector<std::string> found;
+        for (const dpp::component& row : panel.components) {
+            for (const dpp::component& part : row.components) {
+                const auto state = latibot::ui::decode(part.custom_id);
+                if (state && state->view == view) {
+                    CHECK(state->argument == std::to_string(id));
+                    found.push_back(part.label);
+                }
+            }
+        }
+        return found;
+    };
+
+    const auto panel = latibot::commands::render_trigger_panel(store, guild, 0, id);
+    CHECK(panel.components.size() <= 5);
+    for (const dpp::component& row : panel.components) {
+        CHECK(row.components.size() <= 5);
+    }
+    // The labels say what pressing does, from the trigger's current state.
+    CHECK(labels_for(latibot::commands::trigger_silent_view, panel) == std::vector<std::string>{"Reply with notifications"});
+    CHECK(labels_for(latibot::commands::trigger_previews_view, panel) == std::vector<std::string>{"Hide link previews"});
+
+    auto entry = store.find(id, guild);
+    entry->message_flags = dpp::m_suppress_embeds;
+    store.update(*entry);
+    const auto changed = latibot::commands::render_trigger_panel(store, guild, 0, id);
+    CHECK(labels_for(latibot::commands::trigger_silent_view, changed) == std::vector<std::string>{"Reply silently"});
+    CHECK(labels_for(latibot::commands::trigger_previews_view, changed) == std::vector<std::string>{"Show link previews"});
+
+    // Confirming a delete is about the delete, nothing else.
+    const auto confirming = latibot::commands::render_trigger_panel(store, guild, 0, id, /*confirming_delete=*/true);
+    CHECK(labels_for(latibot::commands::trigger_silent_view, confirming).empty());
+}
+
+TEST_CASE("each panel toggle flips one thing and names it for the log", "[commands]") {
+    using latibot::commands::toggle_for;
+    latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
+
+    CHECK(toggle_for(latibot::commands::trigger_silent_view)(entry) == "set to reply with notifications");
+    CHECK(entry.message_flags == 0);
+    CHECK(toggle_for(latibot::commands::trigger_previews_view)(entry) == "set to hide link previews");
+    CHECK(entry.message_flags == dpp::m_suppress_embeds);
+    CHECK(toggle_for(latibot::commands::trigger_toggle_view)(entry) == "disabled");
+    CHECK_FALSE(entry.enabled);
+    CHECK(toggle_for(latibot::commands::trigger_bots_view)(entry) == "set to answer bots");
+    CHECK(entry.respond_to_bots);
+
+    CHECK(toggle_for(latibot::commands::trigger_edit_view) == nullptr);
 }

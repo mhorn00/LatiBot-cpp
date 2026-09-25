@@ -213,3 +213,35 @@ TEST_CASE("each timezone posts at its own midnight", "[db]") {
     clock.set(utc(2026, 9, 23, 5, 0, 10));
     CHECK(scheduler.tick().size() == 1);
 }
+
+TEST_CASE("a midnight message's flags survive a round trip and default to silent", "[db]") {
+    store_fixture fixture;
+
+    const std::int64_t quiet = fixture.store.add(entry_in("UTC"));
+    CHECK(fixture.store.find(quiet, guild)->message_flags == dpp::m_suppress_notifications);
+
+    midnight_entry loud = entry_in("UTC");
+    loud.message_flags = dpp::m_suppress_embeds;
+    const std::int64_t id = fixture.store.add(loud);
+    CHECK(fixture.store.find(id, guild)->message_flags == dpp::m_suppress_embeds);
+
+    auto found = fixture.store.find(id, guild);
+    found->message_flags = 0;
+    REQUIRE(fixture.store.update(*found));
+    CHECK(fixture.store.find(id, guild)->message_flags == 0);
+}
+
+TEST_CASE("a midnight post carries its entry's flags", "[db]") {
+    store_fixture fixture;
+    latibot::testing::mock_clock clock;
+    midnight_scheduler scheduler(fixture.store, clock);
+
+    midnight_entry loud = entry_in("UTC");
+    loud.message_flags = 0;
+    fixture.store.add(loud);
+
+    clock.set(utc(2026, 9, 23, 0, 0, 30));
+    const auto posts = scheduler.tick();
+    REQUIRE(posts.size() == 1);
+    CHECK(std::get<latibot::events::send_message>(posts.front()).flags == 0);
+}

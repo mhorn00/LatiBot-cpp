@@ -42,6 +42,17 @@ answer. The exceptions are called out below: `/say` posts a separate public
 message, and [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats)
 views answer publicly, because those are things a room reads together.
 
+Each command decides this for three kinds of message, per subcommand where
+they differ: its **result** (the answer it exists to give), a **refusal**
+(a typo, a missing permission), and a **post** (an ordinary channel message
+sent on its behalf, like what `/say` says). Refusals are always private.
+Where that is set is described under [Behind the scenes](#behind-the-scenes).
+
+If a command fails partway, it answers
+`something went wrong on my end running that; it's in the log` rather than
+leaving Discord to say *The application did not respond*. A command Discord
+still offers after it was removed answers `i don't have that command any more`.
+
 **Who may run what** is set as Discord's *default member permission*. Server
 admins can override any of it per role or per channel in
 **Server Settings → Integrations → LatiBot**, which is why these are defaults
@@ -205,6 +216,8 @@ Manages this server's automatic replies. See
 | `mode` | no | **Whole word** (default) or **Anywhere in the message** |
 | `cooldown` | no | Seconds between replies in one channel, 0–86400. Default 30 |
 | `bots` | no | Also answer allowed bots. Default off |
+| `silent` | no | Reply without notifying anyone, what Discord calls @silent. Default on |
+| `previews` | no | Show link previews in the reply. Default on |
 
 Replies with the new trigger's id, for example *added trigger `4` for `420` with 2 responses*.
 
@@ -232,12 +245,15 @@ Shows this server's triggers, 8 per page, with ◀ / ▶ buttons. Each line read
 
 ```
 `4` **420** (whole word, 30s) -> 2 responses
-`5` **69** (anywhere, no cooldown, disabled, answers bots) -> 1 response
+`5` **69** (anywhere, no cooldown, disabled, answers bots, notifies, no previews) -> 1 response
 ```
+
+Silent with previews is the default and goes unmentioned; `notifies` and
+`no previews` appear only when a trigger differs.
 
 #### `/trigger panel`
 
-The same list with editing attached. Pick a trigger from the menu and four
+The same list with editing attached. Pick a trigger from the menu and these
 buttons appear:
 
 | Button | Does |
@@ -245,6 +261,8 @@ buttons appear:
 | **Edit** | Opens a form with the pattern, responses, mode and cooldown filled in |
 | **Enable** / **Disable** | Toggles it. The label says what pressing it will do |
 | **Answer bots** / **Ignore bots** | Toggles whether it replies to allowed bots |
+| **Reply silently** / **Reply with notifications** | Toggles whether its replies notify anyone, on a row of their own |
+| **Hide link previews** / **Show link previews** | Toggles the previews on links in its replies |
 | **Delete** | Asks to confirm in the panel itself, so nothing is left behind if ignored |
 
 **Add** opens the same form, empty.
@@ -372,8 +390,8 @@ channel and text.
 | Subcommand | Options | Reply |
 |---|---|---|
 | `list` | none | Each entry with its id, channel, timezone, text and the date it last posted |
-| `add` | `timezone` (required, autocompleted) · `channel` (required) · `message` (required) | `ok, that posts in #general at the next midnight in America/Chicago` |
-| `edit` | `id` (required) plus any of `timezone`, `channel`, `message` | The entry as it now stands |
+| `add` | `timezone` (required, autocompleted) · `channel` (required) · `message` (required) · `silent` · `previews` | `ok, that posts in #general at the next midnight in America/Chicago` |
+| `edit` | `id` (required) plus any of `timezone`, `channel`, `message`, `silent`, `previews` | The entry as it now stands |
 | `remove` | `id` (required) | `gone: midnight message 4` |
 | `toggle` | `id` (required) | `midnight message 4 is off` |
 
@@ -388,6 +406,10 @@ afternoon does not post it half a minute later.
 
 `edit` changes only what is given, and never disturbs the date an entry last
 posted for — otherwise fixing a typo would post it again the same day.
+
+`silent` and `previews` work as they do for [triggers](#trigger-add): a
+midnight message posts without notifying anyone and with link previews unless
+told otherwise, and the list says `notifies` or `no previews` when one differs.
 
 ### `/urlrepl`
 
@@ -635,6 +657,10 @@ does not bring them back on the next restart.
   reply.
 - **Weights** are relative: with `3 | nice` and `very nice`, the first is three
   times as likely.
+- **Replies are silent**, the way the Java bot's were: they notify nobody. A
+  trigger can be set to notify, or to hide link previews in its replies, with
+  `silent` and `previews` on [`/trigger add`](#trigger-add) and `edit`, or the
+  panel's buttons.
 - Triggers **do not consume the message**. One containing both `420` and a link
   gets the reply *and* the [link replacement](#url-replacement) — the Java
   version's early `return` meant it got only the first of those.
@@ -824,7 +850,8 @@ lose the rest.
 
 Each entry posts **once per local day**, shortly after midnight in its own
 timezone, in the channel it was given. Configure them with
-[`/midnight`](#midnight).
+[`/midnight`](#midnight). Like trigger replies, it posts silently and with
+link previews unless the entry says otherwise.
 
 The date an entry last posted for is saved with the post, which is what makes a
 restart at 00:00:30 not post a second time.
@@ -885,6 +912,13 @@ the retention to zero turns backups off, which the startup log says.
 
 **Commands are registered globally** when the bot starts, once per run. Discord
 can take a little while to show changes to a command's options.
+
+**How a command's messages are flagged is written beside the command**, in
+the constructor that names it: ephemeral or public, silent or not, previews or
+not, for its results, refusals and posts, with overrides per subcommand. The
+bot refuses to start if one names a subcommand the command does not have, or
+a flag that kind of message cannot carry, such as an ephemeral post. A panel's
+buttons keep the flags its message was sent with.
 
 **Everything is logged.** Every command records who ran it, what they passed
 and what it did; so does every button and form in a panel, every message the

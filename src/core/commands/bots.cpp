@@ -14,12 +14,6 @@
 namespace latibot::commands {
 namespace {
 
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
-
 std::string subcommand_of(const dpp::slashcommand_t& event) {
     const dpp::command_interaction interaction = event.command.get_command_interaction();
     return interaction.options.empty() ? std::string{} : interaction.options.front().name;
@@ -68,7 +62,9 @@ bots_command::bots_command(events::bot_allowlist& allowlist)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = dpp::permission(dpp::p_manage_guild),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       allowlist_(&allowlist) {}
 
 dpp::slashcommand bots_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -98,25 +94,25 @@ dpp::task<void> bots_command::execute(const dpp::slashcommand_t& event) {
     } else if (action == "list") {
         co_await this->list(event);
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
 dpp::task<void> bots_command::allow(const dpp::slashcommand_t& event) {
     const auto chosen = bot_option(event);
     if (!chosen) {
-        co_await event.co_reply(ack("which bot?"));
+        co_await event.co_reply(refusal(event, "which bot?"));
         co_return;
     }
 
     // Allowing a human would be a no-op that looks like it worked, since the
     // pipeline only consults the list for messages from bots.
     if (!chosen->is_bot) {
-        co_await event.co_reply(ack(std::format("{} is not a bot, and i already hear everyone else", chosen->name)));
+        co_await event.co_reply(refusal(event, std::format("{} is not a bot, and i already hear everyone else", chosen->name)));
         co_return;
     }
     if (chosen->id == event.command.application_id) {
-        co_await event.co_reply(ack("i already ignore myself on purpose, and that one is not negotiable"));
+        co_await event.co_reply(refusal(event, "i already ignore myself on purpose, and that one is not negotiable"));
         co_return;
     }
 
@@ -125,14 +121,14 @@ dpp::task<void> bots_command::allow(const dpp::slashcommand_t& event) {
         util::log().info("guild {} now hears bot {} ({}), allowed by {}", event.command.guild_id, chosen->name, chosen->id,
                          describe_user(event.command.get_issuing_user()));
     }
-    co_await event.co_reply(
-        ack(added ? std::format("ok, i'll listen to {} now", chosen->name) : std::format("i was already listening to {}", chosen->name)));
+    co_await event.co_reply(result(event, added ? std::format("ok, i'll listen to {} now", chosen->name)
+                                                : std::format("i was already listening to {}", chosen->name)));
 }
 
 dpp::task<void> bots_command::deny(const dpp::slashcommand_t& event) {
     const auto chosen = bot_option(event);
     if (!chosen) {
-        co_await event.co_reply(ack("which bot?"));
+        co_await event.co_reply(refusal(event, "which bot?"));
         co_return;
     }
 
@@ -141,8 +137,8 @@ dpp::task<void> bots_command::deny(const dpp::slashcommand_t& event) {
         util::log().info("guild {} no longer hears bot {} ({}), denied by {}", event.command.guild_id, chosen->name, chosen->id,
                          describe_user(event.command.get_issuing_user()));
     }
-    co_await event.co_reply(ack(removed ? std::format("ok, back to ignoring {}", chosen->name)
-                                        : std::format("i was not listening to {} anyway", chosen->name)));
+    co_await event.co_reply(result(event, removed ? std::format("ok, back to ignoring {}", chosen->name)
+                                                  : std::format("i was not listening to {} anyway", chosen->name)));
 }
 
 dpp::task<void> bots_command::list(const dpp::slashcommand_t& event) {
@@ -152,7 +148,7 @@ dpp::task<void> bots_command::list(const dpp::slashcommand_t& event) {
         known.emplace_back(id, found == nullptr ? std::string{} : found->username);
     }
 
-    co_await event.co_reply(ack(render_allowed_bots(known)));
+    co_await event.co_reply(result(event, render_allowed_bots(known)));
 }
 
 } // namespace latibot::commands

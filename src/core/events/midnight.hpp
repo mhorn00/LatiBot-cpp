@@ -59,6 +59,11 @@ struct midnight_entry {
     std::string message;
     bool enabled = true;
 
+    /// How it is posted: silent, and whether with link previews. Only
+    /// `discord::channel_message_flags` are kept. Silent by default, as every
+    /// midnight message was before this could be chosen.
+    discord::message_flags message_flags = dpp::m_suppress_notifications;
+
     /// The local date this last posted, as YYYY-MM-DD, or empty for never.
     ///
     /// Saved with the post rather than counted from it, which is what makes a

@@ -2,6 +2,9 @@
 
 #include "core/util/log.hpp"
 
+#include <dpp/cluster.h>
+
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <format>
@@ -98,6 +101,76 @@ user_label describe_user(const dpp::user& who) {
     return {.name = who.username, .id = who.id};
 }
 
+response_flags command_info::responses_for(std::string_view subcommand) const {
+    response_flags flags = responses;
+    const auto found = subcommand_responses.find(subcommand);
+    if (found == subcommand_responses.end()) {
+        return flags;
+    }
+
+    const response_overrides& differs = found->second;
+    flags.result = differs.result.value_or(flags.result);
+    flags.refusal = differs.refusal.value_or(flags.refusal);
+    flags.post = differs.post.value_or(flags.post);
+    return flags;
+}
+
+std::string subcommand_path(const dpp::command_interaction& interaction) {
+    // At most a group and then a subcommand, which Discord enforces.
+    std::string path;
+    const std::vector<dpp::command_data_option>* level = &interaction.options;
+    while (!level->empty()) {
+        const dpp::command_data_option& first = level->front();
+        if (first.type != dpp::co_sub_command && first.type != dpp::co_sub_command_group) {
+            break;
+        }
+        if (!path.empty()) {
+            path.push_back(' ');
+        }
+        path += first.name;
+        level = &first.options;
+    }
+    return path;
+}
+
+std::vector<std::string> subcommand_paths(const dpp::slashcommand& payload) {
+    std::vector<std::string> paths;
+    for (const dpp::command_option& option : payload.options) {
+        if (option.type == dpp::co_sub_command) {
+            paths.push_back(option.name);
+        } else if (option.type == dpp::co_sub_command_group) {
+            for (const dpp::command_option& inner : option.options) {
+                paths.push_back(option.name + " " + inner.name);
+            }
+        }
+    }
+    return paths;
+}
+
+response_flags command::responses_for(const dpp::slashcommand_t& event) const {
+    return info().responses_for(subcommand_path(event.command.get_command_interaction()));
+}
+
+dpp::message command::result(const dpp::slashcommand_t& event, dpp::message message) const {
+    return discord::apply_flags(message, responses_for(event).result);
+}
+
+dpp::message command::result(const dpp::slashcommand_t& event, std::string_view text) const {
+    return result(event, dpp::message(text));
+}
+
+dpp::message command::refusal(const dpp::slashcommand_t& event, std::string_view text) const {
+    dpp::message message(text);
+    return discord::apply_flags(message, responses_for(event).refusal);
+}
+
+dpp::message command::post(const dpp::slashcommand_t& event, dpp::message message) const {
+    // Ephemeral is cleared as well as never applied: only a reply to a
+    // command can be ephemeral, so on a channel message it means nothing.
+    const auto wanted = static_cast<discord::message_flags>(responses_for(event).post & discord::channel_message_flags);
+    return discord::apply_flags(message, wanted);
+}
+
 // Recursive for the same reason `append_options` is, and bounded the same way:
 // Discord allows a group, a subcommand, then plain options.
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -130,6 +203,45 @@ dpp::slashcommand command::build(const std::string& name, dpp::snowflake applica
     return payload;
 }
 
+namespace {
+
+void check_flags(const command_info& details, std::string_view where, std::string_view kind, discord::message_flags flags,
+                 discord::message_flags allowed) {
+    if ((flags & ~allowed) != 0) {
+        throw registry_error(std::format("/{}{}: {} flags include {}, which {} messages cannot carry", details.name, where, kind,
+                                         discord::describe_flags(static_cast<discord::message_flags>(flags & ~allowed)), kind));
+    }
+}
+
+void check_all(const command_info& details, std::string_view where, const response_flags& flags) {
+    check_flags(details, where, "result", flags.result, discord::reply_flags);
+    check_flags(details, where, "refusal", flags.refusal, discord::reply_flags);
+    check_flags(details, where, "post", flags.post, discord::channel_message_flags);
+}
+
+} // namespace
+
+void registry::check_responses(const command& candidate) {
+    const command_info& details = candidate.info();
+    check_all(details, "", details.responses);
+    if (details.subcommand_responses.empty()) {
+        return;
+    }
+
+    const std::vector<std::string> paths = subcommand_paths(candidate.build(details.name, dpp::snowflake{}));
+    for (const auto& [path, overrides] : details.subcommand_responses) {
+        if (std::ranges::find(paths, path) == paths.end()) {
+            std::string known;
+            for (const std::string& one : paths) {
+                known += known.empty() ? one : ", " + one;
+            }
+            throw registry_error(std::format("/{}: response flags for \"{}\", which is not one of its subcommands ({})", details.name, path,
+                                             known.empty() ? "it has none" : known));
+        }
+        check_all(details, " " + path, details.responses_for(path));
+    }
+}
+
 void registry::add(std::unique_ptr<command> new_command) {
     if (new_command == nullptr) {
         throw registry_error("cannot register a null command");
@@ -150,6 +262,8 @@ void registry::add(std::unique_ptr<command> new_command) {
             throw registry_error("command name or alias \"" + name + "\" is already registered");
         }
     }
+
+    check_responses(*new_command);
 
     command* stored = commands_.emplace_back(std::move(new_command)).get();
     for (const std::string& name : names) {
@@ -180,6 +294,31 @@ std::uint64_t registry::required_bot_permissions() const {
     return permissions;
 }
 
+namespace {
+
+/// Replies, or follows up when the command had already replied before it
+/// failed; either way the person who ran it hears something.
+dpp::task<void> answer_anyway(const dpp::slashcommand_t& event, dpp::message message) {
+    // An event with no cluster behind it cannot be answered. Only tests build
+    // those.
+    if (event.owner == nullptr) {
+        co_return;
+    }
+
+    const auto replied = co_await event.co_reply(message);
+    if (!replied.is_error()) {
+        co_return;
+    }
+
+    const auto followed = co_await event.co_follow_up(message);
+    if (followed.is_error()) {
+        util::log().warn("could not tell {} what went wrong: {}", describe_user(event.command.get_issuing_user()),
+                         followed.get_error().message);
+    }
+}
+
+} // namespace
+
 dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& event) const {
     // Logged before the command runs, so an invocation that hangs or crashes
     // the process still leaves a record of what was asked.
@@ -200,17 +339,27 @@ dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& 
         // Not an error: Discord can still deliver a command that was removed
         // from the code but not yet from the guild.
         util::log().warn("no command registered for \"{}\"", name);
+        dpp::message unknown(unknown_command_reply);
+        co_await answer_anyway(event, discord::apply_flags(unknown, response_flags{}.refusal));
         co_return;
     }
 
+    // Noted here and answered below: a coroutine cannot co_await inside a
+    // catch block.
+    bool failed = false;
     const auto started = std::chrono::steady_clock::now();
     try {
         co_await target->execute(event);
     } catch (const std::exception& error) {
         util::log().error("{} threw: {}", what, error.what());
-        co_return;
+        failed = true;
     } catch (...) {
         util::log().error("{} threw an unknown exception", what);
+        failed = true;
+    }
+
+    if (failed) {
+        co_await answer_anyway(event, target->refusal(event, command_failed_reply));
         co_return;
     }
 

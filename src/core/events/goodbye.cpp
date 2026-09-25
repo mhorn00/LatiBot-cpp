@@ -65,7 +65,9 @@ pipeline::stage_fn goodbye_stage(const config::guild_settings& settings) {
         }
 
         util::log().info("{} said the goodbye phrase in guild {}; stopping", message.author_id, message.guild_id);
-        return {.actions = {send_message{.channel_id = message.channel_id, .content = std::string(goodbye_reply)},
+        return {.actions = {send_message{.channel_id = message.channel_id,
+                                         .content = std::string(goodbye_reply),
+                                         .flags = dpp::m_suppress_notifications},
                             stop_bot{.after = goodbye_delay}},
                 .consumed = true};
     };

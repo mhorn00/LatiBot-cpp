@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/discord/message_flags.hpp"
 #include "core/events/url_rules.hpp"
 
 #include <dpp/snowflake.h>
@@ -46,6 +47,12 @@ struct incoming_message {
 struct send_message {
     dpp::snowflake channel_id;
     std::string content;
+
+    /// Silent and without previews, or not, as whatever asked for the
+    /// message decided. Only `discord::channel_message_flags` are applied.
+    /// Silent unless said otherwise: these are jokes, acknowledgements and
+    /// scheduled posts, not things to be pinged for, as in the Java bot.
+    discord::message_flags flags = dpp::m_suppress_notifications;
 };
 
 /// Stop the bot, after a pause long enough for the goodbye to be delivered.

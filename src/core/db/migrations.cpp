@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 8> all_migrations{{
+constexpr std::array<migration, 9> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -251,6 +251,14 @@ constexpr std::array<migration, 8> all_migrations{{
 
             PRIMARY KEY (guild_id, channel_id)
         ) WITHOUT ROWID;
+     )sql"},
+    {.version = 9, .name = "message_flags", .sql = R"sql(
+        -- Whether a trigger's replies and a midnight message post silently, and
+        -- whether with link previews, as Discord's message flags: 4096 is
+        -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS. Both were always
+        -- silent until now, so that is where existing rows start.
+        ALTER TABLE triggers ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
+        ALTER TABLE midnight_messages ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
      )sql"},
 }};
 

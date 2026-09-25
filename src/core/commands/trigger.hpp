@@ -62,6 +62,15 @@ inline constexpr std::string_view trigger_add_view = "trigadd";
 inline constexpr std::string_view trigger_form_view = "trigform";
 inline constexpr std::string_view trigger_toggle_view = "trigonoff";
 inline constexpr std::string_view trigger_bots_view = "trigbots";
+inline constexpr std::string_view trigger_silent_view = "trigsilent";
+inline constexpr std::string_view trigger_previews_view = "trigprev";
+
+/// What one of the panel's on/off buttons changes on a trigger, returning the
+/// change as the log names it: "disabled", "set to reply silently".
+using trigger_toggle = std::string_view (*)(events::trigger&);
+
+/// The change a toggle view makes, or null for a view that is not a toggle.
+[[nodiscard]] trigger_toggle toggle_for(std::string_view view);
 
 /// What the edit and add modals collect. Everything is free text, because a
 /// modal has no other kind of input.

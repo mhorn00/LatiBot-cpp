@@ -271,6 +271,9 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     claiming its own view names. If `/llm settings` makes a third, the routing
     should move into a function that takes a decoded `page_state` and returns
     what to render, which is testable without an interaction.
+    The trigger panel's on/off buttons are a table (`toggle_for`), which is
+    tested; that a panel update keeps its message's flags (`update_panel`)
+    is not.
   - The nickname handlers. `is_new_nickname`, `describes`, `may_attribute` and
     `audit_nickname` are pure and tested; that they are hooked to the right
     events, that the guild is read correctly out of an audit entry's raw
@@ -284,6 +287,10 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     `recompute` is handed the right text channels from DPP's cache, is not.
     Whether a given mirror actually produces a preview is a question only
     real Discord answers, which is what `[live]` tests are for.
+- **A failed command's apology is only sent with a cluster behind it.** What
+  it says and the flags it carries come from `command::refusal`, which is
+  tested; the reply, and the follow-up when the command had already replied,
+  need a real interaction.
 - **`dpp_gateway`, `dpp_http_client` and `raw_api` are only partly tested.**
   Their pure parts (endpoint building) have tests; the parts that call DPP do
   not, because there is no cluster to call. They are deliberately thin

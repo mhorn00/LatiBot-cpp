@@ -1,6 +1,7 @@
 #include "core/commands/registry.hpp"
 
 #include "support/capture_log.hpp"
+#include "support/slash_event.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -162,4 +163,120 @@ TEST_CASE("an exception from a handler is caught and logged", "[commands][coro]"
 
     REQUIRE(commands.dispatch("boom", event).sync_wait_for(2s));
     CHECK(captured.contains(latibot::util::log_level::error, "command blew up"));
+}
+
+// --------------------------------------------------------------------------
+// Response flags
+// --------------------------------------------------------------------------
+
+namespace {
+
+/// A command with a subcommand and a group, for flags that name them.
+class grouped_command final : public command {
+public:
+    explicit grouped_command(command_info details) : info_(std::move(details)) {}
+
+    [[nodiscard]] const command_info& info() const override { return info_; }
+
+    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override {
+        dpp::slashcommand payload = command::build(name, application_id);
+        payload.add_option(dpp::command_option(dpp::co_sub_command, "list", "List them."));
+        dpp::command_option alias(dpp::co_sub_command_group, "alias", "Aliases.");
+        alias.add_option(dpp::command_option(dpp::co_sub_command, "add", "Add one."));
+        payload.add_option(alias);
+        return payload;
+    }
+
+    dpp::task<void> execute(const dpp::slashcommand_t& /*event*/) override { co_return; }
+
+private:
+    command_info info_;
+};
+
+/// Public results, private refusals, silent posts, and "alias add" answered
+/// privately: the shape `/linkstats` has.
+command_info grouped_info() {
+    command_info details = basic("stats");
+    details.responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = dpp::m_suppress_notifications};
+    details.subcommand_responses = {{"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}};
+    return details;
+}
+
+} // namespace
+
+TEST_CASE("a subcommand's response flags override only what they name", "[commands]") {
+    const command_info details = grouped_info();
+
+    const auto alias_add = details.responses_for("alias add");
+    CHECK(alias_add.result == dpp::m_ephemeral);
+    CHECK(alias_add.refusal == dpp::m_ephemeral);
+    CHECK(alias_add.post == dpp::m_suppress_notifications);
+
+    CHECK(details.responses_for("list").result == 0);
+    CHECK(details.responses_for("").result == 0);
+}
+
+TEST_CASE("the subcommand an interaction ran is read as a path", "[commands]") {
+    using latibot::commands::subcommand_path;
+    using latibot::testing::slash_event;
+
+    CHECK(subcommand_path(slash_event("stats", "").command.get_command_interaction()).empty());
+    CHECK(subcommand_path(slash_event("stats", "list").command.get_command_interaction()) == "list");
+    CHECK(subcommand_path(slash_event("stats", "alias add").command.get_command_interaction()) == "alias add");
+
+    // Plain options are arguments, not part of the path.
+    const auto with_option = slash_event("say", "", {latibot::testing::bool_option("loud", true)});
+    CHECK(subcommand_path(with_option.command.get_command_interaction()).empty());
+}
+
+TEST_CASE("every subcommand a payload offers is listed by path", "[commands]") {
+    const grouped_command stats(grouped_info());
+    CHECK(latibot::commands::subcommand_paths(stats.build("stats", dpp::snowflake{1})) == std::vector<std::string>{"list", "alias add"});
+}
+
+TEST_CASE("replies carry the flags configured for the subcommand that ran", "[commands]") {
+    using latibot::testing::slash_event;
+    const grouped_command stats(grouped_info());
+
+    CHECK(stats.result(slash_event("stats", "list"), "a board").flags == 0);
+    CHECK(stats.result(slash_event("stats", "alias add"), "ok").flags == dpp::m_ephemeral);
+    CHECK(stats.refusal(slash_event("stats", "list"), "which emoji?").flags == dpp::m_ephemeral);
+    CHECK(stats.post(slash_event("stats", "list"), dpp::message(dpp::snowflake{5}, "progress")).flags == dpp::m_suppress_notifications);
+
+    // The configuration decides, not whatever built the message.
+    dpp::message rendered("a board");
+    rendered.flags = dpp::m_ephemeral | dpp::m_suppress_embeds;
+    CHECK(stats.result(slash_event("stats", "list"), rendered).flags == 0);
+}
+
+TEST_CASE("response flags that could not work are refused at registration", "[commands]") {
+    registry commands;
+
+    SECTION("a flag no reply can carry") {
+        command_info details = basic("odd");
+        details.responses.result = dpp::m_urgent;
+        CHECK_THROWS_AS(commands.add(std::make_unique<spy_command>(details)), registry_error);
+    }
+
+    SECTION("an ephemeral post, which only a reply can be") {
+        command_info details = basic("odd");
+        details.responses.post = dpp::m_ephemeral;
+        CHECK_THROWS_AS(commands.add(std::make_unique<spy_command>(details)), registry_error);
+    }
+
+    SECTION("a subcommand that does not exist") {
+        command_info details = grouped_info();
+        details.subcommand_responses.emplace("alias_add", latibot::commands::response_overrides{});
+        CHECK_THROWS_AS(commands.add(std::make_unique<grouped_command>(details)), registry_error);
+    }
+
+    SECTION("an override that could not work either") {
+        command_info details = grouped_info();
+        details.subcommand_responses["list"].post = dpp::m_ephemeral;
+        CHECK_THROWS_AS(commands.add(std::make_unique<grouped_command>(details)), registry_error);
+    }
+
+    // Nothing half-registered is left behind.
+    CHECK(commands.size() == 0);
+    CHECK_NOTHROW(commands.add(std::make_unique<grouped_command>(grouped_info())));
 }

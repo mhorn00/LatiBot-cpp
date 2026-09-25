@@ -13,7 +13,7 @@ namespace latibot::events {
 namespace {
 
 /// Every column of an entry, in the order `read_row` expects.
-constexpr std::string_view row_columns = "id, guild_id, channel_id, timezone, message, enabled, last_fired_date";
+constexpr std::string_view row_columns = "id, guild_id, channel_id, timezone, message, enabled, last_fired_date, message_flags";
 
 midnight_entry read_row(const db::statement& row) {
     midnight_entry entry;
@@ -24,6 +24,7 @@ midnight_entry read_row(const db::statement& row) {
     entry.message = row.get<std::string>(4);
     entry.enabled = row.get<bool>(5);
     entry.last_fired_date = row.get<std::optional<std::string>>(6).value_or(std::string{});
+    entry.message_flags = discord::channel_flags(row.get<std::int64_t>(7));
     return entry;
 }
 
@@ -161,10 +162,11 @@ std::int64_t midnight_store::add(const midnight_entry& entry) {
     const auto guard = db_->lock();
 
     db_->prepare(
-           "INSERT INTO midnight_messages (guild_id, channel_id, timezone, message, enabled, last_fired_date) "
-           "VALUES (?, ?, ?, ?, ?, ?)",
+           "INSERT INTO midnight_messages (guild_id, channel_id, timezone, message, enabled, last_fired_date, message_flags) "
+           "VALUES (?, ?, ?, ?, ?, ?, ?)",
            static_cast<std::uint64_t>(entry.guild_id), static_cast<std::uint64_t>(entry.channel_id), entry.timezone, entry.message,
-           entry.enabled, entry.last_fired_date.empty() ? std::optional<std::string>{} : std::optional(entry.last_fired_date))
+           entry.enabled, entry.last_fired_date.empty() ? std::optional<std::string>{} : std::optional(entry.last_fired_date),
+           std::int64_t{discord::channel_flags(entry.message_flags)})
         .run();
 
     return db_->last_insert_rowid();
@@ -173,9 +175,11 @@ std::int64_t midnight_store::add(const midnight_entry& entry) {
 bool midnight_store::update(const midnight_entry& entry) {
     const auto guard = db_->lock();
 
-    db_->prepare("UPDATE midnight_messages SET channel_id = ?, timezone = ?, message = ?, enabled = ? WHERE id = ? AND guild_id = ?",
-                 static_cast<std::uint64_t>(entry.channel_id), entry.timezone, entry.message, entry.enabled, entry.id,
-                 static_cast<std::uint64_t>(entry.guild_id))
+    db_->prepare(
+           "UPDATE midnight_messages SET channel_id = ?, timezone = ?, message = ?, enabled = ?, message_flags = ? "
+           "WHERE id = ? AND guild_id = ?",
+           static_cast<std::uint64_t>(entry.channel_id), entry.timezone, entry.message, entry.enabled,
+           std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, static_cast<std::uint64_t>(entry.guild_id))
         .run();
 
     return db_->changes() > 0;
@@ -250,7 +254,7 @@ std::vector<action> midnight_scheduler::tick() {
         }
 
         util::log().info("posting midnight message {} in channel {} for {} in {}", entry.id, entry.channel_id, local->date, entry.timezone);
-        posts.emplace_back(send_message{.channel_id = entry.channel_id, .content = entry.message});
+        posts.emplace_back(send_message{.channel_id = entry.channel_id, .content = entry.message, .flags = entry.message_flags});
     }
 
     return posts;

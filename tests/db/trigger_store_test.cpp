@@ -258,3 +258,57 @@ TEST_CASE("a trigger that answers bots still answers humans", "[db]") {
 
     CHECK(responder(message_saying("420")).actions.size() == 1);
 }
+
+TEST_CASE("a trigger's reply flags survive a round trip and default to silent", "[db]") {
+    store_fixture fixture;
+
+    const std::int64_t quiet = fixture.store.add(nice_trigger());
+    CHECK(fixture.store.find(quiet, guild)->message_flags == dpp::m_suppress_notifications);
+
+    trigger loud = nice_trigger();
+    loud.message_flags = dpp::m_suppress_embeds;
+    const std::int64_t id = fixture.store.add(loud);
+    CHECK(fixture.store.find(id, guild)->message_flags == dpp::m_suppress_embeds);
+
+    // Editable, which is what the panel's buttons and /trigger edit do.
+    auto entry = fixture.store.find(id, guild);
+    entry->message_flags = dpp::m_suppress_notifications | dpp::m_suppress_embeds;
+    REQUIRE(fixture.store.update(*entry));
+    CHECK(fixture.store.find(id, guild)->message_flags == (dpp::m_suppress_notifications | dpp::m_suppress_embeds));
+
+    // Only the flags a channel message can carry are kept.
+    entry->message_flags = dpp::m_ephemeral;
+    REQUIRE(fixture.store.update(*entry));
+    CHECK(fixture.store.find(id, guild)->message_flags == 0);
+}
+
+TEST_CASE("triggers from before reply flags existed stay silent", "[db]") {
+    latibot::db::database db{":memory:"};
+
+    // Stop at the schema before message_flags, add a trigger the old way,
+    // then let the migration add the column.
+    const auto all = latibot::db::schema();
+    latibot::db::migrate(db, all.first(all.size() - 1));
+    db.prepare("INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) VALUES (?, '420', 'whole_word', 30, 1)",
+               static_cast<std::uint64_t>(guild))
+        .run();
+    latibot::db::migrate(db);
+
+    const auto found = trigger_store(db).for_guild(guild);
+    REQUIRE(found.size() == 1);
+    CHECK(found.front().message_flags == dpp::m_suppress_notifications);
+}
+
+TEST_CASE("a trigger's reply carries its flags", "[db]") {
+    store_fixture fixture;
+    trigger loud = nice_trigger();
+    loud.message_flags = dpp::m_suppress_embeds;
+    fixture.store.add(loud);
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    const auto result = responder(message_saying("420"));
+    REQUIRE(result.actions.size() == 1);
+    CHECK(std::get<latibot::events::send_message>(result.actions.front()).flags == dpp::m_suppress_embeds);
+}

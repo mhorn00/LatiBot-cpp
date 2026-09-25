@@ -10,6 +10,7 @@ add_library(latibot_core STATIC
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/linkstats.cpp
+    core/commands/message_options.cpp
     core/commands/bots.cpp
     core/commands/midnight.cpp
     core/commands/nickname.cpp
@@ -19,6 +20,7 @@ add_library(latibot_core STATIC
     core/commands/registry.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
+    core/discord/message_flags.cpp
     core/discord/raw_api.cpp
     core/events/backfill.cpp
     core/events/bot_allowlist.cpp

@@ -1,5 +1,6 @@
 #include "core/commands/trigger.hpp"
 
+#include "core/commands/message_options.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -9,6 +10,7 @@
 #include <dpp/permissions.h>
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <format>
 #include <string_view>
@@ -16,12 +18,6 @@
 
 namespace latibot::commands {
 namespace {
-
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
 
 std::string string_option(const dpp::slashcommand_t& event, const char* name) {
     const dpp::command_value value = event.get_parameter(name);
@@ -115,6 +111,9 @@ std::string describe(const events::trigger& entry) {
     if (entry.respond_to_bots) {
         line += ", answers bots";
     }
+    if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) {
+        line += ", " + options;
+    }
     line += std::format(") -> {} response{}", entry.responses.size(), entry.responses.size() == 1 ? "" : "s");
     return line;
 }
@@ -136,7 +135,6 @@ dpp::message render_trigger_list(const events::trigger_store& store, dpp::snowfl
     }
 
     dpp::message reply(body);
-    reply.set_flags(dpp::m_ephemeral);
 
     const auto row = ui::controls({.view = std::string(trigger_list_view), .page = current, .argument = {}}, all.size(), triggers_per_page);
     if (row) {
@@ -153,7 +151,9 @@ trigger_command::trigger_command(events::trigger_store& store)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = dpp::permission(dpp::p_manage_messages),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       store_(&store) {}
 
 dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -173,6 +173,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
                        .set_min_value(0)
                        .set_max_value(86400));
     add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
+    add_message_options(add);
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change a trigger.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
@@ -182,6 +183,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(86400));
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
     edit.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
+    add_message_options(edit);
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete a trigger.");
     remove.add_option(dpp::command_option(dpp::co_integer, "id", "From /trigger list.", true).set_min_value(1));
@@ -211,20 +213,20 @@ dpp::task<void> trigger_command::execute(const dpp::slashcommand_t& event) {
     } else if (action == "panel") {
         co_await this->panel(event);
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
 dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
     const std::string pattern = std::string(util::trim(string_option(event, "pattern")));
     if (pattern.empty()) {
-        co_await event.co_reply(ack("a pattern of only whitespace would match everything"));
+        co_await event.co_reply(refusal(event, "a pattern of only whitespace would match everything"));
         co_return;
     }
 
     const std::vector<events::weighted_response> responses = parse_responses(string_option(event, "responses"));
     if (responses.empty()) {
-        co_await event.co_reply(ack("that leaves no responses to pick from"));
+        co_await event.co_reply(refusal(event, "that leaves no responses to pick from"));
         co_return;
     }
 
@@ -235,33 +237,37 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
     const dpp::command_value bots = event.get_parameter("bots");
     const auto* answer_bots = std::get_if<bool>(&bots);
 
+    discord::message_flags flags = events::trigger{}.message_flags;
+    apply_message_options(event, flags);
+
     const std::int64_t id = store_->add({.guild_id = event.command.guild_id,
                                          .pattern = pattern,
                                          .mode = mode,
                                          .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
                                          .enabled = true,
                                          .respond_to_bots = answer_bots != nullptr && *answer_bots,
+                                         .message_flags = flags,
                                          .responses = responses});
 
-    util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={} bots={} responses={}", id,
+    util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={} bots={} flags={} responses={}", id,
                      event.command.guild_id, describe_user(event.command.get_issuing_user()), pattern, events::to_string(mode),
                      std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
-                     answer_bots != nullptr && *answer_bots, responses.size());
+                     answer_bots != nullptr && *answer_bots, discord::describe_flags(flags), responses.size());
 
-    co_await event.co_reply(ack(
-        std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(), responses.size() == 1 ? "" : "s")));
+    co_await event.co_reply(result(event, std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(),
+                                                      responses.size() == 1 ? "" : "s")));
 }
 
 dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
     const auto id = int_option(event, "id");
     if (!id) {
-        co_await event.co_reply(ack("which trigger? run `/trigger list` for the ids"));
+        co_await event.co_reply(refusal(event, "which trigger? run `/trigger list` for the ids"));
         co_return;
     }
 
     std::optional<events::trigger> entry = store_->find(*id, event.command.guild_id);
     if (!entry) {
-        co_await event.co_reply(ack(std::format("no trigger `{}` in this server", *id)));
+        co_await event.co_reply(refusal(event, std::format("no trigger `{}` in this server", *id)));
         co_return;
     }
 
@@ -276,7 +282,7 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
     if (!responses_text.empty()) {
         const auto responses = parse_responses(responses_text);
         if (responses.empty()) {
-            co_await event.co_reply(ack("that leaves no responses to pick from"));
+            co_await event.co_reply(refusal(event, "that leaves no responses to pick from"));
             co_return;
         }
         entry->responses = responses;
@@ -298,40 +304,41 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
     if (const auto* flag = std::get_if<bool>(&bots)) {
         entry->respond_to_bots = *flag;
     }
+    apply_message_options(event, entry->message_flags);
 
     if (!store_->update(*entry)) {
-        co_await event.co_reply(ack(std::format("no trigger `{}` in this server", *id)));
+        co_await event.co_reply(refusal(event, std::format("no trigger `{}` in this server", *id)));
         co_return;
     }
 
     util::log().info("trigger {} updated in guild {} by {}: {}", *id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()), describe(*entry));
-    co_await event.co_reply(ack(std::format("updated {}", describe(*entry))));
+    co_await event.co_reply(result(event, std::format("updated {}", describe(*entry))));
 }
 
 dpp::task<void> trigger_command::remove(const dpp::slashcommand_t& event) {
     const auto id = int_option(event, "id");
     if (!id) {
-        co_await event.co_reply(ack("which trigger? run `/trigger list` for the ids"));
+        co_await event.co_reply(refusal(event, "which trigger? run `/trigger list` for the ids"));
         co_return;
     }
 
     if (!store_->remove(*id, event.command.guild_id)) {
-        co_await event.co_reply(ack(std::format("no trigger `{}` in this server", *id)));
+        co_await event.co_reply(refusal(event, std::format("no trigger `{}` in this server", *id)));
         co_return;
     }
 
     util::log().info("trigger {} removed from guild {} by {}", *id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(ack(std::format("removed trigger `{}`", *id)));
+    co_await event.co_reply(result(event, std::format("removed trigger `{}`", *id)));
 }
 
 dpp::task<void> trigger_command::list(const dpp::slashcommand_t& event, int page) {
-    co_await event.co_reply(render_trigger_list(*store_, event.command.guild_id, page));
+    co_await event.co_reply(result(event, render_trigger_list(*store_, event.command.guild_id, page)));
 }
 
 dpp::task<void> trigger_command::panel(const dpp::slashcommand_t& event) {
-    co_await event.co_reply(render_trigger_panel(*store_, event.command.guild_id, 0));
+    co_await event.co_reply(result(event, render_trigger_panel(*store_, event.command.guild_id, 0)));
 }
 
 // --------------------------------------------------------------------------
@@ -447,10 +454,65 @@ std::optional<dpp::component> selection_row(std::span<const events::trigger> pag
     return row;
 }
 
+discord::message_flags flipped(discord::message_flags flags, discord::message_flags bit) {
+    return static_cast<discord::message_flags>(flags ^ bit);
+}
+
+/// Each of the panel's on/off buttons, and what pressing it does.
+constexpr std::array<std::pair<std::string_view, trigger_toggle>, 4> toggles{{
+    {trigger_toggle_view,
+     [](events::trigger& entry) -> std::string_view {
+         entry.enabled = !entry.enabled;
+         return entry.enabled ? "enabled" : "disabled";
+     }},
+    {trigger_bots_view,
+     [](events::trigger& entry) -> std::string_view {
+         entry.respond_to_bots = !entry.respond_to_bots;
+         return entry.respond_to_bots ? "set to answer bots" : "set to ignore bots";
+     }},
+    {trigger_silent_view,
+     [](events::trigger& entry) -> std::string_view {
+         entry.message_flags = flipped(entry.message_flags, dpp::m_suppress_notifications);
+         return (entry.message_flags & dpp::m_suppress_notifications) != 0 ? "set to reply silently" : "set to reply with notifications";
+     }},
+    {trigger_previews_view,
+     [](events::trigger& entry) -> std::string_view {
+         entry.message_flags = flipped(entry.message_flags, dpp::m_suppress_embeds);
+         return (entry.message_flags & dpp::m_suppress_embeds) != 0 ? "set to hide link previews" : "set to show link previews";
+     }},
+}};
+
+/// How the selected trigger's replies are posted: silent or not, previews or
+/// not. A row of its own, since the selection row already has four buttons
+/// and a row takes five.
+std::optional<dpp::component> reply_options_row(std::span<const events::trigger> page_of, int page, std::int64_t selected,
+                                                bool confirming_delete) {
+    const auto found = std::ranges::find(page_of, selected, &events::trigger::id);
+    if (selected == 0 || confirming_delete || found == page_of.end()) {
+        return std::nullopt;
+    }
+
+    const std::string chosen = std::to_string(selected);
+    const auto silent = ui::encode({.view = std::string(trigger_silent_view), .page = page, .argument = chosen});
+    const auto previews = ui::encode({.view = std::string(trigger_previews_view), .page = page, .argument = chosen});
+    if (!silent || !previews) {
+        return std::nullopt;
+    }
+
+    const bool is_silent = (found->message_flags & dpp::m_suppress_notifications) != 0;
+    const bool hides_previews = (found->message_flags & dpp::m_suppress_embeds) != 0;
+
+    dpp::component row;
+    row.set_type(dpp::cot_action_row);
+    row.add_component(button(dpp::cos_secondary, is_silent ? "Reply with notifications" : "Reply silently", *silent));
+    row.add_component(button(dpp::cos_secondary, hides_previews ? "Show link previews" : "Hide link previews", *previews));
+    return row;
+}
+
 /// Add, plus the paging buttons.
 ///
-/// They share a row because a message has five at most, and the select menu
-/// and the selection row already take two.
+/// They share a row because a message has five at most, and the select menu,
+/// the selection row and the reply options already take three.
 std::optional<dpp::component> footer_row(int page, std::size_t total) {
     dpp::component row;
     row.set_type(dpp::cot_action_row);
@@ -469,6 +531,11 @@ std::optional<dpp::component> footer_row(int page, std::size_t total) {
 }
 
 } // namespace
+
+trigger_toggle toggle_for(std::string_view view) {
+    const auto found = std::ranges::find(toggles, view, &std::pair<std::string_view, trigger_toggle>::first);
+    return found == toggles.end() ? nullptr : found->second;
+}
 
 dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected,
                                   bool confirming_delete) {
@@ -489,12 +556,14 @@ dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowf
     }
 
     dpp::message reply(body);
-    reply.set_flags(dpp::m_ephemeral);
 
     if (const auto menu = pick_menu(page_of, current, selected)) {
         reply.add_component(*menu);
     }
     if (const auto row = selection_row(page_of, current, selected, confirming_delete)) {
+        reply.add_component(*row);
+    }
+    if (const auto row = reply_options_row(page_of, current, selected, confirming_delete)) {
         reply.add_component(*row);
     }
     if (const auto footer = footer_row(current, all.size())) {

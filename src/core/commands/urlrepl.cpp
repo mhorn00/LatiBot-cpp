@@ -22,12 +22,6 @@ constexpr std::size_t reply_budget = 1900;
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t domain_choices = 25;
 
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
-
 std::string string_option(const dpp::slashcommand_t& event, const char* name) {
     const dpp::command_value value = event.get_parameter(name);
     const auto* text = std::get_if<std::string>(&value);
@@ -225,7 +219,6 @@ dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snow
     }
 
     dpp::message reply(body);
-    reply.set_flags(dpp::m_ephemeral);
     if (const auto row =
             ui::controls({.view = std::string(url_list_view), .page = current, .argument = {}}, rules.size(), url_rules_per_page)) {
         reply.add_component(*row);
@@ -345,7 +338,6 @@ dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflak
     }
 
     dpp::message reply(body);
-    reply.set_flags(dpp::m_ephemeral);
 
     if (const auto menu = pick_menu(page_of, current, shown ? selected : std::string_view{})) {
         reply.add_component(*menu);
@@ -412,7 +404,11 @@ urlrepl_command::urlrepl_command(events::url_rule_store& store)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages | dpp::p_embed_links | dpp::p_manage_messages,
             .default_member_permissions = dpp::permission(dpp::p_manage_guild),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses =
+                {// The mirror links are the point of a dry run, not their previews.
+                 {"test", {.result = dpp::m_ephemeral | dpp::m_suppress_embeds, .refusal = std::nullopt, .post = std::nullopt}}}},
       store_(&store) {}
 
 dpp::slashcommand urlrepl_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -479,7 +475,7 @@ dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
     if (action == "enable" || action == "disable") {
         co_await this->turn(event, action == "enable");
     } else if (action == "list") {
-        co_await event.co_reply(render_url_rule_list(*store_, event.command.guild_id, 0));
+        co_await event.co_reply(result(event, render_url_rule_list(*store_, event.command.guild_id, 0)));
     } else if (action == "set") {
         co_await this->set(event);
     } else if (action == "remove") {
@@ -487,22 +483,22 @@ dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
     } else if (action == "test") {
         co_await this->test(event);
     } else if (action == "panel") {
-        co_await event.co_reply(render_url_panel(*store_, event.command.guild_id, 0));
+        co_await event.co_reply(result(event, render_url_panel(*store_, event.command.guild_id, 0)));
     } else {
-        co_await event.co_reply(ack("i don't know that subcommand"));
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
 dpp::task<void> urlrepl_command::turn(const dpp::slashcommand_t& event, bool enabled) {
     const dpp::snowflake guild = event.command.guild_id;
     const bool changed = switch_url_replacement(*store_, guild, enabled, describe_user(event.command.get_issuing_user()), "");
-    co_await event.co_reply(ack(render_switch(changed, enabled, store_->for_guild(guild).size())));
+    co_await event.co_reply(result(event, render_switch(changed, enabled, store_->for_guild(guild).size())));
 }
 
 dpp::task<void> urlrepl_command::set(const dpp::slashcommand_t& event) {
     const auto built = build_rule(string_option(event, "domain"), string_option(event, "mirrors"));
     if (const auto* problem = std::get_if<std::string>(&built)) {
-        co_await event.co_reply(ack(*problem));
+        co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
 
@@ -512,21 +508,21 @@ dpp::task<void> urlrepl_command::set(const dpp::slashcommand_t& event) {
 
     util::log().info("URL rule for {} {} in guild {} by {}: {}", rule.domain, existed ? "changed" : "added", event.command.guild_id,
                      describe_user(event.command.get_issuing_user()), describe_mirrors(rule.mirrors));
-    co_await event.co_reply(
-        ack(std::format("{}: links to {} now go to {}", existed ? "Updated" : "Added", rule.domain, describe_mirrors(rule.mirrors))));
+    co_await event.co_reply(result(
+        event, std::format("{}: links to {} now go to {}", existed ? "Updated" : "Added", rule.domain, describe_mirrors(rule.mirrors))));
 }
 
 dpp::task<void> urlrepl_command::remove(const dpp::slashcommand_t& event) {
     const std::string typed = string_option(event, "domain");
     const auto domain = events::normalise_domain(typed);
     if (!domain || !store_->remove(event.command.guild_id, *domain)) {
-        co_await event.co_reply(ack(std::format("there's no rule for \"{}\" here", util::trim(typed))));
+        co_await event.co_reply(refusal(event, std::format("there's no rule for \"{}\" here", util::trim(typed))));
         co_return;
     }
 
     util::log().info("URL rule for {} removed from guild {} by {}", *domain, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(ack(std::format("Links to {} will be left alone from now on.", *domain)));
+    co_await event.co_reply(result(event, std::format("Links to {} will be left alone from now on.", *domain)));
 }
 
 dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
@@ -534,10 +530,7 @@ dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
     const std::vector<events::url_rule> rules = store_->for_guild(guild);
     const bool opted_out = store_->opted_out(guild, event.command.get_issuing_user().id);
 
-    dpp::message reply(render_test(string_option(event, "text"), rules, opted_out, store_->enabled(guild)));
-    // The mirror links are the point of the reply, not their previews.
-    reply.set_flags(dpp::m_ephemeral | dpp::m_suppress_embeds);
-    co_await event.co_reply(reply);
+    co_await event.co_reply(result(event, render_test(string_option(event, "text"), rules, opted_out, store_->enabled(guild))));
 }
 
 // --------------------------------------------------------------------------
@@ -550,7 +543,9 @@ urltoggle_command::urltoggle_command(events::url_rule_store& store)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = std::nullopt,
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       store_(&store) {}
 
 dpp::slashcommand urltoggle_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -569,7 +564,7 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
     const bool self = target == invoker.id;
 
     if (!self && !invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(ack("changing that for somebody else needs Manage Server"));
+        co_await event.co_reply(refusal(event, "changing that for somebody else needs Manage Server"));
         co_return;
     }
 
@@ -590,7 +585,7 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
         text += " Link replacement is off in this server at the moment, so nobody's links are being replaced.";
     }
 
-    co_await event.co_reply(ack(text));
+    co_await event.co_reply(result(event, text));
 }
 
 } // namespace latibot::commands

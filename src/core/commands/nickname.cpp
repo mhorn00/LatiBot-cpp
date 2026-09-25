@@ -18,12 +18,6 @@
 namespace latibot::commands {
 namespace {
 
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
-
 /// The user an option names, and the name to show for them.
 struct named_user {
     dpp::snowflake id;
@@ -80,10 +74,8 @@ dpp::message render_nickname_history(std::span<const events::nickname_change> hi
         body += std::format("\n_{}_", ui::page_label(current, history.size(), nicknames_per_page));
     }
 
-    // Public, unlike every other list this bot posts: a nickname history is
-    // something a room reads together, and half its point is being shown to
-    // the person it is about. The ◀ / ▶ buttons therefore page for everybody
-    // who can see the message, which is the behaviour a shared message wants.
+    // Public, as `/nicknames` is configured to post it, so the ◀ / ▶ buttons
+    // page for everybody who can see the message.
     dpp::message reply(body);
 
     // Mentions are how a name is shown for somebody who has left. In a public
@@ -107,7 +99,9 @@ nickname_command::nickname_command(events::nickname_store& store, events::pendin
             .aliases = {},
             .required_bot_permissions = dpp::p_manage_nicknames,
             .default_member_permissions = dpp::permission(dpp::p_manage_nicknames),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       store_(&store),
       pending_(&pending),
       clock_(&clock),
@@ -125,7 +119,7 @@ dpp::slashcommand nickname_command::build(const std::string& name, dpp::snowflak
 dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
     const auto target = user_option(event, "user");
     if (!target) {
-        co_await event.co_reply(ack("whose nickname?"));
+        co_await event.co_reply(refusal(event, "whose nickname?"));
         co_return;
     }
 
@@ -136,7 +130,7 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
     // saying so beats a refusal that reads like a permissions problem.
     if (const dpp::guild* guild = dpp::find_guild(guild_id); guild != nullptr && guild->owner_id == target->id) {
         co_await event.co_reply(
-            ack(std::format("{} owns this server, and Discord will not let me touch the owner's nickname.", target->name)));
+            refusal(event, std::format("{} owns this server, and Discord will not let me touch the owner's nickname.", target->name)));
         co_return;
     }
 
@@ -166,15 +160,15 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
 
         const dpp::error_info error = outcome.get_error();
         util::log().warn("could not set {}'s nickname in guild {}: {} ({})", target->id, guild_id, error.message, error.code);
-        co_await event.co_reply(ack(explain(error)));
+        co_await event.co_reply(refusal(event, explain(error)));
         co_return;
     }
 
     util::log().info("{} set {}'s nickname in guild {} to {}", describe_user(event.command.get_issuing_user()), target->id, guild_id,
                      wanted ? std::format("\"{}\"", *wanted) : "nothing");
 
-    co_await event.co_reply(
-        ack(wanted ? std::format("ok, {} is now **{}**", target->name, *wanted) : std::format("ok, cleared {}'s nickname", target->name)));
+    co_await event.co_reply(result(event, wanted ? std::format("ok, {} is now **{}**", target->name, *wanted)
+                                                 : std::format("ok, cleared {}'s nickname", target->name)));
 }
 
 // --------------------------------------------------------------------------
@@ -185,7 +179,12 @@ nicknames_command::nicknames_command(events::nickname_store& store)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = std::nullopt,
-            .guild_only = true},
+            .guild_only = true,
+            // Public, unlike almost every other list this bot posts: a nickname
+            // history is something a room reads together, and half its point is
+            // being shown to the person it is about.
+            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       store_(&store) {}
 
 dpp::slashcommand nicknames_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -198,7 +197,7 @@ dpp::slashcommand nicknames_command::build(const std::string& name, dpp::snowfla
 dpp::task<void> nicknames_command::execute(const dpp::slashcommand_t& event) {
     const auto target = user_option(event, "user");
     if (!target) {
-        co_await event.co_reply(ack("whose nicknames?"));
+        co_await event.co_reply(refusal(event, "whose nicknames?"));
         co_return;
     }
 
@@ -213,11 +212,11 @@ dpp::task<void> nicknames_command::execute(const dpp::slashcommand_t& event) {
         reply.add_file(std::format("nicknames-{}.txt", target->id.str()),
                        events::render_history_text(history, std::format("{} ({})", target->name, target->id.str())), "text/plain");
 
-        co_await event.co_reply(reply);
+        co_await event.co_reply(result(event, std::move(reply)));
         co_return;
     }
 
-    co_await event.co_reply(render_nickname_history(history, target->id, 0));
+    co_await event.co_reply(result(event, render_nickname_history(history, target->id, 0)));
 }
 
 } // namespace latibot::commands

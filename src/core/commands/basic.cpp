@@ -25,14 +25,6 @@
 namespace latibot::commands {
 namespace {
 
-/// An ephemeral reply. Acknowledgements are for whoever ran the command; the
-/// visible effect is the message, the presence change or the bot moving.
-dpp::message ack(std::string_view text) {
-    dpp::message reply(text);
-    reply.set_flags(dpp::m_ephemeral);
-    return reply;
-}
-
 /// A string option, or an empty string when it was not supplied.
 std::string string_option(const dpp::slashcommand_t& event, const char* name) {
     const dpp::command_value value = event.get_parameter(name);
@@ -156,12 +148,14 @@ ping_command::ping_command(ports::clock& clock)
             .aliases = {},
             .required_bot_permissions = 0,
             .default_member_permissions = std::nullopt,
-            .guild_only = false},
+            .guild_only = false,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       clock_(&clock) {}
 
 dpp::task<void> ping_command::execute(const dpp::slashcommand_t& event) {
     const auto started = clock_->steady_now();
-    co_await event.co_reply(ack("Pong!"));
+    co_await event.co_reply(result(event, "Pong!"));
     const auto round_trip = std::chrono::duration_cast<std::chrono::milliseconds>(clock_->steady_now() - started);
 
     // The websocket figure is DPP's own heartbeat measurement, which is
@@ -170,7 +164,8 @@ dpp::task<void> ping_command::execute(const dpp::slashcommand_t& event) {
     const dpp::discord_client* shard = event.from();
     const auto gateway = shard == nullptr ? 0 : static_cast<int>(shard->websocket_ping * 1000.0);
 
-    co_await event.co_edit_original_response(ack(std::format("Pong! ({} ms round trip, {} ms gateway)", round_trip.count(), gateway)));
+    co_await event.co_edit_original_response(
+        result(event, std::format("Pong! ({} ms round trip, {} ms gateway)", round_trip.count(), gateway)));
 }
 
 // --------------------------------------------------------------------------
@@ -183,7 +178,9 @@ say_command::say_command(dpp::cluster& cluster)
             .aliases = {},
             .required_bot_permissions = dpp::p_send_messages | dpp::p_read_message_history,
             .default_member_permissions = dpp::permission(dpp::p_manage_messages),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       cluster_(&cluster) {}
 
 dpp::slashcommand say_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -200,18 +197,17 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
 
     switch (decision.action) {
     case say_action::blank_message:
-        co_await event.co_reply(ack("that message is empty"));
+        co_await event.co_reply(refusal(event, "that message is empty"));
         co_return;
 
     case say_action::bad_reply_id:
         util::log().debug("/say refused: \"{}\" is not a message id", reply_to);
-        co_await event.co_reply(ack(std::format("\"{}\" is not a message id", reply_to)));
+        co_await event.co_reply(refusal(event, std::format("\"{}\" is not a message id", reply_to)));
         co_return;
 
     case say_action::send: {
-        co_await event.co_reply(ack("ok"));
-        const dpp::message post(event.command.channel_id, message);
-        co_await cluster_->co_message_create(post);
+        co_await event.co_reply(result(event, "ok"));
+        co_await cluster_->co_message_create(post(event, dpp::message(event.command.channel_id, message)));
         util::log().info("said {} characters in channel {} for {}", message.size(), event.command.channel_id,
                          describe_user(event.command.get_issuing_user()));
         co_return;
@@ -224,14 +220,14 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
         const auto target = co_await cluster_->co_message_get(decision.reply_to, event.command.channel_id);
         if (target.is_error()) {
             util::log().debug("/say could not fetch message {} in channel {}", decision.reply_to, event.command.channel_id);
-            co_await event.co_reply(ack(std::format("couldn't find message {} in this channel", decision.reply_to.str())));
+            co_await event.co_reply(refusal(event, std::format("couldn't find message {} in this channel", decision.reply_to.str())));
             co_return;
         }
 
-        co_await event.co_reply(ack("ok"));
-        dpp::message post(event.command.channel_id, message);
-        post.set_reference(decision.reply_to);
-        co_await cluster_->co_message_create(post);
+        co_await event.co_reply(result(event, "ok"));
+        dpp::message said(event.command.channel_id, message);
+        said.set_reference(decision.reply_to);
+        co_await cluster_->co_message_create(post(event, std::move(said)));
         util::log().info("said {} characters in channel {} replying to {} for {}", message.size(), event.command.channel_id,
                          decision.reply_to, describe_user(event.command.get_issuing_user()));
         co_return;
@@ -249,7 +245,9 @@ status_command::status_command(dpp::cluster& cluster)
             .aliases = {},
             .required_bot_permissions = 0,
             .default_member_permissions = dpp::permission(dpp::p_manage_nicknames),
-            .guild_only = false},
+            .guild_only = false,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       cluster_(&cluster) {}
 
 dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -272,7 +270,7 @@ dpp::task<void> status_command::execute(const dpp::slashcommand_t& event) {
 
     cluster_->set_presence(dpp::presence(dpp::ps_online, make_activity(type, text)));
     util::log().info("presence set to {} \"{}\" by {}", static_cast<int>(type), text, describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(ack(std::format("status set to: {}", text)));
+    co_await event.co_reply(result(event, std::format("status set to: {}", text)));
 }
 
 // --------------------------------------------------------------------------
@@ -285,7 +283,9 @@ join_command::join_command()
             .aliases = {},
             .required_bot_permissions = dpp::p_connect | dpp::p_speak,
             .default_member_permissions = dpp::permission(dpp::p_speak),
-            .guild_only = true} {}
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}} {}
 
 dpp::slashcommand join_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -305,23 +305,25 @@ dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
     switch (decision.action) {
     case join_action::target_not_in_voice:
         util::log().debug("/join: {} is not in a voice channel in guild {}", target, event.command.guild_id);
-        co_await event.co_reply(ack(following_someone_else ? "they're not in a voice channel" : "you're not in a voice channel"));
+        co_await event.co_reply(
+            refusal(event, following_someone_else ? "they're not in a voice channel" : "you're not in a voice channel"));
         co_return;
 
     case join_action::already_there:
-        co_await event.co_reply(ack(following_someone_else ? "i'm already in their voice channel" : "i'm already in your voice channel"));
+        co_await event.co_reply(
+            refusal(event, following_someone_else ? "i'm already in their voice channel" : "i'm already in your voice channel"));
         co_return;
 
     case join_action::connect:
     case join_action::move:
         if (shard == nullptr) {
-            co_await event.co_reply(ack("i can't reach the gateway right now"));
+            co_await event.co_reply(refusal(event, "i can't reach the gateway right now"));
             co_return;
         }
         shard->connect_voice(event.command.guild_id, decision.channel_id);
         util::log().info("{} voice channel {} in guild {} for {}", decision.action == join_action::move ? "moved to" : "joined",
                          decision.channel_id, event.command.guild_id, describe_user(event.command.get_issuing_user()));
-        co_await event.co_reply(ack(decision.action == join_action::move ? "ok moving" : "ok joining"));
+        co_await event.co_reply(result(event, decision.action == join_action::move ? "ok moving" : "ok joining"));
         co_return;
     }
 }
@@ -336,18 +338,20 @@ leave_command::leave_command()
             .aliases = {},
             .required_bot_permissions = dpp::p_connect,
             .default_member_permissions = dpp::permission(dpp::p_speak),
-            .guild_only = true} {}
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}} {}
 
 dpp::task<void> leave_command::execute(const dpp::slashcommand_t& event) {
     dpp::discord_client* shard = event.from();
     if (shard == nullptr || bot_voice_channel(event).empty()) {
-        co_await event.co_reply(ack("i'm not in a voice channel"));
+        co_await event.co_reply(refusal(event, "i'm not in a voice channel"));
         co_return;
     }
 
     shard->disconnect_voice(event.command.guild_id);
     util::log().info("left the voice channel in guild {} for {}", event.command.guild_id, describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(ack("ok bye"));
+    co_await event.co_reply(result(event, "ok bye"));
 }
 
 // --------------------------------------------------------------------------
@@ -360,7 +364,9 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .aliases = {},
             .required_bot_permissions = 0,
             .default_member_permissions = dpp::permission(dpp::p_administrator),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}
 
 dpp::task<void> shutdown_command::execute(const dpp::slashcommand_t& event) {
@@ -368,7 +374,7 @@ dpp::task<void> shutdown_command::execute(const dpp::slashcommand_t& event) {
 
     // Awaited, not queued: the process is about to stop, and an unanswered
     // interaction shows the caller an error instead of a goodbye.
-    co_await event.co_reply(ack("ok bye bye!"));
+    co_await event.co_reply(result(event, "ok bye bye!"));
     request_shutdown_();
 }
 
@@ -384,7 +390,9 @@ goodbye_command::goodbye_command(config::guild_settings& settings)
             .aliases = {},
             .required_bot_permissions = 0,
             .default_member_permissions = dpp::permission(dpp::p_administrator),
-            .guild_only = true},
+            .guild_only = true,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}},
       settings_(&settings) {}
 
 dpp::slashcommand goodbye_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -403,21 +411,21 @@ dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
         // instead of falling back to the default on the next restart.
         settings_->set(guild, events::goodbye_phrase_key, "");
         util::log().info("goodbye phrase turned off in guild {} by {}", guild, describe_user(event.command.get_issuing_user()));
-        co_await event.co_reply(ack("the goodbye phrase is off; set one to turn it back on"));
+        co_await event.co_reply(result(event, "the goodbye phrase is off; set one to turn it back on"));
         co_return;
     }
 
     const std::string wanted = std::string(util::trim(string_option(event, "phrase")));
     if (wanted.empty()) {
         const std::string current = settings_->get(guild, events::goodbye_phrase_key, events::default_goodbye_phrase);
-        co_await event.co_reply(
-            ack(current.empty() ? "the goodbye phrase is off" : std::format("an administrator saying \"{}\" stops the bot", current)));
+        co_await event.co_reply(result(
+            event, current.empty() ? "the goodbye phrase is off" : std::format("an administrator saying \"{}\" stops the bot", current)));
         co_return;
     }
 
     settings_->set(guild, events::goodbye_phrase_key, wanted);
     util::log().info("goodbye phrase in guild {} set to \"{}\" by {}", guild, wanted, describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(ack(std::format("an administrator saying \"{}\" now stops the bot", wanted)));
+    co_await event.co_reply(result(event, std::format("an administrator saying \"{}\" now stops the bot", wanted)));
 }
 
 // --------------------------------------------------------------------------

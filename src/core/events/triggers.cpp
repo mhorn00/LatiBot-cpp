@@ -126,7 +126,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
     std::vector<trigger> found;
     {
         auto query = db_->prepare(
-            "SELECT id, pattern, match_mode, cooldown_s, enabled, respond_to_bots FROM triggers "
+            "SELECT id, pattern, match_mode, cooldown_s, enabled, respond_to_bots, message_flags FROM triggers "
             "WHERE guild_id = ? ORDER BY id",
             static_cast<std::uint64_t>(guild_id));
         while (query.step()) {
@@ -138,6 +138,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
             entry.cooldown = std::chrono::seconds(query.get<std::int64_t>(3));
             entry.enabled = query.get<bool>(4);
             entry.respond_to_bots = query.get<bool>(5);
+            entry.message_flags = discord::channel_flags(query.get<std::int64_t>(6));
             found.push_back(std::move(entry));
         }
     }
@@ -175,10 +176,10 @@ std::int64_t trigger_store::add(const trigger& entry) {
     db::transaction tx(*db_);
 
     db_->prepare(
-           "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled, respond_to_bots) "
-           "VALUES (?, ?, ?, ?, ?, ?)",
+           "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled, respond_to_bots, message_flags) "
+           "VALUES (?, ?, ?, ?, ?, ?, ?)",
            static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled,
-           entry.respond_to_bots)
+           entry.respond_to_bots, std::int64_t{discord::channel_flags(entry.message_flags)})
         .run();
 
     const std::int64_t id = db_->last_insert_rowid();
@@ -193,10 +194,10 @@ bool trigger_store::update(const trigger& entry) {
     db::transaction tx(*db_);
 
     db_->prepare(
-           "UPDATE triggers SET pattern = ?, match_mode = ?, cooldown_s = ?, enabled = ?, respond_to_bots = ? "
+           "UPDATE triggers SET pattern = ?, match_mode = ?, cooldown_s = ?, enabled = ?, respond_to_bots = ?, message_flags = ? "
            "WHERE id = ? AND guild_id = ?",
-           entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.respond_to_bots, entry.id,
-           static_cast<std::uint64_t>(entry.guild_id))
+           entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.respond_to_bots,
+           std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, static_cast<std::uint64_t>(entry.guild_id))
         .run();
 
     if (db_->changes() == 0) {
@@ -294,7 +295,7 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
 
         util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id);
         last_fired_[key] = now;
-        result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = reply->text});
+        result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = reply->text, .flags = entry.message_flags});
     }
 
     return result;

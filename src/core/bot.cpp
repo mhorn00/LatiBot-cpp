@@ -10,6 +10,7 @@
 #include "core/commands/urlrepl.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/migrations.hpp"
+#include "core/discord/message_flags.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
 #include "core/ui/paginator.hpp"
@@ -110,6 +111,17 @@ dpp::job detach(dpp::task<void> work, std::string what) {
     } catch (...) {
         util::log().error("{} threw an unknown exception", what);
     }
+}
+
+/// Replaces the message a panel's button or form belongs to.
+///
+/// The message keeps the flags it was sent with, which its command chose:
+/// whether it is ephemeral cannot change after it is sent, but whether it
+/// shows previews can, so an update without them would bring back previews
+/// the command hid.
+void update_panel(const dpp::interaction_create_t& event, dpp::message message) {
+    const auto kept = static_cast<discord::message_flags>(event.command.msg.flags);
+    event.reply(dpp::ir_update_message, discord::apply_flags(message, kept, discord::channel_message_flags));
 }
 
 /// The URLs of a message's previews, which is all the embed tracker needs.
@@ -672,14 +684,14 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     // is nothing here to expire, leak, or lose across a restart.
     if (state->view == commands::nickname_history_view) {
         const dpp::snowflake subject(state->argument);
-        event.reply(dpp::ir_update_message, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state->page));
+        update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state->page));
     } else if (state->view == events::url_retry_view) {
         retry_replacement(event, dpp::snowflake(state->argument), who);
     } else if (state->view == commands::board_view) {
         // The board's filters ride in the argument, so every page is the
         // same board as the first.
         if (const auto board = commands::decode_board(state->argument)) {
-            event.reply(dpp::ir_update_message, commands::render_board(reactions_, guild, board->first, board->second, state->page));
+            update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state->page));
         }
     } else if (!on_trigger_component(event, *state, chosen, who) && !on_url_component(event, *state, chosen, who)) {
         util::log().debug("no panel handles the view \"{}\"", state->view);
@@ -692,34 +704,25 @@ bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
     const std::int64_t id = chosen.empty() ? argument_id(state) : 0;
 
     if (state.view == commands::trigger_list_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_list(triggers_, guild, state.page));
+        update_panel(event, commands::render_trigger_list(triggers_, guild, state.page));
     } else if (state.view == commands::trigger_panel_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
     } else if (state.view == commands::trigger_pick_view) {
         std::int64_t picked = 0;
         const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
         if (error != std::errc{} || stop != chosen.data() + chosen.size()) {
             picked = 0;
         }
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, picked));
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, picked));
     } else if (state.view == commands::trigger_delete_view) {
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
     } else if (state.view == commands::trigger_confirm_view) {
         util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
         triggers_.remove(id, guild);
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
-    } else if (state.view == commands::trigger_toggle_view) {
-        toggle_trigger(id, guild, who, [](events::trigger& entry) {
-            entry.enabled = !entry.enabled;
-            return entry.enabled ? "enabled" : "disabled";
-        });
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id));
-    } else if (state.view == commands::trigger_bots_view) {
-        toggle_trigger(id, guild, who, [](events::trigger& entry) {
-            entry.respond_to_bots = !entry.respond_to_bots;
-            return entry.respond_to_bots ? "set to answer bots" : "set to ignore bots";
-        });
-        event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page, id));
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
+    } else if (const commands::trigger_toggle change = commands::toggle_for(state.view)) {
+        toggle_trigger(id, guild, who, change);
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id));
     } else if (state.view == commands::trigger_add_view) {
         event.dialog(commands::trigger_form(state.page, nullptr));
     } else if (state.view == commands::trigger_edit_view) {
@@ -727,7 +730,7 @@ bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
         if (entry) {
             event.dialog(commands::trigger_form(state.page, &*entry));
         } else {
-            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state.page));
+            update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
         }
     } else {
         return false;
@@ -740,29 +743,28 @@ bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::pag
     const dpp::snowflake guild = event.command.guild_id;
 
     if (state.view == commands::url_list_view) {
-        event.reply(dpp::ir_update_message, commands::render_url_rule_list(url_rules_, guild, state.page));
+        update_panel(event, commands::render_url_rule_list(url_rules_, guild, state.page));
     } else if (state.view == commands::url_panel_view) {
-        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
     } else if (state.view == commands::url_pick_view) {
-        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page, chosen));
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, chosen));
     } else if (state.view == commands::url_delete_view) {
-        event.reply(dpp::ir_update_message,
-                    commands::render_url_panel(url_rules_, guild, state.page, state.argument, /*confirming_delete=*/true));
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, state.argument, /*confirming_delete=*/true));
     } else if (state.view == commands::url_confirm_view) {
         if (url_rules_.remove(guild, state.argument)) {
             util::log().info("URL rule for {} removed from guild {} by {} from the panel", state.argument, guild, who);
         }
-        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
     } else if (state.view == commands::url_switch_view) {
         commands::switch_url_replacement(url_rules_, guild, state.argument == "on", who, " from the panel");
-        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
     } else if (state.view == commands::url_add_view) {
         event.dialog(commands::url_rule_form(state.page, nullptr));
     } else if (state.view == commands::url_edit_view) {
         // Removed from another client while this panel was open.
         const auto rule = url_rules_.find(guild, state.argument);
         if (!rule) {
-            event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+            update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
         } else {
             event.dialog(commands::url_rule_form(state.page, &*rule));
         }
@@ -803,7 +805,7 @@ void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& sta
     }
     util::log().info("URL rule for {} {} in guild {} by {} from the panel: {}", rule.domain, what, guild, who,
                      commands::describe_mirrors(rule.mirrors));
-    event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page, rule.domain));
+    update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, rule.domain));
 }
 
 void bot::on_form(const dpp::form_submit_t& event) {
@@ -827,7 +829,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
     if (id != 0) {
         auto existing = triggers_.find(id, guild);
         if (!existing) {
-            event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page));
+            update_panel(event, commands::render_trigger_panel(triggers_, guild, state->page));
             return;
         }
         entry = std::move(*existing);
@@ -852,7 +854,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
     const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
     util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
                      commands::describe(entry));
-    event.reply(dpp::ir_update_message, commands::render_trigger_panel(triggers_, guild, state->page, saved));
+    update_panel(event, commands::render_trigger_panel(triggers_, guild, state->page, saved));
 }
 
 events::incoming_message bot::describe(const dpp::message& message) const {
@@ -888,11 +890,10 @@ void bot::carry_out(const std::vector<events::action>& actions) {
 
                 if constexpr (std::is_same_v<step_type, events::send_message>) {
                     dpp::message reply(step.channel_id, step.content);
-                    // Suppressed notifications, as the Java bot did: these are
-                    // jokes and acknowledgements, not things to be pinged for.
-                    reply.set_flags(dpp::m_suppress_notifications);
+                    discord::apply_flags(reply, step.flags, discord::channel_message_flags);
                     cluster_.message_create(reply);
-                    util::log().info("replied in channel {}: \"{}\"", step.channel_id, step.content);
+                    util::log().info("replied in channel {} ({}): \"{}\"", step.channel_id, discord::describe_flags(reply.flags),
+                                     step.content);
                 } else if constexpr (std::is_same_v<step_type, events::replace_links>) {
                     detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
