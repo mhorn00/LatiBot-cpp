@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-487 test cases across 9 components, including 113 sections.
+489 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 107 | 11 |
+| [db](#db) | 109 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 117 | 27 |
 | [events](#events) | 150 | 37 |
@@ -124,14 +124,16 @@ Database (`src/core/db`)
 | a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:359](../../tests/db/trigger_store_test.cpp#L359) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
-| rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
-| removing a rule says whether there was one |  |  | [tests/db/url_rule_store_test.cpp:72](../../tests/db/url_rule_store_test.cpp#L72) |
-| a mirror is remembered after its rule is gone |  |  | [tests/db/url_rule_store_test.cpp:81](../../tests/db/url_rule_store_test.cpp#L81) |
-| an opt-out toggles, and is kept per guild |  |  | [tests/db/url_rule_store_test.cpp:93](../../tests/db/url_rule_store_test.cpp#L93) |
-| replacement is off in a guild until it is turned on, per guild |  |  | [tests/db/url_rule_store_test.cpp:105](../../tests/db/url_rule_store_test.cpp#L105) |
-| turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:120](../../tests/db/url_rule_store_test.cpp#L120) |
-| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:137](../../tests/db/url_rule_store_test.cpp#L137) |
-| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:156](../../tests/db/url_rule_store_test.cpp#L156) |
+| renaming a rule moves it to the new site |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
+| a rename that fails leaves the old rule where it was |  |  | [tests/db/url_rule_store_test.cpp:72](../../tests/db/url_rule_store_test.cpp#L72) |
+| rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:91](../../tests/db/url_rule_store_test.cpp#L91) |
+| removing a rule says whether there was one |  |  | [tests/db/url_rule_store_test.cpp:104](../../tests/db/url_rule_store_test.cpp#L104) |
+| a mirror is remembered after its rule is gone |  |  | [tests/db/url_rule_store_test.cpp:113](../../tests/db/url_rule_store_test.cpp#L113) |
+| an opt-out toggles, and is kept per guild |  |  | [tests/db/url_rule_store_test.cpp:125](../../tests/db/url_rule_store_test.cpp#L125) |
+| replacement is off in a guild until it is turned on, per guild |  |  | [tests/db/url_rule_store_test.cpp:137](../../tests/db/url_rule_store_test.cpp#L137) |
+| turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:152](../../tests/db/url_rule_store_test.cpp#L152) |
+| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:169](../../tests/db/url_rule_store_test.cpp#L169) |
+| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:188](../../tests/db/url_rule_store_test.cpp#L188) |
 
 ## config
 

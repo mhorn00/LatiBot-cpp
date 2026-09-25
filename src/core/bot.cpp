@@ -735,7 +735,10 @@ void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::
     }
 
     const std::string_view became = change(*entry);
-    triggers_.update(*entry);
+    if (!triggers_.update(*entry)) {
+        util::log().debug("trigger {} in guild {} was removed before the panel could change it", id, guild);
+        return;
+    }
     util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild, became, who);
 }
 
@@ -821,8 +824,11 @@ bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
     } else if (state.view == commands::trigger_delete_view) {
         update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
     } else if (state.view == commands::trigger_confirm_view) {
-        util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
-        triggers_.remove(id, guild);
+        // Logged only when something went: a second press, or one from another
+        // client, finds it already gone.
+        if (triggers_.remove(id, guild)) {
+            util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
+        }
         update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
     } else if (const commands::trigger_toggle change = commands::toggle_for(state.view)) {
         toggle_trigger(id, guild, who, change);
@@ -898,9 +904,10 @@ void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& sta
     // is a rename rather than a second rule.
     const std::string& previous = state.argument;
     if (!previous.empty() && previous != rule.domain) {
-        url_rules_.remove(guild, previous);
+        url_rules_.rename(guild, previous, rule);
+    } else {
+        url_rules_.set(guild, rule);
     }
-    url_rules_.set(guild, rule);
 
     std::string what = "changed";
     if (previous.empty()) {
@@ -964,7 +971,14 @@ void bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state&
         return;
     }
 
-    const std::int64_t saved = id == 0 ? triggers_.add(entry) : (triggers_.update(entry), entry.id);
+    // Deleted from another client between opening the modal and saving it.
+    if (id != 0 && !triggers_.update(entry)) {
+        util::log().info("trigger {} in guild {} was removed before {}'s edit from the panel could be saved", id, guild, who);
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
+        return;
+    }
+
+    const std::int64_t saved = id == 0 ? triggers_.add(entry) : entry.id;
     util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
                      commands::describe(entry));
     update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, saved));

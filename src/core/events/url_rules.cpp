@@ -179,7 +179,19 @@ std::optional<url_rule> url_rule_store::find(dpp::snowflake guild_id, std::strin
 void url_rule_store::set(dpp::snowflake guild_id, const url_rule& rule) {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
+    write(guild_id, rule);
+    tx.commit();
+}
 
+void url_rule_store::rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) {
+    const auto guard = db_->lock();
+    db::transaction tx(*db_);
+    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), previous).run();
+    write(guild_id, rule);
+    tx.commit();
+}
+
+void url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) {
     db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), rule.domain).run();
 
     int position = 0;
@@ -191,8 +203,6 @@ void url_rule_store::set(dpp::snowflake guild_id, const url_rule& rule) {
             .run();
         remember_mirror(guild_id, entry.host, rule.domain);
     }
-
-    tx.commit();
 }
 
 bool url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) {

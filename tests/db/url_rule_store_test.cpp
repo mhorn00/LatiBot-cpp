@@ -56,6 +56,38 @@ TEST_CASE("setting a rule replaces its mirrors, which is how reordering works", 
     CHECK(found->mirrors[0].host == "vxtwitter.com");
 }
 
+TEST_CASE("renaming a rule moves it to the new site", "[db]") {
+    store_fixture fixture;
+    fixture.store.set(guild, x_rule());
+
+    url_rule renamed = x_rule();
+    renamed.domain = "twitter.com";
+    fixture.store.rename(guild, "x.com", renamed);
+
+    CHECK_FALSE(fixture.store.find(guild, "x.com").has_value());
+    REQUIRE(fixture.store.find(guild, "twitter.com").has_value());
+    CHECK(fixture.store.find(guild, "twitter.com")->mirrors.size() == 2);
+}
+
+TEST_CASE("a rename that fails leaves the old rule where it was", "[db]") {
+    // In two steps, a failure writing the new rule would have left no rule.
+    store_fixture fixture;
+    fixture.store.set(guild, x_rule());
+
+    // Stands in for a disk error while the new rule is written.
+    fixture.db.execute(
+        "CREATE TRIGGER fail_rename BEFORE INSERT ON url_rules WHEN NEW.domain = 'twitter.com' "
+        "BEGIN SELECT RAISE(ABORT, 'disk error'); END");
+
+    url_rule renamed = x_rule();
+    renamed.domain = "twitter.com";
+    CHECK_THROWS(fixture.store.rename(guild, "x.com", renamed));
+
+    REQUIRE(fixture.store.find(guild, "x.com").has_value());
+    CHECK(fixture.store.find(guild, "x.com")->mirrors.size() == 2);
+    CHECK_FALSE(fixture.store.find(guild, "twitter.com").has_value());
+}
+
 TEST_CASE("rules belong to one guild", "[db]") {
     store_fixture fixture;
     fixture.store.set(guild, x_rule());

@@ -132,6 +132,11 @@ public:
     /// and the panel edit them: the order is the list.
     void set(dpp::snowflake guild_id, const url_rule& rule);
 
+    /// Replaces the rule for `previous` with `rule`, for another site, in one
+    /// transaction: a rename that fails leaves the old rule in place rather
+    /// than no rule at all.
+    void rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule);
+
     /// False when there was no such rule.
     bool remove(dpp::snowflake guild_id, std::string_view domain);
 
@@ -161,6 +166,9 @@ public:
     void remember_mirror(dpp::snowflake guild_id, std::string_view host, std::string_view domain);
 
 private:
+    /// What `set` and `rename` share, for a caller already in a transaction.
+    void write(dpp::snowflake guild_id, const url_rule& rule);
+
     db::database* db_;
 };
 
