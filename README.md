@@ -350,9 +350,12 @@ from the test presets.
 # AddressSanitizer
 cmake --preset asan; cmake --build build-asan --config Debug; ctest --preset asan
 
-# Fuzzing (runs until stopped; -max_total_time=60 for a short run)
+# Fuzzing (runs until stopped; -max_total_time=60 for a short run). New inputs
+# go in the first folder, seeds come from the second; also fuzz_text and
+# fuzz_legacy_parser.
 cmake --preset fuzz; cmake --build build-fuzz --config Debug
-.\build-fuzz\bin\Debug\fuzz_url_scan.exe -max_total_time=60      # also fuzz_text, fuzz_legacy_parser
+New-Item -ItemType Directory -Force build-fuzz\corpus\fuzz_url_scan
+.\build-fuzz\bin\Debug\fuzz_url_scan.exe build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
 
 # clang-tidy and clang-format, through the scripts in tools/
 pwsh tools/Invoke-ClangTidy.ps1                  # src/

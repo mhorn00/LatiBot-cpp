@@ -142,11 +142,19 @@ helpers, `fuzz_url_scan` for the link scanner and replacement planning, and
 sanitizer joins them in phase 4. Each checks invariants rather than just
 "did not crash" — the scanner's links are in order, inside the text and
 exactly what their offsets say, and spoilered exactly when an odd number of
-markers precede them.
+markers precede them; trimmed text has whitespace only on either side, and
+text cut to a limit stays within it without splitting a character.
+
+libFuzzer steers by coverage, so the targets link `latibot_fuzz_core`: the
+code they exercise, built again with coverage instrumentation, since
+`latibot_core` cannot carry it (`tests/fuzz/CMakeLists.txt`). Each target has
+a few seed inputs in `tests/fuzz/corpus/<target>/`. Pass a directory for new
+inputs first, which is where libFuzzer writes, and the seeds after it:
 
 ```powershell
 cmake --preset fuzz; cmake --build build-fuzz --config Debug
-.\build-fuzz\bin\Debug\fuzz_url_scan.exe -max_total_time=60
+New-Item -ItemType Directory -Force build-fuzz\corpus\fuzz_url_scan
+.\build-fuzz\bin\Debug\fuzz_url_scan.exe build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
 ```
 
 **Benchmarks** are hidden tests tagged `[!benchmark]` and `[.]`, so neither

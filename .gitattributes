@@ -13,3 +13,6 @@ CMakeLists.txt text
 # Windows-only scripts keep CRLF.
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+
+# Fuzz seeds are inputs, byte for byte: no line ending conversion.
+tests/fuzz/corpus/** -text

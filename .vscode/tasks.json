@@ -171,7 +171,7 @@
       // hours; drop -max_total_time to let it run until stopped.
       "label": "Fuzz: 60 second run",
       "type": "shell",
-      "command": "cmake --preset fuzz && cmake --build build-fuzz --config Debug && ./build-fuzz/bin/Debug/fuzz_text.exe -max_total_time=60",
+      "command": "cmake --preset fuzz && cmake --build build-fuzz --config Debug && New-Item -ItemType Directory -Force build-fuzz/corpus/fuzz_text | Out-Null && ./build-fuzz/bin/Debug/fuzz_text.exe build-fuzz/corpus/fuzz_text tests/fuzz/corpus/fuzz_text -max_total_time=60",
       "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
