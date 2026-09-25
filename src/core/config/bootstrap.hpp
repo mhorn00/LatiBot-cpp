@@ -21,7 +21,7 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-/// Global settings from `config.json` (plan v4 §5.1).
+/// Global settings from `config.json` (plan §5.1).
 ///
 /// Everything guild-specific lives in the database instead, because it is
 /// edited at runtime through commands and panels.
@@ -35,7 +35,7 @@ struct bootstrap {
     int backups_to_keep = 7;
     std::chrono::minutes backup_interval{360};
 
-    /// Whether to watch for nickname changes (plan v4 §8).
+    /// Whether to watch for nickname changes (plan §8).
     ///
     /// This is the one setting that decides which intents the bot asks for:
     /// nickname changes only arrive with the privileged Server Members
@@ -52,7 +52,7 @@ struct bootstrap {
 
     /// Servers whose administrators may use the DECtalk commands that touch
     /// the host filesystem, and users who may regardless of server
-    /// (plan v4 §12.5).
+    /// (plan §12.5).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 
@@ -110,7 +110,7 @@ inline constexpr bool reads_debug_overrides =
 [[nodiscard]] std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides);
 
 /// Credentials. These only ever come from the environment, never from a file
-/// that could be committed (plan v4 §5.1).
+/// that could be committed (plan §5.1).
 struct secrets {
     std::string discord_token;
     std::optional<std::string> anthropic_key;

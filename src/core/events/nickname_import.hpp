@@ -17,7 +17,7 @@ namespace latibot::events {
 ///
 /// They are local wall-clock with no zone recorded, from a machine in US
 /// Central. `America/Chicago` carries the full daylight-saving history,
-/// including the 2007 rule change (plan v4 §8.3).
+/// including the 2007 rule change (plan §8.3).
 inline constexpr std::string_view imported_timezone = "America/Chicago";
 
 /// Reads one of the Java bot's timestamps as an instant.

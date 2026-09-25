@@ -23,7 +23,7 @@ namespace latibot::events {
 // Emoji
 // --------------------------------------------------------------------------
 
-/// An emoji as the statistics know it (plan v4 §9.6).
+/// An emoji as the statistics know it (plan §9.6).
 struct emoji_ref {
     /// "u:💀" for a Unicode emoji, "c:<id>" for a custom one.
     std::string key;
@@ -54,7 +54,7 @@ struct emoji_ref {
 // Statistics
 // --------------------------------------------------------------------------
 
-/// Which side of a reaction a statistic counts (plan v4 §9.6).
+/// Which side of a reaction a statistic counts (plan §9.6).
 enum class stat_kind : std::uint8_t {
     /// Credited to whoever posted the original link.
     received,
@@ -129,7 +129,7 @@ public:
     };
 
     /// Makes one message's reactions exactly what Discord shows now, which is
-    /// what makes a backfill safe to run twice (plan v4 §9.7). Rows that stay
+    /// what makes a backfill safe to run twice (plan §9.7). Rows that stay
     /// keep the time they were seen being added; new ones have none. Returns
     /// how many reactions the message has afterwards.
     int replace_for_message(dpp::snowflake message_id, std::span<const observed> reactions);
@@ -185,7 +185,7 @@ public:
     [[nodiscard]] std::vector<emoji_tally> known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit) const;
 
     /// Custom emojis that share a name, which is usually one emote uploaded
-    /// twice (plan v4 §9.6). Each group is at least two.
+    /// twice (plan §9.6). Each group is at least two.
     [[nodiscard]] std::vector<std::vector<emoji_tally>> likely_duplicates(dpp::snowflake guild_id) const;
 
 private:

@@ -135,7 +135,7 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
     }
 
     // Recorded before the change is asked for, with the invoker against it:
-    // this is the attribution Discord's audit log gets wrong (plan v4 §8.1).
+    // this is the attribution Discord's audit log gets wrong (plan §8.1).
     const events::nickname_change change{.guild_id = guild_id,
                                          .user_id = target->id,
                                          .nickname = wanted,

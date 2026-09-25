@@ -26,7 +26,7 @@ namespace latibot::events {
 /// How long after local midnight an entry is allowed to fire.
 ///
 /// A few seconds of slack, so a tick landing a moment early does not post for
-/// yesterday (plan v4 §10).
+/// yesterday (plan §10).
 inline constexpr std::chrono::seconds midnight_grace{5};
 
 /// How long after local midnight an entry may still post.
@@ -44,7 +44,7 @@ inline constexpr std::chrono::minutes midnight_window{5};
 /// Polling the wall clock is the whole fix: the Java version computed a delay
 /// from the wall clock and then waited on a monotonic timer, so whenever the
 /// machine slept the message arrived at whatever time it happened to wake up
-/// (plan v4 §10).
+/// (plan §10).
 inline constexpr std::chrono::seconds midnight_tick{30};
 
 /// A message to post at midnight, in one timezone, in one channel.

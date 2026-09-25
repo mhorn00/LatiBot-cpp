@@ -235,7 +235,7 @@ int trigger_store::seed_defaults(dpp::snowflake guild_id) {
     }
 
     // The Java bot's three, which were a regular expression there and are
-    // three literal patterns here (plan v4 §11).
+    // three literal patterns here (plan §11).
     static constexpr std::array patterns{"420", "4:20", "69"};
     for (const char* pattern : patterns) {
         add({.guild_id = guild_id,
@@ -271,7 +271,7 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
         }
 
         // The allowlist decided this bot may be heard; this decides whether
-        // this particular trigger answers it (plan v4 14.4).
+        // this particular trigger answers it (plan §14.4).
         if (message.from_bot && !entry.respond_to_bots) {
             util::log().debug("trigger {} matched a bot's message but does not answer bots", entry.id);
             continue;

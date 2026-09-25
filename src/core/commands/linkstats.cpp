@@ -280,6 +280,9 @@ std::string encode_board(board which, const events::stat_query& query) {
 }
 
 std::optional<std::pair<board, events::stat_query>> decode_board(std::string_view argument) {
+    // Split on ';' into exactly the five fields `encode_board` writes: board
+    // letter, emoji key, site, since and until. Anything else was not made
+    // here and is refused whole.
     std::vector<std::string_view> fields;
     while (true) {
         const std::size_t cut = argument.find(board_separator);
@@ -448,7 +451,7 @@ std::string render_backfill(const events::backfill_report& report, const events:
     text += std::format("Replacements found: {} ({} credited to whoever posted the link, {} not)\n", report.replacements, report.attributed,
                         report.unattributed);
     if (report.mismatched > 0) {
-        // Reported rather than accepted (plan v4 §9.7); the log has each id.
+        // Reported rather than accepted (plan §9.7); the log has each id.
         text += std::format("Of those not credited, {} followed a link that wasn't the one replaced\n", report.mismatched);
     }
     if (report.webhooks_skipped > 0) {
@@ -456,7 +459,7 @@ std::string render_backfill(const events::backfill_report& report, const events:
     }
     text += std::format("Reactions recorded: {}\n", report.reactions);
 
-    // Listed by id rather than guessed at (plan v4 §9.7). The log has all of
+    // Listed by id rather than guessed at (plan §9.7). The log has all of
     // them; a message has room for some.
     if (!report.unparsed.empty()) {
         text += std::format("Not understood: {}", report.unparsed.size());
@@ -577,10 +580,13 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
         return;
     }
 
+    // What has been typed so far into whichever option is focused. The same
+    // handler serves `domain` in two subcommands and `emoji` / `as` in three.
     const auto* typed = std::get_if<std::string>(&focused->value);
     std::string_view filter = typed == nullptr ? std::string_view{} : std::string_view(*typed);
     dpp::interaction_response reply(dpp::ir_autocomplete_reply);
 
+    // Sites: the ones this guild has replacements for, matched anywhere.
     if (focused->name == "domain") {
         std::size_t offered = 0;
         for (const std::string& site : store_->known_domains(event.command.guild_id)) {
@@ -590,6 +596,9 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
             }
         }
     } else if (focused->name == "emoji" || focused->name == "as") {
+        // Emojis: the ones used on replacements here, most used first. The
+        // value sent back is the key, so the command never has to guess
+        // which of two same-named emojis was meant.
         if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) {
             filter = filter.substr(1, filter.size() - 2);
         }
@@ -723,7 +732,7 @@ dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, c
     }
 
     // Reading years of history is a lot of API calls; this one is for the
-    // people who run the server (plan v4 §9.7).
+    // people who run the server (plan §9.7).
     if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
         co_await event.co_reply(refusal(event, "recomputing link stats needs Manage Server"));
         co_return;
@@ -794,6 +803,11 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
     const auto posted = co_await discord.send_message(post(event, dpp::message(channel, render_backfill({}, request, false))));
     const dpp::snowflake progress_id = posted.ok() ? posted.value().id : dpp::snowflake{};
 
+    // Edits the progress message as the run goes. It captures this frame's
+    // locals by reference, which is safe only because `run` is awaited just
+    // below and the lambda is never kept past it. If that message could not
+    // be posted, the run gets no callback, and the report is posted fresh at
+    // the end instead.
     const auto progress = [this, &event, &discord, &request, channel,
                            progress_id](const events::backfill_report& report) -> dpp::task<void> {
         dpp::message update = post(event, dpp::message(channel, render_backfill(report, request, false)));

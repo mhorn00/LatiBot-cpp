@@ -44,13 +44,13 @@ inline constexpr std::string_view trigger_list_view = "triggers";
 [[nodiscard]] dpp::message render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page);
 
 // --------------------------------------------------------------------------
-// The panel (plan v4 §11)
+// The panel (plan §11)
 //
 // The interactions are distinguished by the view name in the custom_id, which
 // the paginator already encodes and decodes. There is no generic "panel"
-// abstraction yet on purpose: `/urlrepl` and `/llm settings` are the other
-// two, and what they have in common is better read off three examples than
-// guessed at from one.
+// abstraction yet on purpose: `/urlrepl`'s panel is the second and
+// `/llm settings` will be the third, and what they have in common is better
+// read off three examples than guessed at from two (plan §21.5).
 // --------------------------------------------------------------------------
 
 inline constexpr std::string_view trigger_panel_view = "trigpanel";
@@ -101,7 +101,7 @@ struct form_fields {
 /// The add or edit modal. `entry` is null for add.
 [[nodiscard]] dpp::interaction_modal_response trigger_form(int page, const events::trigger* entry);
 
-/// `/trigger add | edit | remove | list | panel` (plan v4 §11).
+/// `/trigger add | edit | remove | list | panel` (plan §11).
 class trigger_command final : public command {
 public:
     explicit trigger_command(events::trigger_store& store);

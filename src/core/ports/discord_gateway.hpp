@@ -16,7 +16,7 @@ namespace latibot::ports {
 ///
 /// Deliberately small: it covers what features need today and grows as they
 /// land, rather than mirroring `dpp::cluster`. Keeping it narrow is what lets
-/// a mock stand in for Discord in tests (plan v4 §17.3).
+/// a mock stand in for Discord in tests (plan §17.3).
 class discord_gateway {
 public:
     virtual ~discord_gateway() = default;
@@ -32,7 +32,7 @@ public:
     virtual dpp::task<result<void>> delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) = 0;
 
     /// Turns a message's link previews off or back on, including on messages
-    /// somebody else wrote, which needs Manage Messages (plan v4 §9.2). Only
+    /// somebody else wrote, which needs Manage Messages (plan §9.2). Only
     /// the flag changes; the message is otherwise untouched.
     virtual dpp::task<result<void>> set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) = 0;
 
@@ -44,7 +44,7 @@ public:
                                                                       std::uint64_t limit) = 0;
 
     /// Who reacted with one emoji. Discord pages this 100 at a time and never
-    /// reports *when* a reaction was added (plan v4 §9.7).
+    /// reports *when* a reaction was added (plan §9.7).
     virtual dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id,
                                                                               std::string emoji, dpp::snowflake after,
                                                                               std::uint64_t limit) = 0;

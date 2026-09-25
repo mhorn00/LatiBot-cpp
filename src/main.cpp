@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
         const std::filesystem::path config_path = argc > 1 ? argv[1] : "config.json";
 
         // .env is a local-run convenience only, gitignored, and never
-        // overrides a variable the real environment already set (plan v4
+        // overrides a variable the real environment already set (plan
         // §5.1: secrets still come from the environment, just optionally
         // populated from this file first).
         latibot::util::load_dotenv(".env");

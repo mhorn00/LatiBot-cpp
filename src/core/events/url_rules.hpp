@@ -22,7 +22,7 @@ namespace latibot::events {
 /// Per-guild setting saying whether URL replacement is on. Absent means off.
 inline constexpr std::string_view url_replacement_enabled_key = "url_replacement_enabled";
 
-/// One site a link can be sent to instead of the original (plan v4 §9).
+/// One site a link can be sent to instead of the original (plan §9).
 struct mirror {
     /// "fxtwitter.com".
     std::string host;
@@ -104,7 +104,7 @@ struct link_verdict {
 ///
 /// A link to a site without a rule is skipped on its own. The Java bot gave up
 /// on the whole message instead, so one unrelated link stopped every other
-/// replacement (plan v4 §9.1). Links in code, and links written as `<…>` to
+/// replacement (plan §9.1). Links in code, and links written as `<…>` to
 /// turn their preview off, are left alone as well: Discord was not going to
 /// embed those anyway.
 [[nodiscard]] std::vector<planned_link> plan_replacements(std::string_view content, std::span<const url_rule> rules);
@@ -153,7 +153,7 @@ public:
 
     /// Every mirror host this guild has had a rule for, including rules since
     /// removed. Recognising the bot's old replacements depends on it, and they
-    /// do not stop existing when a rule changes (plan v4 §9.7).
+    /// do not stop existing when a rule changes (plan §9.7).
     [[nodiscard]] mirror_map known_mirrors(dpp::snowflake guild_id) const;
 
     /// Remembers a mirror without making a rule of it, for hosts the bot used

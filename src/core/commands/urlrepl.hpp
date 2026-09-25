@@ -25,7 +25,7 @@ inline constexpr std::size_t max_mirrors_per_rule = 8;
 
 inline constexpr std::string_view url_list_view = "urllist";
 
-// The panel (plan v4 §9.5). As with the trigger panel, the view name in the
+// The panel (plan §9.5). As with the trigger panel, the view name in the
 // custom_id says what a button does and the argument carries the domain, so
 // the panel keeps no state and survives a restart.
 inline constexpr std::string_view url_panel_view = "urlpanel";
@@ -67,7 +67,7 @@ bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 [[nodiscard]] std::variant<events::url_rule, std::string> build_rule(std::string_view domain, std::string_view mirrors);
 
 /// The dry run behind `/urlrepl test`: what would be posted for `content`,
-/// and what happened to every link in it (plan v4 §9.5). It works while
+/// and what happened to every link in it (plan §9.5). It works while
 /// replacement is off, so rules can be tried before anyone sees them, and
 /// says so when it is.
 [[nodiscard]] std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled);
@@ -83,7 +83,7 @@ bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 /// The add or edit modal. `rule` is null for add.
 [[nodiscard]] dpp::interaction_modal_response url_rule_form(int page, const events::url_rule* rule);
 
-/// `/urlrepl enable | disable | list | set | remove | test | panel` (plan v4
+/// `/urlrepl enable | disable | list | set | remove | test | panel` (plan
 /// §9.5).
 class urlrepl_command final : public command {
 public:

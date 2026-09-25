@@ -35,6 +35,8 @@ std::vector<span> code_spans(std::string_view text) {
 
     std::size_t at = 0;
     while (at < text.size()) {
+        // Find the next run of backticks. A run that ends the text opens
+        // nothing, since there is nothing left for it to close over.
         at = text.find('`', at);
         if (at == std::string_view::npos) {
             break;
@@ -46,6 +48,8 @@ std::vector<span> code_spans(std::string_view text) {
         }
         const std::size_t width = opening_end - at;
 
+        // Look for a later run of exactly the same width. Runs of any other
+        // width are skipped as literal backticks inside the span.
         bool closed = false;
         for (std::size_t search = text.find('`', opening_end); search != std::string_view::npos;) {
             const std::size_t closing_end = std::min(text.find_first_not_of('`', search), text.size());
@@ -58,6 +62,8 @@ std::vector<span> code_spans(std::string_view text) {
             search = closing_end < text.size() ? text.find('`', closing_end) : std::string_view::npos;
         }
 
+        // Unclosed: the run was literal text, so carry on from just after
+        // it, and a later run can still open a span of its own.
         if (!closed) {
             at = opening_end;
         }
@@ -125,15 +131,21 @@ std::vector<found_link> find_links(std::string_view text) {
             continue;
         }
 
+        // Trim what Discord leaves off the end, then make sure what is left
+        // still has a host: "https://" on its own is not a link.
         const std::string_view url = trim_link(raw);
         const std::size_t end = begin + url.size();
         if (!split_url(url)) {
             continue;
         }
 
+        // Count the markers between the previous link and this one only.
         markers += count_occurrences(text.substr(counted_to, begin - counted_to), "||");
         counted_to = end;
 
+        // Links arrive in order, so the code spans are walked alongside them:
+        // skip the spans that ended before this link, and the next one, if it
+        // started before the link, contains it.
         while (next_code != code.end() && next_code->end <= begin) {
             ++next_code;
         }

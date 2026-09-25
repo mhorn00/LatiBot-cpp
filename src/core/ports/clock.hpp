@@ -9,7 +9,7 @@ namespace latibot::ports {
 ///
 /// Cooldowns, the midnight scheduler, spend-cap rollovers and voice-session
 /// grace periods all depend on the clock, and none of them can be tested
-/// against the real one (plan v4 §17.3). Everything that asks "what time is
+/// against the real one (plan §17.3). Everything that asks "what time is
 /// it" goes through here.
 class clock {
 public:

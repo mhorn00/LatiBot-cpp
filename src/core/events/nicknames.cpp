@@ -120,7 +120,7 @@ std::string show_author(const nickname_change& change) {
     }
     // An imported row's author was a guess, so there is nothing honest to
     // show. A row the bot watched happen and could not attribute is genuinely
-    // unknown, which is worth saying (plan v4 §8.1).
+    // unknown, which is worth saying (plan §8.1).
     return change.source == nickname_source::imported ? std::string{} : "unknown";
 }
 

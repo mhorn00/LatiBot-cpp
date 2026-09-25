@@ -154,6 +154,8 @@ std::string render_test(std::string_view content, std::span<const events::url_ru
         return "There are no links in that.";
     }
 
+    // Part one: the message the bot would post, built by the same renderer
+    // the real replacement uses, at its first try.
     std::vector<events::watched_link> posted;
     for (const events::link_verdict& verdict : verdicts) {
         if (verdict.decision == events::link_decision::replaced) {
@@ -170,6 +172,8 @@ std::string render_test(std::string_view content, std::span<const events::url_ru
         reply = std::format("**Would post:**\n```\n{}\n```\n", events::render_replacement(posted, events::attempts_per_mirror));
     }
 
+    // Part two: one line per link saying what happened to it, stopping short
+    // of Discord's limit and counting the lines that did not fit.
     std::size_t dropped = 0;
     for (const events::link_verdict& verdict : verdicts) {
         std::string line = std::format("- `{}`: ", verdict.link.original_url);
@@ -187,6 +191,8 @@ std::string render_test(std::string_view content, std::span<const events::url_ru
         reply += std::format("…and {} more\n", dropped);
     }
 
+    // Part three: anything that would stop the real thing for this person,
+    // said only when something would otherwise have been posted.
     if (!enabled && !posted.empty()) {
         reply += "\nLink replacement is off in this server, so nothing is posted until it's turned on with `/urlrepl enable`.";
     }
@@ -380,7 +386,7 @@ dpp::interaction_modal_response url_rule_form(int page, const events::url_rule* 
 
     form.add_row();
     form.add_component(dpp::component()
-                           // The label is capped at 45 characters (plan v4
+                           // The label is capped at 45 characters (plan
                            // §21.4); the details go in the placeholder.
                            .set_label("Mirrors, one per line, first tried first")
                            .set_placeholder("fxtwitter.com/en\nvxtwitter.com\n\n/en asks the mirror to translate")

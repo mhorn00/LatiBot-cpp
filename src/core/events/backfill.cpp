@@ -229,11 +229,17 @@ dpp::task<std::optional<std::vector<history_message>>> backfill_service::scan_pa
         next = std::move(*fetched);
     }
 
+    // Only this page's own messages are considered here; the next page is
+    // appended so each one can look further back than the page's end. The
+    // span over `page` stays valid across every await below, since this
+    // frame owns `page` and waits on each `consider`.
     const std::size_t own = page.size();
     const dpp::snowflake oldest = page.back().id;
     page.insert(page.end(), next.begin(), next.end());
     const std::span<const history_message> window(page);
 
+    // Newest first, so the first message older than `since` ends the range,
+    // and the rest of the channel with it.
     bool reached_since = false;
     for (std::size_t index = 0; index < own; ++index) {
         if (created_at(window[index].id) < scan.request->since) {
@@ -244,6 +250,8 @@ dpp::task<std::optional<std::vector<history_message>>> backfill_service::scan_pa
         co_await consider(scan, window[index], window.subspan(index + 1), report);
     }
 
+    // Saved after every page, so a cancel or a restart loses at most one
+    // page. An empty result tells the caller this channel is finished.
     const bool done = reached_since || next.empty();
     save_progress(scan, {.oldest_scanned = oldest, .complete = done});
     if (done) {
@@ -318,6 +326,8 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
     std::optional<dpp::snowflake> author = existing ? existing->original_author_id : std::nullopt;
 
     if (!author) {
+        // Work out whose link it was from the surrounding history, fetching
+        // a replied-to original that is older than the pages in hand.
         attribution found = attribute(message, match, older, request.bot_id);
         if (found.needs_fetch && found.original_message_id) {
             const auto original = co_await discord_->get_message(scan.channel_id, *found.original_message_id);
@@ -329,7 +339,7 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
             util::log().debug("link stats recompute: message {} answered a link further back than the nearest one", message.id);
         }
         if (found.mismatched && !found.author_id) {
-            // Reported rather than accepted (plan v4 §9.7): crediting the
+            // Reported rather than accepted (plan §9.7): crediting the
             // nearest link regardless would credit the wrong person.
             ++report.mismatched;
             util::log().info(
@@ -338,6 +348,9 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
                 message.id, scan.channel_id);
         }
 
+        // Recorded even when nobody could be credited: the reactions still
+        // count as given, and a later run may attribute it. Links the bot
+        // recorded itself are kept over the ones read back from the text.
         author = found.author_id;
         replacements_->record({.message_id = message.id,
                                .guild_id = request.guild_id,
@@ -357,6 +370,7 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
         util::log().debug("link stats recompute: nobody to credit for message {} in channel {}", message.id, scan.channel_id);
     }
 
+    // Finally the reactions, rebuilt to match what Discord shows now.
     const auto seen = co_await reactors(scan.channel_id, message);
     if (!seen) {
         note(report, std::format("could not read the reactions on message {}; its old counts are kept", message.id));
@@ -378,7 +392,7 @@ dpp::task<std::optional<std::vector<reaction_store::observed>>> backfill_service
         reactions_->remember(emoji);
 
         // Paged by user id, since the message only carries a count. Discord
-        // never says when any of them reacted (plan v4 §9.7).
+        // never says when any of them reacted (plan §9.7).
         dpp::snowflake after{};
         while (true) {
             const auto page =

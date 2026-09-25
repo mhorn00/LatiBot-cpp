@@ -27,7 +27,7 @@ namespace latibot {
 ///
 /// This is the shell: it wires DPP events to core functions and holds the
 /// ports features talk through. The logic itself lives outside, where it can
-/// be tested without Discord (plan v4 §17.3).
+/// be tested without Discord (plan §17.3).
 class bot {
 public:
     bot(config::bootstrap settings, const config::secrets& credentials);
@@ -52,12 +52,13 @@ private:
     void register_stages();
     void register_events();
 
-    /// Starts the two things that happen on a clock rather than on an event:
-    /// the midnight messages and the database backups (plan v4 §10, §5.2).
+    /// Starts the things that happen on a clock rather than on an event: the
+    /// midnight messages, the embed tracker's one-second tick and the
+    /// database backups (plan §10, §9.3, §5.2).
     void register_timers();
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
-    /// missing permission disables one feature, not the bot (plan v4 §7).
+    /// missing permission disables one feature, not the bot (plan §7).
     void check_permissions(const dpp::guild& guild) const;
 
     /// Turns a DPP message into the plain struct the stages work on, which is
@@ -93,7 +94,7 @@ private:
     ///
     /// Shared by the gateway event and the startup sweep, because "is this
     /// different from what we last saw" is the same question either way
-    /// (plan v4 §8.4).
+    /// (plan §8.4).
     std::optional<std::int64_t> record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
                                                 events::nickname_source source);
 
@@ -107,14 +108,14 @@ private:
     /// hoping to attribute.
     ///
     /// The safety net for a gateway entry that never arrived — a reconnect, a
-    /// dropped event (plan v4 §8.1). Costs one API call per change that is
+    /// dropped event (plan §8.1). Costs one API call per change that is
     /// still unattributed when it runs, which is normally none of them.
     void attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row);
 
     /// Writes down nicknames that changed while the bot was not running.
     void reconcile_nicknames(const dpp::guild& guild);
 
-    /// Copies the Java bot's URL rules into a guild, once (plan v4 §9.5).
+    /// Copies the Java bot's URL rules into a guild, once (plan §9.5).
     void import_url_rules(const dpp::guild& guild);
 
     /// Somebody pressed Retry on a replacement that found no preview.

@@ -13,7 +13,7 @@ namespace latibot::discord {
 /// Requests go through the cluster's raw REST queue, separate from the
 /// Discord API queue, so a slow LLM call does not hold up Discord traffic.
 /// The timeout is the cluster-wide `request_timeout` (60 s by default),
-/// which is plenty for a capped completion (plan v4 §14.7).
+/// which is plenty for a capped completion (plan §14.7).
 class dpp_http_client final : public ports::http_client {
 public:
     explicit dpp_http_client(dpp::cluster& cluster) : cluster_(&cluster) {}

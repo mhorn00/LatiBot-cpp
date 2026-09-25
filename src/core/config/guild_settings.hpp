@@ -14,7 +14,7 @@ class database;
 
 namespace latibot::config {
 
-/// Per-guild settings, stored in the `guild_settings` table (plan v4 §5.1).
+/// Per-guild settings, stored in the `guild_settings` table (plan §5.1).
 ///
 /// Values are edited at runtime through commands and panels, so they are read
 /// on every use rather than cached: a change takes effect on the next

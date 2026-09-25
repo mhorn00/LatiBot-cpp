@@ -49,10 +49,10 @@ util::log_level from_dpp(dpp::loglevel level) {
 /// i_message_content is privileged and must also be enabled in the Discord
 /// developer portal. Without it every guild message arrives with an empty
 /// `content`, which silently disables the whole pipeline: the goodbye phrase
-/// and the triggers both read it (plan v4 §5.4).
+/// and the triggers both read it (plan §5.4).
 ///
 /// i_guild_members is privileged in the same way, and is the only way nickname
-/// changes and a complete member list arrive at all (plan v4 §8). It is asked
+/// changes and a complete member list arrive at all (plan §8). It is asked
 /// for only when nickname tracking is on, because a bot that asks for an
 /// intent it was not granted is refused the gateway outright.
 std::uint32_t intents_for(const config::bootstrap& settings) {
@@ -224,7 +224,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
 
     // Years of history from the Java bot, if its file was left beside the
     // database. Importing is idempotent, so this needs no marker file and no
-    // "have I done this already" flag (plan v4 §8.3).
+    // "have I done this already" flag (plan §8.3).
     const std::filesystem::path legacy = settings_.database_path.parent_path() / "nicknames.json";
     if (const auto imported = events::import_nicknames_file(nicknames_, legacy); imported.value_or(0) > 0) {
         util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
@@ -262,7 +262,7 @@ void bot::register_commands() {
 }
 
 void bot::register_stages() {
-    // The order is plan v4 §5.4, and it is a list so that changing it is one
+    // The order is plan §5.4, and it is a list so that changing it is one
     // line. The LLM stages join it in phase 5.
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
     pipeline_.add("url replacement", events::url_replacer(url_rules_));
@@ -280,7 +280,7 @@ void bot::register_events() {
         // 4014 is the gateway refusing a privileged intent, and DPP reports it
         // as a websocket number in a reconnect loop. The cause is always the
         // same toggle, so say which one rather than leaving somebody to look
-        // the code up (plan v4 §21.2).
+        // the code up (plan §21.2).
         if (settings_.track_nicknames && event.message.find("4014") != std::string::npos) {
             util::log().error(
                 "Discord refused the Server Members intent. Enable it under Bot > Privileged Gateway Intents "
@@ -288,6 +288,8 @@ void bot::register_events() {
         }
     });
 
+    // A coroutine handler: DPP keeps `event` alive until it finishes, so a
+    // command may keep using it after an await.
     cluster_.on_slashcommand([this](const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_await commands_.dispatch(event.command.get_command_name(), event);
     });
@@ -319,7 +321,7 @@ void bot::register_events() {
     });
 
     // Guilds arrive as guild_create after the gateway connects, including the
-    // ones the bot was already in, so this covers both cases plan v4 §7 asks
+    // ones the bot was already in, so this covers both cases plan §7 asks
     // for without a separate sweep on ready.
     cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
         const dpp::guild& guild = event.created;
@@ -340,11 +342,14 @@ void bot::register_events() {
                           url_rules_.enabled(guild.id) ? "on" : "off", url_rules_.for_guild(guild.id).size());
     });
 
+    // Every message: reduce it to plain data, let the stages decide, then do
+    // what they asked. Handlers run on DPP's thread pool, so two messages
+    // can be in here at once.
     cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
 
     // Discord adds link previews by updating the message a moment after it
     // was posted, which is how the embed tracker learns that a mirror worked
-    // (plan v4 §9.3). Every update goes to it: the one for our message often
+    // (plan §9.3). Every update goes to it: the one for our message often
     // arrives without an author, so there is nothing to filter on here.
     cluster_.on_message_update([this](const dpp::message_update_t& event) {
         const std::vector<std::string> urls = embed_urls_of(event.msg);
@@ -352,7 +357,7 @@ void bot::register_events() {
     });
     cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
 
-    // Reaction statistics (plan v4 §9.6). Every reaction in every channel
+    // Reaction statistics (plan §9.6). Every reaction in every channel
     // arrives here; the store counts the ones on our replacements and
     // ignores the rest in the same statement that would have recorded them.
     cluster_.on_message_reaction_add([this](const dpp::message_reaction_add_t& event) {
@@ -386,7 +391,7 @@ void bot::register_events() {
     //
     // Recording and attributing are separate events on purpose: the change is
     // written down the moment it is seen, and the audit log fills in who did
-    // it if and when it arrives (plan v4 §8.1).
+    // it if and when it arrives (plan §8.1).
     if (settings_.track_nicknames) {
         cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
         cluster_.on_guild_audit_log_entry_create(
@@ -395,6 +400,8 @@ void bot::register_events() {
 
     cluster_.on_autocomplete([this](const dpp::autocomplete_t& event) { commands_.offer_completions(event.name, event); });
 
+    // Panels: buttons and menus go to `on_component` and modals to `on_form`,
+    // both routed by the view name in the custom_id.
     cluster_.on_button_click([this](const dpp::button_click_t& event) { on_component(event, event.custom_id, {}); });
     cluster_.on_select_click([this](const dpp::select_click_t& event) {
         on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
@@ -406,7 +413,7 @@ void bot::register_timers() {
     // Polling the wall clock is the fix for the Java bot's random-fire bug: it
     // computed a delay from the wall clock and then waited on a monotonic
     // timer, so a machine that slept woke up and posted at whatever time it
-    // happened to be (plan v4 §10).
+    // happened to be (plan §10).
     cluster_.start_timer([this](dpp::timer) { carry_out(midnight_scheduler_.tick()); },
                          static_cast<std::uint64_t>(events::midnight_tick.count()));
 
@@ -496,7 +503,7 @@ void bot::on_member_update(const dpp::guild_member& member) {
     const std::optional<std::string> nickname = current.empty() ? std::nullopt : std::optional(current);
 
     // A change the bot just made is already in the history with the invoker
-    // against it, and recording it again would lose that (plan v4 §8.1).
+    // against it, and recording it again would lose that (plan §8.1).
     if (pending_nicknames_.claim(member.guild_id, member.user_id, nickname, clock_.now())) {
         util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id, member.guild_id);
         return;
@@ -511,7 +518,7 @@ void bot::on_member_update(const dpp::guild_member& member) {
     }
 
     // Recording never waits on attribution, so this is the only thing that
-    // notices the audit entry never turning up (plan v4 §8.1).
+    // notices the audit entry never turning up (plan §8.1).
     attribute_later(member.guild_id, member.user_id, *row);
 }
 
@@ -544,6 +551,9 @@ void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::
                                                 return;
                                             }
 
+                                            // Every recent entry about this member goes through
+                                            // the same path as a live one, which decides which
+                                            // row, if any, it attributes.
                                             for (const dpp::audit_entry& entry : entries->entries) {
                                                 if (entry.target_id == user_id) {
                                                     on_audit_entry(entry, guild_id);
@@ -590,7 +600,7 @@ void bot::reconcile_nicknames(const dpp::guild& guild) {
 
     // Changes made while the bot was not running have nobody to attribute
     // them to, which is why they are marked as their own source rather than
-    // guessed at (plan v4 §8.4).
+    // guessed at (plan §8.4).
     int recorded = 0;
     for (const auto& [user_id, member] : guild.members) {
         const std::string current = member.get_nickname();
@@ -635,7 +645,7 @@ void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowfla
     util::log().info("{} pressed Retry on replacement {} in guild {}", who, message_id, event.command.guild_id);
 
     // Answering the button with the edit is the first attempt, so it cannot
-    // be overtaken by another press. Anyone may press it (plan v4 §9.4).
+    // be overtaken by another press. Anyone may press it (plan §9.4).
     event.reply(dpp::ir_update_message, events::build_edit(retry.first));
     carry_out(embed_tracker_.watch(std::move(retry.request)));
 }
@@ -694,15 +704,21 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
             update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state->page));
         }
     } else if (!on_trigger_component(event, *state, chosen, who) && !on_url_component(event, *state, chosen, who)) {
+        // Each panel's router says whether the view was one of its own; a
+        // view neither claims gets no answer.
         util::log().debug("no panel handles the view \"{}\"", state->view);
     }
 }
 
 bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
                                const commands::user_label& who) {
+    // Buttons carry the trigger they act on in the argument. The select menu
+    // carries its choice in `chosen` instead, and is read below.
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = chosen.empty() ? argument_id(state) : 0;
 
+    // Paging, then picking, deleting, toggling, and the two forms. Every
+    // branch but the forms re-renders the panel in place.
     if (state.view == commands::trigger_list_view) {
         update_panel(event, commands::render_trigger_list(triggers_, guild, state.page));
     } else if (state.view == commands::trigger_panel_view) {
@@ -742,6 +758,8 @@ bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::pag
                            const commands::user_label& who) {
     const dpp::snowflake guild = event.command.guild_id;
 
+    // As the trigger panel, except that the argument is a domain rather than
+    // an id, and the footer also has the on/off switch for the whole server.
     if (state.view == commands::url_list_view) {
         update_panel(event, commands::render_url_rule_list(url_rules_, guild, state.page));
     } else if (state.view == commands::url_panel_view) {

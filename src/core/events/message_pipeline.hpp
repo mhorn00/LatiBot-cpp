@@ -18,7 +18,7 @@ namespace latibot::events {
 ///
 /// Deliberately not `dpp::message`: a stage that takes plain data can be
 /// tested without a gateway, and the shell is the only place that has to know
-/// how Discord spells any of this (plan v4 §17.3).
+/// how Discord spells any of this (plan §17.3).
 struct incoming_message {
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;
@@ -28,7 +28,7 @@ struct incoming_message {
     bool from_self = false;
     bool from_bot = false;
 
-    /// Whether this guild allows LatiBot to hear this bot (plan v4 §14.4).
+    /// Whether this guild allows LatiBot to hear this bot (plan §14.4).
     /// Only meaningful with `from_bot`; resolved by the shell from
     /// `bot_allowlist`.
     bool author_is_allowed_bot = false;
@@ -60,7 +60,7 @@ struct stop_bot {
     std::chrono::milliseconds after{0};
 };
 
-/// Post working previews for links a URL rule covers (plan v4 §9.2).
+/// Post working previews for links a URL rule covers (plan §9.2).
 ///
 /// Carrying this out takes several calls and then some waiting, which is why
 /// it is an action of its own rather than a `send_message`: what gets posted
@@ -90,14 +90,14 @@ struct stage_result {
 
     /// Whether later stages should be skipped. A trigger response and a URL
     /// replacement can both fire on one message; an LLM reply should not
-    /// follow a goodbye (plan v4 §5.4).
+    /// follow a goodbye (plan §5.4).
     bool consumed = false;
 };
 
 /// The ordered stages a message passes through.
 ///
 /// The order is a list rather than a chain of calls, so changing it is a
-/// matter of moving one line (plan v4 §5.4).
+/// matter of moving one line (plan §5.4).
 class pipeline {
 public:
     using stage_fn = std::function<stage_result(const incoming_message&)>;
@@ -108,7 +108,7 @@ public:
     /// Everything the stages asked for, in order.
     ///
     /// Our own messages produce nothing, and so do other bots' unless this
-    /// guild allows that one (plan v4 §5.4). Reaching the stages is only
+    /// guild allows that one (plan §5.4). Reaching the stages is only
     /// permission to be considered: a stage still decides for itself whether
     /// it answers a bot.
     [[nodiscard]] std::vector<action> run(const incoming_message& message) const;

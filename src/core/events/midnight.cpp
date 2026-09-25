@@ -65,7 +65,7 @@ midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_cl
     }
 
     // Comparing the local date against the one saved is what survives a
-    // suspend, a clock jump and a restart alike (plan v4 §10).
+    // suspend, a clock jump and a restart alike (plan §10).
     if (local->date == entry.last_fired_date || local->since_midnight < midnight_grace) {
         return midnight_verdict::wait;
     }
@@ -229,6 +229,9 @@ void midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::s
 std::vector<action> midnight_scheduler::tick() {
     const auto now = clock_->now();
 
+    // Every enabled entry, every tick: `verdict_for` decides from the entry's
+    // own local date, so nothing needs scheduling and a restart loses
+    // nothing. Only a `post` verdict goes on to claim the day.
     std::vector<action> posts;
     for (const midnight_entry& entry : store_->enabled()) {
         switch (verdict_for(entry, now)) {

@@ -27,7 +27,7 @@ namespace latibot::commands {
 inline constexpr std::size_t leaderboard_size = 10;
 
 /// How many emojis a profile lists per side: "your top 3 reactions"
-/// (plan v4 §9.6).
+/// (plan §9.6).
 inline constexpr std::size_t profile_emojis = 3;
 
 /// A day typed as YYYY-MM-DD, in UTC. Nothing when it is not a real date.
@@ -74,7 +74,7 @@ inline constexpr std::string_view board_view = "linkboard";
 [[nodiscard]] std::string render_aliases(const events::reaction_store& store, dpp::snowflake guild_id);
 
 /// A recompute's progress message: running while it runs, then the final
-/// report (plan v4 §9.7).
+/// report (plan §9.7).
 [[nodiscard]] std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished);
 
 /// What `/linkstats recompute` needs from outside the statistics.
@@ -91,7 +91,7 @@ struct recompute_support {
     std::function<dpp::snowflake()> bot_id;
 };
 
-/// `/linkstats top | user | emojis | alias …` (plan v4 §9.6).
+/// `/linkstats top | user | emojis | alias …` (plan §9.6).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// checked here because Discord's default permissions are per command, not

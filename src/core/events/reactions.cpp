@@ -86,7 +86,7 @@ kind_sql sql_for(stat_kind kind) {
 /// Everything after SELECT's column list, shared by every statistic.
 ///
 /// Aliases are applied here, at read time, which is what lets one added
-/// today change every count back to the first reaction (plan v4 §9.6). The
+/// today change every count back to the first reaction (plan §9.6). The
 /// parameters are numbered so every query binds the same six filters in the
 /// same order — guild, emoji, since, until, person, site — and a list adds
 /// its limit and offset as 7 and 8.
@@ -134,6 +134,8 @@ std::optional<emoji_ref> parse_emoji(std::string_view text) {
 
     // <:name:id> or <a:name:id>, which is what typing a custom emoji gives.
     if (text.starts_with('<') && text.ends_with('>')) {
+        // Strip the brackets and the animated marker, then split "name:id" on
+        // the last colon, since the id is always last.
         std::string_view inner = text.substr(1, text.size() - 2);
         const bool animated = inner.starts_with("a:");
         if (animated) {
@@ -151,6 +153,8 @@ std::optional<emoji_ref> parse_emoji(std::string_view text) {
         }
     }
 
+    // Anything else is taken as a Unicode emoji typed as itself. Whether it is
+    // one the guild has used is the caller's question (`resolve_emoji`).
     return reaction_emoji({}, text);
 }
 

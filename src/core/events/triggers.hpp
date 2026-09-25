@@ -24,7 +24,7 @@ class clock;
 
 namespace latibot::events {
 
-/// How a trigger's pattern is compared against a message (plan v4 §11).
+/// How a trigger's pattern is compared against a message (plan §11).
 ///
 /// Users do not write regular expressions: a pattern is literal text, and the
 /// only choice is whether it has to stand alone as a word.
@@ -49,14 +49,14 @@ struct trigger {
     std::string pattern;
     match_mode mode = match_mode::whole_word;
 
-    /// Per channel, and may be zero (plan v4 §11).
+    /// Per channel, and may be zero (plan §11).
     std::chrono::seconds cooldown{30};
     bool enabled = true;
 
     /// Whether this trigger answers messages from other bots.
     ///
     /// Off by default, and only reachable at all for bots this guild has
-    /// allowed (plan v4 §14.4): the allowlist decides who is heard, this
+    /// allowed (plan §14.4): the allowlist decides who is heard, this
     /// decides who is answered.
     bool respond_to_bots = false;
 
@@ -114,7 +114,7 @@ public:
     bool remove(std::int64_t id, dpp::snowflake guild_id);
 
     /// The three the Java bot had, added only when the guild has none
-    /// (plan v4 §11). Returns how many were added.
+    /// (plan §11). Returns how many were added.
     int seed_defaults(dpp::snowflake guild_id);
 
 private:
@@ -130,7 +130,7 @@ private:
 /// Answers messages that match a guild's triggers.
 ///
 /// Does not consume the message: a message with both "420" and a link should
-/// get the reply and the replacement (plan v4 §5.4). It does suppress the
+/// get the reply and the replacement (plan §5.4). It does suppress the
 /// advanced LLM triggers, which is a decision for the stage that adds them.
 class trigger_responder {
 public:

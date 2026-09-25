@@ -25,7 +25,7 @@ inline constexpr std::size_t autocomplete_limit = 25;
 /// without an interaction.
 [[nodiscard]] std::string render_midnight_list(std::span<const events::midnight_entry> entries);
 
-/// `/midnight list | add | edit | remove | toggle` (plan v4 §10).
+/// `/midnight list | add | edit | remove | toggle` (plan §10).
 class midnight_command final : public command {
 public:
     midnight_command(events::midnight_store& store, ports::clock& clock);

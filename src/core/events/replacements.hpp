@@ -16,7 +16,7 @@ class database;
 
 namespace latibot::events {
 
-/// Where a replacement message stands (plan v4 §9.3, §9.4).
+/// Where a replacement message stands (plan §9.3, §9.4).
 enum class replacement_state : std::uint8_t {
     /// Posted, previews not confirmed yet.
     pending,
@@ -39,7 +39,7 @@ struct replacement_record {
     dpp::snowflake channel_id;
 
     /// Nothing for an old message whose original could not be identified
-    /// (plan v4 §9.7).
+    /// (plan §9.7).
     std::optional<dpp::snowflake> original_message_id;
     std::optional<dpp::snowflake> original_author_id;
 

@@ -58,16 +58,21 @@ std::vector<std::pair<std::string, std::string>> parse_dotenv(std::string_view t
 
     std::size_t start = 0;
     while (start <= text.size()) {
+        // One line at a time. `start` moves past the end after the last line,
+        // which is what visits a final line that has no newline after it.
         const std::size_t newline = text.find('\n', start);
         const bool last_line = newline == std::string_view::npos;
         const std::string_view raw = text.substr(start, last_line ? std::string_view::npos : newline - start);
         start = last_line ? text.size() + 1 : newline + 1;
 
+        // Blank lines and comments carry nothing. Trimming also takes the
+        // '\r' off a CRLF line.
         std::string_view line = trim(raw);
         if (line.empty() || line.front() == '#') continue;
 
         if (line.starts_with("export ")) line = trim(line.substr(std::string_view("export ").size()));
 
+        // KEY=VALUE, split on the first '=' so a value may contain more.
         const auto equals = line.find('=');
         if (equals == std::string_view::npos) continue;
 

@@ -55,6 +55,8 @@ stage_result url_replacer::operator()(const incoming_message& message) const {
         return {};
     }
 
+    // Which links have a rule, after the ones the author suppressed, put in
+    // code, repeated or wrote past the limit are taken out.
     const std::vector<url_rule> rules = rules_->for_guild(message.guild_id);
     std::vector<planned_link> links = plan_replacements(message.content, rules);
     if (links.empty()) {
@@ -67,6 +69,9 @@ stage_result url_replacer::operator()(const incoming_message& message) const {
         return {};
     }
 
+    // The opt-out is checked after planning, so a message with no rule never
+    // reaches the database for it. Then drop links from the end until the
+    // replacement fits in one message.
     while (!links.empty() && render_replacement(first_attempts(links), attempts_per_mirror).size() > message_length_limit) {
         links.pop_back();
     }
@@ -130,6 +135,8 @@ dpp::task<void> post_replacement(ports::discord_gateway& discord, replacement_st
 }
 
 dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions) {
+    // One at a time, in the tracker's order, each awaited before the next,
+    // so an edit and a flag change on the same message cannot cross.
     for (const embed_action& wanted : actions) {
         if (const auto* edit = std::get_if<edit_replacement>(&wanted)) {
             const auto edited = co_await discord.edit_message(build_edit(*edit));

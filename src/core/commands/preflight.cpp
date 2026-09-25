@@ -33,7 +33,7 @@ constexpr std::array<std::pair<std::uint64_t, std::string_view>, 16> permission_
 // Passive features, as they land: the message pipeline reads messages and
 // answers in the same channel, nickname tracking reads the audit log to find
 // out who made a change, and URL replacement posts previews and turns off the
-// original's. The entries plan v4 §7 lists for voice are added by the phase
+// original's. The entries plan §7 lists for voice are added by the phase
 // that builds it, so a warning always names something that actually exists.
 constexpr std::array<requirement, 4> passive{{
     {.permissions = dpp::p_view_channel | dpp::p_send_messages, .purpose = "replying to messages"},

@@ -19,9 +19,9 @@ inline constexpr std::size_t custom_id_limit = 100;
 ///
 /// Page state lives in the custom_id rather than in memory, so paging still
 /// works after a restart and no per-message state has to be kept or expired
-/// (plan v4 §8.2).
+/// (plan §8.2).
 struct page_state {
-    /// Which view this button belongs to, e.g. "nicknames" or "triggers".
+    /// Which view this button belongs to, e.g. "nicks" or "triggers".
     std::string view;
 
     /// Zero-based.
@@ -68,8 +68,9 @@ struct page_range {
 
 /// The ◀ / ▶ row for a view, with the ends disabled at the ends.
 ///
-/// Returns an empty component when there is only one page: a row of two dead
-/// buttons is worse than no row.
+/// Returns nothing when there is only one page: a row of two dead buttons is
+/// worse than no row. Also nothing when the state will not fit in a
+/// custom_id, which the caller cannot tell apart from the first case.
 [[nodiscard]] std::optional<dpp::component> controls(const page_state& state, std::size_t total, std::size_t per_page);
 
 } // namespace latibot::ui

@@ -23,7 +23,7 @@ namespace latibot::events {
 /// loses links from the end until it fits, rather than failing outright.
 inline constexpr std::size_t message_length_limit = 2000;
 
-/// The URL replacement stage (plan v4 §5.4, §9).
+/// The URL replacement stage (plan §5.4, §9).
 ///
 /// Does nothing in a guild that has not turned replacement on. Does not
 /// consume the message: "420" and a link in one message get the joke and the
@@ -39,7 +39,7 @@ private:
 };
 
 /// Posts a replacement, turns the original's previews off, and starts
-/// watching for ours (plan v4 §9.2, §9.3).
+/// watching for ours (plan §9.2, §9.3).
 ///
 /// Posting comes first: if it fails, the original keeps its preview, which is
 /// better than a message with none. The replacement is a plain message rather

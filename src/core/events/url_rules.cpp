@@ -255,6 +255,8 @@ void url_rule_store::remember_mirror(dpp::snowflake guild_id, std::string_view h
 legacy_rules parse_legacy_rules(std::string_view text) {
     legacy_rules parsed;
 
+    // One rule per line: "domain|mirror^mirror". A line that cannot be read is
+    // reported by number and skipped, so one typo does not lose the file.
     std::size_t line_number = 0;
     std::size_t at = 0;
     while (at <= text.size()) {
@@ -280,6 +282,8 @@ legacy_rules parse_legacy_rules(std::string_view text) {
             continue;
         }
 
+        // The mirrors, in order, split on '^'. A mirror that cannot be read is
+        // dropped on its own; the line fails only if none are left.
         url_rule rule{.domain = *domain, .mirrors = {}};
         std::string_view rest = line.substr(bar + 1);
         while (!rest.empty()) {
@@ -295,6 +299,8 @@ legacy_rules parse_legacy_rules(std::string_view text) {
             continue;
         }
 
+        // A domain listed twice: the later line wins, as it did in the Java
+        // bot, which read the file into a map.
         std::erase_if(parsed.rules, [&](const url_rule& earlier) { return earlier.domain == rule.domain; });
         parsed.rules.push_back(std::move(rule));
     }

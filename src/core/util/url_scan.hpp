@@ -19,7 +19,7 @@ struct found_link {
     std::string_view url;
 
     /// Inside an open `||` spoiler, so anything posted in its place should be
-    /// spoilered too (plan v4 §9.1).
+    /// spoilered too (plan §9.1).
     bool spoilered = false;
 
     /// Written as `<https://…>`, which is how somebody asks Discord for no
@@ -72,7 +72,7 @@ struct url_parts {
 /// The URL again, on `host`, with `path_suffix` appended to the path.
 ///
 /// The suffix goes on the path, before any query or fragment, which is where
-/// a mirror's translation switch has to be (plan v4 §9.1). A path ending in
+/// a mirror's translation switch has to be (plan §9.1). A path ending in
 /// '/' does not become "//en", and a path that already ends in the suffix does
 /// not get it twice. The scheme is always https: every mirror worth using
 /// serves it.

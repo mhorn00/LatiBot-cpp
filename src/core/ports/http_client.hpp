@@ -34,7 +34,7 @@ struct http_response {
 /// today, anything else later.
 ///
 /// Tests replay recorded provider responses through a mock instead of calling
-/// out (plan v4 §17.3), which also keeps CI free of API keys.
+/// out (plan §17.3), which also keeps CI free of API keys.
 class http_client {
 public:
     virtual ~http_client() = default;

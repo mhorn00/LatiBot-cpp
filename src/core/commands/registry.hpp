@@ -61,7 +61,7 @@ struct response_overrides {
 /// What a command is and what it needs.
 ///
 /// `required_bot_permissions` feeds the startup permission check, which warns
-/// per guild instead of exiting (plan v4 §7).
+/// per guild instead of exiting (plan §7).
 struct command_info {
     std::string name;
     std::string description;
@@ -132,7 +132,7 @@ struct user_label {
 /// One slash command.
 ///
 /// Handlers stay thin: turn the event into plain data, call a core function,
-/// act on the result (plan v4 §5.3).
+/// act on the result (plan §5.3).
 class command {
 public:
     virtual ~command() = default;

@@ -17,7 +17,7 @@ namespace latibot::commands {
 /// saying so beats showing a bare number with no explanation.
 [[nodiscard]] std::string render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known);
 
-/// `/bots allow | deny | list` (plan v4 §5.4, §14.4).
+/// `/bots allow | deny | list` (plan §5.4, §14.4).
 ///
 /// Which other bots LatiBot may hear at all. Answering them is a separate
 /// decision per feature: for triggers it is `/trigger add bots:true`.

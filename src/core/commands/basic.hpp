@@ -28,7 +28,7 @@ namespace latibot::commands {
 // Decisions
 //
 // The interesting part of each command is a function from plain data to a
-// decision (plan v4 §17.3). The handler below resolves Discord's state into
+// decision (plan §17.3). The handler below resolves Discord's state into
 // arguments, calls one of these, and carries the answer out.
 // --------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ private:
     std::function<void()> request_shutdown_;
 };
 
-/// Shows or changes the phrase that stops the bot (plan v4 §6).
+/// Shows or changes the phrase that stops the bot (plan §6).
 ///
 /// Separate from `/shutdown` because it edits a setting rather than acting on
 /// it, and because the phrase is per guild while `/shutdown` is not.

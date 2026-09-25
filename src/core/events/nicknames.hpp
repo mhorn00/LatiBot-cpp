@@ -19,7 +19,7 @@ class database;
 namespace latibot::events {
 
 /// Where a history row's attribution came from, which is also how far it can
-/// be trusted (plan v4 §8.1).
+/// be trusted (plan §8.1).
 enum class nickname_source : std::uint8_t {
     /// `/nickname`: the invoker is known for certain.
     command,
@@ -48,13 +48,13 @@ struct nickname_change {
     std::chrono::system_clock::time_point changed_at;
 
     /// Empty when nothing could attribute it. The Java bot guessed "they did
-    /// it themselves" here, which was usually wrong (plan v4 §8.1).
+    /// it themselves" here, which was usually wrong (plan §8.1).
     std::optional<dpp::snowflake> changed_by;
 
     nickname_source source = nickname_source::seen;
 
     /// The original timestamp text, for imported rows only, so the timezone
-    /// conversion can be redone (plan v4 §8.3).
+    /// conversion can be redone (plan §8.3).
     std::string imported_raw;
 };
 
@@ -67,7 +67,7 @@ struct nickname_change {
 /// The gateway updates DPP's cached member before the handler runs, so what
 /// somebody was called a moment ago is only knowable from our own history.
 /// That makes this the same question at startup as it is mid-run, which is
-/// why reconciliation needs no separate rule (plan v4 §8.4).
+/// why reconciliation needs no separate rule (plan §8.4).
 [[nodiscard]] bool is_new_nickname(const std::optional<nickname_change>& latest, const std::optional<std::string>& current);
 
 /// Whether an audit entry is about this row: same member, same resulting
@@ -89,7 +89,7 @@ struct nickname_change {
 ///
 /// Never the bot: when the bot calls the API it is what Discord records, and
 /// overwriting a known invoker with "LatiBot" is how the Java version lost
-/// the only attribution that was ever certain (plan v4 §8.1).
+/// the only attribution that was ever certain (plan §8.1).
 [[nodiscard]] bool may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self);
 
 // --------------------------------------------------------------------------
@@ -117,14 +117,14 @@ struct nickname_change {
 /// How long a change the bot just made stays claimable.
 ///
 /// Long enough to cover a slow gateway, short enough that an unrelated change
-/// to the same nickname later is not mistaken for it (plan v4 §8.1).
+/// to the same nickname later is not mistaken for it (plan §8.1).
 inline constexpr std::chrono::seconds pending_nickname_ttl{30};
 
 /// How long to wait for Discord's audit entry before going and asking.
 ///
 /// The gateway entry normally arrives within a second, so this is the cover
 /// for a reconnect or a dropped event rather than the usual path
-/// (plan v4 §8.1). It is comfortably inside `pending_nickname_ttl`, so a row
+/// (plan §8.1). It is comfortably inside `pending_nickname_ttl`, so a row
 /// the fallback finds is still one the window would accept.
 inline constexpr std::chrono::seconds audit_fallback_delay{10};
 
@@ -132,7 +132,7 @@ inline constexpr std::chrono::seconds audit_fallback_delay{10};
 /// recorded a second time.
 ///
 /// Shared between a command handler and a gateway event, which run on
-/// different threads, so it locks (plan v4 §2.5).
+/// different threads, so it locks (plan §2.5).
 class pending_nicknames {
 public:
     void expect(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,

@@ -13,7 +13,7 @@ namespace latibot::db {
 
 /// An open SQLite database.
 ///
-/// One connection, guarded by a recursive mutex (plan v4 §5.2). The bot's load
+/// One connection, guarded by a recursive mutex (plan §5.2). The bot's load
 /// is tiny, so a single serialized connection is simpler than a pool and
 /// removes every question about which thread owns what. `prepare()` and
 /// `transaction` hold the lock for as long as they live.
@@ -50,7 +50,7 @@ public:
     /// Rows changed by the most recent statement.
     [[nodiscard]] int changes();
 
-    /// Schema version, held in `PRAGMA user_version` (plan v4 §5.2).
+    /// Schema version, held in `PRAGMA user_version` (plan §5.2).
     [[nodiscard]] int user_version();
     void set_user_version(int version);
 

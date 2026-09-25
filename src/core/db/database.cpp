@@ -126,9 +126,9 @@ transaction::~transaction() {
     try {
         db_->execute("ROLLBACK");
     } catch (...) { // NOLINT(bugprone-empty-catch)
-        // A destructor must not throw, and there is nowhere to report this
-        // while unwinding. Once the logger exists (plan v4 §19, phase 0e),
-        // this should log the failure.
+        // A destructor must not throw. This should log the failure, and does
+        // not yet: a rollback that fails leaves the connection inside the
+        // transaction, and every later write then fails for that reason.
     }
 }
 

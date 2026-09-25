@@ -96,6 +96,8 @@ std::string render_replacement(std::span<const watched_link> links, std::size_t 
 }
 
 std::string render_failure(std::span<const planned_link> links) {
+    // Every mirror tried, across all the links, each named once and in the
+    // order it was first tried.
     std::vector<std::string_view> hosts;
     for (const planned_link& link : links) {
         for (const mirror& candidate : link.mirrors) {
@@ -105,6 +107,7 @@ std::string render_failure(std::span<const planned_link> links) {
         }
     }
 
+    // "a", "a or b", "a, b or c".
     std::string tried;
     for (std::size_t index = 0; index < hosts.size(); ++index) {
         if (index > 0) {
@@ -175,6 +178,9 @@ std::vector<embed_action> embed_tracker::watch(watch_request request, std::span<
     const std::scoped_lock guard(mutex_);
     prune_early(now);
 
+    // Previews can already be there: on the message as it was sent, or in
+    // an update that arrived before this watch started (plan §21.11). Either
+    // can settle the watch before it begins.
     bool settled = absorb(state, embed_urls);
     if (const auto early = early_.find(id); early != early_.end()) {
         settled = absorb(state, early->second.embed_urls);
@@ -193,6 +199,9 @@ std::vector<embed_action> embed_tracker::watch(watch_request request, std::span<
 std::vector<embed_action> embed_tracker::on_embeds(dpp::snowflake message_id, std::span<const std::string> embed_urls) {
     const std::scoped_lock guard(mutex_);
 
+    // An update for a message nobody is watching may be for one about to be
+    // watched, so it is kept for a while (plan §21.11). The buffer is capped:
+    // every message update in every guild passes through here.
     const auto found = watches_.find(message_id);
     if (found == watches_.end()) {
         if (!embed_urls.empty()) {
@@ -223,12 +232,17 @@ std::vector<embed_action> embed_tracker::tick() {
     prune_early(now);
 
     for (auto entry = watches_.begin(); entry != watches_.end();) {
+        // Only watches whose current try has run out of time move on.
         watch_state& state = entry->second;
         if (now < state.deadline) {
             ++entry;
             continue;
         }
 
+        // Each link still waiting moves to its next try: the same mirror
+        // again until it has had `per_mirror` tries, then the next mirror.
+        // A link out of mirrors has failed; links that already embedded
+        // stay as they are.
         const std::size_t per_mirror = at_least_one(state.request.per_mirror);
         bool any_waiting = false;
         for (watched_link& link : state.links) {
@@ -274,11 +288,13 @@ std::vector<embed_action> embed_tracker::finish(const watch_state& state) {
     const bool has_original = !request.original_message_id.empty();
     std::vector<embed_action> actions;
 
+    // Success is any link with a preview, not all of them: one working
+    // preview is worth keeping over a failure note.
     if (embedded > 0) {
         if (request.retry) {
             store_->mark_retried(request.message_id, replacement_state::ok, wall_now);
             // The failure turned the original's previews back on; a working
-            // replacement means they go off again (plan v4 §9.4).
+            // replacement means they go off again (plan §9.4).
             if (has_original) {
                 actions.emplace_back(
                     set_original_embeds{.channel_id = request.channel_id, .message_id = request.original_message_id, .suppressed = true});
@@ -296,6 +312,8 @@ std::vector<embed_action> embed_tracker::finish(const watch_state& state) {
         return actions;
     }
 
+    // Nothing embedded. The original's preview comes back unless this was a
+    // Retry, whose failure already turned it back on the first time.
     if (request.retry) {
         store_->mark_retried(request.message_id, replacement_state::failed, wall_now);
     } else {

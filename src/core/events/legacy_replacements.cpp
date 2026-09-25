@@ -100,6 +100,8 @@ dpp::snowflake first_id_at(std::chrono::sys_seconds when) noexcept {
 legacy_match classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors) {
     legacy_match match;
 
+    // Step 1: a replacement always links to a known mirror. A message with
+    // none cannot be one, whoever wrote it, and that settles most messages.
     std::vector<util::found_link> mirror_links;
     for (const util::found_link& found : util::find_links(message.content)) {
         const auto parts = util::split_url(found.url);
@@ -121,10 +123,14 @@ legacy_match classify(const history_message& message, dpp::snowflake bot_id, con
         return match;
     }
 
+    // Step 2: from here on it must be the bot's own ordinary message.
+    // Somebody else posting a mirror link is just a link.
     if (message.author_id != bot_id || message.is_system) {
         return {};
     }
 
+    // Step 3: the formats, from the easiest to tell apart. A reply is always
+    // format 1, whatever its text looks like.
     if (!message.replied_to.empty()) {
         match.what = legacy_match::kind::recognised;
         match.format = legacy_format::reply_copy;
@@ -145,6 +151,8 @@ legacy_match classify(const history_message& message, dpp::snowflake bot_id, con
         return match;
     }
 
+    // Some links masked and some bare is no format the bot ever wrote, so
+    // from here every way out that is not a known format says so.
     match.what = legacy_match::kind::unrecognised;
     if (masked.size() != mirror_links.size()) {
         return match;
@@ -165,6 +173,8 @@ legacy_match classify(const history_message& message, dpp::snowflake bot_id, con
         return match;
     }
 
+    // The label inside the brackets tells the remaining formats apart: "."
+    // with or without the 🔗, and "_", which only ever came with it.
     const auto labelled = [&](std::string_view label) {
         return std::ranges::all_of(masked, [&](const masked_link& link) { return link.label == label; });
     };
@@ -183,6 +193,8 @@ attribution attribute(const history_message& message, const legacy_match& match,
                       dpp::snowflake bot_id) {
     attribution found;
 
+    // A reply names its original outright. It may be older than the page in
+    // hand, in which case the caller fetches it.
     if (match.format == legacy_format::reply_copy) {
         found.original_message_id = message.replied_to;
         const auto original = std::ranges::find(older, message.replied_to, &history_message::id);
@@ -194,6 +206,8 @@ attribution attribute(const history_message& message, const legacy_match& match,
         return found;
     }
 
+    // Every other format has to be matched to the message it answered: the
+    // paths of the mirror links, which a mirror keeps from the original.
     std::vector<std::string_view> ours;
     for (const std::string& url : match.mirror_urls) {
         // A link to a site's front page matches every other one; it proves
@@ -206,6 +220,9 @@ attribution attribute(const history_message& message, const legacy_match& match,
         return found;
     }
 
+    // Walk back through older messages, newest first. Only a person's message
+    // with links counts as a candidate, and only the first few candidates are
+    // tried: a match further back than that is more likely a coincidence.
     std::size_t candidates = 0;
     for (const history_message& earlier : older) {
         if (earlier.author_is_bot || earlier.author_id == bot_id || !earlier.webhook_id.empty()) {
@@ -230,6 +247,8 @@ attribution attribute(const history_message& message, const legacy_match& match,
         }
     }
 
+    // Nothing matched. If there were candidates, the nearest link answered
+    // something else, which is reported rather than credited (plan §9.7).
     found.mismatched = candidates > 0;
     return found;
 }

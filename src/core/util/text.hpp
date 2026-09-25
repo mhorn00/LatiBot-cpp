@@ -17,7 +17,7 @@ namespace latibot::util {
 /// True when text starting after `before` is inside a Discord spoiler.
 ///
 /// Discord spoilers are delimited by `||`, so a link is spoilered when an odd
-/// number of markers precede it (plan v4 §9.1).
+/// number of markers precede it (plan §9.1).
 [[nodiscard]] bool is_inside_spoiler(std::string_view before) noexcept;
 
 } // namespace latibot::util

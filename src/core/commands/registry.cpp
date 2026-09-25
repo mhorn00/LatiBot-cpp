@@ -222,12 +222,16 @@ void check_all(const command_info& details, std::string_view where, const respon
 } // namespace
 
 void registry::check_responses(const command& candidate) {
+    // The command's own flags first, which every subcommand starts from.
     const command_info& details = candidate.info();
     check_all(details, "", details.responses);
     if (details.subcommand_responses.empty()) {
         return;
     }
 
+    // Each override has to name a subcommand the command really registers,
+    // which only its payload knows, and the flags it ends up with, the
+    // command's with the override on top, have to be valid too.
     const std::vector<std::string> paths = subcommand_paths(candidate.build(details.name, dpp::snowflake{}));
     for (const auto& [path, overrides] : details.subcommand_responses) {
         if (std::ranges::find(paths, path) == paths.end()) {

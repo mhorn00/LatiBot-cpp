@@ -192,7 +192,7 @@ dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
     }
 
     // Today is recorded as already posted, so this first posts at the next
-    // midnight rather than thirty seconds from now (plan v4 §10).
+    // midnight rather than thirty seconds from now (plan §10).
     events::midnight_entry entry{.id = 0,
                                  .guild_id = event.command.guild_id,
                                  .channel_id = *channel,
