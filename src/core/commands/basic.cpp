@@ -15,7 +15,6 @@
 #include <dpp/permissions.h>
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <format>
 #include <memory>
@@ -60,12 +59,6 @@ dpp::snowflake bot_voice_channel(const dpp::slashcommand_t& event) {
     return connection == nullptr ? dpp::snowflake{} : connection->channel_id;
 }
 
-std::string lowercased(std::string_view text) {
-    std::string result(text);
-    std::ranges::transform(result, result.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return result;
-}
-
 } // namespace
 
 // --------------------------------------------------------------------------
@@ -107,7 +100,7 @@ say_decision plan_say(std::string_view message, std::string_view reply_to) {
 }
 
 dpp::activity_type parse_activity_type(std::string_view name) {
-    const std::string key = lowercased(util::trim(name));
+    const std::string key = util::to_lower(util::trim(name));
 
     if (key == "watching") {
         return dpp::at_watching;

@@ -2,6 +2,7 @@
 
 #include "core/config/guild_settings.hpp"
 #include "core/util/log.hpp"
+#include "core/util/text.hpp"
 
 #include <cctype>
 #include <string>
@@ -32,10 +33,10 @@ std::string words_of(std::string_view text) {
             normalized.push_back(' ');
             pending_space = false;
         }
-        normalized.push_back(static_cast<char>(std::tolower(byte)));
+        normalized.push_back(letter);
     }
 
-    return normalized;
+    return util::to_lower(normalized);
 }
 
 } // namespace

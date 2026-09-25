@@ -73,12 +73,7 @@ std::optional<int> leading_weight(std::string_view& line) {
 std::vector<events::weighted_response> parse_responses(std::string_view text) {
     std::vector<events::weighted_response> responses;
 
-    std::size_t at = 0;
-    while (at <= text.size()) {
-        const std::size_t newline = text.find('\n', at);
-        std::string_view line = text.substr(at, newline == std::string_view::npos ? std::string_view::npos : newline - at);
-        at = newline == std::string_view::npos ? text.size() + 1 : newline + 1;
-
+    for (std::string_view line : util::lines(text)) {
         const std::optional<int> weight = leading_weight(line);
         const std::string_view body = util::trim(line);
         if (body.empty()) {

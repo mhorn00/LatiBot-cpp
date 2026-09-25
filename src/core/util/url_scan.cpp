@@ -78,12 +78,6 @@ std::string_view trim_link(std::string_view url) {
     return url;
 }
 
-bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) {
-    return std::ranges::equal(lhs, rhs, [](char a, char b) {
-        return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b));
-    });
-}
-
 } // namespace
 
 std::vector<text_span> code_spans(std::string_view text) {
@@ -243,8 +237,7 @@ std::string rule_host(std::string_view authority) {
         authority = authority.substr(0, colon);
     }
 
-    std::string host(authority);
-    std::ranges::transform(host, host.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
+    std::string host = to_lower(authority);
 
     while (host.ends_with('.')) {
         host.pop_back();

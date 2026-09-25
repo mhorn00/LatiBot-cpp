@@ -4,6 +4,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 using latibot::util::count_occurrences;
 
@@ -83,4 +84,31 @@ TEST_CASE("a Discord ID is read as digits and nothing else", "[util]") {
     CHECK_FALSE(parse_snowflake("").has_value());
     CHECK_FALSE(parse_snowflake("0").has_value());
     CHECK_FALSE(parse_snowflake("99999999999999999999999").has_value());
+}
+
+TEST_CASE("to_lower lowercases ASCII letters and leaves everything else", "[util]") {
+    using latibot::util::to_lower;
+    CHECK(to_lower("").empty());
+    CHECK(to_lower("Hello, WORLD 42") == "hello, world 42");
+    // Bytes of other scripts are not letters to it, so UTF-8 comes through whole.
+    CHECK(to_lower("ÉCOLE Ünïcode") == "École Ünïcode");
+}
+
+TEST_CASE("equals_ignoring_case compares ASCII case-insensitively", "[util]") {
+    using latibot::util::equals_ignoring_case;
+    CHECK(equals_ignoring_case("HTTPS", "https"));
+    CHECK(equals_ignoring_case("", ""));
+    CHECK_FALSE(equals_ignoring_case("https", "http"));
+    CHECK_FALSE(equals_ignoring_case("skull", "skulls"));
+}
+
+TEST_CASE("lines splits on newlines, CRLF included, and keeps the last line", "[util]") {
+    using latibot::util::lines;
+    using list = std::vector<std::string_view>;
+
+    CHECK(lines("") == list{""});
+    CHECK(lines("one") == list{"one"});
+    CHECK(lines("one\ntwo") == list{"one", "two"});
+    CHECK(lines("one\r\ntwo\r\n") == list{"one", "two", ""});
+    CHECK(lines("\n\n") == list{"", "", ""});
 }

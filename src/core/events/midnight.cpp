@@ -4,9 +4,9 @@
 #include "core/db/statement.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
+#include "core/util/text.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <format>
 
 namespace latibot::events {
@@ -26,13 +26,6 @@ midnight_entry read_row(const db::statement& row) {
     entry.last_fired_date = row.get<std::optional<std::string>>(6).value_or(std::string{});
     entry.message_flags = discord::channel_flags(row.get<std::int64_t>(7));
     return entry;
-}
-
-std::string lowercased(std::string_view text) {
-    std::string result(text);
-    std::ranges::transform(result, result.begin(),
-                           [](char letter) { return static_cast<char>(std::tolower(static_cast<unsigned char>(letter))); });
-    return result;
 }
 
 } // namespace
@@ -99,12 +92,12 @@ std::vector<std::string> matching_timezones(std::string_view typed, std::size_t 
         return found;
     }
 
-    const std::string wanted = lowercased(typed);
+    const std::string wanted = util::to_lower(typed);
 
     try {
         for (const std::chrono::time_zone& zone : std::chrono::get_tzdb().zones) {
             const std::string name(zone.name());
-            if (!wanted.empty() && lowercased(name).find(wanted) == std::string::npos) {
+            if (!wanted.empty() && util::to_lower(name).find(wanted) == std::string::npos) {
                 continue;
             }
 

@@ -268,12 +268,8 @@ legacy_rules parse_legacy_rules(std::string_view text) {
     // One rule per line: "domain|mirror^mirror". A line that cannot be read is
     // reported by number and skipped, so one typo does not lose the file.
     std::size_t line_number = 0;
-    std::size_t at = 0;
-    while (at <= text.size()) {
-        const std::size_t newline = text.find('\n', at);
-        const std::string_view line =
-            util::trim(text.substr(at, newline == std::string_view::npos ? std::string_view::npos : newline - at));
-        at = newline == std::string_view::npos ? text.size() + 1 : newline + 1;
+    for (const std::string_view raw : util::lines(text)) {
+        const std::string_view line = util::trim(raw);
         ++line_number;
 
         if (line.empty()) {

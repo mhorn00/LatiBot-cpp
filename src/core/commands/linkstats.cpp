@@ -51,10 +51,6 @@ bool is_word(std::string_view text) {
     return !text.empty() && std::ranges::all_of(text, [](unsigned char letter) { return std::isalnum(letter) != 0 || letter == '_'; });
 }
 
-bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) {
-    return std::ranges::equal(lhs, rhs, [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
-}
-
 std::string format_day(std::chrono::sys_seconds when) {
     return std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(when));
 }
@@ -195,7 +191,7 @@ std::optional<events::emoji_ref> resolve_emoji(const events::reaction_store& sto
     // A name rather than an emoji: find the one this guild has used.
     if (parsed->key.starts_with("u:") && is_word(parsed->name)) {
         for (const events::emoji_tally& known : store.known_emojis(guild_id, parsed->name, emoji_choices)) {
-            if (equals_ignoring_case(known.emoji.name, parsed->name)) {
+            if (util::equals_ignoring_case(known.emoji.name, parsed->name)) {
                 return known.emoji;
             }
         }

@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-488 test cases across 9 components, including 113 sections.
+491 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -17,7 +17,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
-| [util](#util) | 36 | 19 |
+| [util](#util) | 39 | 19 |
 
 ## db
 
@@ -544,12 +544,15 @@ Utilities (`src/core/util`, `src/core/version`)
 | parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
 | parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
 | parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
-| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:10](../../tests/unit/text_test.cpp#L10) |
-| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:19](../../tests/unit/text_test.cpp#L19) |
-| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:30](../../tests/unit/text_test.cpp#L30) |
-| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:37](../../tests/unit/text_test.cpp#L37) |
-| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:46](../../tests/unit/text_test.cpp#L46) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:71](../../tests/unit/text_test.cpp#L71) |
+| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:11](../../tests/unit/text_test.cpp#L11) |
+| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:20](../../tests/unit/text_test.cpp#L20) |
+| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |
+| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:38](../../tests/unit/text_test.cpp#L38) |
+| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
+| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:89](../../tests/unit/text_test.cpp#L89) |
+| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:97](../../tests/unit/text_test.cpp#L97) |
+| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:105](../../tests/unit/text_test.cpp#L105) |
 | every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
 | a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
 | trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |

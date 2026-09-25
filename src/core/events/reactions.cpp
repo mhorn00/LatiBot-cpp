@@ -5,7 +5,6 @@
 #include "core/util/text.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <charconv>
 #include <format>
 #include <map>
@@ -38,12 +37,6 @@ std::string without_variation_selectors(std::string_view text) {
 
 bool all_digits(std::string_view text) {
     return !text.empty() && std::ranges::all_of(text, [](char letter) { return letter >= '0' && letter <= '9'; });
-}
-
-std::string lowercased(std::string_view text) {
-    std::string lowered(text);
-    std::ranges::transform(lowered, lowered.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return lowered;
 }
 
 std::optional<std::int64_t> seconds_or_null(const std::optional<std::chrono::sys_seconds>& when) {
@@ -500,14 +493,14 @@ std::vector<emoji_tally> reaction_store::known_emojis(dpp::snowflake guild_id, s
         }
     }
 
-    const std::string wanted = lowercased(util::trim(filter));
+    const std::string wanted = util::to_lower(util::trim(filter));
     std::vector<emoji_tally> found;
     for (const auto& [key, count] : counted) {
         if (found.size() == limit) {
             break;
         }
         emoji_ref emoji = describe(key);
-        if (wanted.empty() || lowercased(emoji.name).find(wanted) != std::string::npos) {
+        if (wanted.empty() || util::to_lower(emoji.name).find(wanted) != std::string::npos) {
             found.push_back({.emoji = std::move(emoji), .count = count});
         }
     }
@@ -518,7 +511,7 @@ std::vector<std::vector<emoji_tally>> reaction_store::likely_duplicates(dpp::sno
     std::map<std::string, std::vector<emoji_tally>> by_name;
     for (emoji_tally& tally : known_emojis(guild_id, {}, static_cast<std::size_t>(-1))) {
         if (tally.emoji.key.starts_with(custom_prefix) && !tally.emoji.name.empty()) {
-            by_name[lowercased(tally.emoji.name)].push_back(std::move(tally));
+            by_name[util::to_lower(tally.emoji.name)].push_back(std::move(tally));
         }
     }
 

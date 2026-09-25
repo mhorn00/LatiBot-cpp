@@ -4,6 +4,7 @@
 #include "core/db/statement.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
+#include "core/util/text.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,16 +16,6 @@
 
 namespace latibot::events {
 namespace {
-
-char lower(char letter) {
-    return static_cast<char>(std::tolower(static_cast<unsigned char>(letter)));
-}
-
-std::string lowercased(std::string_view text) {
-    std::string result(text);
-    std::ranges::transform(result, result.begin(), lower);
-    return result;
-}
 
 /// Word characters for the purposes of whole-word matching: what sits either
 /// side of "420" in "4200" but not in "it's 420 somewhere".
@@ -47,7 +38,7 @@ std::string_view to_string(match_mode mode) noexcept {
 }
 
 std::optional<match_mode> match_mode_from_string(std::string_view name) {
-    const std::string key = lowercased(name);
+    const std::string key = util::to_lower(name);
     if (key == "whole_word" || key == "word") {
         return match_mode::whole_word;
     }
@@ -62,8 +53,8 @@ bool matches(std::string_view content, std::string_view pattern, match_mode mode
         return false;
     }
 
-    const std::string haystack = lowercased(content);
-    const std::string needle = lowercased(pattern);
+    const std::string haystack = util::to_lower(content);
+    const std::string needle = util::to_lower(pattern);
 
     for (std::size_t at = haystack.find(needle); at != std::string::npos; at = haystack.find(needle, at + 1)) {
         if (mode == match_mode::substring) {

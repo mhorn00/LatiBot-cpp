@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace latibot::util {
 
@@ -17,6 +18,18 @@ namespace latibot::util {
 
 /// True when the text is empty or only whitespace.
 [[nodiscard]] bool is_blank(std::string_view text) noexcept;
+
+/// The text with its ASCII letters lowercased and every other byte, UTF-8
+/// included, left as it is.
+[[nodiscard]] std::string to_lower(std::string_view text);
+
+/// Whether two texts are the same but for the case of ASCII letters.
+[[nodiscard]] bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) noexcept;
+
+/// Every line of `text`: split on '\n', with a '\r' before it dropped, so
+/// CRLF text reads the same. A last line with no newline after it is kept,
+/// and text that ends in a newline has an empty last line.
+[[nodiscard]] std::vector<std::string_view> lines(std::string_view text);
 
 /// How many characters UTF-8 text holds, counted as Discord counts them for
 /// its length limits: one per code point, whatever its size in bytes.

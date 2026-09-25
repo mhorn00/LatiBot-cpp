@@ -1,5 +1,7 @@
 #include "core/util/env.hpp"
 
+#include "core/util/text.hpp"
+
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -8,13 +10,6 @@
 namespace latibot::util {
 
 namespace {
-
-std::string_view trim(std::string_view text) {
-    constexpr std::string_view whitespace = " \t\r\n";
-    const auto begin = text.find_first_not_of(whitespace);
-    if (begin == std::string_view::npos) return {};
-    return text.substr(begin, text.find_last_not_of(whitespace) - begin + 1);
-}
 
 std::string_view unquote(std::string_view value) {
     if (value.size() >= 2 && (value.front() == '"' || value.front() == '\'') && value.back() == value.front()) {
@@ -56,17 +51,8 @@ void set_env_var(const std::string& name, const std::string& value) {
 std::vector<std::pair<std::string, std::string>> parse_dotenv(std::string_view text) {
     std::vector<std::pair<std::string, std::string>> entries;
 
-    std::size_t start = 0;
-    while (start <= text.size()) {
-        // One line at a time. `start` moves past the end after the last line,
-        // which is what visits a final line that has no newline after it.
-        const std::size_t newline = text.find('\n', start);
-        const bool last_line = newline == std::string_view::npos;
-        const std::string_view raw = text.substr(start, last_line ? std::string_view::npos : newline - start);
-        start = last_line ? text.size() + 1 : newline + 1;
-
-        // Blank lines and comments carry nothing. Trimming also takes the
-        // '\r' off a CRLF line.
+    for (const std::string_view raw : lines(text)) {
+        // Blank lines and comments carry nothing.
         std::string_view line = trim(raw);
         if (line.empty() || line.front() == '#') continue;
 

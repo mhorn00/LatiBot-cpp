@@ -15,6 +15,12 @@ constexpr bool is_continuation(char byte) noexcept {
     return (static_cast<unsigned char>(byte) & 0xC0U) == 0x80U;
 }
 
+/// What std::tolower does in the "C" locale, without depending on which
+/// locale is set.
+constexpr char lower_ascii(char letter) noexcept {
+    return letter >= 'A' && letter <= 'Z' ? static_cast<char>(letter - 'A' + 'a') : letter;
+}
+
 } // namespace
 
 std::size_t count_occurrences(std::string_view haystack, std::string_view needle) noexcept {
@@ -40,6 +46,34 @@ std::string_view trim(std::string_view text) noexcept {
 
 bool is_blank(std::string_view text) noexcept {
     return trim(text).empty();
+}
+
+std::string to_lower(std::string_view text) {
+    std::string lowered(text);
+    std::ranges::transform(lowered, lowered.begin(), lower_ascii);
+    return lowered;
+}
+
+bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) noexcept {
+    return std::ranges::equal(lhs, rhs, [](char left, char right) { return lower_ascii(left) == lower_ascii(right); });
+}
+
+std::vector<std::string_view> lines(std::string_view text) {
+    std::vector<std::string_view> found;
+    std::size_t at = 0;
+    while (true) {
+        const std::size_t newline = text.find('\n', at);
+        std::string_view line = text.substr(at, newline == std::string_view::npos ? std::string_view::npos : newline - at);
+        if (line.ends_with('\r')) {
+            line.remove_suffix(1);
+        }
+        found.push_back(line);
+
+        if (newline == std::string_view::npos) {
+            return found;
+        }
+        at = newline + 1;
+    }
 }
 
 std::size_t character_count(std::string_view text) noexcept {

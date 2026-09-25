@@ -1,22 +1,14 @@
 #include "core/config/guild_settings.hpp"
 
 #include "core/db/database.hpp"
+#include "core/util/text.hpp"
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <charconv>
 #include <string>
 
 namespace latibot::config {
-namespace {
-
-std::string lowercase(std::string text) {
-    std::ranges::transform(text, text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return text;
-}
-
-} // namespace
 
 std::optional<std::string> guild_settings::find(dpp::snowflake guild_id, std::string_view key) const {
     auto query = db_->prepare("SELECT value FROM guild_settings WHERE guild_id = ? AND key = ?", static_cast<std::uint64_t>(guild_id), key);
@@ -52,7 +44,7 @@ bool guild_settings::get_bool(dpp::snowflake guild_id, std::string_view key, boo
         return fallback;
     }
 
-    const std::string text = lowercase(*stored);
+    const std::string text = util::to_lower(*stored);
     static constexpr std::array truthy{"1", "true", "yes", "on"};
     static constexpr std::array falsy{"0", "false", "no", "off"};
 

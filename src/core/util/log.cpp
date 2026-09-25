@@ -1,10 +1,10 @@
 #include "core/util/log.hpp"
 
 #include "core/util/env.hpp"
+#include "core/util/text.hpp"
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <chrono>
 #include <iostream>
 
@@ -25,12 +25,6 @@ namespace latibot::util {
 namespace {
 
 constexpr std::array<std::string_view, 6> level_names{"trace", "debug", "info", "warn", "error", "off"};
-
-std::string lowercased(std::string_view text) {
-    std::string lowered(text);
-    std::ranges::transform(lowered, lowered.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return lowered;
-}
 
 void write_to_stderr(log_level level, std::string_view message, bool colored) {
     const auto stamp = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
@@ -69,7 +63,7 @@ std::string_view to_string(log_level level) noexcept {
 }
 
 std::optional<log_level> log_level_from_string(std::string_view name) {
-    const std::string lowered = lowercased(name);
+    const std::string lowered = to_lower(name);
 
     const auto found = std::ranges::find(level_names, lowered);
     if (found == level_names.end()) {
@@ -81,7 +75,7 @@ std::optional<log_level> log_level_from_string(std::string_view name) {
 // --------------------------------------------------------------------------
 
 std::optional<color_mode> color_mode_from_string(std::string_view text) {
-    const std::string wanted = lowercased(text);
+    const std::string wanted = to_lower(text);
 
     if (wanted.empty() || wanted == "auto" || wanted == "automatic") {
         return color_mode::automatic;
