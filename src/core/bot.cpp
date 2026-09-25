@@ -196,6 +196,15 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
         util::log().info("nickname tracking is off; /nickname still works, but changes made elsewhere are not recorded");
     }
 
+    // A warning rather than info: it changes what a recompute records, and
+    // it should not be the kind of thing that stays set by accident.
+    if (settings_.recompute_bot_id) {
+        util::log().warn(
+            "LATIBOT_DEBUG_RECOMPUTE_BOT_ID is set: /linkstats recompute reads replacements posted by {}, not this bot's own. "
+            "Pass fresh:true to go over channels already recomputed without it.",
+            *settings_.recompute_bot_id);
+    }
+
     // After the line above, so that any migration it applies is logged under a
     // heading rather than before the bot has said it is starting.
     const int version = db::migrate(database_);
@@ -237,7 +246,7 @@ void bot::register_commands() {
         reactions_, commands::recompute_support{.service = &backfill_,
                                                 .discord = &gateway_,
                                                 .channels_of = [](dpp::snowflake guild) { return text_channels(guild); },
-                                                .bot_id = [this] { return cluster_.me.id; }}));
+                                                .bot_id = [this] { return settings_.recompute_bot_id.value_or(cluster_.me.id); }}));
 }
 
 void bot::register_stages() {

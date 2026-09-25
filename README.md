@@ -171,6 +171,25 @@ An intent the application was not granted is not a warning: Discord refuses the
 gateway outright and the bot reconnects in a loop. The log says which toggle to
 go and find when that happens.
 
+### Testing with a second bot account
+
+`/linkstats recompute` finds old replacements by who posted them: the bot's own
+account. A test bot running beside the production one has posted none, so
+there is nothing for it to find. In a **Debug build**, point it at the
+production account instead:
+
+```powershell
+$env:LATIBOT_DEBUG_RECOMPUTE_BOT_ID = "the production bot's user ID"
+.\build\bin\Debug\LatiBot.exe
+```
+
+or put the same line in `.env`. Startup logs a warning while it is set. Run
+`/linkstats recompute start` with `fresh:true` for any channels already
+recomputed without it, since those are otherwise remembered as done. Only the
+recompute is affected: the test bot still posts and tracks its own
+replacements as itself. A Release build never reads the variable, and says so
+if it is set.
+
 ### Logging
 
 Lines go to **stderr**, one per message, timestamped first so they stay

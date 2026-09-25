@@ -784,8 +784,9 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
         co_return;
     }
 
-    util::log().info("link stats recompute started in guild {} by {}: {} channel(s) since {}", guild,
-                     describe_user(event.command.get_issuing_user()), request.channel_ids.size(), format_day(request.since));
+    util::log().info("link stats recompute started in guild {} by {}: {} channel(s) since {}, reading replacements posted by {}", guild,
+                     describe_user(event.command.get_issuing_user()), request.channel_ids.size(), format_day(request.since),
+                     request.bot_id);
 
     // The interaction's token lasts fifteen minutes and a recompute can take
     // hours, so progress goes in an ordinary message instead.

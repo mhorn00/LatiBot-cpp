@@ -583,6 +583,11 @@ again with the same dates carries on from where it stopped — after
 `cancel`, or a restart — and `fresh:true` starts every channel over. One runs
 per server at a time. Threads are not scanned.
 
+It looks for replacements posted by the bot's own account. A Debug build can be
+pointed at another account's with `LATIBOT_DEBUG_RECOMPUTE_BOT_ID`, for testing
+with a second bot; see
+[Testing with a second bot account](../../README.md#testing-with-a-second-bot-account).
+
 What it recognises, and how it finds whose link each one was, is under
 [Reaction statistics](#reaction-statistics).
 

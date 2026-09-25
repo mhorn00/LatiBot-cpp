@@ -56,6 +56,15 @@ struct bootstrap {
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 
+    /// The account whose messages `/linkstats recompute` reads as the bot's
+    /// replacements, in place of the bot's own.
+    ///
+    /// For testing the statistics with a second bot while the production one
+    /// is still running: the history worth reading was written by the other
+    /// account. Set from `LATIBOT_DEBUG_RECOMPUTE_BOT_ID` in debug builds only,
+    /// never from the file (see `recompute_bot_id_from_environment`).
+    std::optional<dpp::snowflake> recompute_bot_id;
+
     /// Parses config text. Throws `config_error` naming the offending key.
     ///
     /// Unknown keys are rejected rather than ignored, so a typo in a
@@ -75,6 +84,30 @@ struct bootstrap {
 /// configuration is read, which is the only way loading it is itself logged at
 /// the level that was asked for. Throws `config_error` naming the valid levels.
 [[nodiscard]] std::optional<util::log_level> log_level_from_environment();
+
+/// Whether this build reads the `LATIBOT_DEBUG_*` variables. Only a debug
+/// build does, so a line left in `.env` cannot change what a release build
+/// does.
+inline constexpr bool reads_debug_overrides =
+#ifdef NDEBUG
+    false;
+#else
+    true;
+#endif
+
+/// A Discord ID written as text: digits only, surrounding whitespace allowed.
+/// Nothing for anything else, including 0, rather than the leading digits of
+/// "123abc".
+[[nodiscard]] std::optional<dpp::snowflake> parse_snowflake(std::string_view text);
+
+/// The account `LATIBOT_DEBUG_RECOMPUTE_BOT_ID` names, when `debug_build`.
+///
+/// Nothing when it is unset or empty. In a release build it is not read at
+/// all, only warned about if set, so that a forgotten override is noticed
+/// rather than quietly obeyed. Throws `config_error` when a debug build finds
+/// something that is not an ID: a typo in a testing aid should stop the run,
+/// not fall back to reading the wrong history.
+[[nodiscard]] std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides);
 
 /// Credentials. These only ever come from the environment, never from a file
 /// that could be committed (plan v4 §5.1).

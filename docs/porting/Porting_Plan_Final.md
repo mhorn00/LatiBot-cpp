@@ -34,7 +34,7 @@ the order of work behind it.
 | 5 | LLM | ⏳ |
 | — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
 
-439 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
+442 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
 clean over `src/`. Three libFuzzer targets cover the text that arrives from
 people: the text helpers, the URL scanner and the legacy replacement parser.
 

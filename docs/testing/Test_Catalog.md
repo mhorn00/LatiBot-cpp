@@ -5,12 +5,12 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-440 test cases across 9 components, including 92 sections.
+443 test cases across 9 components, including 96 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 98 | 11 |
-| [config](#config) | 20 | 15 |
+| [config](#config) | 23 | 19 |
 | [commands](#commands) | 93 | 22 |
 | [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
@@ -150,6 +150,9 @@ Configuration (`src/core/config`)
 | the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:148](../../tests/unit/bootstrap_test.cpp#L148) |
 | trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:156](../../tests/unit/bootstrap_test.cpp#L156) |
 | secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:190](../../tests/unit/bootstrap_test.cpp#L190) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/bootstrap_test.cpp:217](../../tests/unit/bootstrap_test.cpp#L217) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:232](../../tests/unit/bootstrap_test.cpp#L232) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:259](../../tests/unit/bootstrap_test.cpp#L259) |
 
 ## commands
 

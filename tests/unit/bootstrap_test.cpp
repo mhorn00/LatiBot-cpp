@@ -213,3 +213,57 @@ TEST_CASE("secrets come from the environment", "[config]") {
         CHECK(*loaded.anthropic_key == "test-key");
     }
 }
+
+TEST_CASE("a Discord ID is read as digits and nothing else", "[config]") {
+    using latibot::config::parse_snowflake;
+
+    CHECK(parse_snowflake("123456789012345678") == dpp::snowflake{123456789012345678});
+    CHECK(parse_snowflake("  123456789012345678 ") == dpp::snowflake{123456789012345678});
+
+    // std::stoull would take the leading digits of these and carry on.
+    CHECK_FALSE(parse_snowflake("123abc").has_value());
+    CHECK_FALSE(parse_snowflake("+123").has_value());
+    CHECK_FALSE(parse_snowflake("<@123>").has_value());
+    CHECK_FALSE(parse_snowflake("").has_value());
+    CHECK_FALSE(parse_snowflake("0").has_value());
+    CHECK_FALSE(parse_snowflake("99999999999999999999999").has_value());
+}
+
+TEST_CASE("the recompute bot override is read by debug builds only", "[config]") {
+    using latibot::config::recompute_bot_id_from_environment;
+
+    SECTION("unset or empty means the bot's own account") {
+        const scoped_env unset("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", nullptr);
+        CHECK_FALSE(recompute_bot_id_from_environment(true).has_value());
+    }
+
+    SECTION("a debug build takes the account named") {
+        const scoped_env set("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", "123456789012345678");
+        CHECK(recompute_bot_id_from_environment(true) == dpp::snowflake{123456789012345678});
+    }
+
+    SECTION("a release build ignores it") {
+        const scoped_env set("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", "123456789012345678");
+        CHECK_FALSE(recompute_bot_id_from_environment(false).has_value());
+    }
+
+    SECTION("a debug build refuses something that is not an ID") {
+        // Falling back to the bot's own account would read the wrong history
+        // and report nothing found, which looks like a bug in the backfill.
+        const scoped_env set("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", "not-an-id");
+        CHECK_THROWS_WITH(recompute_bot_id_from_environment(true), ContainsSubstring("LATIBOT_DEBUG_RECOMPUTE_BOT_ID"));
+        CHECK_FALSE(recompute_bot_id_from_environment(false).has_value());
+    }
+}
+
+TEST_CASE("loading the configuration applies the recompute bot override as the build allows", "[config][fs]") {
+    const scoped_env set("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", "123456789012345678");
+    const temp_directory folder;
+    const auto loaded = bootstrap::load(folder.path() / "missing.json");
+
+    if (latibot::config::reads_debug_overrides) {
+        CHECK(loaded.recompute_bot_id == dpp::snowflake{123456789012345678});
+    } else {
+        CHECK_FALSE(loaded.recompute_bot_id.has_value());
+    }
+}

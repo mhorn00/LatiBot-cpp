@@ -1,10 +1,13 @@
 #include "core/config/bootstrap.hpp"
 
 #include "core/util/env.hpp"
+#include "core/util/text.hpp"
 
 #include <dpp/json.h>
 
 #include <algorithm>
+#include <charconv>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 
@@ -164,6 +167,8 @@ bootstrap bootstrap::load(const std::filesystem::path& path) {
         config.log_level = *wanted;
     }
 
+    config.recompute_bot_id = recompute_bot_id_from_environment();
+
     return config;
 }
 
@@ -178,6 +183,35 @@ std::optional<util::log_level> log_level_from_environment() {
         throw config_error("LATIBOT_LOG_LEVEL is \"" + *wanted + "\", expected: trace, debug, info, warn, error, off");
     }
     return level;
+}
+
+std::optional<dpp::snowflake> parse_snowflake(std::string_view text) {
+    text = util::trim(text);
+    std::uint64_t value = 0;
+    const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (text.empty() || error != std::errc{} || stop != text.data() + text.size() || value == 0) {
+        return std::nullopt;
+    }
+    return dpp::snowflake(value);
+}
+
+std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build) {
+    constexpr const char* name = "LATIBOT_DEBUG_RECOMPUTE_BOT_ID";
+    const auto wanted = util::env_var(name);
+    if (!wanted || wanted->empty()) {
+        return std::nullopt;
+    }
+
+    if (!debug_build) {
+        util::log().warn("{} is set and ignored: it only applies to debug builds", name);
+        return std::nullopt;
+    }
+
+    const auto id = parse_snowflake(*wanted);
+    if (!id) {
+        throw config_error(std::string(name) + " is \"" + *wanted + "\", expected a Discord user ID");
+    }
+    return id;
 }
 
 bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const {
