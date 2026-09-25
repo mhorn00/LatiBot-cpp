@@ -6,6 +6,7 @@
 
 #include <dpp/appcommand.h>
 #include <dpp/message.h>
+#include <dpp/permissions.h>
 
 #include <chrono>
 #include <cstddef>
@@ -77,6 +78,14 @@ inline constexpr std::string_view board_view = "linkboard";
 /// report (plan §9.7).
 [[nodiscard]] std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished);
 
+/// Why the invoker may not run `/linkstats <group> <action>`, or nothing when
+/// they may.
+///
+/// Reading is open to everyone; changing aliases and recomputing need Manage
+/// Server. Discord's default permissions are per command, not per
+/// subcommand, so this is the only check these get (plan §21.13).
+[[nodiscard]] std::optional<std::string> linkstats_refusal(std::string_view group, std::string_view action, dpp::permission invoker);
+
 /// What `/linkstats recompute` needs from outside the statistics.
 struct recompute_support {
     events::backfill_service* service = nullptr;
@@ -94,8 +103,7 @@ struct recompute_support {
 /// `/linkstats top | user | emojis | alias …` (plan §9.6).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
-/// checked here because Discord's default permissions are per command, not
-/// per subcommand.
+/// which `linkstats_refusal` decides before any subcommand runs.
 class linkstats_command final : public command {
 public:
     /// Without `recompute`, the recompute subcommands say they are not

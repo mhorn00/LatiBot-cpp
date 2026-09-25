@@ -299,6 +299,20 @@ TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {
     CHECK(latibot::ui::decode(form.custom_id)->argument == "x.com");
 }
 
+TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebody else", "[commands]") {
+    // Everyone may run /urltoggle, so Discord's permissions cannot tell the
+    // two apart; this is the check (plan §21.13).
+    using latibot::commands::urltoggle_refusal;
+    const dpp::snowflake me{1};
+    const dpp::snowflake them{2};
+
+    CHECK_FALSE(urltoggle_refusal(me, me, dpp::permission{}).has_value());
+    CHECK(urltoggle_refusal(me, them, dpp::permission{}) == "changing that for somebody else needs Manage Server");
+    CHECK(urltoggle_refusal(me, them, dpp::permission(dpp::p_manage_messages)).has_value());
+    CHECK_FALSE(urltoggle_refusal(me, them, dpp::permission(dpp::p_manage_guild)).has_value());
+    CHECK_FALSE(urltoggle_refusal(me, them, dpp::permission(dpp::p_administrator)).has_value());
+}
+
 TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
     store_fixture fixture;
     const latibot::commands::urlrepl_command urlrepl(fixture.store);

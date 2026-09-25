@@ -615,8 +615,28 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
+std::optional<std::string> linkstats_refusal(std::string_view group, std::string_view action, dpp::permission invoker) {
+    if (invoker.can(dpp::p_manage_guild)) {
+        return std::nullopt;
+    }
+    if (group == "alias" && action != "list") {
+        return "changing emoji aliases needs Manage Server";
+    }
+    // Reading years of history is a lot of API calls; this one is for the
+    // people who run the server (plan §9.7).
+    if (group == "recompute") {
+        return "recomputing link stats needs Manage Server";
+    }
+    return std::nullopt;
+}
+
 dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
     const auto [group, action] = group_and_action(event);
+
+    if (const auto refused = linkstats_refusal(group, action, invoker_permissions(event))) {
+        co_await event.co_reply(refusal(event, *refused));
+        co_return;
+    }
 
     if (group == "alias") {
         co_await this->alias(event, action);
@@ -680,11 +700,7 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
         co_return;
     }
 
-    if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(refusal(event, "changing emoji aliases needs Manage Server"));
-        co_return;
-    }
-
+    // Changing them needs Manage Server, which execute has checked.
     const auto emoji = resolve_emoji(*store_, guild, string_option(event, "emoji"));
     if (!emoji) {
         co_await event.co_reply(refusal(event, "i don't know that emoji; pick one from the list as you type"));
@@ -726,15 +742,9 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
 }
 
 dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, const std::string& action) {
+    // Manage Server has been checked by execute.
     if (recompute_.service == nullptr || recompute_.discord == nullptr) {
         co_await event.co_reply(refusal(event, "recomputing isn't available in this build"));
-        co_return;
-    }
-
-    // Reading years of history is a lot of API calls; this one is for the
-    // people who run the server (plan §9.7).
-    if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(refusal(event, "recomputing link stats needs Manage Server"));
         co_return;
     }
 

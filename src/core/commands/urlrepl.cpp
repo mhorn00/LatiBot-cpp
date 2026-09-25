@@ -542,6 +542,13 @@ dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
 // /urltoggle
 // --------------------------------------------------------------------------
 
+std::optional<std::string> urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions) {
+    if (target == invoker || permissions.can(dpp::p_manage_guild)) {
+        return std::nullopt;
+    }
+    return "changing that for somebody else needs Manage Server";
+}
+
 urltoggle_command::urltoggle_command(events::url_rule_store& store)
     : info_{.name = "urltoggle",
             .description = "Stop the bot replacing your links here, or start again.",
@@ -568,8 +575,8 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
     const dpp::snowflake target = other == nullptr ? invoker.id : *other;
     const bool self = target == invoker.id;
 
-    if (!self && !invoker_permissions(event).can(dpp::p_manage_guild)) {
-        co_await event.co_reply(refusal(event, "changing that for somebody else needs Manage Server"));
+    if (const auto refused = urltoggle_refusal(invoker.id, target, invoker_permissions(event))) {
+        co_await event.co_reply(refusal(event, *refused));
         co_return;
     }
 

@@ -4,8 +4,10 @@
 #include "core/events/url_rules.hpp"
 
 #include <dpp/appcommand.h>
+#include <dpp/permissions.h>
 
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -107,12 +109,19 @@ private:
     events::url_rule_store* store_;
 };
 
-/// `/urltoggle [user]`: leave somebody's links alone, or stop doing so.
+/// Why `invoker` may not change whether `target`'s links are replaced, or
+/// nothing when they may.
 ///
 /// Anyone can toggle themselves. Toggling somebody else needs Manage Server,
 /// the permission that manages the rules, which the Java `/toggle` did not
-/// ask for at all. The choice is kept, per guild; the Java list was in memory
-/// and gone at the next restart.
+/// ask for at all. Discord cannot check this for us: everyone may run
+/// `/urltoggle`, and the difference is in an option (plan §21.13).
+[[nodiscard]] std::optional<std::string> urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions);
+
+/// `/urltoggle [user]`: leave somebody's links alone, or stop doing so.
+///
+/// Who may do it for whom is `urltoggle_refusal`. The choice is kept, per
+/// guild; the Java list was in memory and gone at the next restart.
 class urltoggle_command final : public command {
 public:
     explicit urltoggle_command(events::url_rule_store& store);

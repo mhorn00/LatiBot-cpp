@@ -287,6 +287,14 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     `recompute` is handed the right text channels from DPP's cache, is not.
     Whether a given mirror actually produces a preview is a question only
     real Discord answers, which is what `[live]` tests are for.
+- **No command's `execute()` is tested.** Replying needs `event.co_reply`,
+  and that needs a `dpp::cluster`, so which branch of a handler answers with
+  what, and whether as a result or a refusal, is unchecked; so is that
+  `/urlrepl set` actually stores the rule. What the handlers decide is pulled
+  out where it matters and tested: the renderers, `plan_say` and `plan_join`,
+  and the permission checks Discord cannot make for us, `urltoggle_refusal`
+  and `linkstats_refusal`. That each handler calls them is not. A seam for
+  replies, which `execute()` would receive, would close this.
 - **A failed command's apology is only sent with a cluster behind it.** What
   it says and the flags it carries come from `command::refusal`, which is
   tested; the reply, and the follow-up when the command had already replied,

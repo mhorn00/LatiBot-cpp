@@ -12,7 +12,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <cstdint>
+#include <format>
 #include <string>
+#include <string_view>
+#include <utility>
 
 using latibot::commands::board;
 using latibot::commands::parse_day;
@@ -50,6 +54,68 @@ struct fixture {
 };
 
 } // namespace
+
+TEST_CASE("changing aliases and recomputing need Manage Server, and reading does not", "[commands]") {
+    // Discord's default permissions cover the whole command, and the command
+    // is open to everyone, so this is the only thing standing between anybody
+    // and a recompute of years of history (plan §21.13).
+    using latibot::commands::linkstats_refusal;
+    using call = std::pair<std::string_view, std::string_view>;
+
+    const dpp::permission nobody{};
+    const dpp::permission manager(dpp::p_manage_guild);
+    const dpp::permission administrator(dpp::p_administrator);
+    const dpp::permission moderator(dpp::p_manage_messages);
+
+    for (const call& open : {call{"", "top"}, call{"", "user"}, call{"", "emojis"}, call{"alias", "list"}}) {
+        INFO(open.first << " " << open.second);
+        CHECK_FALSE(linkstats_refusal(open.first, open.second, nobody).has_value());
+    }
+
+    for (const call& gated : {call{"alias", "add"}, call{"alias", "remove"}, call{"recompute", "start"}, call{"recompute", "cancel"}}) {
+        INFO(gated.first << " " << gated.second);
+        CHECK(linkstats_refusal(gated.first, gated.second, nobody).has_value());
+        CHECK(linkstats_refusal(gated.first, gated.second, moderator).has_value());
+        CHECK_FALSE(linkstats_refusal(gated.first, gated.second, manager).has_value());
+        CHECK_FALSE(linkstats_refusal(gated.first, gated.second, administrator).has_value());
+    }
+
+    CHECK(linkstats_refusal("alias", "add", nobody) == "changing emoji aliases needs Manage Server");
+    CHECK(linkstats_refusal("recompute", "start", nobody) == "recomputing link stats needs Manage Server");
+}
+
+TEST_CASE("custom emojis that share a name are listed as likely duplicates", "[commands]") {
+    fixture test;
+    CHECK(latibot::commands::render_duplicates(test.reactions, guild).starts_with("No two custom emojis here share a name"));
+
+    // A second emote called skull, as when one is uploaded twice.
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "skull"), day_one);
+
+    const std::string text = latibot::commands::render_duplicates(test.reactions, guild);
+    CHECK(text.find("- **skull**: ") != std::string::npos);
+    CHECK(text.find("/linkstats alias add") != std::string::npos);
+}
+
+TEST_CASE("aliases are listed as what counts as what, within Discord's limit", "[commands]") {
+    fixture test;
+    CHECK(latibot::commands::render_aliases(test.reactions, guild).starts_with("No emoji aliases here."));
+
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "skull"), day_one);
+    REQUIRE_FALSE(test.reactions.set_alias(guild, "c:78", "c:77").has_value());
+
+    const std::string one = latibot::commands::render_aliases(test.reactions, guild);
+    const std::size_t line = one.find(" counts as ");
+    REQUIRE(line != std::string::npos);
+    CHECK(one.find("78") < line);
+    CHECK(one.find("77") > line);
+
+    for (std::uint64_t index = 0; index < 200; ++index) {
+        REQUIRE_FALSE(test.reactions.set_alias(guild, std::format("c:{}", 1000 + index), "c:77").has_value());
+    }
+    const std::string many = latibot::commands::render_aliases(test.reactions, guild);
+    CHECK(many.size() <= 2000);
+    CHECK(many.ends_with("…and more\n"));
+}
 
 TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
     CHECK(parse_day("2024-02-29") == std::chrono::sys_days{std::chrono::year{2024} / 2 / 29});
