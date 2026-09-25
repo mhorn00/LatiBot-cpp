@@ -1,6 +1,8 @@
 #include "core/commands/nickname.hpp"
 #include "core/ui/paginator.hpp"
 
+#include "support/discord_limits.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
@@ -56,6 +58,8 @@ TEST_CASE("a long history pages, and the buttons remember whose it is", "[comman
     const dpp::message reply = render_nickname_history(history, member, 1);
 
     CHECK(reply.content.find("Page 2 of 2") != std::string::npos);
+    latibot::testing::check_message_fits(reply);
+    latibot::testing::check_message_fits(render_nickname_history(history, member, 0));
 
     // The second page holds the older half.
     CHECK(reply.content.find(std::format("name {}", nicknames_per_page)) != std::string::npos);

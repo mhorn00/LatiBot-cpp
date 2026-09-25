@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-466 test cases across 9 components, including 100 sections.
+468 test cases across 9 components, including 100 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 104 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 107 | 26 |
+| [commands](#commands) | 109 | 26 |
 | [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -195,32 +195,32 @@ Command framework (`src/core/commands`)
 | the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:98](../../tests/unit/command_responses_test.cpp#L98) |
 | the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
 | only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:131](../../tests/unit/command_responses_test.cpp#L131) |
-| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:52](../../tests/unit/linkstats_command_test.cpp#L52) |
-| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:61](../../tests/unit/linkstats_command_test.cpp#L61) |
-| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:71](../../tests/unit/linkstats_command_test.cpp#L71) |
-| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:80](../../tests/unit/linkstats_command_test.cpp#L80) |
-| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:87](../../tests/unit/linkstats_command_test.cpp#L87) |
-| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:96](../../tests/unit/linkstats_command_test.cpp#L96) |
-| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:105](../../tests/unit/linkstats_command_test.cpp#L105) |
-| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:121](../../tests/unit/linkstats_command_test.cpp#L121) |
-| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:134](../../tests/unit/linkstats_command_test.cpp#L134) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:176](../../tests/unit/linkstats_command_test.cpp#L176) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:195](../../tests/unit/linkstats_command_test.cpp#L195) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:234](../../tests/unit/linkstats_command_test.cpp#L234) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:259](../../tests/unit/linkstats_command_test.cpp#L259) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:282](../../tests/unit/linkstats_command_test.cpp#L282) |
+| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:54](../../tests/unit/linkstats_command_test.cpp#L54) |
+| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:63](../../tests/unit/linkstats_command_test.cpp#L63) |
+| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:73](../../tests/unit/linkstats_command_test.cpp#L73) |
+| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:82](../../tests/unit/linkstats_command_test.cpp#L82) |
+| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:89](../../tests/unit/linkstats_command_test.cpp#L89) |
+| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:98](../../tests/unit/linkstats_command_test.cpp#L98) |
+| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:107](../../tests/unit/linkstats_command_test.cpp#L107) |
+| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:123](../../tests/unit/linkstats_command_test.cpp#L123) |
+| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:136](../../tests/unit/linkstats_command_test.cpp#L136) |
+| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:178](../../tests/unit/linkstats_command_test.cpp#L178) |
+| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:197](../../tests/unit/linkstats_command_test.cpp#L197) |
+| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:238](../../tests/unit/linkstats_command_test.cpp#L238) |
+| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:263](../../tests/unit/linkstats_command_test.cpp#L263) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:286](../../tests/unit/linkstats_command_test.cpp#L286) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
 | an entry that has posted says when |  |  | [tests/unit/midnight_command_test.cpp:49](../../tests/unit/midnight_command_test.cpp#L49) |
 | every entry appears in the list |  |  | [tests/unit/midnight_command_test.cpp:59](../../tests/unit/midnight_command_test.cpp#L59) |
 | an entry that notifies or hides previews says so |  |  | [tests/unit/midnight_command_test.cpp:69](../../tests/unit/midnight_command_test.cpp#L69) |
-| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:35](../../tests/unit/nickname_command_test.cpp#L35) |
-| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:44](../../tests/unit/nickname_command_test.cpp#L44) |
-| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:54](../../tests/unit/nickname_command_test.cpp#L54) |
-| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:76](../../tests/unit/nickname_command_test.cpp#L76) |
-| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:85](../../tests/unit/nickname_command_test.cpp#L85) |
-| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:92](../../tests/unit/nickname_command_test.cpp#L92) |
+| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:37](../../tests/unit/nickname_command_test.cpp#L37) |
+| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:46](../../tests/unit/nickname_command_test.cpp#L46) |
+| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:56](../../tests/unit/nickname_command_test.cpp#L56) |
+| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:80](../../tests/unit/nickname_command_test.cpp#L80) |
+| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:89](../../tests/unit/nickname_command_test.cpp#L89) |
+| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:96](../../tests/unit/nickname_command_test.cpp#L96) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -239,40 +239,42 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:237](../../tests/unit/registry_test.cpp#L237) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:252](../../tests/unit/registry_test.cpp#L252) |
-| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:18](../../tests/unit/trigger_command_test.cpp#L18) |
-| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:27](../../tests/unit/trigger_command_test.cpp#L27) |
-| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:37](../../tests/unit/trigger_command_test.cpp#L37) |
-| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:48](../../tests/unit/trigger_command_test.cpp#L48) |
-| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:56](../../tests/unit/trigger_command_test.cpp#L56) |
-| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:63](../../tests/unit/trigger_command_test.cpp#L63) |
-| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:73](../../tests/unit/trigger_command_test.cpp#L73) |
-| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:100](../../tests/unit/trigger_command_test.cpp#L100) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:122](../../tests/unit/trigger_command_test.cpp#L122) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:137](../../tests/unit/trigger_command_test.cpp#L137) |
-| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:155](../../tests/unit/trigger_command_test.cpp#L155) |
-| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:189](../../tests/unit/trigger_command_test.cpp#L189) |
-| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:198](../../tests/unit/trigger_command_test.cpp#L198) |
-| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:208](../../tests/unit/trigger_command_test.cpp#L208) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:251](../../tests/unit/trigger_command_test.cpp#L251) |
-| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:71](../../tests/unit/urlrepl_command_test.cpp#L71) |
-| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:84](../../tests/unit/urlrepl_command_test.cpp#L84) |
-| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:88](../../tests/unit/urlrepl_command_test.cpp#L88) |
-| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:93](../../tests/unit/urlrepl_command_test.cpp#L93) |
-| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:101](../../tests/unit/urlrepl_command_test.cpp#L101) |
-| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:110](../../tests/unit/urlrepl_command_test.cpp#L110) |
-| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:121](../../tests/unit/urlrepl_command_test.cpp#L121) |
-| the dry run works while replacement is off, and says that it is |  |  | [tests/unit/urlrepl_command_test.cpp:126](../../tests/unit/urlrepl_command_test.cpp#L126) |
-| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:136](../../tests/unit/urlrepl_command_test.cpp#L136) |
-| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:142](../../tests/unit/urlrepl_command_test.cpp#L142) |
-| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:158](../../tests/unit/urlrepl_command_test.cpp#L158) |
-| the list and the panel say whether replacement is on |  |  | [tests/unit/urlrepl_command_test.cpp:165](../../tests/unit/urlrepl_command_test.cpp#L165) |
-| the panel's switch asks for the opposite of what is set |  |  | [tests/unit/urlrepl_command_test.cpp:177](../../tests/unit/urlrepl_command_test.cpp#L177) |
-| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:202](../../tests/unit/urlrepl_command_test.cpp#L202) |
-| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:221](../../tests/unit/urlrepl_command_test.cpp#L221) |
-| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:237](../../tests/unit/urlrepl_command_test.cpp#L237) |
-| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:255](../../tests/unit/urlrepl_command_test.cpp#L255) |
-| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:266](../../tests/unit/urlrepl_command_test.cpp#L266) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:293](../../tests/unit/urlrepl_command_test.cpp#L293) |
+| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:21](../../tests/unit/trigger_command_test.cpp#L21) |
+| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:30](../../tests/unit/trigger_command_test.cpp#L30) |
+| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:40](../../tests/unit/trigger_command_test.cpp#L40) |
+| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:51](../../tests/unit/trigger_command_test.cpp#L51) |
+| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:59](../../tests/unit/trigger_command_test.cpp#L59) |
+| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:66](../../tests/unit/trigger_command_test.cpp#L66) |
+| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:76](../../tests/unit/trigger_command_test.cpp#L76) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:103](../../tests/unit/trigger_command_test.cpp#L103) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:125](../../tests/unit/trigger_command_test.cpp#L125) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:140](../../tests/unit/trigger_command_test.cpp#L140) |
+| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:158](../../tests/unit/trigger_command_test.cpp#L158) |
+| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:175](../../tests/unit/trigger_command_test.cpp#L175) |
+| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:198](../../tests/unit/trigger_command_test.cpp#L198) |
+| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:207](../../tests/unit/trigger_command_test.cpp#L207) |
+| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:217](../../tests/unit/trigger_command_test.cpp#L217) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:257](../../tests/unit/trigger_command_test.cpp#L257) |
+| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
+| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
+| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |
+| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:75](../../tests/unit/urlrepl_command_test.cpp#L75) |
+| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:83](../../tests/unit/urlrepl_command_test.cpp#L83) |
+| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:92](../../tests/unit/urlrepl_command_test.cpp#L92) |
+| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:103](../../tests/unit/urlrepl_command_test.cpp#L103) |
+| the dry run works while replacement is off, and says that it is |  |  | [tests/unit/urlrepl_command_test.cpp:108](../../tests/unit/urlrepl_command_test.cpp#L108) |
+| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:118](../../tests/unit/urlrepl_command_test.cpp#L118) |
+| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:124](../../tests/unit/urlrepl_command_test.cpp#L124) |
+| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:140](../../tests/unit/urlrepl_command_test.cpp#L140) |
+| a long list pages |  |  | [tests/unit/urlrepl_command_test.cpp:147](../../tests/unit/urlrepl_command_test.cpp#L147) |
+| the list and the panel say whether replacement is on |  |  | [tests/unit/urlrepl_command_test.cpp:161](../../tests/unit/urlrepl_command_test.cpp#L161) |
+| the panel's switch asks for the opposite of what is set |  |  | [tests/unit/urlrepl_command_test.cpp:173](../../tests/unit/urlrepl_command_test.cpp#L173) |
+| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:198](../../tests/unit/urlrepl_command_test.cpp#L198) |
+| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:217](../../tests/unit/urlrepl_command_test.cpp#L217) |
+| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:233](../../tests/unit/urlrepl_command_test.cpp#L233) |
+| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:251](../../tests/unit/urlrepl_command_test.cpp#L251) |
+| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:262](../../tests/unit/urlrepl_command_test.cpp#L262) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:278](../../tests/unit/urlrepl_command_test.cpp#L278) |
 
 ## events
 
@@ -294,9 +296,9 @@ Message pipeline and triggers (`src/core/events`)
 | a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:267](../../tests/db/backfill_test.cpp#L267) |
 | one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:280](../../tests/db/backfill_test.cpp#L280) |
 | without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:298](../../tests/db/backfill_test.cpp#L298) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:116](../../tests/unit/embed_watch_test.cpp#L116) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:126](../../tests/unit/embed_watch_test.cpp#L126) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:134](../../tests/unit/embed_watch_test.cpp#L134) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:117](../../tests/unit/embed_watch_test.cpp#L117) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:127](../../tests/unit/embed_watch_test.cpp#L127) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:135](../../tests/unit/embed_watch_test.cpp#L135) |
 | a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:149](../../tests/unit/embed_watch_test.cpp#L149) |
 | with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:159](../../tests/unit/embed_watch_test.cpp#L159) |
 | previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:165](../../tests/unit/embed_watch_test.cpp#L165) |

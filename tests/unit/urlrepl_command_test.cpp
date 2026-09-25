@@ -6,6 +6,8 @@
 #include "core/events/url_rules.hpp"
 #include "core/ui/paginator.hpp"
 
+#include "support/discord_limits.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
@@ -41,26 +43,6 @@ struct store_fixture {
 
     store_fixture() { latibot::db::migrate(db); }
 };
-
-/// Every custom_id and label on a message, checked against Discord's limits
-/// (plan v4 §21.4).
-void check_components_fit(const dpp::message& message) {
-    CHECK(message.components.size() <= 5);
-    for (const dpp::component& row : message.components) {
-        CHECK(row.components.size() <= 5);
-        for (const dpp::component& part : row.components) {
-            INFO("custom_id: " << part.custom_id);
-            CHECK(part.custom_id.size() <= latibot::ui::custom_id_limit);
-            CHECK(part.label.size() <= 80);
-            CHECK(part.options.size() <= 25);
-            for (const dpp::select_option& option : part.options) {
-                CHECK(option.label.size() <= 100);
-                CHECK(option.value.size() <= 100);
-                CHECK(option.description.size() <= 100);
-            }
-        }
-    }
-}
 
 } // namespace
 
@@ -162,6 +144,20 @@ TEST_CASE("an empty list says how to start one", "[commands]") {
     CHECK(message.components.empty());
 }
 
+TEST_CASE("a long list pages", "[commands]") {
+    store_fixture fixture;
+    for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "f.com", "g.com", "h.com", "i.com", "j.com", "k.com"}) {
+        fixture.store.set(guild, rule_from(domain, "mirror.example"));
+    }
+
+    // First, middle and last: the paging buttons clamp at either end.
+    for (const int page : {0, 1, 2}) {
+        const auto list = latibot::commands::render_url_rule_list(fixture.store, guild, page);
+        latibot::testing::check_message_fits(list);
+        CHECK(list.components.size() == 1);
+    }
+}
+
 TEST_CASE("the list and the panel say whether replacement is on", "[commands]") {
     store_fixture fixture;
     fixture.store.set(guild, rule_from("x.com", "fxtwitter.com"));
@@ -180,7 +176,7 @@ TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]
     using label_and_argument = std::pair<std::string, std::string>;
     const auto find_switch = [&]() -> std::optional<label_and_argument> {
         const auto panel = latibot::commands::render_url_panel(fixture.store, guild, 0);
-        check_components_fit(panel);
+        latibot::testing::check_message_fits(panel);
         for (const dpp::component& row : panel.components) {
             for (const dpp::component& part : row.components) {
                 const auto state = latibot::ui::decode(part.custom_id);
@@ -227,7 +223,7 @@ TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]
     const auto first = latibot::commands::render_url_panel(fixture.store, guild, 0);
     CHECK(first.content.find("**a.com**") != std::string::npos);
     CHECK(first.content.find("**f.com**") == std::string::npos);
-    check_components_fit(first);
+    latibot::testing::check_message_fits(first);
 
     // Menu and footer; no Edit/Delete until something is picked.
     REQUIRE(first.components.size() == 2);
@@ -240,7 +236,7 @@ TEST_CASE("picking a rule offers Edit and Delete for it", "[commands]") {
 
     const auto picked = latibot::commands::render_url_panel(fixture.store, guild, 0, "x.com");
     REQUIRE(picked.components.size() == 3);
-    check_components_fit(picked);
+    latibot::testing::check_message_fits(picked);
 
     const auto& row = picked.components[1].components;
     REQUIRE(row.size() == 2);
@@ -269,19 +265,8 @@ TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {
     const std::array<const url_rule*, 2> shapes{nullptr, &existing};
     for (const url_rule* rule : shapes) {
         const auto form = latibot::commands::url_rule_form(0, rule);
-
-        CHECK(form.title.size() <= 45);
-        CHECK(form.custom_id.size() <= latibot::ui::custom_id_limit);
-        REQUIRE(form.components.size() == 2);
-
-        for (const auto& row : form.components) {
-            for (const dpp::component& input : row) {
-                INFO("label: " << input.label);
-                CHECK_FALSE(input.label.empty());
-                CHECK(input.label.size() <= 45);
-                CHECK(input.placeholder.size() <= 100);
-            }
-        }
+        latibot::testing::check_modal_fits(form);
+        CHECK(form.components.size() == 2);
     }
 
     // Editing shows the mirrors one per line, in order, ready to reorder.

@@ -7,6 +7,8 @@
 #include "core/events/replacements.hpp"
 #include "core/ui/paginator.hpp"
 
+#include "support/discord_limits.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
@@ -214,6 +216,7 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
     CHECK(first.content.find("Page 1 of 2") != std::string::npos);
     CHECK(first.content.find("10. ") != std::string::npos);
     CHECK(first.content.find("11. ") == std::string::npos);
+    latibot::testing::check_message_fits(first);
     REQUIRE(first.components.size() == 1);
 
     // The ▶ button carries the filters; decoding them gives the same board.
@@ -229,6 +232,7 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
     CHECK(second.content.find("Page 2 of 2") != std::string::npos);
     CHECK(second.content.find("11. ") != std::string::npos);
     CHECK(second.content.find("13. ") != std::string::npos);
+    latibot::testing::check_message_fits(second);
 }
 
 TEST_CASE("a board's filters survive the trip through a button", "[commands]") {

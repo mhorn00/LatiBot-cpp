@@ -12,6 +12,7 @@
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
+#include "support/discord_limits.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -135,12 +136,11 @@ TEST_CASE("a failure note turns its own previews off and carries Retry", "[event
     const dpp::message edit = latibot::events::build_edit({.channel_id = channel, .message_id = ours, .content = "nope", .failed = true});
 
     CHECK((edit.flags & dpp::m_suppress_embeds) != 0);
+    latibot::testing::check_message_fits(edit);
     REQUIRE(edit.components.size() == 1);
     REQUIRE(edit.components[0].components.size() == 1);
 
-    const std::string& id = edit.components[0].components[0].custom_id;
-    CHECK(id.size() <= latibot::ui::custom_id_limit);
-    const auto state = latibot::ui::decode(id);
+    const auto state = latibot::ui::decode(edit.components[0].components[0].custom_id);
     REQUIRE(state.has_value());
     CHECK(state->view == latibot::events::url_retry_view);
     CHECK(state->argument == ours.str());
