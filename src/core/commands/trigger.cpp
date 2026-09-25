@@ -421,8 +421,12 @@ std::optional<dpp::component> selection_row(std::span<const events::trigger> pag
     row.set_type(dpp::cot_action_row);
 
     if (confirming_delete) {
+        // Cancel carries the trigger, which puts it back as it was, picked.
+        // Without it, Cancel would be the same panel state as ◀ on the first
+        // page or ▶ on the last, and Discord refuses a message that has one
+        // custom_id twice.
         const auto yes = ui::encode({.view = std::string(trigger_confirm_view), .page = page, .argument = chosen});
-        const auto no = ui::encode({.view = std::string(trigger_panel_view), .page = page, .argument = {}});
+        const auto no = ui::encode({.view = std::string(trigger_panel_view), .page = page, .argument = chosen});
         if (!yes || !no) {
             return std::nullopt;
         }

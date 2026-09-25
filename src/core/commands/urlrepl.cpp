@@ -271,8 +271,11 @@ std::optional<dpp::component> selection_row(int page, std::string_view selected,
     row.set_type(dpp::cot_action_row);
 
     if (confirming_delete) {
+        // Cancel carries the rule, for the same reason as the trigger panel's:
+        // it puts the rule back as picked, and keeps Cancel from being the
+        // same custom_id as ◀ on the first page or ▶ on the last.
         const auto yes = ui::encode({.view = std::string(url_confirm_view), .page = page, .argument = chosen});
-        const auto no = ui::encode({.view = std::string(url_panel_view), .page = page, .argument = {}});
+        const auto no = ui::encode({.view = std::string(url_panel_view), .page = page, .argument = chosen});
         if (!yes || !no) {
             return std::nullopt;
         }

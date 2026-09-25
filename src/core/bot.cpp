@@ -722,7 +722,8 @@ bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
     if (state.view == commands::trigger_list_view) {
         update_panel(event, commands::render_trigger_list(triggers_, guild, state.page));
     } else if (state.view == commands::trigger_panel_view) {
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
+        // Paging carries no trigger; Cancel carries the one it was deleting.
+        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id));
     } else if (state.view == commands::trigger_pick_view) {
         std::int64_t picked = 0;
         const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
@@ -763,7 +764,8 @@ bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::pag
     if (state.view == commands::url_list_view) {
         update_panel(event, commands::render_url_rule_list(url_rules_, guild, state.page));
     } else if (state.view == commands::url_panel_view) {
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
+        // Paging carries no rule; Cancel carries the one it was deleting.
+        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, state.argument));
     } else if (state.view == commands::url_pick_view) {
         update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, chosen));
     } else if (state.view == commands::url_delete_view) {

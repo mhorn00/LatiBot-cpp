@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-468 test cases across 9 components, including 100 sections.
+470 test cases across 9 components, including 100 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 104 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 109 | 26 |
+| [commands](#commands) | 111 | 26 |
 | [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -254,7 +254,8 @@ Command framework (`src/core/commands`)
 | a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:198](../../tests/unit/trigger_command_test.cpp#L198) |
 | a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:207](../../tests/unit/trigger_command_test.cpp#L207) |
 | the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:217](../../tests/unit/trigger_command_test.cpp#L217) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:257](../../tests/unit/trigger_command_test.cpp#L257) |
+| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:257](../../tests/unit/trigger_command_test.cpp#L257) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:295](../../tests/unit/trigger_command_test.cpp#L295) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |
@@ -272,9 +273,10 @@ Command framework (`src/core/commands`)
 | turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:198](../../tests/unit/urlrepl_command_test.cpp#L198) |
 | the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:217](../../tests/unit/urlrepl_command_test.cpp#L217) |
 | picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:233](../../tests/unit/urlrepl_command_test.cpp#L233) |
-| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:251](../../tests/unit/urlrepl_command_test.cpp#L251) |
-| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:262](../../tests/unit/urlrepl_command_test.cpp#L262) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:278](../../tests/unit/urlrepl_command_test.cpp#L278) |
+| confirming a delete on the first or last page fits, and Cancel keeps the rule picked |  |  | [tests/unit/urlrepl_command_test.cpp:251](../../tests/unit/urlrepl_command_test.cpp#L251) |
+| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:275](../../tests/unit/urlrepl_command_test.cpp#L275) |
+| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:286](../../tests/unit/urlrepl_command_test.cpp#L286) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:302](../../tests/unit/urlrepl_command_test.cpp#L302) |
 
 ## events
 

@@ -254,6 +254,44 @@ TEST_CASE("the panel offers to change how a trigger's replies are posted", "[com
     CHECK(labels_for(latibot::commands::trigger_silent_view, confirming).empty());
 }
 
+TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the trigger picked", "[commands]") {
+    // Cancel once encoded the same state as ◀ on the first page and ▶ on
+    // the last, and Discord refuses a message with a custom_id twice.
+    latibot::db::database db{":memory:"};
+    latibot::db::migrate(db);
+    latibot::events::trigger_store store(db);
+    const dpp::snowflake guild{1000};
+
+    std::vector<std::int64_t> ids;
+    for (std::size_t index = 0; index <= latibot::commands::triggers_per_page; ++index) {
+        ids.push_back(store.add({.guild_id = guild,
+                                 .pattern = std::format("pattern {}", index),
+                                 .cooldown = 30s,
+                                 .enabled = true,
+                                 .responses = {{.text = "nice", .weight = 1}}}));
+    }
+
+    for (const auto& [page, id] : {std::pair{0, ids.front()}, std::pair{1, ids.back()}}) {
+        INFO("page " << page);
+        const auto confirming = latibot::commands::render_trigger_panel(store, guild, page, id, /*confirming_delete=*/true);
+        latibot::testing::check_message_fits(confirming);
+
+        const dpp::component* cancel_button = nullptr;
+        for (const dpp::component& row : confirming.components) {
+            for (const dpp::component& part : row.components) {
+                if (part.label == "Cancel") {
+                    cancel_button = &part;
+                }
+            }
+        }
+        REQUIRE(cancel_button != nullptr);
+        const auto cancel = latibot::ui::decode(cancel_button->custom_id);
+        REQUIRE(cancel.has_value());
+        CHECK(cancel->view == latibot::commands::trigger_panel_view);
+        CHECK(cancel->argument == std::to_string(id));
+    }
+}
+
 TEST_CASE("each panel toggle flips one thing and names it for the log", "[commands]") {
     using latibot::commands::toggle_for;
     latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};

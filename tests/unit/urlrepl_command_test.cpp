@@ -248,6 +248,30 @@ TEST_CASE("picking a rule offers Edit and Delete for it", "[commands]") {
     CHECK(latibot::ui::decode(confirming.components[1].components[0].custom_id)->view == latibot::commands::url_confirm_view);
 }
 
+TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the rule picked", "[commands]") {
+    // Cancel once encoded the same state as ◀ on the first page and ▶ on
+    // the last, and Discord refuses a message with a custom_id twice.
+    store_fixture fixture;
+    for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "f.com"}) {
+        fixture.store.set(guild, rule_from(domain, "mirror.example"));
+    }
+
+    for (const auto& [page, domain] : {std::pair{0, "a.com"}, std::pair{1, "f.com"}}) {
+        INFO("page " << page);
+        const auto confirming = latibot::commands::render_url_panel(fixture.store, guild, page, domain, /*confirming_delete=*/true);
+        latibot::testing::check_message_fits(confirming);
+
+        REQUIRE(confirming.components.size() == 3);
+        const auto& row = confirming.components[1].components;
+        REQUIRE(row.size() == 2);
+        CHECK(row[1].label == "Cancel");
+        const auto cancel = latibot::ui::decode(row[1].custom_id);
+        REQUIRE(cancel.has_value());
+        CHECK(cancel->view == latibot::commands::url_panel_view);
+        CHECK(cancel->argument == domain);
+    }
+}
+
 TEST_CASE("the panel follows a rule to the page it sorts onto", "[commands]") {
     store_fixture fixture;
     for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "z.com"}) {
