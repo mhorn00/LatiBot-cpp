@@ -81,11 +81,8 @@ TEST_CASE("a duplicate name or alias is refused", "[commands]") {
     }
 
     SECTION("a refused command leaves the registry untouched") {
-        try {
-            commands.add(std::make_unique<spy_command>(basic("status", {"p"})));
-        } catch (const registry_error&) {
-            // The clash is on the alias, so "status" must not be half-added.
-        }
+        // The clash is on the alias, so "status" must not be half-added.
+        CHECK_THROWS_AS(commands.add(std::make_unique<spy_command>(basic("status", {"p"}))), registry_error);
         CHECK(commands.size() == 1);
         CHECK(commands.find("status") == nullptr);
     }
@@ -125,7 +122,7 @@ TEST_CASE("required permissions are the union of every command's", "[commands]")
 TEST_CASE("dispatch runs the command registered under the name", "[commands][coro]") {
     registry commands;
     auto owned = std::make_unique<spy_command>(basic("ping", {"p"}));
-    spy_command* spy = owned.get();
+    const spy_command* spy = owned.get();
     commands.add(std::move(owned));
 
     const dpp::slashcommand_t event;

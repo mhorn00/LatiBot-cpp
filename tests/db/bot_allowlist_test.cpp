@@ -26,7 +26,7 @@ struct allowlist_fixture {
 TEST_CASE("nothing is allowed until somebody says so", "[db]") {
     // The safe default: a new server ignores every bot, because two bots
     // answering each other is the failure this list exists to prevent.
-    allowlist_fixture fixture;
+    const allowlist_fixture fixture;
 
     CHECK_FALSE(fixture.allowlist.contains(guild, friendly_bot));
     CHECK(fixture.allowlist.for_guild(guild).empty());

@@ -41,7 +41,7 @@ constexpr dpp::snowflake original{3000};
 constexpr dpp::snowflake ours{4000};
 constexpr dpp::snowflake author{5000};
 
-planned_link x_link(std::string path = "/a/status/1", bool spoilered = false) {
+planned_link x_link(const std::string& path = "/a/status/1", bool spoilered = false) {
     return {.original_url = "https://x.com" + path,
             .domain = "x.com",
             .spoilered = spoilered,
@@ -53,6 +53,17 @@ planned_link tiktok_link() {
             .domain = "tiktok.com",
             .spoilered = false,
             .mirrors = {{.host = "tfxktok.com", .translate_suffix = ""}}};
+}
+
+/// A watch on our message, as a fresh replacement or a Retry asks for one.
+watch_request request(std::vector<planned_link> links, bool retry = false) {
+    return {.guild_id = guild,
+            .channel_id = channel,
+            .message_id = ours,
+            .original_message_id = original,
+            .links = std::move(links),
+            .per_mirror = retry ? latibot::events::retry_attempts_per_mirror : latibot::events::attempts_per_mirror,
+            .retry = retry};
 }
 
 struct fixture {
@@ -79,16 +90,6 @@ struct fixture {
                              .created_at = std::chrono::floor<std::chrono::seconds>(clock.now()),
                              .retried_at = std::nullopt,
                              .links = std::move(links)});
-    }
-
-    watch_request request(std::vector<planned_link> links, bool retry = false) const {
-        return {.guild_id = guild,
-                .channel_id = channel,
-                .message_id = ours,
-                .original_message_id = original,
-                .links = std::move(links),
-                .per_mirror = retry ? latibot::events::retry_attempts_per_mirror : latibot::events::attempts_per_mirror,
-                .retry = retry};
     }
 
     [[nodiscard]] replacement_state state() const { return replacements.find(ours)->state; }
@@ -201,7 +202,7 @@ TEST_CASE("a preview on the first try settles the replacement", "[events]") {
     fixture test;
     test.record({x_link()});
 
-    CHECK(test.tracker.watch(test.request({x_link()})).empty());
+    CHECK(test.tracker.watch(request({x_link()})).empty());
     CHECK(test.tracker.watching(ours));
 
     CHECK(test.tracker.on_embeds(ours, embeds({"https://x.com/a/status/1"})).empty());
@@ -215,7 +216,7 @@ TEST_CASE("a preview on the first try settles the replacement", "[events]") {
 TEST_CASE("each mirror gets two tries, then the next one", "[events]") {
     fixture test;
     test.record({x_link()});
-    CHECK(test.tracker.watch(test.request({x_link()})).empty());
+    CHECK(test.tracker.watch(request({x_link()})).empty());
 
     SECTION("nothing happens before the time is up") {
         test.clock.advance(latibot::events::embed_timeout - 1s);
@@ -258,7 +259,7 @@ TEST_CASE("a watch whose ending cannot be recorded waits, and the others still f
     constexpr dpp::snowflake broken{4001};
 
     // One mirror, one try each, so a single timeout ends both.
-    watch_request mine = test.request({tiktok_link()});
+    watch_request mine = request({tiktok_link()});
     mine.per_mirror = 1;
     watch_request theirs = mine;
     theirs.message_id = broken;
@@ -307,7 +308,7 @@ TEST_CASE("each link in a message is tracked on its own", "[events]") {
     fixture test;
     const std::vector<planned_link> links{x_link("/a/status/1"), x_link("/b/status/2")};
     test.record(links);
-    CHECK(test.tracker.watch(test.request(links)).empty());
+    CHECK(test.tracker.watch(request(links)).empty());
 
     // The first link embeds; the second never does.
     CHECK(test.tracker.on_embeds(ours, embeds({"https://x.com/a/status/1"})).empty());
@@ -334,7 +335,7 @@ TEST_CASE("a preview that arrives before the watch starts is not lost", "[events
     test.record({x_link()});
 
     CHECK(test.tracker.on_embeds(ours, embeds({"https://x.com/a/status/1"})).empty());
-    CHECK(test.tracker.watch(test.request({x_link()})).empty());
+    CHECK(test.tracker.watch(request({x_link()})).empty());
 
     CHECK_FALSE(test.tracker.watching(ours));
     CHECK(test.state() == replacement_state::ok);
@@ -346,7 +347,7 @@ TEST_CASE("an early preview is forgotten after a while", "[events]") {
 
     CHECK(test.tracker.on_embeds(ours, embeds({"https://x.com/a/status/1"})).empty());
     test.clock.advance(1min);
-    CHECK(test.tracker.watch(test.request({x_link()})).empty());
+    CHECK(test.tracker.watch(request({x_link()})).empty());
     CHECK(test.tracker.watching(ours));
 }
 
@@ -355,14 +356,14 @@ TEST_CASE("previews already on the posted message count", "[events]") {
     test.record({x_link()});
     const auto urls = embeds({"https://x.com/a/status/1"});
 
-    CHECK(test.tracker.watch(test.request({x_link()}), urls).empty());
+    CHECK(test.tracker.watch(request({x_link()}), urls).empty());
     CHECK(test.state() == replacement_state::ok);
 }
 
 TEST_CASE("a deleted replacement is no longer followed", "[events]") {
     fixture test;
     test.record({x_link()});
-    CHECK(test.tracker.watch(test.request({x_link()})).empty());
+    CHECK(test.tracker.watch(request({x_link()})).empty());
 
     test.tracker.forget(ours);
     CHECK_FALSE(test.tracker.watching(ours));

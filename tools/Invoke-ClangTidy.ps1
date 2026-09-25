@@ -16,8 +16,10 @@
     missing you get the one command to run.
 
     Which headers are analysed, and which checks run, come from .clang-tidy
-    rather than from here. DPP's headers and Conan's are not ours to fix, and
-    one of them (DPP's cache.h) crashes a check outright.
+    rather than from here, and tests/.clang-tidy for the tests. DPP's headers
+    and Conan's are not ours to fix. Only files the compile database knows are
+    analysed; the fuzz targets, which only the fuzz preset builds, are skipped
+    and named.
 #>
 [CmdletBinding()]
 param(
@@ -60,6 +62,21 @@ try {
     } else {
         $roots = if ($IncludeTests) { @('src', 'tests') } else { @('src') }
         $sources = @(Get-OurSources -Roots $roots | Where-Object { $_ -like '*.cpp' })
+    }
+
+    # Only what the compile database can build. The fuzz targets, for one,
+    # are only configured by the fuzz preset, and without their compile
+    # command clang-tidy guesses at the flags and fails to compile them.
+    $database = Get-Content (Join-Path $tidyBuild 'compile_commands.json') -Raw | ConvertFrom-Json
+    $known = @{}
+    foreach ($entry in $database) {
+        $known[[System.IO.Path]::GetFullPath($entry.file).ToLowerInvariant()] = $true
+    }
+    $skipped = @($sources | Where-Object { -not $known.ContainsKey($_.ToLowerInvariant()) })
+    $sources = @($sources | Where-Object { $known.ContainsKey($_.ToLowerInvariant()) })
+    if ($skipped.Count -gt 0) {
+        $names = ($skipped | ForEach-Object { [System.IO.Path]::GetRelativePath($repo, $_) }) -join ', '
+        Write-Host "Skipping $($skipped.Count) file(s) the ninja-tidy build does not compile: $names"
     }
 
     if ($sources.Count -eq 0) {

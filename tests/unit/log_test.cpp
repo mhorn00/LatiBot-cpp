@@ -78,7 +78,7 @@ TEST_CASE("a message is never split between threads", "[log][threads]") {
     }
 
     const auto lines = captured.lines();
-    REQUIRE(lines.size() == thread_count * per_thread);
+    REQUIRE(lines.size() == static_cast<std::size_t>(thread_count) * per_thread);
     // Every line has to be one complete message: interleaving would leave
     // fragments that do not match the format.
     for (const auto& [level, message] : lines) {

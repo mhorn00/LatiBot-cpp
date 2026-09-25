@@ -62,6 +62,9 @@ struct response_overrides {
 ///
 /// `required_bot_permissions` feeds the startup permission check, which warns
 /// per guild instead of exiting (plan §7).
+// Moving one is only as noexcept as moving a std::map, which allocates on
+// MSVC. Only tests move a command_info, and nothing relies on it not throwing.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 struct command_info {
     std::string name;
     std::string description;

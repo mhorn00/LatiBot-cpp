@@ -26,7 +26,7 @@ constexpr dpp::snowflake guild_b{222222222222222222ULL};
 } // namespace
 
 TEST_CASE("an unset key falls back to the caller's default", "[config]") {
-    settings_fixture fixture;
+    const settings_fixture fixture;
 
     CHECK(fixture.settings.get(guild_a, "goodbye_message", "bye") == "bye");
     CHECK(fixture.settings.get_int(guild_a, "tts_max_seconds", 60) == 60);

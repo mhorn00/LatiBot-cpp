@@ -8,6 +8,7 @@
 
 #include <fstream>
 #include <string>
+#include <string_view>
 
 using latibot::events::import_nicknames;
 using latibot::events::import_nicknames_file;
@@ -27,7 +28,7 @@ struct store_fixture {
     store_fixture() { latibot::db::migrate(db); }
 };
 
-const std::string two_entries = R"json({
+constexpr std::string_view two_entries = R"json({
     "142409638556467200": [{
         "member": {"id": "111111111111111111", "username": "somebody"},
         "nicknames": [

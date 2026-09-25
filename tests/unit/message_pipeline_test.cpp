@@ -130,7 +130,7 @@ TEST_CASE("an allowed bot reaches the stages", "[events]") {
 TEST_CASE("a stage that throws is logged and the rest still run", "[events]") {
     // A stage escaping into DPP's event thread would take the process down,
     // and one broken feature should not silence every other.
-    latibot::testing::capture_log captured(latibot::util::log_level::error);
+    const latibot::testing::capture_log captured(latibot::util::log_level::error);
 
     std::vector<std::string> ran;
     pipeline stages;

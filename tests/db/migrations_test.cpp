@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <span>
 #include <string>
+#include <utility>
 
 using latibot::db::database;
 using latibot::db::db_error;
@@ -22,8 +23,8 @@ struct memory_database {
 };
 
 constexpr std::array<migration, 2> two_steps{{
-    {1, "first", "CREATE TABLE first_table (id INTEGER PRIMARY KEY);"},
-    {2, "second", "CREATE TABLE second_table (id INTEGER PRIMARY KEY);"},
+    {.version = 1, .name = "first", .sql = "CREATE TABLE first_table (id INTEGER PRIMARY KEY);"},
+    {.version = 2, .name = "second", .sql = "CREATE TABLE second_table (id INTEGER PRIMARY KEY);"},
 }};
 
 bool table_exists(database& db, std::string_view name) {
@@ -41,7 +42,7 @@ TEST_CASE("a fresh database migrates to the current schema", "[db]") {
 
     const int version = latibot::db::migrate(db);
 
-    CHECK(version == static_cast<int>(latibot::db::schema().size()));
+    CHECK(std::cmp_equal(version, latibot::db::schema().size()));
     CHECK(db.user_version() == version);
     CHECK(table_exists(db, "guild_settings"));
 }
@@ -76,8 +77,8 @@ TEST_CASE("a failing migration rolls back and keeps the previous version", "[db]
     database& db = fixture.db;
 
     constexpr std::array<migration, 2> broken{{
-        {1, "good", "CREATE TABLE good_table (id INTEGER PRIMARY KEY);"},
-        {2, "bad", "CREATE TABLE half_table (id INTEGER PRIMARY KEY); THIS IS NOT SQL;"},
+        {.version = 1, .name = "good", .sql = "CREATE TABLE good_table (id INTEGER PRIMARY KEY);"},
+        {.version = 2, .name = "bad", .sql = "CREATE TABLE half_table (id INTEGER PRIMARY KEY); THIS IS NOT SQL;"},
     }};
 
     REQUIRE_THROWS_AS(latibot::db::migrate(db, broken), db_error);
@@ -93,8 +94,8 @@ TEST_CASE("a gap in the migration versions is rejected", "[db]") {
     database& db = fixture.db;
 
     constexpr std::array<migration, 2> gapped{{
-        {1, "first", "CREATE TABLE first_table (id INTEGER PRIMARY KEY);"},
-        {3, "skips two", "CREATE TABLE third_table (id INTEGER PRIMARY KEY);"},
+        {.version = 1, .name = "first", .sql = "CREATE TABLE first_table (id INTEGER PRIMARY KEY);"},
+        {.version = 3, .name = "skips two", .sql = "CREATE TABLE third_table (id INTEGER PRIMARY KEY);"},
     }};
 
     REQUIRE_THROWS_AS(latibot::db::migrate(db, gapped), db_error);

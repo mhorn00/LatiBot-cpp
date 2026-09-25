@@ -89,7 +89,7 @@ public:
     }
 
     dpp::task<result<void>> set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) override {
-        suppressions.push_back({channel_id, message_id, suppressed});
+        suppressions.push_back({.channel_id = channel_id, .message_id = message_id, .suppressed = suppressed});
         if (!suppress_results.empty()) {
             auto scripted = std::move(suppress_results.front());
             suppress_results.pop_front();
@@ -111,7 +111,7 @@ public:
 
     dpp::task<result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id, dpp::snowflake before,
                                                               std::uint64_t limit) override {
-        history_requests.push_back({channel_id, before, limit});
+        history_requests.push_back({.channel_id = channel_id, .before = before, .limit = limit});
         if (!message_pages.empty()) {
             auto scripted = std::move(message_pages.front());
             message_pages.pop_front();
@@ -125,7 +125,7 @@ public:
     dpp::task<result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake message_id,
                                                                       std::string emoji, dpp::snowflake after,
                                                                       std::uint64_t /*limit*/) override {
-        reaction_requests.push_back({message_id, emoji, after});
+        reaction_requests.push_back({.message_id = message_id, .emoji = emoji, .after = after});
         if (!reaction_pages.empty()) {
             auto scripted = std::move(reaction_pages.front());
             reaction_pages.pop_front();

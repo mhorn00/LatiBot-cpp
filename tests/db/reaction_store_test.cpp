@@ -33,10 +33,27 @@ constexpr dpp::snowflake not_ours{999};
 
 const std::chrono::sys_seconds day_one{std::chrono::sys_days{std::chrono::year{2026} / 1 / 1}};
 
-const emoji_ref skull = reaction_emoji({}, "💀");
-const emoji_ref laugh = reaction_emoji({}, "😂");
-const emoji_ref custom_skull = reaction_emoji(dpp::snowflake{7001}, "skull");
-const emoji_ref custom_skull_again = reaction_emoji(dpp::snowflake{7002}, "Skull");
+// Functions rather than constants: building one allocates, and a static that
+// throws while the test binary is starting cannot be caught.
+const emoji_ref& skull() {
+    static const emoji_ref made = reaction_emoji({}, "💀");
+    return made;
+}
+
+const emoji_ref& laugh() {
+    static const emoji_ref made = reaction_emoji({}, "😂");
+    return made;
+}
+
+const emoji_ref& custom_skull() {
+    static const emoji_ref made = reaction_emoji(dpp::snowflake{7001}, "skull");
+    return made;
+}
+
+const emoji_ref& custom_skull_again() {
+    static const emoji_ref made = reaction_emoji(dpp::snowflake{7002}, "Skull");
+    return made;
+}
 
 struct store_fixture {
     latibot::db::database db{":memory:"};
@@ -77,31 +94,31 @@ struct store_fixture {
 TEST_CASE("only reactions on our replacements are counted", "[db]") {
     store_fixture fixture;
 
-    CHECK(fixture.reactions.add(alices_link, bob, skull, day_one));
-    CHECK_FALSE(fixture.reactions.add(not_ours, bob, skull, day_one));
+    CHECK(fixture.reactions.add(alices_link, bob, skull(), day_one));
+    CHECK_FALSE(fixture.reactions.add(not_ours, bob, skull(), day_one));
 
     // The same reaction twice is one reaction.
-    CHECK_FALSE(fixture.reactions.add(alices_link, bob, skull, day_one + 1s));
+    CHECK_FALSE(fixture.reactions.add(alices_link, bob, skull(), day_one + 1s));
 
     CHECK(fixture.count(stat_kind::received) == 1);
 }
 
 TEST_CASE("taking a reaction back removes it", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, skull, day_one);
+    fixture.reactions.add(alices_link, bob, skull(), day_one);
 
-    CHECK(fixture.reactions.remove(alices_link, bob, skull.key, day_one + 1min));
-    CHECK_FALSE(fixture.reactions.remove(alices_link, bob, skull.key, day_one + 2min));
+    CHECK(fixture.reactions.remove(alices_link, bob, skull().key, day_one + 1min));
+    CHECK_FALSE(fixture.reactions.remove(alices_link, bob, skull().key, day_one + 2min));
     CHECK(fixture.count(stat_kind::received) == 0);
 }
 
 TEST_CASE("a moderator clearing reactions clears the counts", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, skull, day_one);
-    fixture.reactions.add(alices_link, carol, skull, day_one);
-    fixture.reactions.add(alices_link, carol, laugh, day_one);
+    fixture.reactions.add(alices_link, bob, skull(), day_one);
+    fixture.reactions.add(alices_link, carol, skull(), day_one);
+    fixture.reactions.add(alices_link, carol, laugh(), day_one);
 
-    CHECK(fixture.reactions.remove_emoji(alices_link, skull.key, day_one + 1h) == 2);
+    CHECK(fixture.reactions.remove_emoji(alices_link, skull().key, day_one + 1h) == 2);
     CHECK(fixture.count(stat_kind::received) == 1);
 
     CHECK(fixture.reactions.remove_all(alices_link, day_one + 2h) == 1);
@@ -114,11 +131,11 @@ TEST_CASE("a moderator clearing reactions clears the counts", "[db]") {
 
 TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, skull, day_one);    // bob gives alice a skull
-    fixture.reactions.add(alices_link, carol, skull, day_one);  // carol gives alice a skull
-    fixture.reactions.add(alices_link, alice, laugh, day_one);  // alice laughs at her own link
-    fixture.reactions.add(bobs_link, alice, skull, day_one);    // alice gives bob a skull
-    fixture.reactions.add(unattributed, carol, laugh, day_one); // nobody knows who posted this one
+    fixture.reactions.add(alices_link, bob, skull(), day_one);    // bob gives alice a skull
+    fixture.reactions.add(alices_link, carol, skull(), day_one);  // carol gives alice a skull
+    fixture.reactions.add(alices_link, alice, laugh(), day_one);  // alice laughs at her own link
+    fixture.reactions.add(bobs_link, alice, skull(), day_one);    // alice gives bob a skull
+    fixture.reactions.add(unattributed, carol, laugh(), day_one); // nobody knows who posted this one
 
     SECTION("received goes to the poster, never counting their own") {
         CHECK(fixture.count(stat_kind::received, alice) == 2);
@@ -141,8 +158,8 @@ TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
     }
 
     SECTION("one emoji at a time") {
-        CHECK(fixture.count(stat_kind::received, std::nullopt, skull.key) == 3);
-        CHECK(fixture.count(stat_kind::received, alice, laugh.key) == 0);
+        CHECK(fixture.count(stat_kind::received, std::nullopt, skull().key) == 3);
+        CHECK(fixture.count(stat_kind::received, alice, laugh().key) == 0);
     }
 
     SECTION("an emoji breakdown is most used first") {
@@ -155,7 +172,7 @@ TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
 TEST_CASE("a backfilled reaction is dated by its message", "[db]") {
     // Discord never says when a reaction was added (plan v4 §9.7).
     store_fixture fixture;
-    const std::vector<reaction_store::observed> seen{{.user_id = carol, .emoji_key = skull.key}};
+    const std::vector<reaction_store::observed> seen{{.user_id = carol, .emoji_key = skull().key}};
     fixture.reactions.replace_for_message(bobs_link, seen);
 
     const stat_query before_bob{.kind = stat_kind::received, .since = {}, .until = day_one + 24h};
@@ -166,7 +183,7 @@ TEST_CASE("a backfilled reaction is dated by its message", "[db]") {
 
 TEST_CASE("a live reaction is dated when it was added", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, skull, day_one + 30 * 24h);
+    fixture.reactions.add(alices_link, bob, skull(), day_one + 30 * 24h);
 
     const stat_query first_week{.kind = stat_kind::received, .since = day_one, .until = day_one + 7 * 24h};
     CHECK(fixture.reactions.total(guild, first_week) == 0);
@@ -178,9 +195,10 @@ TEST_CASE("a live reaction is dated when it was added", "[db]") {
 
 TEST_CASE("rebuilding a message's reactions is safe to repeat", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, skull, day_one + 10 * 24h);
+    fixture.reactions.add(alices_link, bob, skull(), day_one + 10 * 24h);
 
-    const std::vector<reaction_store::observed> seen{{.user_id = bob, .emoji_key = skull.key}, {.user_id = carol, .emoji_key = laugh.key}};
+    const std::vector<reaction_store::observed> seen{{.user_id = bob, .emoji_key = skull().key},
+                                                     {.user_id = carol, .emoji_key = laugh().key}};
     CHECK(fixture.reactions.replace_for_message(alices_link, seen) == 2);
     CHECK(fixture.reactions.replace_for_message(alices_link, seen) == 2);
     CHECK(fixture.count(stat_kind::received) == 2);
@@ -191,7 +209,7 @@ TEST_CASE("rebuilding a message's reactions is safe to repeat", "[db]") {
     CHECK(fixture.reactions.total(guild, later) == 1);
 
     SECTION("a reaction gone from Discord goes from the counts") {
-        const std::vector<reaction_store::observed> now{{.user_id = carol, .emoji_key = laugh.key}};
+        const std::vector<reaction_store::observed> now{{.user_id = carol, .emoji_key = laugh().key}};
         CHECK(fixture.reactions.replace_for_message(alices_link, now) == 1);
         CHECK(fixture.count(stat_kind::given, bob) == 0);
     }
@@ -203,23 +221,23 @@ TEST_CASE("rebuilding a message's reactions is safe to repeat", "[db]") {
 
 TEST_CASE("an alias merges one emoji into another across all history, and can be undone", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, custom_skull, day_one);
-    fixture.reactions.add(alices_link, carol, custom_skull_again, day_one);
+    fixture.reactions.add(alices_link, bob, custom_skull(), day_one);
+    fixture.reactions.add(alices_link, carol, custom_skull_again(), day_one);
 
-    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull.key) == 1);
+    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull().key) == 1);
 
-    REQUIRE_FALSE(fixture.reactions.set_alias(guild, custom_skull_again.key, custom_skull.key).has_value());
-    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull.key) == 2);
+    REQUIRE_FALSE(fixture.reactions.set_alias(guild, custom_skull_again().key, custom_skull().key).has_value());
+    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull().key) == 2);
     // Asking for the alias asks for what it counts as.
-    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull_again.key) == 2);
+    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull_again().key) == 2);
 
     const auto breakdown = fixture.reactions.emoji_breakdown(guild, {.kind = stat_kind::received}, 10);
     REQUIRE(breakdown.size() == 1);
-    CHECK(breakdown[0].emoji.key == custom_skull.key);
+    CHECK(breakdown[0].emoji.key == custom_skull().key);
 
-    CHECK(fixture.reactions.remove_alias(guild, custom_skull_again.key));
-    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull.key) == 1);
-    CHECK_FALSE(fixture.reactions.remove_alias(guild, custom_skull_again.key));
+    CHECK(fixture.reactions.remove_alias(guild, custom_skull_again().key));
+    CHECK(fixture.count(stat_kind::received, std::nullopt, custom_skull().key) == 1);
+    CHECK_FALSE(fixture.reactions.remove_alias(guild, custom_skull_again().key));
 }
 
 TEST_CASE("alias chains are flattened as they are written", "[db]") {
@@ -261,14 +279,14 @@ TEST_CASE("aliases belong to one guild", "[db]") {
 
 TEST_CASE("emojis are known by name once somebody has used them", "[db]") {
     store_fixture fixture;
-    fixture.reactions.add(alices_link, bob, custom_skull, day_one);
-    fixture.reactions.add(alices_link, carol, custom_skull_again, day_one);
-    fixture.reactions.add(bobs_link, carol, laugh, day_one);
+    fixture.reactions.add(alices_link, bob, custom_skull(), day_one);
+    fixture.reactions.add(alices_link, carol, custom_skull_again(), day_one);
+    fixture.reactions.add(bobs_link, carol, laugh(), day_one);
 
     const auto skulls = fixture.reactions.known_emojis(guild, "SKULL", 25);
     CHECK(skulls.size() == 2);
 
-    CHECK(fixture.reactions.describe(custom_skull.key).name == "skull");
+    CHECK(fixture.reactions.describe(custom_skull().key).name == "skull");
     CHECK(fixture.reactions.describe("c:424242").name.empty());
     CHECK(fixture.reactions.describe("u:🔥").name == "🔥");
 

@@ -138,7 +138,7 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
 // --------------------------------------------------------------------------
 
 TEST_CASE("an empty list says how to start one", "[commands]") {
-    store_fixture fixture;
+    const store_fixture fixture;
     const auto message = latibot::commands::render_url_rule_list(fixture.store, guild, 0);
     CHECK(message.content.find("/urlrepl set") != std::string::npos);
     CHECK(message.components.empty());

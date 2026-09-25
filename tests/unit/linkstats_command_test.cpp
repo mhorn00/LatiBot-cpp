@@ -127,7 +127,7 @@ TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
 }
 
 TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
-    fixture test;
+    const fixture test;
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received}).content;
 
     CHECK(text.starts_with("**Most reactions received on replaced links**"));
@@ -137,7 +137,7 @@ TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
 }
 
 TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]") {
-    fixture test;
+    const fixture test;
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
 
     CHECK(text.find("💀 1") != std::string::npos);
@@ -146,14 +146,14 @@ TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]")
 }
 
 TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
-    fixture test;
+    const fixture test;
     const std::string text =
         latibot::commands::render_board(test.reactions, dpp::snowflake{5}, board::given, {.kind = stat_kind::given}).content;
     CHECK(text.find("/linkstats recompute") != std::string::npos);
 }
 
 TEST_CASE("a profile shows received, given and self apart", "[commands]") {
-    fixture test;
+    const fixture test;
     const std::string text = latibot::commands::render_profile(test.reactions, guild, alice, {});
 
     CHECK(text.find("Reactions received: 2") != std::string::npos);
@@ -162,7 +162,7 @@ TEST_CASE("a profile shows received, given and self apart", "[commands]") {
 }
 
 TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
-    fixture test;
+    const fixture test;
     const latibot::events::stat_query query{.kind = stat_kind::received,
                                             .since = std::chrono::sys_days{std::chrono::year{2026} / 1 / 1},
                                             .until = std::chrono::sys_days{std::chrono::year{2026} / 2 / 1}};
@@ -171,7 +171,7 @@ TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
 }
 
 TEST_CASE("an emoji can be named rather than drawn", "[commands]") {
-    fixture test;
+    const fixture test;
 
     const auto by_name = latibot::commands::resolve_emoji(test.reactions, guild, "Skull");
     REQUIRE(by_name.has_value());

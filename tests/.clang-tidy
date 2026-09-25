@@ -6,7 +6,19 @@
 #     REQUIRE(x.has_value()) throws when it fails, so the *x on the next line
 #     is safe. clang-tidy does not model Catch2's macros and reports every
 #     one of them.
+#
+#   readability-function-cognitive-complexity
+#     Catch2's macros expand into branches, so a test with a handful of
+#     CHECKs scores like a function with a handful of ifs.
+#
+# Tests also leave fields out of designated initializers, which is valid C++
+# and lets a test name only what it is about. Clang warns about that, and /WX
+# in the compile database makes the warning an error that stops the analysis
+# of the file, so ExtraArgs turns it off. src/ lists every field and keeps it.
 
 InheritParentConfig: true
 Checks: >
-  -bugprone-unchecked-optional-access
+  -bugprone-unchecked-optional-access,
+  -readability-function-cognitive-complexity
+ExtraArgs:
+  - -Wno-missing-designated-field-initializers

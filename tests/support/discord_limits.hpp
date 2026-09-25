@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <set>
 #include <string>
+#include <utility>
 
 namespace latibot::testing {
 
@@ -105,7 +106,7 @@ inline void check_modal_fits(const dpp::interaction_modal_response& form) {
             CHECK_FALSE(input.custom_id.empty());
             CHECK(input.custom_id.size() <= ui::custom_id_limit);
             CHECK(ids.insert(input.custom_id).second);
-            CHECK(input.max_length <= static_cast<int>(discord_limit::input_length));
+            CHECK(std::cmp_less_equal(input.max_length, discord_limit::input_length));
         }
     }
 }

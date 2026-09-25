@@ -13,7 +13,6 @@ using latibot::events::normalise_domain;
 using latibot::events::parse_legacy_rules;
 using latibot::events::parse_mirror;
 using latibot::events::plan_replacements;
-using latibot::events::planned_link;
 using latibot::events::url_rule;
 
 namespace {

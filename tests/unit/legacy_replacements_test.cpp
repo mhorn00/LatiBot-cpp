@@ -23,7 +23,12 @@ constexpr dpp::snowflake alice{11};
 constexpr dpp::snowflake bob{12};
 constexpr dpp::snowflake other_bot{43};
 
-const mirror_map mirrors{{"fxtwitter.com", "x.com"}, {"vxtwitter.com", "x.com"}, {"tfxktok.com", "tiktok.com"}};
+// A function rather than a constant: building the map allocates, and a static
+// that throws while the test binary is starting cannot be caught.
+const mirror_map& mirrors() {
+    static const mirror_map made{{"fxtwitter.com", "x.com"}, {"vxtwitter.com", "x.com"}, {"tfxktok.com", "tiktok.com"}};
+    return made;
+}
 
 history_message from_bot(std::string content, dpp::snowflake id = dpp::snowflake{900}) {
     return {.id = id,
@@ -48,7 +53,7 @@ history_message from_person(dpp::snowflake who, std::string content, dpp::snowfl
 }
 
 legacy_match recognised(const history_message& message) {
-    const legacy_match match = classify(message, bot, mirrors);
+    const legacy_match match = classify(message, bot, mirrors());
     REQUIRE(match.what == legacy_match::kind::recognised);
     return match;
 }
@@ -71,7 +76,7 @@ TEST_CASE("format 2: webhook mode is counted and skipped", "[events]") {
     message.author_is_bot = true;
     message.webhook_id = dpp::snowflake{77};
 
-    const auto match = classify(message, bot, mirrors);
+    const auto match = classify(message, bot, mirrors());
     CHECK(match.what == legacy_match::kind::webhook);
     CHECK(match.format == legacy_format::webhook);
 }
@@ -108,25 +113,25 @@ TEST_CASE("the mirror links are collected whatever the format", "[events]") {
 // --------------------------------------------------------------------------
 
 TEST_CASE("only the bot's messages with a known mirror count", "[events]") {
-    CHECK(classify(from_bot("no links"), bot, mirrors).what == legacy_match::kind::not_ours);
-    CHECK(classify(from_bot("https://example.com/a"), bot, mirrors).what == legacy_match::kind::not_ours);
-    CHECK(classify(from_person(alice, "https://fxtwitter.com/a/status/1", dpp::snowflake{1}), bot, mirrors).what ==
+    CHECK(classify(from_bot("no links"), bot, mirrors()).what == legacy_match::kind::not_ours);
+    CHECK(classify(from_bot("https://example.com/a"), bot, mirrors()).what == legacy_match::kind::not_ours);
+    CHECK(classify(from_person(alice, "https://fxtwitter.com/a/status/1", dpp::snowflake{1}), bot, mirrors()).what ==
           legacy_match::kind::not_ours);
 
     auto command_reply = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
     command_reply.is_system = true;
-    CHECK(classify(command_reply, bot, mirrors).what == legacy_match::kind::not_ours);
+    CHECK(classify(command_reply, bot, mirrors()).what == legacy_match::kind::not_ours);
 }
 
 TEST_CASE("a shape nobody wrote down is reported, not guessed at", "[events]") {
     // An underscore without the link emoji never existed.
-    CHECK(classify(from_bot("[_](https://fxtwitter.com/a/status/1)"), bot, mirrors).what == legacy_match::kind::unrecognised);
+    CHECK(classify(from_bot("[_](https://fxtwitter.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::unrecognised);
     // Masked links with words around them.
-    CHECK(classify(from_bot("here you go [.](https://fxtwitter.com/a/status/1)"), bot, mirrors).what == legacy_match::kind::unrecognised);
+    CHECK(classify(from_bot("here you go [.](https://fxtwitter.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::unrecognised);
     // A label that is neither.
-    CHECK(classify(from_bot("🔗 [tweet](https://fxtwitter.com/a/status/1)"), bot, mirrors).what == legacy_match::kind::unrecognised);
+    CHECK(classify(from_bot("🔗 [tweet](https://fxtwitter.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::unrecognised);
     // One link masked and one bare.
-    CHECK(classify(from_bot("[.](https://fxtwitter.com/a/status/1) https://vxtwitter.com/b/status/2"), bot, mirrors).what ==
+    CHECK(classify(from_bot("[.](https://fxtwitter.com/a/status/1) https://vxtwitter.com/b/status/2"), bot, mirrors()).what ==
           legacy_match::kind::unrecognised);
 }
 
@@ -202,6 +207,7 @@ TEST_CASE("with no matching link the replacement stays unattributed", "[events]"
 
     SECTION("the match is too far back to be the one answered") {
         std::vector<history_message> older;
+        older.reserve(latibot::events::attribution_candidates + 1);
         for (std::uint64_t index = 0; index < latibot::events::attribution_candidates; ++index) {
             older.push_back(from_person(bob, "https://x.com/b/status/" + std::to_string(index), dpp::snowflake{800 - index}));
         }

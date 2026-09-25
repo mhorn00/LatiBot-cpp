@@ -199,7 +199,7 @@ answer: modal behaviour, audit-log timing, whether embeds actually appear.
 | CTest | runs the suite, integrates with the IDE | `ctest --preset debug` |
 | AddressSanitizer | use-after-free, overruns, leaks | `ctest --preset asan` |
 | libFuzzer | random input against the parsers | `fuzz` preset |
-| clang-tidy | static analysis of our code only | `ninja-tidy` preset, then run clang-tidy over `src/` |
+| clang-tidy | static analysis of our code only | `tools/Invoke-ClangTidy.ps1` over `src/`, or `src/` and `tests/` with `-IncludeTests`; `tests/.clang-tidy` adjusts it for test code |
 | OpenCppCoverage | line coverage report | optional, local |
 | GitHub Actions | build and test on every push | `.github/workflows/ci.yml` |
 

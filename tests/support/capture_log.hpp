@@ -2,6 +2,7 @@
 
 #include "core/util/log.hpp"
 
+#include <algorithm>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -42,12 +43,8 @@ public:
     /// True when some line at `severity` contains `text`.
     [[nodiscard]] bool contains(util::log_level severity, std::string_view text) const {
         const std::scoped_lock guard(mutex_);
-        for (const auto& [level, message] : lines_) {
-            if (level == severity && message.find(text) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
+        return std::ranges::any_of(lines_,
+                                   [&](const auto& line) { return line.first == severity && line.second.find(text) != std::string::npos; });
     }
 
 private:

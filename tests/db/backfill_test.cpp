@@ -41,7 +41,7 @@ dpp::snowflake id_at(std::chrono::seconds later) {
     return first_id_at(day_one + later);
 }
 
-dpp::message message(dpp::snowflake id, dpp::snowflake author, std::string content, bool is_bot = false) {
+dpp::message message(dpp::snowflake id, dpp::snowflake author, const std::string& content, bool is_bot = false) {
     dpp::message made(channel, content);
     made.id = id;
     made.author.id = author;
@@ -57,6 +57,22 @@ dpp::reaction reaction(std::string name, std::uint32_t count, dpp::snowflake emo
     made.emoji_id = emoji_id;
     made.count = count;
     return made;
+}
+
+/// A channel's history, newest first, as Discord pages it.
+std::vector<dpp::message> history() {
+    dpp::message replacement = message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true);
+    replacement.reactions = {reaction("💀", 2), reaction("skull", 1, dpp::snowflake{7001})};
+
+    return {
+        replacement,
+        message(id_at(5s), bob, "lmao"),
+        message(id_at(0s), alice, "look https://x.com/alice/status/1"),
+    };
+}
+
+backfill_request request(bool fresh = false) {
+    return {.guild_id = guild, .channel_ids = {channel}, .since = day_one - 24h, .until = std::nullopt, .bot_id = bot, .fresh = fresh};
 }
 
 struct fixture {
@@ -76,22 +92,6 @@ struct fixture {
         rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "vxtwitter.com", .translate_suffix = ""}}});
     }
 
-    /// Newest first, as Discord pages them.
-    std::vector<dpp::message> history() const {
-        dpp::message replacement = message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true);
-        replacement.reactions = {reaction("💀", 2), reaction("skull", 1, dpp::snowflake{7001})};
-
-        return {
-            replacement,
-            message(id_at(5s), bob, "lmao"),
-            message(id_at(0s), alice, "look https://x.com/alice/status/1"),
-        };
-    }
-
-    backfill_request request(bool fresh = false) const {
-        return {.guild_id = guild, .channel_ids = {channel}, .since = day_one - 24h, .until = std::nullopt, .bot_id = bot, .fresh = fresh};
-    }
-
     /// Scripts one pass over `history()`: the page, then who reacted.
     void script_history() {
         discord.message_pages.emplace_back(history());
@@ -108,7 +108,7 @@ TEST_CASE("a recompute credits an old replacement to whoever posted the link", "
     fixture test;
     test.script_history();
 
-    const backfill_report report = test.run(test.request());
+    const backfill_report report = test.run(request());
 
     CHECK(report.scanned == 3);
     CHECK(report.replacements == 1);
@@ -136,7 +136,7 @@ TEST_CASE("a recompute credits an old replacement to whoever posted the link", "
 TEST_CASE("an old replacement is filed under the site its mirror stood in for", "[events][coro]") {
     fixture test;
     test.script_history();
-    test.run(test.request());
+    test.run(request());
 
     const auto stored = test.replacements.find(id_at(10s));
     REQUIRE(stored.has_value());
@@ -156,7 +156,7 @@ TEST_CASE("a replacement after somebody else's link is reported, not credited to
         message(id_at(5s), bob, "https://x.com/bob/status/2"),
     });
 
-    const backfill_report report = test.run(test.request());
+    const backfill_report report = test.run(request());
     CHECK(report.unattributed == 1);
     CHECK(report.mismatched == 1);
     CHECK_FALSE(test.replacements.find(id_at(10s))->original_author_id.has_value());
@@ -165,10 +165,10 @@ TEST_CASE("a replacement after somebody else's link is reported, not credited to
 TEST_CASE("a recompute is safe to run twice", "[events][coro]") {
     fixture test;
     test.script_history();
-    test.run(test.request());
+    test.run(request());
 
     test.script_history();
-    const backfill_report again = test.run(test.request(/*fresh=*/true));
+    const backfill_report again = test.run(request(/*fresh=*/true));
 
     CHECK(again.reactions == 3);
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 2);
@@ -177,9 +177,9 @@ TEST_CASE("a recompute is safe to run twice", "[events][coro]") {
 TEST_CASE("a finished channel is not scanned again unless asked", "[events][coro]") {
     fixture test;
     test.script_history();
-    test.run(test.request());
+    test.run(request());
 
-    const backfill_report again = test.run(test.request());
+    const backfill_report again = test.run(request());
     CHECK(again.scanned == 0);
     // No page was even asked for.
     CHECK(test.discord.history_requests.size() == 1);
@@ -189,7 +189,7 @@ TEST_CASE("the walk stops at the start of the range", "[events][coro]") {
     fixture test;
     test.script_history();
 
-    backfill_request wanted = test.request();
+    backfill_request wanted = request();
     wanted.since = day_one + 3s;
     const backfill_report report = test.run(wanted);
 
@@ -201,7 +201,7 @@ TEST_CASE("the walk stops at the start of the range", "[events][coro]") {
 
 TEST_CASE("the end of the range is where paging starts", "[events][coro]") {
     fixture test;
-    backfill_request wanted = test.request();
+    backfill_request wanted = request();
     wanted.until = day_one + 24h;
 
     test.run(wanted);
@@ -222,7 +222,7 @@ TEST_CASE("a replacement the bot recorded itself is not re-attributed", "[events
                               .links = {}});
     test.script_history();
 
-    test.run(test.request());
+    test.run(request());
     CHECK(test.replacements.find(id_at(10s))->original_author_id == carol);
 }
 
@@ -231,7 +231,7 @@ TEST_CASE("messages in no known format are listed by id", "[events][coro]") {
     test.discord.message_pages.emplace_back(
         std::vector<dpp::message>{message(id_at(10s), bot, "here [tweet](https://fxtwitter.com/alice/status/1)", true)});
 
-    const backfill_report report = test.run(test.request());
+    const backfill_report report = test.run(request());
     CHECK(report.replacements == 0);
     REQUIRE(report.unparsed.size() == 1);
     CHECK(report.unparsed[0] == id_at(10s));
@@ -244,7 +244,7 @@ TEST_CASE("a replacement with nobody to credit still counts its reactions", "[ev
     test.discord.message_pages.emplace_back(std::vector<dpp::message>{lonely});
     test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob});
 
-    const backfill_report report = test.run(test.request());
+    const backfill_report report = test.run(request());
     CHECK(report.unattributed == 1);
     CHECK(test.reactions.total(guild, {.kind = stat_kind::given, .user_id = bob}) == 1);
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 0);
@@ -255,7 +255,7 @@ TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[e
     test.discord.message_pages.emplace_back(latibot::api_error{.http_status = 403, .message = "Missing Access"});
     test.script_history();
 
-    backfill_request wanted = test.request();
+    backfill_request wanted = request();
     wanted.channel_ids = {other_channel, channel};
     const backfill_report report = test.run(wanted);
 
@@ -267,12 +267,12 @@ TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[e
 TEST_CASE("a failed reaction lookup keeps the counts that were there", "[events][coro]") {
     fixture test;
     test.script_history();
-    test.run(test.request());
+    test.run(request());
 
-    test.discord.message_pages.emplace_back(test.history());
+    test.discord.message_pages.emplace_back(history());
     test.discord.reaction_pages.emplace_back(latibot::api_error{.http_status = 500, .message = "oops"});
 
-    const backfill_report again = test.run(test.request(/*fresh=*/true));
+    const backfill_report again = test.run(request(/*fresh=*/true));
     CHECK_FALSE(again.problems.empty());
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 2);
 }
@@ -286,7 +286,7 @@ TEST_CASE("one recompute per guild, and it can be cancelled", "[events][coro]") 
 
     CHECK(test.service.cancel(guild));
     test.script_history();
-    const backfill_report report = test.run(test.request());
+    const backfill_report report = test.run(request());
     CHECK(report.cancelled);
     CHECK(report.scanned == 0);
 
@@ -298,7 +298,7 @@ TEST_CASE("one recompute per guild, and it can be cancelled", "[events][coro]") 
 TEST_CASE("without any known mirror there is nothing to recognise", "[events][coro]") {
     latibot::db::database db{":memory:"};
     latibot::db::migrate(db);
-    latibot::events::url_rule_store rules{db};
+    const latibot::events::url_rule_store rules{db};
     latibot::events::replacement_store replacements{db};
     latibot::events::reaction_store reactions{db};
     latibot::events::backfill_progress_store progress{db};

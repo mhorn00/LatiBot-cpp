@@ -58,19 +58,19 @@ Database (`src/core/db`)
 | each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:230](../../tests/db/midnight_store_test.cpp#L230) |
 | a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:249](../../tests/db/midnight_store_test.cpp#L249) |
 | a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:266](../../tests/db/midnight_store_test.cpp#L266) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:36](../../tests/db/migrations_test.cpp#L36) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:49](../../tests/db/migrations_test.cpp#L49) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:60](../../tests/db/migrations_test.cpp#L60) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:74](../../tests/db/migrations_test.cpp#L74) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:91](../../tests/db/migrations_test.cpp#L91) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:104](../../tests/db/migrations_test.cpp#L104) |
-| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:116](../../tests/db/migrations_test.cpp#L116) |
-| an import writes the history it read |  |  | [tests/db/nickname_import_test.cpp:42](../../tests/db/nickname_import_test.cpp#L42) |
-| importing the same file twice adds nothing the second time |  |  | [tests/db/nickname_import_test.cpp:56](../../tests/db/nickname_import_test.cpp#L56) |
-| an import does not disturb history the bot recorded itself |  |  | [tests/db/nickname_import_test.cpp:68](../../tests/db/nickname_import_test.cpp#L68) |
-| a cleared nickname is imported once, not once per run |  |  | [tests/db/nickname_import_test.cpp:89](../../tests/db/nickname_import_test.cpp#L89) |
-| no file to import is not a problem | `fs` |  | [tests/db/nickname_import_test.cpp:106](../../tests/db/nickname_import_test.cpp#L106) |
-| a file beside the database is read and imported | `fs` |  | [tests/db/nickname_import_test.cpp:113](../../tests/db/nickname_import_test.cpp#L113) |
+| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:37](../../tests/db/migrations_test.cpp#L37) |
+| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:50](../../tests/db/migrations_test.cpp#L50) |
+| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:61](../../tests/db/migrations_test.cpp#L61) |
+| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:75](../../tests/db/migrations_test.cpp#L75) |
+| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:92](../../tests/db/migrations_test.cpp#L92) |
+| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:105](../../tests/db/migrations_test.cpp#L105) |
+| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:117](../../tests/db/migrations_test.cpp#L117) |
+| an import writes the history it read |  |  | [tests/db/nickname_import_test.cpp:43](../../tests/db/nickname_import_test.cpp#L43) |
+| importing the same file twice adds nothing the second time |  |  | [tests/db/nickname_import_test.cpp:57](../../tests/db/nickname_import_test.cpp#L57) |
+| an import does not disturb history the bot recorded itself |  |  | [tests/db/nickname_import_test.cpp:69](../../tests/db/nickname_import_test.cpp#L69) |
+| a cleared nickname is imported once, not once per run |  |  | [tests/db/nickname_import_test.cpp:90](../../tests/db/nickname_import_test.cpp#L90) |
+| no file to import is not a problem | `fs` |  | [tests/db/nickname_import_test.cpp:107](../../tests/db/nickname_import_test.cpp#L107) |
+| a file beside the database is read and imported | `fs` |  | [tests/db/nickname_import_test.cpp:114](../../tests/db/nickname_import_test.cpp#L114) |
 | a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:39](../../tests/db/nickname_store_test.cpp#L39) |
 | a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:60](../../tests/db/nickname_store_test.cpp#L60) |
 | history reads newest first |  |  | [tests/db/nickname_store_test.cpp:72](../../tests/db/nickname_store_test.cpp#L72) |
@@ -86,18 +86,18 @@ Database (`src/core/db`)
 | a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:190](../../tests/db/nickname_store_test.cpp#L190) |
 | the members of a guild are listed once each |  |  | [tests/db/nickname_store_test.cpp:203](../../tests/db/nickname_store_test.cpp#L203) |
 | an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:218](../../tests/db/nickname_store_test.cpp#L218) |
-| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:77](../../tests/db/reaction_store_test.cpp#L77) |
-| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:89](../../tests/db/reaction_store_test.cpp#L89) |
-| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:98](../../tests/db/reaction_store_test.cpp#L98) |
-| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:115](../../tests/db/reaction_store_test.cpp#L115) |
-| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:155](../../tests/db/reaction_store_test.cpp#L155) |
-| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:167](../../tests/db/reaction_store_test.cpp#L167) |
-| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:179](../../tests/db/reaction_store_test.cpp#L179) |
-| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:204](../../tests/db/reaction_store_test.cpp#L204) |
-| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:225](../../tests/db/reaction_store_test.cpp#L225) |
-| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:244](../../tests/db/reaction_store_test.cpp#L244) |
-| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:252](../../tests/db/reaction_store_test.cpp#L252) |
-| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:262](../../tests/db/reaction_store_test.cpp#L262) |
+| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:94](../../tests/db/reaction_store_test.cpp#L94) |
+| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:106](../../tests/db/reaction_store_test.cpp#L106) |
+| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:115](../../tests/db/reaction_store_test.cpp#L115) |
+| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:132](../../tests/db/reaction_store_test.cpp#L132) |
+| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:172](../../tests/db/reaction_store_test.cpp#L172) |
+| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:184](../../tests/db/reaction_store_test.cpp#L184) |
+| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:196](../../tests/db/reaction_store_test.cpp#L196) |
+| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:222](../../tests/db/reaction_store_test.cpp#L222) |
+| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:243](../../tests/db/reaction_store_test.cpp#L243) |
+| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:262](../../tests/db/reaction_store_test.cpp#L262) |
+| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:270](../../tests/db/reaction_store_test.cpp#L270) |
+| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:280](../../tests/db/reaction_store_test.cpp#L280) |
 | a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:41](../../tests/db/replacement_store_test.cpp#L41) |
 | an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:61](../../tests/db/replacement_store_test.cpp#L61) |
 | state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:74](../../tests/db/replacement_store_test.cpp#L74) |
@@ -223,12 +223,12 @@ Command framework (`src/core/commands`)
 | an entry that has posted says when |  |  | [tests/unit/midnight_command_test.cpp:49](../../tests/unit/midnight_command_test.cpp#L49) |
 | every entry appears in the list |  |  | [tests/unit/midnight_command_test.cpp:59](../../tests/unit/midnight_command_test.cpp#L59) |
 | an entry that notifies or hides previews says so |  |  | [tests/unit/midnight_command_test.cpp:69](../../tests/unit/midnight_command_test.cpp#L69) |
-| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:37](../../tests/unit/nickname_command_test.cpp#L37) |
-| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:46](../../tests/unit/nickname_command_test.cpp#L46) |
-| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:56](../../tests/unit/nickname_command_test.cpp#L56) |
-| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:80](../../tests/unit/nickname_command_test.cpp#L80) |
-| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:89](../../tests/unit/nickname_command_test.cpp#L89) |
-| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:96](../../tests/unit/nickname_command_test.cpp#L96) |
+| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:38](../../tests/unit/nickname_command_test.cpp#L38) |
+| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:47](../../tests/unit/nickname_command_test.cpp#L47) |
+| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:57](../../tests/unit/nickname_command_test.cpp#L57) |
+| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:81](../../tests/unit/nickname_command_test.cpp#L81) |
+| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:90](../../tests/unit/nickname_command_test.cpp#L90) |
+| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:97](../../tests/unit/nickname_command_test.cpp#L97) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -236,17 +236,17 @@ Command framework (`src/core/commands`)
 | permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
 | commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
 | a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
-| an empty name is refused |  |  | [tests/unit/registry_test.cpp:94](../../tests/unit/registry_test.cpp#L94) |
-| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:99](../../tests/unit/registry_test.cpp#L99) |
-| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:113](../../tests/unit/registry_test.cpp#L113) |
-| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:125](../../tests/unit/registry_test.cpp#L125) |
-| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:141](../../tests/unit/registry_test.cpp#L141) |
-| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:152](../../tests/unit/registry_test.cpp#L152) |
-| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:207](../../tests/unit/registry_test.cpp#L207) |
-| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:219](../../tests/unit/registry_test.cpp#L219) |
-| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
-| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:237](../../tests/unit/registry_test.cpp#L237) |
-| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:252](../../tests/unit/registry_test.cpp#L252) |
+| an empty name is refused |  |  | [tests/unit/registry_test.cpp:91](../../tests/unit/registry_test.cpp#L91) |
+| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:96](../../tests/unit/registry_test.cpp#L96) |
+| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:110](../../tests/unit/registry_test.cpp#L110) |
+| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:122](../../tests/unit/registry_test.cpp#L122) |
+| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:138](../../tests/unit/registry_test.cpp#L138) |
+| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:149](../../tests/unit/registry_test.cpp#L149) |
+| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:204](../../tests/unit/registry_test.cpp#L204) |
+| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:216](../../tests/unit/registry_test.cpp#L216) |
+| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:229](../../tests/unit/registry_test.cpp#L229) |
+| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:234](../../tests/unit/registry_test.cpp#L234) |
+| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:249](../../tests/unit/registry_test.cpp#L249) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
@@ -309,57 +309,57 @@ Message pipeline and triggers (`src/core/events`)
 | a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:267](../../tests/db/backfill_test.cpp#L267) |
 | one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:280](../../tests/db/backfill_test.cpp#L280) |
 | without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:298](../../tests/db/backfill_test.cpp#L298) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:119](../../tests/unit/embed_watch_test.cpp#L119) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:129](../../tests/unit/embed_watch_test.cpp#L129) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:137](../../tests/unit/embed_watch_test.cpp#L137) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:151](../../tests/unit/embed_watch_test.cpp#L151) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:161](../../tests/unit/embed_watch_test.cpp#L161) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:167](../../tests/unit/embed_watch_test.cpp#L167) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:176](../../tests/unit/embed_watch_test.cpp#L176) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:187](../../tests/unit/embed_watch_test.cpp#L187) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:200](../../tests/unit/embed_watch_test.cpp#L200) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:215](../../tests/unit/embed_watch_test.cpp#L215) |
-| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:253](../../tests/unit/embed_watch_test.cpp#L253) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:306](../../tests/unit/embed_watch_test.cpp#L306) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:331](../../tests/unit/embed_watch_test.cpp#L331) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:343](../../tests/unit/embed_watch_test.cpp#L343) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:353](../../tests/unit/embed_watch_test.cpp#L353) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:362](../../tests/unit/embed_watch_test.cpp#L362) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:376](../../tests/unit/embed_watch_test.cpp#L376) |
-| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:417](../../tests/unit/embed_watch_test.cpp#L417) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:458](../../tests/unit/embed_watch_test.cpp#L458) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:489](../../tests/unit/embed_watch_test.cpp#L489) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:503](../../tests/unit/embed_watch_test.cpp#L503) |
-| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:542](../../tests/unit/embed_watch_test.cpp#L542) |
-| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:566](../../tests/unit/embed_watch_test.cpp#L566) |
-| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:579](../../tests/unit/embed_watch_test.cpp#L579) |
-| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:605](../../tests/unit/embed_watch_test.cpp#L605) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:642](../../tests/unit/embed_watch_test.cpp#L642) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:658](../../tests/unit/embed_watch_test.cpp#L658) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:678](../../tests/unit/embed_watch_test.cpp#L678) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:712](../../tests/unit/embed_watch_test.cpp#L712) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:724](../../tests/unit/embed_watch_test.cpp#L724) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:120](../../tests/unit/embed_watch_test.cpp#L120) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:130](../../tests/unit/embed_watch_test.cpp#L130) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:138](../../tests/unit/embed_watch_test.cpp#L138) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:152](../../tests/unit/embed_watch_test.cpp#L152) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:162](../../tests/unit/embed_watch_test.cpp#L162) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:168](../../tests/unit/embed_watch_test.cpp#L168) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:177](../../tests/unit/embed_watch_test.cpp#L177) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:188](../../tests/unit/embed_watch_test.cpp#L188) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:201](../../tests/unit/embed_watch_test.cpp#L201) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:216](../../tests/unit/embed_watch_test.cpp#L216) |
+| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:254](../../tests/unit/embed_watch_test.cpp#L254) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:332](../../tests/unit/embed_watch_test.cpp#L332) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:344](../../tests/unit/embed_watch_test.cpp#L344) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:354](../../tests/unit/embed_watch_test.cpp#L354) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:363](../../tests/unit/embed_watch_test.cpp#L363) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:377](../../tests/unit/embed_watch_test.cpp#L377) |
+| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:418](../../tests/unit/embed_watch_test.cpp#L418) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:459](../../tests/unit/embed_watch_test.cpp#L459) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:490](../../tests/unit/embed_watch_test.cpp#L490) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:504](../../tests/unit/embed_watch_test.cpp#L504) |
+| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:543](../../tests/unit/embed_watch_test.cpp#L543) |
+| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:567](../../tests/unit/embed_watch_test.cpp#L567) |
+| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:580](../../tests/unit/embed_watch_test.cpp#L580) |
+| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:606](../../tests/unit/embed_watch_test.cpp#L606) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:643](../../tests/unit/embed_watch_test.cpp#L643) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:659](../../tests/unit/embed_watch_test.cpp#L659) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:679](../../tests/unit/embed_watch_test.cpp#L679) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:713](../../tests/unit/embed_watch_test.cpp#L713) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:725](../../tests/unit/embed_watch_test.cpp#L725) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
 | a custom phrase replaces the default |  |  | [tests/unit/goodbye_test.cpp:42](../../tests/unit/goodbye_test.cpp#L42) |
 | an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
-| format 1: a copy of the original, sent as a reply |  |  | [tests/unit/legacy_replacements_test.cpp:62](../../tests/unit/legacy_replacements_test.cpp#L62) |
-| format 2: webhook mode is counted and skipped |  |  | [tests/unit/legacy_replacements_test.cpp:68](../../tests/unit/legacy_replacements_test.cpp#L68) |
-| format 3: a copy of the original as a plain message |  |  | [tests/unit/legacy_replacements_test.cpp:79](../../tests/unit/legacy_replacements_test.cpp#L79) |
-| format 4: a dot linking to the mirror |  |  | [tests/unit/legacy_replacements_test.cpp:83](../../tests/unit/legacy_replacements_test.cpp#L83) |
-| format 5: the link emoji and a dot |  |  | [tests/unit/legacy_replacements_test.cpp:87](../../tests/unit/legacy_replacements_test.cpp#L87) |
-| format 6: the link emoji and an underscore, which is still the format |  |  | [tests/unit/legacy_replacements_test.cpp:92](../../tests/unit/legacy_replacements_test.cpp#L92) |
-| the mirror links are collected whatever the format |  |  | [tests/unit/legacy_replacements_test.cpp:100](../../tests/unit/legacy_replacements_test.cpp#L100) |
-| only the bot's messages with a known mirror count |  |  | [tests/unit/legacy_replacements_test.cpp:110](../../tests/unit/legacy_replacements_test.cpp#L110) |
-| a shape nobody wrote down is reported, not guessed at |  |  | [tests/unit/legacy_replacements_test.cpp:121](../../tests/unit/legacy_replacements_test.cpp#L121) |
-| a reply names its original |  | 2 | [tests/unit/legacy_replacements_test.cpp:137](../../tests/unit/legacy_replacements_test.cpp#L137) |
-| the original is the nearest earlier link, past any chat |  |  | [tests/unit/legacy_replacements_test.cpp:159](../../tests/unit/legacy_replacements_test.cpp#L159) |
-| a nearer link that is not ours does not take the credit |  |  | [tests/unit/legacy_replacements_test.cpp:173](../../tests/unit/legacy_replacements_test.cpp#L173) |
-| with no matching link the replacement stays unattributed |  | 3 | [tests/unit/legacy_replacements_test.cpp:186](../../tests/unit/legacy_replacements_test.cpp#L186) |
-| other bots' links are never the original |  |  | [tests/unit/legacy_replacements_test.cpp:213](../../tests/unit/legacy_replacements_test.cpp#L213) |
-| a front-page link proves nothing about which message was answered |  |  | [tests/unit/legacy_replacements_test.cpp:222](../../tests/unit/legacy_replacements_test.cpp#L222) |
-| a message's time comes from its id |  |  | [tests/unit/legacy_replacements_test.cpp:232](../../tests/unit/legacy_replacements_test.cpp#L232) |
+| format 1: a copy of the original, sent as a reply |  |  | [tests/unit/legacy_replacements_test.cpp:67](../../tests/unit/legacy_replacements_test.cpp#L67) |
+| format 2: webhook mode is counted and skipped |  |  | [tests/unit/legacy_replacements_test.cpp:73](../../tests/unit/legacy_replacements_test.cpp#L73) |
+| format 3: a copy of the original as a plain message |  |  | [tests/unit/legacy_replacements_test.cpp:84](../../tests/unit/legacy_replacements_test.cpp#L84) |
+| format 4: a dot linking to the mirror |  |  | [tests/unit/legacy_replacements_test.cpp:88](../../tests/unit/legacy_replacements_test.cpp#L88) |
+| format 5: the link emoji and a dot |  |  | [tests/unit/legacy_replacements_test.cpp:92](../../tests/unit/legacy_replacements_test.cpp#L92) |
+| format 6: the link emoji and an underscore, which is still the format |  |  | [tests/unit/legacy_replacements_test.cpp:97](../../tests/unit/legacy_replacements_test.cpp#L97) |
+| the mirror links are collected whatever the format |  |  | [tests/unit/legacy_replacements_test.cpp:105](../../tests/unit/legacy_replacements_test.cpp#L105) |
+| only the bot's messages with a known mirror count |  |  | [tests/unit/legacy_replacements_test.cpp:115](../../tests/unit/legacy_replacements_test.cpp#L115) |
+| a shape nobody wrote down is reported, not guessed at |  |  | [tests/unit/legacy_replacements_test.cpp:126](../../tests/unit/legacy_replacements_test.cpp#L126) |
+| a reply names its original |  | 2 | [tests/unit/legacy_replacements_test.cpp:142](../../tests/unit/legacy_replacements_test.cpp#L142) |
+| the original is the nearest earlier link, past any chat |  |  | [tests/unit/legacy_replacements_test.cpp:164](../../tests/unit/legacy_replacements_test.cpp#L164) |
+| a nearer link that is not ours does not take the credit |  |  | [tests/unit/legacy_replacements_test.cpp:178](../../tests/unit/legacy_replacements_test.cpp#L178) |
+| with no matching link the replacement stays unattributed |  | 3 | [tests/unit/legacy_replacements_test.cpp:191](../../tests/unit/legacy_replacements_test.cpp#L191) |
+| other bots' links are never the original |  |  | [tests/unit/legacy_replacements_test.cpp:219](../../tests/unit/legacy_replacements_test.cpp#L219) |
+| a front-page link proves nothing about which message was answered |  |  | [tests/unit/legacy_replacements_test.cpp:228](../../tests/unit/legacy_replacements_test.cpp#L228) |
+| a message's time comes from its id |  |  | [tests/unit/legacy_replacements_test.cpp:238](../../tests/unit/legacy_replacements_test.cpp#L238) |
 | stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:55](../../tests/unit/message_pipeline_test.cpp#L55) |
 | a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:68](../../tests/unit/message_pipeline_test.cpp#L68) |
 | the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
@@ -432,19 +432,19 @@ Message pipeline and triggers (`src/core/events`)
 | a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:108](../../tests/unit/triggers_test.cpp#L108) |
 | cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:120](../../tests/unit/triggers_test.cpp#L120) |
 | a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:129](../../tests/unit/triggers_test.cpp#L129) |
-| a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:31](../../tests/unit/url_rules_test.cpp#L31) |
-| each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:41](../../tests/unit/url_rules_test.cpp#L41) |
-| a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:52](../../tests/unit/url_rules_test.cpp#L52) |
-| www and letter case do not hide a link from its rule |  |  | [tests/unit/url_rules_test.cpp:58](../../tests/unit/url_rules_test.cpp#L58) |
-| the spoiler survives into the plan |  |  | [tests/unit/url_rules_test.cpp:64](../../tests/unit/url_rules_test.cpp#L64) |
-| links Discord would not have embedded are left alone |  |  | [tests/unit/url_rules_test.cpp:70](../../tests/unit/url_rules_test.cpp#L70) |
-| the same link twice is replaced once |  |  | [tests/unit/url_rules_test.cpp:75](../../tests/unit/url_rules_test.cpp#L75) |
-| a message of links is capped |  |  | [tests/unit/url_rules_test.cpp:80](../../tests/unit/url_rules_test.cpp#L80) |
-| every link gets a verdict, and the plan is the replaced ones |  |  | [tests/unit/url_rules_test.cpp:88](../../tests/unit/url_rules_test.cpp#L88) |
-| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:111](../../tests/unit/url_rules_test.cpp#L111) |
-| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:115](../../tests/unit/url_rules_test.cpp#L115) |
-| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:123](../../tests/unit/url_rules_test.cpp#L123) |
-| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:129](../../tests/unit/url_rules_test.cpp#L129) |
+| a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:30](../../tests/unit/url_rules_test.cpp#L30) |
+| each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:40](../../tests/unit/url_rules_test.cpp#L40) |
+| a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:51](../../tests/unit/url_rules_test.cpp#L51) |
+| www and letter case do not hide a link from its rule |  |  | [tests/unit/url_rules_test.cpp:57](../../tests/unit/url_rules_test.cpp#L57) |
+| the spoiler survives into the plan |  |  | [tests/unit/url_rules_test.cpp:63](../../tests/unit/url_rules_test.cpp#L63) |
+| links Discord would not have embedded are left alone |  |  | [tests/unit/url_rules_test.cpp:69](../../tests/unit/url_rules_test.cpp#L69) |
+| the same link twice is replaced once |  |  | [tests/unit/url_rules_test.cpp:74](../../tests/unit/url_rules_test.cpp#L74) |
+| a message of links is capped |  |  | [tests/unit/url_rules_test.cpp:79](../../tests/unit/url_rules_test.cpp#L79) |
+| every link gets a verdict, and the plan is the replaced ones |  |  | [tests/unit/url_rules_test.cpp:87](../../tests/unit/url_rules_test.cpp#L87) |
+| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:110](../../tests/unit/url_rules_test.cpp#L110) |
+| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:114](../../tests/unit/url_rules_test.cpp#L114) |
+| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:122](../../tests/unit/url_rules_test.cpp#L122) |
+| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:128](../../tests/unit/url_rules_test.cpp#L128) |
 
 ## ui
 
@@ -485,13 +485,13 @@ Ports and mocks (`src/core/ports`, `tests/mocks`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:41](../../tests/unit/ports_test.cpp#L41) |
-| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:53](../../tests/unit/ports_test.cpp#L53) |
-| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:69](../../tests/unit/ports_test.cpp#L69) |
-| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:80](../../tests/unit/ports_test.cpp#L80) |
-| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:103](../../tests/unit/ports_test.cpp#L103) |
-| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:132](../../tests/unit/ports_test.cpp#L132) |
-| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:150](../../tests/unit/ports_test.cpp#L150) |
+| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:40](../../tests/unit/ports_test.cpp#L40) |
+| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:52](../../tests/unit/ports_test.cpp#L52) |
+| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:68](../../tests/unit/ports_test.cpp#L68) |
+| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:79](../../tests/unit/ports_test.cpp#L79) |
+| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:102](../../tests/unit/ports_test.cpp#L102) |
+| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:131](../../tests/unit/ports_test.cpp#L131) |
+| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:149](../../tests/unit/ports_test.cpp#L149) |
 
 ## log
 

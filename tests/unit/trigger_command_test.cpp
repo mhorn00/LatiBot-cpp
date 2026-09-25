@@ -165,7 +165,7 @@ TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
     // modal is actually opened against the API.
     using latibot::commands::trigger_form;
 
-    latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 3}}};
+    const latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 3}}};
 
     const std::array<const latibot::events::trigger*, 2> shapes{nullptr, &existing};
     for (const latibot::events::trigger* entry : shapes) {
@@ -319,7 +319,7 @@ TEST_CASE("the longest pattern the command takes still fits the panel", "[comman
 }
 
 TEST_CASE("the trigger modal takes no more than the command does", "[commands]") {
-    latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
+    const latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
     const auto form = latibot::commands::trigger_form(0, &existing);
 
     const auto max_length_of = [&](std::string_view id) -> std::optional<std::int32_t> {
@@ -339,6 +339,9 @@ TEST_CASE("the trigger modal takes no more than the command does", "[commands]")
 
 TEST_CASE("each panel toggle flips one thing and names it for the log", "[commands]") {
     using latibot::commands::toggle_for;
+    // Each toggle changes it, through a pointer to function the check cannot
+    // follow.
+    // NOLINTNEXTLINE(misc-const-correctness)
     latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
 
     CHECK(toggle_for(latibot::commands::trigger_silent_view)(entry) == "set to reply with notifications");

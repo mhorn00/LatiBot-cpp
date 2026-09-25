@@ -24,8 +24,8 @@ public:
     void set(std::chrono::system_clock::time_point when) { now_ = when; }
 
 private:
-    std::chrono::system_clock::time_point now_{};
-    std::chrono::steady_clock::time_point steady_{};
+    std::chrono::system_clock::time_point now_;
+    std::chrono::steady_clock::time_point steady_;
 };
 
 } // namespace latibot::testing

@@ -138,7 +138,7 @@ dpp::command_option typed_option(const std::string& name, const std::string& val
 } // namespace
 
 TEST_CASE("the option being typed into is found at the top level", "[commands]") {
-    std::vector<dpp::command_option> options{typed_option("first", "a", false), typed_option("second", "b", true)};
+    const std::vector<dpp::command_option> options{typed_option("first", "a", false), typed_option("second", "b", true)};
 
     const dpp::command_option* focused = latibot::commands::focused_option(options);
     REQUIRE(focused != nullptr);

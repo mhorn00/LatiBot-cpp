@@ -14,7 +14,6 @@
 
 using namespace std::chrono_literals;
 using latibot::api_error;
-using latibot::result;
 
 namespace {
 
@@ -68,7 +67,7 @@ TEST_CASE("a coroutine feature runs against the Discord mock", "[ports][coro]") 
 
 TEST_CASE("the Discord mock can script a failure", "[ports][coro]") {
     latibot::testing::mock_discord discord;
-    discord.send_results.emplace_back(api_error{500, "Internal Server Error"});
+    discord.send_results.emplace_back(api_error{.http_status = 500, .message = "Internal Server Error"});
 
     const auto outcome = post_then_edit(discord).sync_wait_for(2s);
 
@@ -149,7 +148,7 @@ TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro
 
 TEST_CASE("the TTS mock can fail once and records stops", "[ports][coro]") {
     latibot::testing::mock_tts tts;
-    tts.next_error = api_error{0, "engine busy"};
+    tts.next_error = api_error{.http_status = 0, .message = "engine busy"};
 
     const auto failed = tts.synthesize("hello", {}).sync_wait_for(2s);
     REQUIRE(failed.has_value());

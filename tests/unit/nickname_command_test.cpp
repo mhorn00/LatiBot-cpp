@@ -24,6 +24,7 @@ const auto noon = std::chrono::sys_days{std::chrono::year{2026} / std::chrono::S
 
 std::vector<nickname_change> history_of(std::size_t entries) {
     std::vector<nickname_change> history;
+    history.reserve(entries);
     for (std::size_t index = 0; index < entries; ++index) {
         history.push_back({.user_id = member,
                            .nickname = std::format("name {}", index),

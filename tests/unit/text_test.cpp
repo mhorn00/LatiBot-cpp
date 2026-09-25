@@ -17,8 +17,8 @@ TEST_CASE("count_occurrences counts non-overlapping matches", "[util]") {
 }
 
 TEST_CASE("trim removes surrounding whitespace only", "[util]") {
-    CHECK(latibot::util::trim("") == "");
-    CHECK(latibot::util::trim("   ") == "");
+    CHECK(latibot::util::trim("").empty());
+    CHECK(latibot::util::trim("   ").empty());
     CHECK(latibot::util::trim("  hello  ") == "hello");
     CHECK(latibot::util::trim("\t\r\n hello world \v\f") == "hello world");
 
