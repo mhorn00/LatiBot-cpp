@@ -20,6 +20,10 @@ inline constexpr message_flags channel_message_flags = dpp::m_suppress_notificat
 /// exists for replies; an ordinary message cannot be seen by one person.
 inline constexpr message_flags reply_flags = channel_message_flags | dpp::m_ephemeral;
 
+/// What editing a reply can still change. Whether it is ephemeral, and
+/// whether it notified anyone, were settled when it was sent.
+inline constexpr message_flags edit_flags = dpp::m_suppress_embeds;
+
 /// `flags` narrowed to `channel_message_flags`, which is how a stored message
 /// setting is read and written: a value from a hand edit, or from a later
 /// build that allowed more, cannot bring in a flag this one does not expect.

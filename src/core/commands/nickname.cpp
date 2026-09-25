@@ -152,6 +152,9 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
     member.user_id = target->id;
     member.set_nickname(wanted.value_or(std::string{}));
 
+    // Discord's answer can take longer than the three seconds a first
+    // response has, behind DPP's rate limiter, so say an answer is coming.
+    co_await defer(event);
     const dpp::confirmation_callback_t outcome = co_await cluster_->co_guild_edit_member(member);
     if (outcome.is_error()) {
         // History should never claim something that did not happen.
@@ -160,15 +163,15 @@ dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
 
         const dpp::error_info error = outcome.get_error();
         util::log().warn("could not set {}'s nickname in guild {}: {} ({})", target->id, guild_id, error.message, error.code);
-        co_await event.co_reply(refusal(event, explain(error)));
+        co_await answer_deferred(event, refusal(event, explain(error)));
         co_return;
     }
 
     util::log().info("{} set {}'s nickname in guild {} to {}", describe_user(event.command.get_issuing_user()), target->id, guild_id,
                      wanted ? std::format("\"{}\"", *wanted) : "nothing");
 
-    co_await event.co_reply(result(event, wanted ? std::format("ok, {} is now **{}**", target->name, *wanted)
-                                                 : std::format("ok, cleared {}'s nickname", target->name)));
+    co_await answer_deferred(event, result(event, wanted ? std::format("ok, {} is now **{}**", target->name, *wanted)
+                                                         : std::format("ok, cleared {}'s nickname", target->name)));
 }
 
 // --------------------------------------------------------------------------

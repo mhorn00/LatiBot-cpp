@@ -209,15 +209,18 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
     case say_action::reply: {
         // Fetched first: replying to a message from another channel, or to one
         // that has been deleted, otherwise fails at the API with nothing to
-        // show the caller.
+        // show the caller. Fetching can take longer than the three seconds a
+        // first response has, so the answer is deferred.
+        co_await defer(event);
         const auto target = co_await cluster_->co_message_get(decision.reply_to, event.command.channel_id);
         if (target.is_error()) {
             util::log().debug("/say could not fetch message {} in channel {}", decision.reply_to, event.command.channel_id);
-            co_await event.co_reply(refusal(event, std::format("couldn't find message {} in this channel", decision.reply_to.str())));
+            co_await answer_deferred(event,
+                                     refusal(event, std::format("couldn't find message {} in this channel", decision.reply_to.str())));
             co_return;
         }
 
-        co_await event.co_reply(result(event, "ok"));
+        co_await answer_deferred(event, result(event, "ok"));
         dpp::message said(event.command.channel_id, message);
         said.set_reference(decision.reply_to);
         co_await cluster_->co_message_create(post(event, std::move(said)));

@@ -171,6 +171,23 @@ dpp::message command::post(const dpp::slashcommand_t& event, dpp::message messag
     return discord::apply_flags(message, wanted);
 }
 
+dpp::task<void> command::defer(const dpp::slashcommand_t& event) const {
+    const bool ephemeral = (responses_for(event).result & dpp::m_ephemeral) != 0;
+    const auto deferred = co_await event.co_thinking(ephemeral);
+    if (deferred.is_error()) {
+        util::log().warn("could not tell Discord /{} is thinking: {}", info().name, deferred.get_error().message);
+    }
+}
+
+dpp::task<void> command::answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const {
+    // Only what an edit can change goes along; ephemeral was settled by defer.
+    message.flags &= discord::edit_flags;
+    const auto edited = co_await event.co_edit_original_response(message);
+    if (edited.is_error()) {
+        util::log().warn("could not answer /{}: {}", info().name, edited.get_error().message);
+    }
+}
+
 // Recursive for the same reason `append_options` is, and bounded the same way:
 // Discord allows a group, a subcommand, then plain options.
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -300,8 +317,9 @@ std::uint64_t registry::required_bot_permissions() const {
 
 namespace {
 
-/// Replies, or follows up when the command had already replied before it
-/// failed; either way the person who ran it hears something.
+/// Replies, or, when the command had already responded before it failed,
+/// replaces its "thinking…" if it deferred and follows up if it did not.
+/// Either way the person who ran it hears something.
 dpp::task<void> answer_anyway(const dpp::slashcommand_t& event, dpp::message message) {
     // An event with no cluster behind it cannot be answered. Only tests build
     // those.
@@ -312,6 +330,17 @@ dpp::task<void> answer_anyway(const dpp::slashcommand_t& event, dpp::message mes
     const auto replied = co_await event.co_reply(message);
     if (!replied.is_error()) {
         co_return;
+    }
+
+    // A follow-up under a deferred response would leave it thinking for ever.
+    const auto original = co_await event.co_get_original_response();
+    const auto* shown = original.is_error() ? nullptr : std::get_if<dpp::message>(&original.value);
+    if (shown != nullptr && (shown->flags & dpp::m_loading) != 0) {
+        dpp::message edit = message;
+        edit.flags &= discord::edit_flags;
+        if (!(co_await event.co_edit_original_response(edit)).is_error()) {
+            co_return;
+        }
     }
 
     const auto followed = co_await event.co_follow_up(message);

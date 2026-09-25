@@ -165,6 +165,20 @@ public:
     /// A channel message carrying the `post` flags.
     [[nodiscard]] dpp::message post(const dpp::slashcommand_t& event, dpp::message message) const;
 
+    /// Tells Discord the answer is on its way, for a command that has to wait
+    /// on Discord before it knows what to say.
+    ///
+    /// The first response to a command is due within three seconds, and a
+    /// REST call queued behind DPP's rate limiter can take longer. Private
+    /// when this subcommand's result is, since that cannot change afterwards:
+    /// a refusal that follows is only as private as the result. After this,
+    /// answer with `answer_deferred`, not `co_reply`.
+    dpp::task<void> defer(const dpp::slashcommand_t& event) const;
+
+    /// Replaces the "thinking…" `defer` left with `message`, a `result` or a
+    /// `refusal`.
+    dpp::task<void> answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const;
+
     /// Offers completions for the option being typed into.
     ///
     /// Not a coroutine: Discord gives an autocomplete three seconds and there
