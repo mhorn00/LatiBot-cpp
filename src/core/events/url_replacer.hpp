@@ -51,6 +51,19 @@ dpp::task<void> post_replacement(ports::discord_gateway& discord, replacement_st
 /// ignored: a preview that could not be switched is not worth more than that.
 dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions);
 
+/// Settles one guild's replacements the last run was still watching when it
+/// stopped.
+///
+/// A watch lives only in memory, so a restart during one left its
+/// replacement `pending` or `retrying` for ever: no Retry button, and the
+/// original's preview still off whether or not ours ever appeared. Each is
+/// fetched and ended on the previews it has now, as the tracker would have
+/// ended it, and the actions are carried out. One whose message cannot be
+/// reached any more (403, 404) is marked failed, so it is not asked about
+/// again; any other error leaves it for the next start.
+dpp::task<void> settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules,
+                                embed_tracker& tracker, std::vector<replacement_record> stranded);
+
 /// What pressing Retry does, decided.
 struct retry_plan {
     /// For the tracker, once the first attempt is posted.

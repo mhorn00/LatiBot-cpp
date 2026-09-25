@@ -729,6 +729,12 @@ note and the button stay. The button keeps working after a restart. If just one
 of several links works, the message counts as working and the others stay on
 their last mirror.
 
+**A restart in the middle of watching** does not leave a replacement stuck.
+When the bot comes back, it looks at each one it was still waiting on and
+settles it on what it shows now: working if a preview appeared, otherwise
+the note with its Retry button, and the original's preview back on. Nothing
+is tried again by itself.
+
 Turning the original's preview off needs **Manage Messages**; without it the
 replacement still posts and both previews show. Our message's preview needs
 **Embed Links**. Both are named at startup if missing.

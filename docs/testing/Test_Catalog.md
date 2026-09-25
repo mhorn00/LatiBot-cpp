@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-481 test cases across 9 components, including 104 sections.
+486 test cases across 9 components, including 108 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 106 | 11 |
+| [db](#db) | 107 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 117 | 26 |
-| [events](#events) | 146 | 33 |
+| [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -98,11 +98,12 @@ Database (`src/core/db`)
 | an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:244](../../tests/db/reaction_store_test.cpp#L244) |
 | aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:252](../../tests/db/reaction_store_test.cpp#L252) |
 | emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:262](../../tests/db/reaction_store_test.cpp#L262) |
-| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:39](../../tests/db/replacement_store_test.cpp#L39) |
-| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:59](../../tests/db/replacement_store_test.cpp#L59) |
-| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:72](../../tests/db/replacement_store_test.cpp#L72) |
-| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:87](../../tests/db/replacement_store_test.cpp#L87) |
-| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:100](../../tests/db/replacement_store_test.cpp#L100) |
+| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:41](../../tests/db/replacement_store_test.cpp#L41) |
+| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:61](../../tests/db/replacement_store_test.cpp#L61) |
+| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:74](../../tests/db/replacement_store_test.cpp#L74) |
+| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:89](../../tests/db/replacement_store_test.cpp#L89) |
+| unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:102](../../tests/db/replacement_store_test.cpp#L102) |
+| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:123](../../tests/db/replacement_store_test.cpp#L123) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:62](../../tests/db/trigger_store_test.cpp#L62) |
 | guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:81](../../tests/db/trigger_store_test.cpp#L81) |
 | updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:98](../../tests/db/trigger_store_test.cpp#L98) |
@@ -327,11 +328,15 @@ Message pipeline and triggers (`src/core/events`)
 | posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:458](../../tests/unit/embed_watch_test.cpp#L458) |
 | a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:489](../../tests/unit/embed_watch_test.cpp#L489) |
 | a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:503](../../tests/unit/embed_watch_test.cpp#L503) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:535](../../tests/unit/embed_watch_test.cpp#L535) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:551](../../tests/unit/embed_watch_test.cpp#L551) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:571](../../tests/unit/embed_watch_test.cpp#L571) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:605](../../tests/unit/embed_watch_test.cpp#L605) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:617](../../tests/unit/embed_watch_test.cpp#L617) |
+| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:542](../../tests/unit/embed_watch_test.cpp#L542) |
+| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:566](../../tests/unit/embed_watch_test.cpp#L566) |
+| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:579](../../tests/unit/embed_watch_test.cpp#L579) |
+| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:605](../../tests/unit/embed_watch_test.cpp#L605) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:642](../../tests/unit/embed_watch_test.cpp#L642) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:658](../../tests/unit/embed_watch_test.cpp#L658) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:678](../../tests/unit/embed_watch_test.cpp#L678) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:712](../../tests/unit/embed_watch_test.cpp#L712) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:724](../../tests/unit/embed_watch_test.cpp#L724) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |

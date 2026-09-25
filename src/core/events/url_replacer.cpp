@@ -153,6 +153,67 @@ dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::ve
     }
 }
 
+dpp::task<void> settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules,
+                                embed_tracker& tracker, std::vector<replacement_record> stranded) {
+    std::size_t working = 0;
+    std::size_t noted = 0;
+    std::size_t gone = 0;
+    std::size_t later = 0;
+
+    for (replacement_record& record : stranded) {
+        const auto fetched = co_await discord.get_message(record.channel_id, record.message_id);
+        if (!fetched.ok()) {
+            // Waiting will not bring back a message that was deleted, or a
+            // channel the bot can no longer see, and there is nothing left to
+            // edit. Anything else may be passing, so it waits for next time.
+            const int status = fetched.error().http_status;
+            if (status == 403 || status == 404) {
+                replacements.set_state(record.message_id, replacement_state::failed);
+                util::log().debug("replacement {} can no longer be reached ({}); marked failed", record.message_id,
+                                  fetched.error().message);
+                ++gone;
+            } else {
+                util::log().warn("could not fetch replacement {} to settle it; trying again at the next start: {}", record.message_id,
+                                 fetched.error().message);
+                ++later;
+            }
+            continue;
+        }
+
+        // The mirrors are only for the failure note to name. They come from
+        // the rules as they are now, which is also what Retry would use.
+        for (planned_link& link : record.links) {
+            if (const auto rule = rules.find(record.guild_id, link.domain)) {
+                link.mirrors = rule->mirrors;
+            }
+        }
+
+        const bool retry = record.state == replacement_state::retrying;
+        std::vector<embed_action> actions = tracker.settle({.guild_id = record.guild_id,
+                                                            .channel_id = record.channel_id,
+                                                            .message_id = record.message_id,
+                                                            .original_message_id = record.original_message_id.value_or(dpp::snowflake{}),
+                                                            .links = std::move(record.links),
+                                                            .per_mirror = retry ? retry_attempts_per_mirror : attempts_per_mirror,
+                                                            .retry = retry},
+                                                           embed_urls_of(fetched.value()));
+
+        const bool failed = std::ranges::any_of(actions, [](const embed_action& wanted) {
+            const auto* edit = std::get_if<edit_replacement>(&wanted);
+            return edit != nullptr && edit->failed;
+        });
+        ++(failed ? noted : working);
+        co_await carry_out_embed_actions(discord, std::move(actions));
+    }
+
+    if (!stranded.empty()) {
+        util::log().info(
+            "guild {}: settled {} replacement(s) the last run left unfinished; {} had previews, {} got Retry, {} were gone, "
+            "{} wait for the next start",
+            stranded.front().guild_id, stranded.size(), working, noted, gone, later);
+    }
+}
+
 std::variant<retry_plan, std::string> plan_retry(const replacement_store& replacements, const url_rule_store& rules,
                                                  dpp::snowflake message_id, dpp::snowflake guild_id) {
     const auto found = replacements.find(message_id);

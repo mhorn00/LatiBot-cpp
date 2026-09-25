@@ -230,6 +230,18 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
         util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
     }
 
+    // Read before the connection starts, so everything found was cut off by
+    // the last run rather than being watched by this one. Each guild's are
+    // settled once it connects.
+    const std::vector<events::replacement_record> unsettled = replacements_.unsettled();
+    for (const events::replacement_record& record : unsettled) {
+        stranded_[record.guild_id].push_back(record);
+    }
+    if (!unsettled.empty()) {
+        util::log().info("the last run left {} replacement(s) waiting on a preview; settling them as their servers connect",
+                         unsettled.size());
+    }
+
     register_commands();
     register_stages();
     register_events();
@@ -330,6 +342,7 @@ void bot::register_events() {
         check_permissions(guild);
         reconcile_nicknames(guild);
         import_url_rules(guild);
+        settle_stranded_replacements(guild.id);
 
         const int seeded = triggers_.seed_defaults(guild.id);
         if (seeded > 0) {
@@ -670,6 +683,22 @@ void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowfla
     // be overtaken by another press. Anyone may press it (plan §9.4).
     event.reply(dpp::ir_update_message, events::build_edit(retry.first));
     carry_out(embed_tracker_.watch(std::move(retry.request)));
+}
+
+void bot::settle_stranded_replacements(dpp::snowflake guild_id) {
+    std::vector<events::replacement_record> mine;
+    {
+        const std::scoped_lock guard(stranded_mutex_);
+        const auto found = stranded_.find(guild_id);
+        if (found == stranded_.end()) {
+            return;
+        }
+        mine = std::move(found->second);
+        stranded_.erase(found);
+    }
+
+    detach(events::settle_stranded(gateway_, replacements_, url_rules_, embed_tracker_, std::move(mine)),
+           "settling replacements the last run left unfinished");
 }
 
 std::chrono::sys_seconds bot::now_seconds() const {

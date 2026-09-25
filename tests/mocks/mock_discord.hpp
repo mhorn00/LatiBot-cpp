@@ -52,8 +52,10 @@ public:
     std::deque<result<std::vector<dpp::snowflake>>> reaction_pages;
 
     /// What `get_message` finds, by id. Anything else is a 404, as it would
-    /// be for a message that has been deleted.
+    /// be for a message that has been deleted, unless `message_errors` says
+    /// what else to fail with.
     std::map<dpp::snowflake, dpp::message> stored_messages;
+    std::map<dpp::snowflake, api_error> message_errors;
 
     dpp::task<result<dpp::message>> send_message(dpp::message message) override {
         sent.push_back(message);
@@ -97,6 +99,9 @@ public:
     }
 
     dpp::task<result<dpp::message>> get_message(dpp::snowflake /*channel_id*/, dpp::snowflake message_id) override {
+        if (const auto failing = message_errors.find(message_id); failing != message_errors.end()) {
+            co_return failing->second;
+        }
         const auto found = stored_messages.find(message_id);
         if (found == stored_messages.end()) {
             co_return api_error{.http_status = 404, .message = "Unknown Message"};

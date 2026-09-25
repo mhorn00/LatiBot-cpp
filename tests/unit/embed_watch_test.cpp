@@ -515,6 +515,113 @@ TEST_CASE("a failure's actions reach Discord", "[events][coro]") {
 }
 
 // --------------------------------------------------------------------------
+// Settling what a restart cut off (plan §9.4)
+// --------------------------------------------------------------------------
+
+namespace {
+
+/// Our message as Discord hands it back, with whatever previews it has.
+dpp::message as_fetched(std::vector<std::string> embed_urls = {}) {
+    dpp::message message(channel, "🔗 [_](https://vxtwitter.com/a/status/1)");
+    message.id = ours;
+    for (std::string& url : embed_urls) {
+        dpp::embed embed;
+        embed.url = std::move(url);
+        message.embeds.push_back(std::move(embed));
+    }
+    return message;
+}
+
+/// The last run's unfinished replacements, as the bot reads them at startup.
+void settle(fixture& test, latibot::testing::mock_discord& discord) {
+    latibot::events::settle_stranded(discord, test.replacements, test.rules, test.tracker, test.replacements.unsettled()).sync_wait_for(2s);
+}
+
+} // namespace
+
+TEST_CASE("a replacement stranded without a preview gets its note, and the original's preview back", "[events][coro]") {
+    fixture test;
+    latibot::testing::mock_discord discord;
+    test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
+    test.record({x_link()}, replacement_state::pending);
+    discord.stored_messages[ours] = as_fetched();
+
+    settle(test, discord);
+
+    CHECK(test.state() == replacement_state::failed);
+    REQUIRE(discord.suppressions.size() == 1);
+    CHECK(discord.suppressions[0].message_id == original);
+    CHECK_FALSE(discord.suppressions[0].suppressed);
+
+    // The note names the mirrors from the rule as it is now, and has Retry.
+    REQUIRE(discord.edited.size() == 1);
+    CHECK(discord.edited[0].content.find("from fxtwitter.com") != std::string::npos);
+    CHECK_FALSE(discord.edited[0].components.empty());
+
+    // Nothing is left being watched, or unsettled for the next start.
+    CHECK_FALSE(test.tracker.watching(ours));
+    CHECK(test.replacements.unsettled().empty());
+}
+
+TEST_CASE("a replacement stranded after its preview appeared is simply marked working", "[events][coro]") {
+    fixture test;
+    latibot::testing::mock_discord discord;
+    test.record({x_link()}, replacement_state::pending);
+    discord.stored_messages[ours] = as_fetched({"https://x.com/a/status/1"});
+
+    settle(test, discord);
+
+    CHECK(test.state() == replacement_state::ok);
+    CHECK(discord.edited.empty());
+    CHECK(discord.suppressions.empty());
+}
+
+TEST_CASE("a Retry a restart cut off ends as a Retry would", "[events][coro]") {
+    fixture test;
+    latibot::testing::mock_discord discord;
+    test.record({x_link()}, replacement_state::retrying);
+
+    SECTION("with no preview, the note comes back and the original is left on") {
+        discord.stored_messages[ours] = as_fetched();
+        settle(test, discord);
+
+        CHECK(test.state() == replacement_state::failed);
+        CHECK(test.replacements.find(ours)->retried_at.has_value());
+        CHECK(discord.suppressions.empty());
+        REQUIRE(discord.edited.size() == 1);
+        CHECK_FALSE(discord.edited[0].components.empty());
+    }
+
+    SECTION("with one, the original's preview goes back off") {
+        discord.stored_messages[ours] = as_fetched({"https://x.com/a/status/1"});
+        settle(test, discord);
+
+        CHECK(test.state() == replacement_state::ok);
+        REQUIRE(discord.suppressions.size() == 1);
+        CHECK(discord.suppressions[0].suppressed);
+    }
+}
+
+TEST_CASE("a stranded replacement that is gone is marked failed, and one Discord will not show yet waits", "[events][coro]") {
+    fixture test;
+    latibot::testing::mock_discord discord;
+    test.record({x_link()}, replacement_state::pending);
+
+    SECTION("deleted: nothing to edit, and no reason to ask again next time") {
+        settle(test, discord);
+        CHECK(test.state() == replacement_state::failed);
+        CHECK(discord.edited.empty());
+    }
+
+    SECTION("a server error: left for the next start") {
+        discord.message_errors[ours] = latibot::api_error{.http_status = 503, .message = "Service Unavailable"};
+        settle(test, discord);
+        CHECK(test.state() == replacement_state::pending);
+        CHECK(discord.edited.empty());
+    }
+}
+
+// --------------------------------------------------------------------------
 // The stage
 // --------------------------------------------------------------------------
 

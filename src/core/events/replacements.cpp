@@ -129,4 +129,26 @@ bool replacement_store::mark_retried(dpp::snowflake message_id, replacement_stat
     return db_->changes() > 0;
 }
 
+std::vector<replacement_record> replacement_store::unsettled() const {
+    const auto guard = db_->lock();
+
+    std::vector<dpp::snowflake> ids;
+    {
+        auto query = db_->prepare("SELECT message_id FROM replacement_messages WHERE state IN (?, ?) ORDER BY message_id",
+                                  to_string(replacement_state::pending), to_string(replacement_state::retrying));
+        while (query.step()) {
+            ids.emplace_back(query.get<std::uint64_t>(0));
+        }
+    }
+
+    std::vector<replacement_record> found;
+    found.reserve(ids.size());
+    for (const dpp::snowflake id : ids) {
+        if (auto entry = find(id)) {
+            found.push_back(std::move(*entry));
+        }
+    }
+    return found;
+}
+
 } // namespace latibot::events

@@ -152,6 +152,13 @@ public:
     /// Moves every link whose time is up to its next attempt.
     std::vector<embed_action> tick();
 
+    /// Ends a watch at once on the previews a message has now, trying nothing
+    /// further: any preview makes it working, none makes it failed, with the
+    /// note and Retry. For a replacement whose watch was lost to a restart,
+    /// where starting over would edit a message that may have sat there for
+    /// hours.
+    std::vector<embed_action> settle(watch_request request, std::span<const std::string> embed_urls);
+
     /// Our message was deleted; there is nothing left to edit.
     void forget(dpp::snowflake message_id);
 

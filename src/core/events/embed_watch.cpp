@@ -289,6 +289,18 @@ std::vector<embed_action> embed_tracker::tick() {
     return actions;
 }
 
+std::vector<embed_action> embed_tracker::settle(watch_request request, std::span<const std::string> embed_urls) {
+    watch_state state{.request = std::move(request), .links = {}, .deadline = {}};
+    for (const planned_link& link : state.request.links) {
+        state.links.push_back({.link = link, .attempt = 0, .progress = link_progress::waiting});
+    }
+
+    const std::scoped_lock guard(mutex_);
+    absorb(state, embed_urls);
+    watches_.erase(state.request.message_id);
+    return finish(state);
+}
+
 std::vector<embed_action> embed_tracker::finish(const watch_state& state) {
     const watch_request& request = state.request;
     const auto embedded = std::ranges::count(state.links, link_progress::embedded, &watched_link::progress);

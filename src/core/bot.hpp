@@ -21,6 +21,10 @@
 
 #include <dpp/dpp.h>
 
+#include <map>
+#include <mutex>
+#include <vector>
+
 namespace latibot {
 
 /// Owns the Discord connection and the subsystems hanging off it.
@@ -121,6 +125,10 @@ private:
     /// Somebody pressed Retry on a replacement that found no preview.
     void retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who);
 
+    /// Settles this guild's replacements the last run left mid-watch, once:
+    /// its first guild_create hands them over (plan §9.4).
+    void settle_stranded_replacements(dpp::snowflake guild_id);
+
     /// Runs what the embed tracker decided, without holding up the caller.
     void carry_out(std::vector<events::embed_action> actions);
 
@@ -159,6 +167,12 @@ private:
     events::backfill_service backfill_;
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
+
+    /// Replacements the last run left `pending` or `retrying`, by guild. Read
+    /// in the constructor, before anything can be posted, so none of them is
+    /// one this run is still watching.
+    std::mutex stranded_mutex_;
+    std::map<dpp::snowflake, std::vector<events::replacement_record>> stranded_;
 };
 
 } // namespace latibot

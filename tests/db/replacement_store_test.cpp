@@ -4,7 +4,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <chrono>
+#include <cstdint>
 
 using latibot::events::replacement_record;
 using latibot::events::replacement_state;
@@ -95,6 +97,27 @@ TEST_CASE("recording a replacement again replaces its links", "[db]") {
     CHECK(fixture.store.find(ours)->links.size() == 1);
     CHECK(fixture.store.contains(ours));
     CHECK_FALSE(fixture.store.contains(dpp::snowflake{1}));
+}
+
+TEST_CASE("unsettled replacements are the pending and retrying ones, with their links", "[db]") {
+    store_fixture fixture;
+
+    const std::array states{replacement_state::pending, replacement_state::ok, replacement_state::failed, replacement_state::retrying};
+    std::uint64_t id = 4000;
+    for (const replacement_state state : states) {
+        auto entry = sample();
+        entry.message_id = dpp::snowflake{id++};
+        entry.state = state;
+        fixture.store.record(entry);
+    }
+
+    const auto unsettled = fixture.store.unsettled();
+    REQUIRE(unsettled.size() == 2);
+    CHECK(unsettled[0].message_id == dpp::snowflake{4000});
+    CHECK(unsettled[0].state == replacement_state::pending);
+    CHECK(unsettled[0].links.size() == 2);
+    CHECK(unsettled[1].message_id == dpp::snowflake{4003});
+    CHECK(unsettled[1].state == replacement_state::retrying);
 }
 
 TEST_CASE("replacement states have stable names", "[db]") {

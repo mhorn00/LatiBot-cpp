@@ -73,6 +73,11 @@ public:
     /// Records a Retry that finished, whatever it found.
     bool mark_retried(dpp::snowflake message_id, replacement_state state, std::chrono::sys_seconds at);
 
+    /// Every replacement still `pending` or `retrying`, oldest first. Read at
+    /// startup, before anything is posted, these are the ones the last run
+    /// was still watching when it stopped.
+    [[nodiscard]] std::vector<replacement_record> unsettled() const;
+
 private:
     db::database* db_;
 };

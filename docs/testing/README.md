@@ -283,8 +283,10 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     configured.
   - The URL replacement wiring. The tracker, the reaction store and the
     backfill are tested against the mocks; that `on_message_update`,
-    `on_message_delete` and the four reaction events reach them, and that
-    `recompute` is handed the right text channels from DPP's cache, is not.
+    `on_message_delete` and the four reaction events reach them, that
+    `recompute` is handed the right text channels from DPP's cache, and that
+    each guild's first `guild_create` hands `settle_stranded` the replacements
+    the last run left unfinished, is not.
     Whether a given mirror actually produces a preview is a question only
     real Discord answers, which is what `[live]` tests are for.
 - **No command's `execute()` is tested.** Replying needs `event.co_reply`,
