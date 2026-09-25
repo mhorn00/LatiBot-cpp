@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-433 test cases across 9 components, including 91 sections.
+440 test cases across 9 components, including 92 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 96 | 11 |
+| [db](#db) | 98 | 11 |
 | [config](#config) | 20 | 15 |
-| [commands](#commands) | 89 | 22 |
-| [events](#events) | 144 | 32 |
+| [commands](#commands) | 93 | 22 |
+| [events](#events) | 145 | 33 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 5 | 0 |
 | [ports](#ports) | 7 | 0 |
@@ -119,8 +119,10 @@ Database (`src/core/db`)
 | removing a rule says whether there was one |  |  | [tests/db/url_rule_store_test.cpp:72](../../tests/db/url_rule_store_test.cpp#L72) |
 | a mirror is remembered after its rule is gone |  |  | [tests/db/url_rule_store_test.cpp:81](../../tests/db/url_rule_store_test.cpp#L81) |
 | an opt-out toggles, and is kept per guild |  |  | [tests/db/url_rule_store_test.cpp:93](../../tests/db/url_rule_store_test.cpp#L93) |
-| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:105](../../tests/db/url_rule_store_test.cpp#L105) |
-| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:124](../../tests/db/url_rule_store_test.cpp#L124) |
+| replacement is off in a guild until it is turned on, per guild |  |  | [tests/db/url_rule_store_test.cpp:105](../../tests/db/url_rule_store_test.cpp#L105) |
+| turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:120](../../tests/db/url_rule_store_test.cpp#L120) |
+| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:137](../../tests/db/url_rule_store_test.cpp#L137) |
+| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:156](../../tests/db/url_rule_store_test.cpp#L156) |
 
 ## config
 
@@ -229,21 +231,25 @@ Command framework (`src/core/commands`)
 | the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:134](../../tests/unit/trigger_command_test.cpp#L134) |
 | the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:152](../../tests/unit/trigger_command_test.cpp#L152) |
 | a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:186](../../tests/unit/trigger_command_test.cpp#L186) |
-| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:69](../../tests/unit/urlrepl_command_test.cpp#L69) |
-| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:82](../../tests/unit/urlrepl_command_test.cpp#L82) |
-| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:86](../../tests/unit/urlrepl_command_test.cpp#L86) |
-| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:91](../../tests/unit/urlrepl_command_test.cpp#L91) |
-| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:99](../../tests/unit/urlrepl_command_test.cpp#L99) |
-| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:108](../../tests/unit/urlrepl_command_test.cpp#L108) |
-| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:119](../../tests/unit/urlrepl_command_test.cpp#L119) |
-| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:124](../../tests/unit/urlrepl_command_test.cpp#L124) |
-| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:130](../../tests/unit/urlrepl_command_test.cpp#L130) |
-| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:146](../../tests/unit/urlrepl_command_test.cpp#L146) |
-| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:153](../../tests/unit/urlrepl_command_test.cpp#L153) |
-| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:169](../../tests/unit/urlrepl_command_test.cpp#L169) |
-| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:187](../../tests/unit/urlrepl_command_test.cpp#L187) |
-| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:198](../../tests/unit/urlrepl_command_test.cpp#L198) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:225](../../tests/unit/urlrepl_command_test.cpp#L225) |
+| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:71](../../tests/unit/urlrepl_command_test.cpp#L71) |
+| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:84](../../tests/unit/urlrepl_command_test.cpp#L84) |
+| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:88](../../tests/unit/urlrepl_command_test.cpp#L88) |
+| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:93](../../tests/unit/urlrepl_command_test.cpp#L93) |
+| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:101](../../tests/unit/urlrepl_command_test.cpp#L101) |
+| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:110](../../tests/unit/urlrepl_command_test.cpp#L110) |
+| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:121](../../tests/unit/urlrepl_command_test.cpp#L121) |
+| the dry run works while replacement is off, and says that it is |  |  | [tests/unit/urlrepl_command_test.cpp:126](../../tests/unit/urlrepl_command_test.cpp#L126) |
+| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:136](../../tests/unit/urlrepl_command_test.cpp#L136) |
+| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:142](../../tests/unit/urlrepl_command_test.cpp#L142) |
+| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:158](../../tests/unit/urlrepl_command_test.cpp#L158) |
+| the list and the panel say whether replacement is on |  |  | [tests/unit/urlrepl_command_test.cpp:165](../../tests/unit/urlrepl_command_test.cpp#L165) |
+| the panel's switch asks for the opposite of what is set |  |  | [tests/unit/urlrepl_command_test.cpp:177](../../tests/unit/urlrepl_command_test.cpp#L177) |
+| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:202](../../tests/unit/urlrepl_command_test.cpp#L202) |
+| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:221](../../tests/unit/urlrepl_command_test.cpp#L221) |
+| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:237](../../tests/unit/urlrepl_command_test.cpp#L237) |
+| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:255](../../tests/unit/urlrepl_command_test.cpp#L255) |
+| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:266](../../tests/unit/urlrepl_command_test.cpp#L266) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:293](../../tests/unit/urlrepl_command_test.cpp#L293) |
 
 ## events
 
@@ -265,30 +271,31 @@ Message pipeline and triggers (`src/core/events`)
 | a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:267](../../tests/db/backfill_test.cpp#L267) |
 | one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:280](../../tests/db/backfill_test.cpp#L280) |
 | without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:298](../../tests/db/backfill_test.cpp#L298) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:111](../../tests/unit/embed_watch_test.cpp#L111) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:121](../../tests/unit/embed_watch_test.cpp#L121) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:129](../../tests/unit/embed_watch_test.cpp#L129) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:144](../../tests/unit/embed_watch_test.cpp#L144) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:154](../../tests/unit/embed_watch_test.cpp#L154) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:160](../../tests/unit/embed_watch_test.cpp#L160) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:169](../../tests/unit/embed_watch_test.cpp#L169) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:180](../../tests/unit/embed_watch_test.cpp#L180) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:193](../../tests/unit/embed_watch_test.cpp#L193) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:208](../../tests/unit/embed_watch_test.cpp#L208) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:246](../../tests/unit/embed_watch_test.cpp#L246) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:271](../../tests/unit/embed_watch_test.cpp#L271) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:283](../../tests/unit/embed_watch_test.cpp#L283) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:293](../../tests/unit/embed_watch_test.cpp#L293) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:302](../../tests/unit/embed_watch_test.cpp#L302) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:316](../../tests/unit/embed_watch_test.cpp#L316) |
-| Retry says why there is nothing to retry |  | 4 | [tests/unit/embed_watch_test.cpp:357](../../tests/unit/embed_watch_test.cpp#L357) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:386](../../tests/unit/embed_watch_test.cpp#L386) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:417](../../tests/unit/embed_watch_test.cpp#L417) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:431](../../tests/unit/embed_watch_test.cpp#L431) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:463](../../tests/unit/embed_watch_test.cpp#L463) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:479](../../tests/unit/embed_watch_test.cpp#L479) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:513](../../tests/unit/embed_watch_test.cpp#L513) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:525](../../tests/unit/embed_watch_test.cpp#L525) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:116](../../tests/unit/embed_watch_test.cpp#L116) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:126](../../tests/unit/embed_watch_test.cpp#L126) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:134](../../tests/unit/embed_watch_test.cpp#L134) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:149](../../tests/unit/embed_watch_test.cpp#L149) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:159](../../tests/unit/embed_watch_test.cpp#L159) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:165](../../tests/unit/embed_watch_test.cpp#L165) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:174](../../tests/unit/embed_watch_test.cpp#L174) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:185](../../tests/unit/embed_watch_test.cpp#L185) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:198](../../tests/unit/embed_watch_test.cpp#L198) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:213](../../tests/unit/embed_watch_test.cpp#L213) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:251](../../tests/unit/embed_watch_test.cpp#L251) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:276](../../tests/unit/embed_watch_test.cpp#L276) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:288](../../tests/unit/embed_watch_test.cpp#L288) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:298](../../tests/unit/embed_watch_test.cpp#L298) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:321](../../tests/unit/embed_watch_test.cpp#L321) |
+| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:362](../../tests/unit/embed_watch_test.cpp#L362) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:403](../../tests/unit/embed_watch_test.cpp#L403) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:434](../../tests/unit/embed_watch_test.cpp#L434) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:448](../../tests/unit/embed_watch_test.cpp#L448) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:480](../../tests/unit/embed_watch_test.cpp#L480) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:496](../../tests/unit/embed_watch_test.cpp#L496) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:516](../../tests/unit/embed_watch_test.cpp#L516) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:550](../../tests/unit/embed_watch_test.cpp#L550) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:562](../../tests/unit/embed_watch_test.cpp#L562) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |

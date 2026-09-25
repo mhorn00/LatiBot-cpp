@@ -25,8 +25,9 @@ inline constexpr std::size_t message_length_limit = 2000;
 
 /// The URL replacement stage (plan v4 §5.4, §9).
 ///
-/// Does not consume the message: "420" and a link in one message get the
-/// joke and the preview both, which the Java bot's early returns got wrong.
+/// Does nothing in a guild that has not turned replacement on. Does not
+/// consume the message: "420" and a link in one message get the joke and the
+/// preview both, which the Java bot's early returns got wrong.
 class url_replacer {
 public:
     explicit url_replacer(const url_rule_store& rules) : rules_(&rules) {}
@@ -64,7 +65,8 @@ struct retry_plan {
 ///
 /// Mirrors come from the rule as it is now, not as it was: a rule fixed
 /// since the failure is exactly why somebody presses Retry. A link whose rule
-/// has since been removed is dropped.
+/// has since been removed is dropped, and nothing is retried in a guild that
+/// has since turned replacement off.
 [[nodiscard]] std::variant<retry_plan, std::string> plan_retry(const replacement_store& replacements, const url_rule_store& rules,
                                                                dpp::snowflake message_id, dpp::snowflake guild_id);
 

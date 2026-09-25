@@ -50,6 +50,11 @@ stage_result url_replacer::operator()(const incoming_message& message) const {
         return {};
     }
 
+    // Off until somebody turns it on for this server.
+    if (!rules_->enabled(message.guild_id)) {
+        return {};
+    }
+
     const std::vector<url_rule> rules = rules_->for_guild(message.guild_id);
     std::vector<planned_link> links = plan_replacements(message.content, rules);
     if (links.empty()) {
@@ -146,6 +151,12 @@ std::variant<retry_plan, std::string> plan_retry(const replacement_store& replac
     const auto found = replacements.find(message_id);
     if (!found || found->guild_id != guild_id) {
         return std::string("that replacement isn't one i know about any more");
+    }
+
+    // A Retry is a replacement like any other, and turning the feature off
+    // should not leave old buttons around that still post.
+    if (!rules.enabled(guild_id)) {
+        return std::string("link replacement has been turned off in this server");
     }
 
     switch (found->state) {

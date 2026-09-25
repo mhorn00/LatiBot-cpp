@@ -9,7 +9,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -107,7 +109,7 @@ TEST_CASE("a rule describes itself in one line", "[commands]") {
 
 TEST_CASE("the dry run shows the post and accounts for every link", "[commands]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com vxtwitter.com")};
-    const std::string reply = render_test("||https://x.com/a/status/1|| https://example.com/b <https://x.com/c>", rules, false);
+    const std::string reply = render_test("||https://x.com/a/status/1|| https://example.com/b <https://x.com/c>", rules, false, true);
 
     CHECK(reply.find("🔗 ||[_](https://fxtwitter.com/a/status/1)||") != std::string::npos);
     CHECK(reply.find("replaced using the x.com rule, trying fxtwitter.com, vxtwitter.com (spoilered") != std::string::npos);
@@ -118,13 +120,23 @@ TEST_CASE("the dry run shows the post and accounts for every link", "[commands]"
 
 TEST_CASE("the dry run says when the person running it has opted out", "[commands]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
-    CHECK(render_test("https://x.com/a", rules, true).find("opted out") != std::string::npos);
+    CHECK(render_test("https://x.com/a", rules, true, true).find("opted out") != std::string::npos);
+}
+
+TEST_CASE("the dry run works while replacement is off, and says that it is", "[commands]") {
+    // Trying rules out before switching them on is the point of it.
+    const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
+    const std::string off = render_test("https://x.com/a", rules, false, false);
+    CHECK(off.find("**Would post:**") != std::string::npos);
+    CHECK(off.find("`/urlrepl enable`") != std::string::npos);
+
+    CHECK(render_test("https://x.com/a", rules, false, true).find("`/urlrepl enable`") == std::string::npos);
 }
 
 TEST_CASE("the dry run says when there is nothing to do", "[commands]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
-    CHECK(render_test("no links here", rules, false) == "There are no links in that.");
-    CHECK(render_test("https://example.com", rules, false).starts_with("**Nothing would be posted.**"));
+    CHECK(render_test("no links here", rules, false, true) == "There are no links in that.");
+    CHECK(render_test("https://example.com", rules, false, true).starts_with("**Nothing would be posted.**"));
 }
 
 TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]") {
@@ -134,7 +146,7 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
         content += "https://example.com/some/rather/long/path/" + std::to_string(index) + " ";
     }
 
-    const std::string reply = render_test(content, rules, false);
+    const std::string reply = render_test(content, rules, false, true);
     CHECK(reply.size() <= 2000);
     CHECK(reply.find("more") != std::string::npos);
 }
@@ -148,6 +160,62 @@ TEST_CASE("an empty list says how to start one", "[commands]") {
     const auto message = latibot::commands::render_url_rule_list(fixture.store, guild, 0);
     CHECK(message.content.find("/urlrepl set") != std::string::npos);
     CHECK(message.components.empty());
+}
+
+TEST_CASE("the list and the panel say whether replacement is on", "[commands]") {
+    store_fixture fixture;
+    fixture.store.set(guild, rule_from("x.com", "fxtwitter.com"));
+
+    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.find("**off**") != std::string::npos);
+    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.find("**off**") != std::string::npos);
+
+    fixture.store.set_enabled(guild, true);
+    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.find("**on**") != std::string::npos);
+    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.find("**on**") != std::string::npos);
+}
+
+TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]") {
+    store_fixture fixture;
+
+    using label_and_argument = std::pair<std::string, std::string>;
+    const auto find_switch = [&]() -> std::optional<label_and_argument> {
+        const auto panel = latibot::commands::render_url_panel(fixture.store, guild, 0);
+        check_components_fit(panel);
+        for (const dpp::component& row : panel.components) {
+            for (const dpp::component& part : row.components) {
+                const auto state = latibot::ui::decode(part.custom_id);
+                if (state && state->view == latibot::commands::url_switch_view) {
+                    return label_and_argument{part.label, state->argument};
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    // The argument is the state wanted rather than "toggle", so a second
+    // press from a panel that has not refreshed changes nothing.
+    CHECK(find_switch() == label_and_argument{"Turn replacement on", "on"});
+    fixture.store.set_enabled(guild, true);
+    CHECK(find_switch() == label_and_argument{"Turn replacement off", "off"});
+}
+
+TEST_CASE("turning replacement on or off says what changed", "[commands]") {
+    store_fixture fixture;
+    const latibot::commands::user_label who{.name = "someone", .id = dpp::snowflake{5000}};
+
+    CHECK(latibot::commands::switch_url_replacement(fixture.store, guild, true, who, ""));
+    CHECK(fixture.store.enabled(guild));
+    CHECK_FALSE(latibot::commands::switch_url_replacement(fixture.store, guild, true, who, ""));
+
+    CHECK(latibot::commands::switch_url_replacement(fixture.store, guild, false, who, ""));
+    CHECK_FALSE(fixture.store.enabled(guild));
+
+    using latibot::commands::render_switch;
+    CHECK(render_switch(false, true, 3) == "Link replacement was already on here.");
+    CHECK(render_switch(true, true, 0).find("no rules yet") != std::string::npos);
+    CHECK(render_switch(true, true, 1).find("Its one rule applies") != std::string::npos);
+    CHECK(render_switch(true, true, 3).find("Its 3 rules apply") != std::string::npos);
+    CHECK(render_switch(true, false, 3).find("rules are kept") != std::string::npos);
 }
 
 TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]") {
@@ -229,7 +297,9 @@ TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
 
     const dpp::slashcommand repl = urlrepl.build("urlrepl", dpp::snowflake{1});
     CHECK(repl.default_member_permissions.can(dpp::p_manage_guild));
-    REQUIRE(repl.options.size() == 5);
+    REQUIRE(repl.options.size() == 7);
+    CHECK(repl.options[0].name == "enable");
+    CHECK(repl.options[1].name == "disable");
 
     const dpp::slashcommand opt_out = toggle.build("urltoggle", dpp::snowflake{1});
     // Everybody may opt themselves out.

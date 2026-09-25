@@ -1,5 +1,6 @@
 #include "core/events/url_rules.hpp"
 
+#include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"
 #include "core/util/log.hpp"
@@ -198,6 +199,14 @@ bool url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) {
     const auto guard = db_->lock();
     db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), domain).run();
     return db_->changes() > 0;
+}
+
+bool url_rule_store::enabled(dpp::snowflake guild_id) const {
+    return config::guild_settings(*db_).get_bool(guild_id, url_replacement_enabled_key, false);
+}
+
+void url_rule_store::set_enabled(dpp::snowflake guild_id, bool enabled) {
+    config::guild_settings(*db_).set_bool(guild_id, url_replacement_enabled_key, enabled);
 }
 
 bool url_rule_store::opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const {

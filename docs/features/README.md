@@ -26,12 +26,12 @@ the design and the order of work behind it are in
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record |
 | 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here |
 | 🌙 | [`/midnight`](#midnight) | Post a message at midnight |
-| 🔗 | [`/urlrepl`](#urlrepl) | Choose which links get posted again with a working preview |
+| 🔗 | [`/urlrepl`](#urlrepl) | Turn link replacement on, and choose which links get posted again with a working preview |
 | 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone |
 | 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command |
 | 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised |
-| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly |
+| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on |
 | 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways |
 | 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
@@ -391,14 +391,30 @@ posted for — otherwise fixing a typo would post it again the same day.
 
 ### `/urlrepl`
 
-Manages which sites' links are posted again on a mirror. See
-[URL replacement](#url-replacement) for what happens to a link.
+Manages which sites' links are posted again on a mirror, and whether that
+happens in this server at all. See [URL replacement](#url-replacement) for
+what happens to a link.
 
 | | |
 |---|---|
 | **Who** | Manage Server, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, Embed Links, Manage Messages |
+
+**It is off in every server until somebody turns it on.** A server that invited
+the bot for something else should not find its links rewritten, so rules can
+be added, imported and tried with `test` first; nothing is replaced until
+`enable`. The choice is kept in the database, per server, so it survives a
+restart.
+
+| Subcommand | Reply |
+|---|---|
+| `enable` | `Link replacement is on in this server. Its 3 rules apply from now on; /urlrepl list shows them.` With no rules yet it says so and points at `set`. |
+| `disable` | `Link replacement is off in this server. The rules are kept, so /urlrepl enable picks up where it left off.` |
+| either, already that way | `Link replacement was already on here.` / `…off here.` |
+
+Turning it off stops new replacements and Retry presses. Replacements already
+posted stay, and their reactions are still counted.
 
 A **rule** is a site and its mirrors, in the order to try them. A mirror is a
 host, optionally followed by a path that is added to every link — `/en`, for
@@ -407,7 +423,7 @@ with translation on, and needs no option of its own.
 
 | Subcommand | Options | Reply |
 |---|---|---|
-| `list` | none | The rules, five a page: **x.com** → fxtwitter.com/en, vxtwitter.com |
+| `list` | none | Whether replacement is on, then the rules, five a page: **x.com** → fxtwitter.com/en, vxtwitter.com |
 | `set` | `domain` (required, autocompleted) · `mirrors` (required) | `Added: links to x.com now go to fxtwitter.com/en, vxtwitter.com`, or `Updated: …` |
 | `remove` | `domain` (required, autocompleted) | `Links to x.com will be left alone from now on.` |
 | `test` | `text` (required: a whole message, or just a link) | A dry run, below |
@@ -440,12 +456,14 @@ Would post:
 - https://x.com/c: written as <link>, which turns its preview off
 ```
 
-It is the same code the real thing runs, so the two cannot disagree. If you
-have opted out with [`/urltoggle`](#urltoggle) it says so, since that would
+It is the same code the real thing runs, so the two cannot disagree. It works
+while replacement is off, and says that nothing is posted until `enable`. If
+you have opted out with [`/urltoggle`](#urltoggle) it says so, since that would
 explain a link of yours being left alone.
 
-**`panel`** lists a page of rules with a menu to pick one, then **Edit** and
-**Delete** for it, and **Add rule** with paging on the last row. Edit and Add
+**`panel`** says whether replacement is on and lists a page of rules with a
+menu to pick one, then **Edit** and **Delete** for it. The last row has
+**Add rule**, **Turn replacement on** (or **off**), and paging. Edit and Add
 open a form with the site and **the mirrors one per line** in the order they
 are tried, so reordering is rewriting lines; changing the site renames the rule
 rather than adding a second one. Delete asks to confirm in the panel itself.
@@ -473,6 +491,7 @@ Stops the bot replacing your links in this server, or starts it again.
 | Opting back in | `Your links will be replaced again.` |
 | For somebody else | `Links from @worm will be left alone from now on.` (nobody is pinged) |
 | For somebody else, without Manage Server | `changing that for somebody else needs Manage Server` |
+| Any of these, while replacement is off here | the same, then `Link replacement is off in this server at the moment, so nobody's links are being replaced.` |
 
 The choice is **kept**, per server. The Java bot's `/toggle` kept it in memory,
 so every restart quietly undid everyone's choice, and it let anyone toggle
@@ -630,6 +649,9 @@ When somebody posts a link to a site with a [rule](#urlrepl) — x.com,
 tiktok.com, reddit.com, instagram.com — the bot posts it again on a mirror that
 previews properly, and turns the preview on the original off.
 
+**Only in servers that turned it on**, with [`/urlrepl enable`](#urlrepl) or
+the panel's button. Every server starts with it off.
+
 The replacement is a **plain message, never a reply**, with notifications
 suppressed and one line per link:
 
@@ -687,7 +709,8 @@ If `UrlReplacements.txt` from the old bot is left next to the database — at
 time the bot sees it there. A rule the server already has is never
 overwritten, and a server is only ever imported once, so deleting a rule later
 is not undone by the next restart. Without the file, a server starts with no
-rules and [`/urlrepl set`](#urlrepl) adds them.
+rules and [`/urlrepl set`](#urlrepl) adds them. Either way the rules do nothing
+until the server runs `/urlrepl enable`; importing does not turn it on.
 
 ### Reaction statistics
 

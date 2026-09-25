@@ -102,6 +102,38 @@ TEST_CASE("an opt-out toggles, and is kept per guild", "[db]") {
     CHECK_FALSE(fixture.store.opted_out(guild, member));
 }
 
+TEST_CASE("replacement is off in a guild until it is turned on, per guild", "[db]") {
+    store_fixture fixture;
+    fixture.store.set(guild, x_rule());
+
+    // Having rules is not the same as wanting them applied.
+    CHECK_FALSE(fixture.store.enabled(guild));
+
+    fixture.store.set_enabled(guild, true);
+    CHECK(fixture.store.enabled(guild));
+    CHECK_FALSE(fixture.store.enabled(other_guild));
+
+    fixture.store.set_enabled(guild, false);
+    CHECK_FALSE(fixture.store.enabled(guild));
+}
+
+TEST_CASE("turning replacement on outlasts a restart", "[db][fs]") {
+    const latibot::testing::temp_directory folder;
+    const auto file = folder.path() / "bot.db";
+
+    {
+        latibot::db::database db{file};
+        latibot::db::migrate(db);
+        url_rule_store(db).set_enabled(guild, true);
+    }
+
+    // A fresh connection and a fresh store, as the next start would have.
+    latibot::db::database reopened{file};
+    latibot::db::migrate(reopened);
+    CHECK(url_rule_store(reopened).enabled(guild));
+    CHECK_FALSE(url_rule_store(reopened).enabled(other_guild));
+}
+
 TEST_CASE("the Java rule file imports once, and never over an existing rule", "[db][fs]") {
     store_fixture fixture;
     const latibot::testing::temp_directory folder;

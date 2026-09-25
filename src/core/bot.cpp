@@ -313,9 +313,10 @@ void bot::register_events() {
             util::log().info("{}: seeded {} default triggers", guild.name, seeded);
         }
 
-        util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\"", guild.name, triggers_.for_guild(guild.id).size(),
-                          bot_allowlist_.for_guild(guild.id).size(),
-                          guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase));
+        util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
+                          triggers_.for_guild(guild.id).size(), bot_allowlist_.for_guild(guild.id).size(),
+                          guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase),
+                          url_rules_.enabled(guild.id) ? "on" : "off", url_rules_.for_guild(guild.id).size());
     });
 
     cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
@@ -595,7 +596,8 @@ void bot::import_url_rules(const dpp::guild& guild) {
     }
 
     guild_settings_.set_bool(guild.id, url_rules_imported_key, true);
-    util::log().info("{}: imported {} URL rule(s) from {}", guild.name, *imported, legacy.generic_string());
+    util::log().info("{}: imported {} URL rule(s) from {}{}", guild.name, *imported, legacy.generic_string(),
+                     url_rules_.enabled(guild.id) ? "" : "; they apply once someone runs /urlrepl enable there");
 }
 
 void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) {
@@ -741,6 +743,9 @@ bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::pag
         if (url_rules_.remove(guild, state.argument)) {
             util::log().info("URL rule for {} removed from guild {} by {} from the panel", state.argument, guild, who);
         }
+        event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
+    } else if (state.view == commands::url_switch_view) {
+        commands::switch_url_replacement(url_rules_, guild, state.argument == "on", who, " from the panel");
         event.reply(dpp::ir_update_message, commands::render_url_panel(url_rules_, guild, state.page));
     } else if (state.view == commands::url_add_view) {
         event.dialog(commands::url_rule_form(state.page, nullptr));

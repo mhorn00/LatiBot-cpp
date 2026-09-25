@@ -95,6 +95,35 @@ std::string describe(const events::url_rule& rule) {
     return std::format("**{}** → {}", rule.domain, describe_mirrors(rule.mirrors));
 }
 
+std::string describe_state(bool enabled) {
+    return enabled ? "Link replacement is **on** in this server."
+                   : "Link replacement is **off** in this server, so nothing is replaced yet.";
+}
+
+bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
+                            std::string_view from) {
+    if (store.enabled(guild_id) == enabled) {
+        return false;
+    }
+    store.set_enabled(guild_id, enabled);
+    util::log().info("URL replacement turned {} in guild {} by {}{}", enabled ? "on" : "off", guild_id, who, from);
+    return true;
+}
+
+std::string render_switch(bool changed, bool enabled, std::size_t rule_count) {
+    if (!changed) {
+        return std::format("Link replacement was already {} here.", enabled ? "on" : "off");
+    }
+    if (!enabled) {
+        return "Link replacement is off in this server. The rules are kept, so `/urlrepl enable` picks up where it left off.";
+    }
+    if (rule_count == 0) {
+        return "Link replacement is on in this server, but there are no rules yet. Add one with `/urlrepl set`.";
+    }
+    const std::string applying = rule_count == 1 ? std::string("Its one rule applies") : std::format("Its {} rules apply", rule_count);
+    return std::format("Link replacement is on in this server. {} from now on; `/urlrepl list` shows them.", applying);
+}
+
 std::variant<events::url_rule, std::string> build_rule(std::string_view domain_text, std::string_view mirrors_text) {
     const auto domain = events::normalise_domain(domain_text);
     if (!domain || domain->find('.') == std::string::npos) {
@@ -125,7 +154,7 @@ std::variant<events::url_rule, std::string> build_rule(std::string_view domain_t
     return rule;
 }
 
-std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out) {
+std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled) {
     const std::vector<events::link_verdict> verdicts = events::explain_links(content, rules);
     if (verdicts.empty()) {
         return "There are no links in that.";
@@ -164,6 +193,9 @@ std::string render_test(std::string_view content, std::span<const events::url_ru
         reply += std::format("…and {} more\n", dropped);
     }
 
+    if (!enabled && !posted.empty()) {
+        reply += "\nLink replacement is off in this server, so nothing is posted until it's turned on with `/urlrepl enable`.";
+    }
     if (opted_out && !posted.empty()) {
         reply += "\nYou've opted out with `/urltoggle`, so messages of yours are left alone.";
     }
@@ -175,9 +207,15 @@ dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snow
     const int current = ui::clamp_page(page, rules.size(), url_rules_per_page);
     const ui::page_range window = ui::range_for(current, rules.size(), url_rules_per_page);
 
-    std::string body;
+    const bool enabled = store.enabled(guild_id);
+    std::string body = describe_state(enabled);
+    if (!enabled) {
+        body += " Turn it on with `/urlrepl enable`.";
+    }
+    body += "\n\n";
+
     if (rules.empty()) {
-        body = "No URL rules here yet. Add one with `/urlrepl set`.";
+        body += "No URL rules here yet. Add one with `/urlrepl set`.";
     } else {
         for (std::size_t index = window.begin; index < window.end; ++index) {
             body += describe(rules[index]);
@@ -254,12 +292,16 @@ std::optional<dpp::component> selection_row(int page, std::string_view selected,
     return row;
 }
 
-std::optional<dpp::component> footer_row(int page, std::size_t total) {
+std::optional<dpp::component> footer_row(int page, std::size_t total, bool enabled) {
     dpp::component row;
     row.set_type(dpp::cot_action_row);
 
     if (const auto add = ui::encode({.view = std::string(url_add_view), .page = page, .argument = {}})) {
         row.add_component(button(dpp::cos_success, "Add rule", *add));
+    }
+    if (const auto power = ui::encode({.view = std::string(url_switch_view), .page = page, .argument = enabled ? "off" : "on"})) {
+        row.add_component(
+            button(enabled ? dpp::cos_secondary : dpp::cos_primary, enabled ? "Turn replacement off" : "Turn replacement on", *power));
     }
     if (const auto paging = ui::controls({.view = std::string(url_panel_view), .page = page, .argument = {}}, total, url_rules_per_page)) {
         for (const dpp::component& one : paging->components) {
@@ -288,7 +330,10 @@ dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflak
     const std::span<const events::url_rule> page_of(rules.data() + window.begin, window.size());
     const bool shown = std::ranges::find(page_of, selected, &events::url_rule::domain) != page_of.end();
 
-    std::string body = "**URL rules**\nLinks to each site are posted again on its first mirror, then the next if no preview appears.\n\n";
+    const bool enabled = store.enabled(guild_id);
+    std::string body =
+        std::format("**URL rules**\n{}\nLinks to each site are posted again on its first mirror, then the next if no preview appears.\n\n",
+                    describe_state(enabled));
     if (rules.empty()) {
         body += "Nothing here yet. **Add rule** below.";
     } else {
@@ -308,7 +353,7 @@ dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflak
     if (const auto row = selection_row(current, shown ? selected : std::string_view{}, confirming_delete)) {
         reply.add_component(*row);
     }
-    if (const auto footer = footer_row(current, rules.size())) {
+    if (const auto footer = footer_row(current, rules.size(), enabled)) {
         reply.add_component(*footer);
     }
     return reply;
@@ -373,6 +418,9 @@ urlrepl_command::urlrepl_command(events::url_rule_store& store)
 dpp::slashcommand urlrepl_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
 
+    const dpp::command_option enable(dpp::co_sub_command, "enable", "Start replacing links in this server. It's off until turned on.");
+    const dpp::command_option disable(dpp::co_sub_command, "disable", "Stop replacing links in this server. The rules are kept.");
+
     const dpp::command_option list(dpp::co_sub_command, "list", "Show this server's URL rules.");
 
     dpp::command_option set(dpp::co_sub_command, "set", "Add a rule, or replace a rule's mirrors.");
@@ -391,6 +439,8 @@ dpp::slashcommand urlrepl_command::build(const std::string& name, dpp::snowflake
 
     const dpp::command_option panel(dpp::co_sub_command, "panel", "Open the URL rule panel.");
 
+    payload.add_option(enable);
+    payload.add_option(disable);
     payload.add_option(list);
     payload.add_option(set);
     payload.add_option(remove);
@@ -426,7 +476,9 @@ void urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const {
 dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
     const std::string action = subcommand_of(event);
 
-    if (action == "list") {
+    if (action == "enable" || action == "disable") {
+        co_await this->turn(event, action == "enable");
+    } else if (action == "list") {
         co_await event.co_reply(render_url_rule_list(*store_, event.command.guild_id, 0));
     } else if (action == "set") {
         co_await this->set(event);
@@ -439,6 +491,12 @@ dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
     } else {
         co_await event.co_reply(ack("i don't know that subcommand"));
     }
+}
+
+dpp::task<void> urlrepl_command::turn(const dpp::slashcommand_t& event, bool enabled) {
+    const dpp::snowflake guild = event.command.guild_id;
+    const bool changed = switch_url_replacement(*store_, guild, enabled, describe_user(event.command.get_issuing_user()), "");
+    co_await event.co_reply(ack(render_switch(changed, enabled, store_->for_guild(guild).size())));
 }
 
 dpp::task<void> urlrepl_command::set(const dpp::slashcommand_t& event) {
@@ -476,7 +534,7 @@ dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
     const std::vector<events::url_rule> rules = store_->for_guild(guild);
     const bool opted_out = store_->opted_out(guild, event.command.get_issuing_user().id);
 
-    dpp::message reply(render_test(string_option(event, "text"), rules, opted_out));
+    dpp::message reply(render_test(string_option(event, "text"), rules, opted_out, store_->enabled(guild)));
     // The mirror links are the point of the reply, not their previews.
     reply.set_flags(dpp::m_ephemeral | dpp::m_suppress_embeds);
     co_await event.co_reply(reply);
@@ -525,6 +583,11 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
             opted_out ? "Your links will be left alone here from now on. Run this again to undo it." : "Your links will be replaced again.";
     } else {
         text = std::format("Links from <@{}> will {}.", target, opted_out ? "be left alone from now on" : "be replaced again");
+    }
+
+    // The choice is kept either way; it just has nothing to act on yet.
+    if (!store_->enabled(guild)) {
+        text += " Link replacement is off in this server at the moment, so nobody's links are being replaced.";
     }
 
     co_await event.co_reply(ack(text));

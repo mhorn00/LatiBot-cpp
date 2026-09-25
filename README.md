@@ -245,7 +245,7 @@ options, replies and edge cases.
 | `/nickname` | change somebody's nickname, and record who did it |
 | `/nicknames` | every nickname somebody has had here, paginated |
 | `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
-| `/urlrepl` | `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
+| `/urlrepl` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
 | `/urltoggle` | have your own links left alone, or not |
 | `/linkstats` | `top`, `user`, `emojis`, `alias`, `recompute` — reactions on replaced links |
 
@@ -257,7 +257,9 @@ whoever made it, each midnight message posts once per local day, the database
 backs itself up on a schedule, and anything the bot lacks permission to do is
 reported per server at startup as a warning rather than an error.
 
-URL replacement watches for Discord to actually build the preview rather than
+URL replacement is off in every server until someone with Manage Server runs
+`/urlrepl enable` there, and the bot remembers the choice across restarts. It
+watches for Discord to actually build the preview rather than
 guessing from a timer, tries each mirror twice before moving on, and when none
 works leaves a **Retry** button instead of deleting its message. Every link in a
 message is handled, spoilers stay spoilered, and each of the Java bot's bugs
@@ -273,7 +275,7 @@ the bot for anything the bot did. The history records the person instead, and
 says **unknown** rather than guessing when nobody can be named. Dropping the
 Java bot's `nicknames.json` into `data/` imports years of history, timezones
 and all; its `UrlReplacements.txt` in the same place becomes each server's URL
-rules, once. `/linkstats recompute` then reads years of channel history back
+rules, once, ready for `/urlrepl enable`. `/linkstats recompute` then reads years of channel history back
 into the reaction statistics.
 
 **Still to come** — [the plan](docs/porting/Porting_Plan_Final.md), and

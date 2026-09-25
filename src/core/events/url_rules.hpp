@@ -19,6 +19,9 @@ class database;
 
 namespace latibot::events {
 
+/// Per-guild setting saying whether URL replacement is on. Absent means off.
+inline constexpr std::string_view url_replacement_enabled_key = "url_replacement_enabled";
+
 /// One site a link can be sent to instead of the original (plan v4 §9).
 struct mirror {
     /// "fxtwitter.com".
@@ -131,6 +134,15 @@ public:
 
     /// False when there was no such rule.
     bool remove(dpp::snowflake guild_id, std::string_view domain);
+
+    /// Whether links are being replaced in this guild at all. Off until
+    /// somebody with Manage Server turns it on, so a server that invited the
+    /// bot for something else does not find its links rewritten; the rules
+    /// can be written, imported and dry-run before then.
+    [[nodiscard]] bool enabled(dpp::snowflake guild_id) const;
+
+    /// Kept in `guild_settings`, so it outlasts a restart.
+    void set_enabled(dpp::snowflake guild_id, bool enabled);
 
     /// Whether this member asked for their links to be left alone.
     [[nodiscard]] bool opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const;

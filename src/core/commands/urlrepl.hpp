@@ -36,6 +36,22 @@ inline constexpr std::string_view url_confirm_view = "urlyes";
 inline constexpr std::string_view url_add_view = "urladd";
 inline constexpr std::string_view url_form_view = "urlform";
 
+/// The panel's on/off button. Its argument is the state it asks for, "on" or
+/// "off", so pressing it twice on a stale panel does not flip it back.
+inline constexpr std::string_view url_switch_view = "urlswitch";
+
+/// "Link replacement is **on** in this server.", or off: the line the list
+/// and the panel open with.
+[[nodiscard]] std::string describe_state(bool enabled);
+
+/// Turns URL replacement on or off in a guild and logs who did it, from
+/// where. False when it was already that way.
+bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
+                            std::string_view from);
+
+/// The answer to `/urlrepl enable` or `/urlrepl disable`.
+[[nodiscard]] std::string render_switch(bool changed, bool enabled, std::size_t rule_count);
+
 /// "fxtwitter.com/en, vxtwitter.com": the mirrors as they are typed.
 [[nodiscard]] std::string describe_mirrors(std::span<const events::mirror> mirrors);
 
@@ -51,8 +67,10 @@ inline constexpr std::string_view url_form_view = "urlform";
 [[nodiscard]] std::variant<events::url_rule, std::string> build_rule(std::string_view domain, std::string_view mirrors);
 
 /// The dry run behind `/urlrepl test`: what would be posted for `content`,
-/// and what happened to every link in it (plan v4 §9.5).
-[[nodiscard]] std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out);
+/// and what happened to every link in it (plan v4 §9.5). It works while
+/// replacement is off, so rules can be tried before anyone sees them, and
+/// says so when it is.
+[[nodiscard]] std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled);
 
 /// One page of `/urlrepl list`.
 [[nodiscard]] dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page);
@@ -65,7 +83,8 @@ inline constexpr std::string_view url_form_view = "urlform";
 /// The add or edit modal. `rule` is null for add.
 [[nodiscard]] dpp::interaction_modal_response url_rule_form(int page, const events::url_rule* rule);
 
-/// `/urlrepl list | set | remove | test | panel` (plan v4 §9.5).
+/// `/urlrepl enable | disable | list | set | remove | test | panel` (plan v4
+/// §9.5).
 class urlrepl_command final : public command {
 public:
     explicit urlrepl_command(events::url_rule_store& store);
@@ -79,6 +98,7 @@ public:
     void autocomplete(const dpp::autocomplete_t& event) const override;
 
 private:
+    dpp::task<void> turn(const dpp::slashcommand_t& event, bool enabled);
     dpp::task<void> set(const dpp::slashcommand_t& event);
     dpp::task<void> remove(const dpp::slashcommand_t& event);
     dpp::task<void> test(const dpp::slashcommand_t& event);

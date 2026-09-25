@@ -59,7 +59,12 @@ struct fixture {
     latibot::testing::mock_clock clock{std::chrono::system_clock::time_point{std::chrono::sys_days{std::chrono::year{2026} / 9 / 24}}};
     embed_tracker tracker{replacements, clock};
 
-    fixture() { latibot::db::migrate(db); }
+    // On, since nearly every test here is about what happens once it is; the
+    // tests for off turn it back off.
+    fixture() {
+        latibot::db::migrate(db);
+        rules.set_enabled(guild, true);
+    }
 
     void record(std::vector<planned_link> links, replacement_state state = replacement_state::pending) {
         replacements.record({.message_id = ours,
@@ -377,6 +382,18 @@ TEST_CASE("Retry says why there is nothing to retry", "[events]") {
         test.record({tiktok_link()}, replacement_state::failed);
         CHECK(std::holds_alternative<std::string>(latibot::events::plan_retry(test.replacements, test.rules, ours, guild)));
     }
+
+    SECTION("a server that has since turned replacement off") {
+        // An old button would otherwise go on posting mirrors after the
+        // server said to stop.
+        test.record({x_link()}, replacement_state::failed);
+        test.rules.set_enabled(guild, false);
+
+        const auto planned = latibot::events::plan_retry(test.replacements, test.rules, ours, guild);
+        REQUIRE(std::holds_alternative<std::string>(planned));
+        CHECK(std::get<std::string>(planned).find("turned off") != std::string::npos);
+        CHECK(test.replacements.find(ours)->state == replacement_state::failed);
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -474,6 +491,26 @@ TEST_CASE("the stage asks for a replacement and lets the message carry on", "[ev
     CHECK(wanted.author_id == author);
     REQUIRE(wanted.links.size() == 1);
     CHECK(wanted.links[0].original_url == "https://x.com/a/status/1");
+}
+
+TEST_CASE("the stage replaces nothing until the server turns it on", "[events]") {
+    fixture test;
+    test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
+    const latibot::events::url_replacer stage(test.rules);
+
+    // Off is what a server gets when nobody has chosen: rules alone, even
+    // imported ones, are not enough.
+    test.rules.set_enabled(guild, false);
+    CHECK(stage(link_message("https://x.com/a/status/1")).actions.empty());
+
+    test.rules.set_enabled(guild, true);
+    CHECK(stage(link_message("https://x.com/a/status/1")).actions.size() == 1);
+
+    // Another server's switch is its own.
+    auto elsewhere = link_message("https://x.com/a/status/1");
+    elsewhere.guild_id = dpp::snowflake{1001};
+    test.rules.set(elsewhere.guild_id, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
+    CHECK(stage(elsewhere).actions.empty());
 }
 
 TEST_CASE("the stage leaves some messages alone", "[events]") {

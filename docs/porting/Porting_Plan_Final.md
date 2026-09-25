@@ -34,7 +34,7 @@ the order of work behind it.
 | 5 | LLM | ⏳ |
 | — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
 
-432 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
+439 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
 clean over `src/`. Three libFuzzer targets cover the text that arrives from
 people: the text helpers, the URL scanner and the legacy replacement parser.
 
@@ -770,6 +770,16 @@ own command, `/urltoggle`, because default permissions are per command:
 `UrlReplacements.txt` is imported into each guild once, from beside the
 database, never over an existing rule; a missing file is the ordinary case and
 only means the guild starts with no rules.
+
+*Added after phase 3:* replacement is **off per guild until it is turned on**,
+with `/urlrepl enable | disable` or a button on the panel, both behind the same
+Manage Server. The Java bot replaced links in every server it was in; the bot
+now joins servers for other features too, and rules alone (the import creates
+them everywhere) should not be enough to start rewriting links. The switch is
+the `url_replacement_enabled` row in `guild_settings`, so it needs no migration
+and outlasts a restart. Off stops the pipeline stage and Retry; `test` still
+works so rules can be tried first, and posted replacements keep counting
+reactions.
 
 ### 9.6 Reaction statistics ✅
 
