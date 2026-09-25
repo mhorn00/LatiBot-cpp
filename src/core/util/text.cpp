@@ -80,8 +80,4 @@ std::optional<dpp::snowflake> parse_snowflake(std::string_view text) {
     return dpp::snowflake(value);
 }
 
-bool is_inside_spoiler(std::string_view before) noexcept {
-    return count_occurrences(before, "||") % 2 == 1;
-}
-
 } // namespace latibot::util

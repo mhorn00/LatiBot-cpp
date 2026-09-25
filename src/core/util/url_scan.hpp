@@ -19,17 +19,34 @@ struct found_link {
     std::string_view url;
 
     /// Inside an open `||` spoiler, so anything posted in its place should be
-    /// spoilered too (plan §9.1).
+    /// spoilered too (plan §9.1). Markers inside code do not count, since
+    /// Discord shows them as text there.
     bool spoilered = false;
 
     /// Written as `<https://…>`, which is how somebody asks Discord for no
-    /// preview. Replacing it would put back the embed they took away.
+    /// preview. Replacing it would put back the embed they took away. The
+    /// link is then everything between the brackets, trailing punctuation
+    /// included, as Discord reads it.
     bool embed_suppressed = false;
 
     /// Inside `code` or a ```block```, where Discord shows it as text and
     /// never embeds it.
     bool in_code = false;
 };
+
+/// A run of text, as byte offsets: `text.substr(begin, end - begin)`.
+struct text_span {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+};
+
+/// Where the code spans and blocks in `text` are, in order.
+///
+/// A run of backticks opens a span that the next run of the same length
+/// closes, which covers `inline`, ``double`` and ```blocks``` with one rule.
+/// A run that is never closed is literal text. Inside them Discord shows
+/// links and spoiler markers as plain text.
+[[nodiscard]] std::vector<text_span> code_spans(std::string_view text);
 
 /// Every http(s) link in `text`, in order.
 ///

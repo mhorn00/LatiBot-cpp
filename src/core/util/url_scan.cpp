@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <span>
 
 namespace latibot::util {
 namespace {
@@ -20,56 +21,31 @@ constexpr ctll::fixed_string link_pattern = R"(https?://[^\s<>|`"]+)";
 /// strikethrough markers that close around a link.
 constexpr std::string_view trailing_punctuation = ".,:;!?'*~";
 
-struct span {
-    std::size_t begin = 0;
-    std::size_t end = 0;
-};
-
-/// Where the code spans and blocks are.
+/// The `||` spoiler markers in `text[from, to)` that are outside code.
 ///
-/// A run of backticks opens a span that the next run of the same length
-/// closes, which covers `inline`, ``double`` and ```blocks``` with one rule.
-/// A run that is never closed is literal text.
-std::vector<span> code_spans(std::string_view text) {
-    std::vector<span> spans;
-
-    std::size_t at = 0;
-    while (at < text.size()) {
-        // Find the next run of backticks. A run that ends the text opens
-        // nothing, since there is nothing left for it to close over.
-        at = text.find('`', at);
-        if (at == std::string_view::npos) {
-            break;
+/// `next` is an index into `code` that only moves forward, as the ranges
+/// asked about do, which keeps a message full of links linear.
+std::size_t count_markers(std::string_view text, std::size_t from, std::size_t to, std::span<const text_span> code, std::size_t& next) {
+    std::size_t markers = 0;
+    while (from < to) {
+        // Spans that ended before here are behind us for good.
+        while (next < code.size() && code[next].end <= from) {
+            ++next;
         }
 
-        const std::size_t opening_end = text.find_first_not_of('`', at);
-        if (opening_end == std::string_view::npos) {
-            break;
-        }
-        const std::size_t width = opening_end - at;
-
-        // Look for a later run of exactly the same width. Runs of any other
-        // width are skipped as literal backticks inside the span.
-        bool closed = false;
-        for (std::size_t search = text.find('`', opening_end); search != std::string_view::npos;) {
-            const std::size_t closing_end = std::min(text.find_first_not_of('`', search), text.size());
-            if (closing_end - search == width) {
-                spans.push_back({.begin = at, .end = closing_end});
-                at = closing_end;
-                closed = true;
-                break;
-            }
-            search = closing_end < text.size() ? text.find('`', closing_end) : std::string_view::npos;
+        // Inside a span, nothing counts until it ends.
+        if (next < code.size() && code[next].begin <= from) {
+            from = code[next].end;
+            continue;
         }
 
-        // Unclosed: the run was literal text, so carry on from just after
-        // it, and a later run can still open a span of its own.
-        if (!closed) {
-            at = opening_end;
-        }
+        // Outside, count up to the next span or the end of the range. A marker
+        // cannot straddle into a span, which starts with a backtick.
+        const std::size_t stop = next < code.size() ? std::min(to, code[next].begin) : to;
+        markers += count_occurrences(text.substr(from, stop - from), "||");
+        from = stop;
     }
-
-    return spans;
+    return markers;
 }
 
 /// Drops what Discord would not count as part of the link.
@@ -110,17 +86,62 @@ bool equals_ignoring_case(std::string_view lhs, std::string_view rhs) {
 
 } // namespace
 
+std::vector<text_span> code_spans(std::string_view text) {
+    std::vector<text_span> spans;
+
+    std::size_t at = 0;
+    while (at < text.size()) {
+        // Find the next run of backticks. A run that ends the text opens
+        // nothing, since there is nothing left for it to close over.
+        at = text.find('`', at);
+        if (at == std::string_view::npos) {
+            break;
+        }
+
+        const std::size_t opening_end = text.find_first_not_of('`', at);
+        if (opening_end == std::string_view::npos) {
+            break;
+        }
+        const std::size_t width = opening_end - at;
+
+        // Look for a later run of exactly the same width. Runs of any other
+        // width are skipped as literal backticks inside the span.
+        bool closed = false;
+        for (std::size_t search = text.find('`', opening_end); search != std::string_view::npos;) {
+            const std::size_t closing_end = std::min(text.find_first_not_of('`', search), text.size());
+            if (closing_end - search == width) {
+                spans.push_back({.begin = at, .end = closing_end});
+                at = closing_end;
+                closed = true;
+                break;
+            }
+            search = closing_end < text.size() ? text.find('`', closing_end) : std::string_view::npos;
+        }
+
+        // Unclosed: the run was literal text, so carry on from just after
+        // it, and a later run can still open a span of its own.
+        if (!closed) {
+            at = opening_end;
+        }
+    }
+
+    return spans;
+}
+
 std::vector<found_link> find_links(std::string_view text) {
     std::vector<found_link> links;
 
-    const std::vector<span> code = code_spans(text);
+    const std::vector<text_span> code = code_spans(text);
     auto next_code = code.begin();
 
     // Spoiler markers are counted incrementally between links rather than
     // from the start for each one, which keeps a message full of links
     // linear. Markers never straddle a link, since a link cannot contain '|'.
+    // Those inside code are text to Discord, and skipped, with a second walk
+    // over the code spans.
     std::size_t markers = 0;
     std::size_t counted_to = 0;
+    std::size_t marker_code = 0;
 
     for (const auto& match : ctre::search_all<link_pattern, ctre::case_insensitive>(text)) {
         const std::string_view raw = match.to_view();
@@ -131,16 +152,23 @@ std::vector<found_link> find_links(std::string_view text) {
             continue;
         }
 
-        // Trim what Discord leaves off the end, then make sure what is left
-        // still has a host: "https://" on its own is not a link.
-        const std::string_view url = trim_link(raw);
+        // Written as <link>, which is how somebody asks Discord for no
+        // preview. Discord takes everything between the brackets as the link,
+        // trailing punctuation included, so this is judged on the match as
+        // found: trimming first would move the end off the '>'.
+        const std::size_t raw_end = begin + raw.size();
+        const bool suppressed = begin > 0 && text[begin - 1] == '<' && raw_end < text.size() && text[raw_end] == '>';
+
+        // Otherwise trim what Discord leaves off the end. Either way, make
+        // sure what is left has a host: "https://" on its own is not a link.
+        const std::string_view url = suppressed ? raw : trim_link(raw);
         const std::size_t end = begin + url.size();
         if (!split_url(url)) {
             continue;
         }
 
         // Count the markers between the previous link and this one only.
-        markers += count_occurrences(text.substr(counted_to, begin - counted_to), "||");
+        markers += count_markers(text, counted_to, begin, code, marker_code);
         counted_to = end;
 
         // Links arrive in order, so the code spans are walked alongside them:
@@ -154,7 +182,7 @@ std::vector<found_link> find_links(std::string_view text) {
                          .end = end,
                          .url = url,
                          .spoilered = markers % 2 == 1,
-                         .embed_suppressed = begin > 0 && text[begin - 1] == '<' && end < text.size() && text[end] == '>',
+                         .embed_suppressed = suppressed,
                          .in_code = next_code != code.end() && next_code->begin < begin});
     }
 

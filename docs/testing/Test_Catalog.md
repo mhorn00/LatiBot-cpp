@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-487 test cases across 9 components, including 109 sections.
+487 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -17,7 +17,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
-| [util](#util) | 36 | 15 |
+| [util](#util) | 36 | 19 |
 
 ## db
 
@@ -543,28 +543,28 @@ Utilities (`src/core/util`, `src/core/version`)
 | parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
 | parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
 | parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
-| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:13](../../tests/unit/text_test.cpp#L13) |
-| is_inside_spoiler follows an odd count of markers |  |  | [tests/unit/text_test.cpp:22](../../tests/unit/text_test.cpp#L22) |
-| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:36](../../tests/unit/text_test.cpp#L36) |
-| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
-| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:54](../../tests/unit/text_test.cpp#L54) |
-| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:63](../../tests/unit/text_test.cpp#L63) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:88](../../tests/unit/text_test.cpp#L88) |
+| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:10](../../tests/unit/text_test.cpp#L10) |
+| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:19](../../tests/unit/text_test.cpp#L19) |
+| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:30](../../tests/unit/text_test.cpp#L30) |
+| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:37](../../tests/unit/text_test.cpp#L37) |
+| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:46](../../tests/unit/text_test.cpp#L46) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:71](../../tests/unit/text_test.cpp#L71) |
 | every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
-| a spoiler is an odd number of || before the link |  | 4 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
-| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:86](../../tests/unit/url_scan_test.cpp#L86) |
-| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:93](../../tests/unit/url_scan_test.cpp#L93) |
-| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |
-| a link in angle brackets is marked as having its preview turned off |  |  | [tests/unit/url_scan_test.cpp:105](../../tests/unit/url_scan_test.cpp#L105) |
-| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:112](../../tests/unit/url_scan_test.cpp#L112) |
-| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:134](../../tests/unit/url_scan_test.cpp#L134) |
-| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:139](../../tests/unit/url_scan_test.cpp#L139) |
-| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:143](../../tests/unit/url_scan_test.cpp#L143) |
-| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:154](../../tests/unit/url_scan_test.cpp#L154) |
-| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:168](../../tests/unit/url_scan_test.cpp#L168) |
-| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:176](../../tests/unit/url_scan_test.cpp#L176) |
-| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:182](../../tests/unit/url_scan_test.cpp#L182) |
-| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:204](../../tests/unit/url_scan_test.cpp#L204) |
-| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:222](../../tests/unit/url_scan_test.cpp#L222) |
-| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:234](../../tests/unit/url_scan_test.cpp#L234) |
+| a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
+| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |
+| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:107](../../tests/unit/url_scan_test.cpp#L107) |
+| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:114](../../tests/unit/url_scan_test.cpp#L114) |
+| a link in angle brackets is marked as having its preview turned off |  | 2 | [tests/unit/url_scan_test.cpp:119](../../tests/unit/url_scan_test.cpp#L119) |
+| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:141](../../tests/unit/url_scan_test.cpp#L141) |
+| a code span runs to the next run of backticks as long as its own |  |  | [tests/unit/url_scan_test.cpp:163](../../tests/unit/url_scan_test.cpp#L163) |
+| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:173](../../tests/unit/url_scan_test.cpp#L173) |
+| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:178](../../tests/unit/url_scan_test.cpp#L178) |
+| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:182](../../tests/unit/url_scan_test.cpp#L182) |
+| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:193](../../tests/unit/url_scan_test.cpp#L193) |
+| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:207](../../tests/unit/url_scan_test.cpp#L207) |
+| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:215](../../tests/unit/url_scan_test.cpp#L215) |
+| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:221](../../tests/unit/url_scan_test.cpp#L221) |
+| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:243](../../tests/unit/url_scan_test.cpp#L243) |
+| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:261](../../tests/unit/url_scan_test.cpp#L261) |
+| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:273](../../tests/unit/url_scan_test.cpp#L273) |
 | version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |

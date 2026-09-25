@@ -77,6 +77,20 @@ TEST_CASE("a spoiler is an odd number of || before the link", "[util]") {
         CHECK_FALSE(links[0].spoilered);
         CHECK(links[1].spoilered);
     }
+
+    SECTION("markers inside code are text, not a spoiler") {
+        // Discord shows `a || b` as it is written, so nothing after it is
+        // hidden, and a replacement spoilered here would hide what was not.
+        const auto links = find_links("use `a || b` then https://x.com/a/status/1");
+        REQUIRE(links.size() == 1);
+        CHECK_FALSE(links[0].spoilered);
+    }
+
+    SECTION("code inside a spoiler leaves it open") {
+        const auto links = find_links("||see `this` https://x.com/a/status/1||");
+        REQUIRE(links.size() == 1);
+        CHECK(links[0].spoilered);
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -107,6 +121,21 @@ TEST_CASE("a link in angle brackets is marked as having its preview turned off",
     REQUIRE(links.size() == 1);
     CHECK(links[0].embed_suppressed);
     CHECK(links[0].url == "https://x.com/a/status/1");
+
+    SECTION("punctuation inside the brackets is part of the link") {
+        // Discord takes everything between them. Trimming the full stop first
+        // put the link's end on the '.', not the '>', and the bot replaced a
+        // link whose author had turned its preview off.
+        const auto dotted = find_links("<https://x.com/a/status/1.>");
+        REQUIRE(dotted.size() == 1);
+        CHECK(dotted[0].embed_suppressed);
+        CHECK(dotted[0].url == "https://x.com/a/status/1.");
+    }
+
+    SECTION("a bracket on one side only is not suppression") {
+        CHECK_FALSE(find_links("<https://x.com/a/status/1 and more").front().embed_suppressed);
+        CHECK_FALSE(find_links("https://x.com/a/status/1>").front().embed_suppressed);
+    }
 }
 
 TEST_CASE("links in code are marked as code", "[util]") {
@@ -129,6 +158,16 @@ TEST_CASE("links in code are marked as code", "[util]") {
         REQUIRE(links.size() == 1);
         CHECK_FALSE(links[0].in_code);
     }
+}
+
+TEST_CASE("a code span runs to the next run of backticks as long as its own", "[util]") {
+    // A single, a double holding a single, a triple, and one never closed.
+    const auto spans = latibot::util::code_spans("a `b` ``c`d`` ```e``` `f");
+
+    REQUIRE(spans.size() == 3);
+    CHECK((spans[0].begin == 2 && spans[0].end == 5));
+    CHECK((spans[1].begin == 6 && spans[1].end == 13));
+    CHECK((spans[2].begin == 14 && spans[2].end == 21));
 }
 
 TEST_CASE("a scheme glued to a word is not a link", "[util]") {

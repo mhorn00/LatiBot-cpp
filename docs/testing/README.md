@@ -142,7 +142,7 @@ helpers, `fuzz_url_scan` for the link scanner and replacement planning, and
 sanitizer joins them in phase 4. Each checks invariants rather than just
 "did not crash" — the scanner's links are in order, inside the text and
 exactly what their offsets say, and spoilered exactly when an odd number of
-markers precede them; trimmed text has whitespace only on either side, and
+markers outside code precede them; trimmed text has whitespace only on either side, and
 text cut to a limit stays within it without splitting a character.
 
 libFuzzer steers by coverage, so the targets link `latibot_fuzz_core`: the
