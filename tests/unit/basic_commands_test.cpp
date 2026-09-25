@@ -87,6 +87,10 @@ TEST_CASE("say replies only when given a message id", "[commands]") {
         CHECK(decision.action == say_action::bad_reply_id);
     }
 
+    SECTION("0 is nobody's message") {
+        CHECK(plan_say("hello", "0").action == say_action::bad_reply_id);
+    }
+
     SECTION("a blank message is refused before the id is looked at") {
         const auto decision = plan_say("", "not-an-id");
         CHECK(decision.action == say_action::blank_message);

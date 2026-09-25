@@ -1,6 +1,7 @@
 #include "core/events/nickname_import.hpp"
 
 #include "core/util/log.hpp"
+#include "core/util/text.hpp"
 
 #include <dpp/json.h>
 
@@ -18,17 +19,7 @@ std::optional<dpp::snowflake> read_id(const json& value) {
     if (!value.is_string()) {
         return std::nullopt;
     }
-
-    const std::string text = value.get<std::string>();
-    if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos) {
-        return std::nullopt;
-    }
-
-    try {
-        return dpp::snowflake(std::stoull(text));
-    } catch (const std::exception&) {
-        return std::nullopt;
-    }
+    return util::parse_snowflake(value.get<std::string>());
 }
 
 /// One `nicknames` element: `{nickname, changedById, datetime}`.

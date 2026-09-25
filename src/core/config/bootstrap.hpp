@@ -95,11 +95,6 @@ inline constexpr bool reads_debug_overrides =
     true;
 #endif
 
-/// A Discord ID written as text: digits only, surrounding whitespace allowed.
-/// Nothing for anything else, including 0, rather than the leading digits of
-/// "123abc".
-[[nodiscard]] std::optional<dpp::snowflake> parse_snowflake(std::string_view text);
-
 /// The account `LATIBOT_DEBUG_RECOMPUTE_BOT_ID` names, when `debug_build`.
 ///
 /// Nothing when it is unset or empty. In a release build it is not read at

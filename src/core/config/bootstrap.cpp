@@ -6,8 +6,6 @@
 #include <dpp/json.h>
 
 #include <algorithm>
-#include <charconv>
-#include <cstdint>
 #include <fstream>
 #include <sstream>
 
@@ -54,11 +52,11 @@ std::vector<dpp::snowflake> require_snowflakes(const json& object, std::string_v
         }
 
         const std::string text = entry.get<std::string>();
-        try {
-            ids.emplace_back(std::stoull(text));
-        } catch (const std::exception&) {
+        const auto id = util::parse_snowflake(text);
+        if (!id) {
             throw config_error("config key \"" + std::string(key) + "\" has \"" + text + "\", which is not a Discord ID");
         }
+        ids.push_back(*id);
     }
     return ids;
 }
@@ -185,16 +183,6 @@ std::optional<util::log_level> log_level_from_environment() {
     return level;
 }
 
-std::optional<dpp::snowflake> parse_snowflake(std::string_view text) {
-    text = util::trim(text);
-    std::uint64_t value = 0;
-    const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-    if (text.empty() || error != std::errc{} || stop != text.data() + text.size() || value == 0) {
-        return std::nullopt;
-    }
-    return dpp::snowflake(value);
-}
-
 std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build) {
     constexpr const char* name = "LATIBOT_DEBUG_RECOMPUTE_BOT_ID";
     const auto wanted = util::env_var(name);
@@ -207,7 +195,7 @@ std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build
         return std::nullopt;
     }
 
-    const auto id = parse_snowflake(*wanted);
+    const auto id = util::parse_snowflake(*wanted);
     if (!id) {
         throw config_error(std::string(name) + " is \"" + *wanted + "\", expected a Discord user ID");
     }

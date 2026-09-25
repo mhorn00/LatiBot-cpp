@@ -96,6 +96,20 @@ TEST_CASE("IDs written as JSON numbers are rejected", "[config]") {
                            Catch::Matchers::MessageMatches(ContainsSubstring("cannot represent a Discord ID exactly")));
 }
 
+TEST_CASE("a trusted ID that is not exactly an ID stops startup", "[config]") {
+    // These lists gate what the bot lets people do to its host (plan §12.5),
+    // so a mistyped ID must not load as some other number: "12345abc" as
+    // 12345, or "-1" wrapped round to the largest 64-bit number.
+    for (const char* bad : {"12345abc", "-1", "0", ""}) {
+        INFO(bad);
+        const std::string guilds = std::string(R"({"trusted_guilds": [")") + bad + R"("]})";
+        REQUIRE_THROWS_MATCHES(bootstrap::from_json(guilds), config_error,
+                               Catch::Matchers::MessageMatches(ContainsSubstring("which is not a Discord ID")));
+        const std::string users = std::string(R"({"trusted_users": [")") + bad + R"("]})";
+        REQUIRE_THROWS_AS(bootstrap::from_json(users), config_error);
+    }
+}
+
 TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     SECTION("unknown key") {
         REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"databse_path": "typo.db"})"), config_error,
@@ -212,21 +226,6 @@ TEST_CASE("secrets come from the environment", "[config]") {
         REQUIRE(loaded.anthropic_key.has_value());
         CHECK(*loaded.anthropic_key == "test-key");
     }
-}
-
-TEST_CASE("a Discord ID is read as digits and nothing else", "[config]") {
-    using latibot::config::parse_snowflake;
-
-    CHECK(parse_snowflake("123456789012345678") == dpp::snowflake{123456789012345678});
-    CHECK(parse_snowflake("  123456789012345678 ") == dpp::snowflake{123456789012345678});
-
-    // std::stoull would take the leading digits of these and carry on.
-    CHECK_FALSE(parse_snowflake("123abc").has_value());
-    CHECK_FALSE(parse_snowflake("+123").has_value());
-    CHECK_FALSE(parse_snowflake("<@123>").has_value());
-    CHECK_FALSE(parse_snowflake("").has_value());
-    CHECK_FALSE(parse_snowflake("0").has_value());
-    CHECK_FALSE(parse_snowflake("99999999999999999999999").has_value());
 }
 
 TEST_CASE("the recompute bot override is read by debug builds only", "[config]") {

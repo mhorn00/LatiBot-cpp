@@ -5,19 +5,19 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-486 test cases across 9 components, including 108 sections.
+487 test cases across 9 components, including 109 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 107 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 117 | 26 |
+| [commands](#commands) | 117 | 27 |
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
-| [util](#util) | 35 | 15 |
+| [util](#util) | 36 | 15 |
 
 ## db
 
@@ -153,15 +153,15 @@ Configuration (`src/core/config`)
 | a missing config file is not an error | `fs` |  | [tests/unit/bootstrap_test.cpp:57](../../tests/unit/bootstrap_test.cpp#L57) |
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:63](../../tests/unit/bootstrap_test.cpp#L63) |
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:92](../../tests/unit/bootstrap_test.cpp#L92) |
-| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:99](../../tests/unit/bootstrap_test.cpp#L99) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:140](../../tests/unit/bootstrap_test.cpp#L140) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:148](../../tests/unit/bootstrap_test.cpp#L148) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:156](../../tests/unit/bootstrap_test.cpp#L156) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:190](../../tests/unit/bootstrap_test.cpp#L190) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/bootstrap_test.cpp:217](../../tests/unit/bootstrap_test.cpp#L217) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:232](../../tests/unit/bootstrap_test.cpp#L232) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:259](../../tests/unit/bootstrap_test.cpp#L259) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:99](../../tests/unit/bootstrap_test.cpp#L99) |
+| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:113](../../tests/unit/bootstrap_test.cpp#L113) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:143](../../tests/unit/bootstrap_test.cpp#L143) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:154](../../tests/unit/bootstrap_test.cpp#L154) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:162](../../tests/unit/bootstrap_test.cpp#L162) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:170](../../tests/unit/bootstrap_test.cpp#L170) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:231](../../tests/unit/bootstrap_test.cpp#L231) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:258](../../tests/unit/bootstrap_test.cpp#L258) |
 
 ## commands
 
@@ -172,9 +172,9 @@ Command framework (`src/core/commands`)
 | joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:25](../../tests/unit/basic_commands_test.cpp#L25) |
 | a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
 | say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:58](../../tests/unit/basic_commands_test.cpp#L58) |
-| say replies only when given a message id |  | 5 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:96](../../tests/unit/basic_commands_test.cpp#L96) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:112](../../tests/unit/basic_commands_test.cpp#L112) |
+| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:100](../../tests/unit/basic_commands_test.cpp#L100) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:116](../../tests/unit/basic_commands_test.cpp#L116) |
 | an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
@@ -549,6 +549,7 @@ Utilities (`src/core/util`, `src/core/version`)
 | is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
 | character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:54](../../tests/unit/text_test.cpp#L54) |
 | truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:63](../../tests/unit/text_test.cpp#L63) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:88](../../tests/unit/text_test.cpp#L88) |
 | every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
 | a spoiler is an odd number of || before the link |  | 4 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
 | trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:86](../../tests/unit/url_scan_test.cpp#L86) |

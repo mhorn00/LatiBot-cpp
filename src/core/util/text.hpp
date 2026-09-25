@@ -1,5 +1,8 @@
 #pragma once
 
+#include <dpp/snowflake.h>
+
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -23,6 +26,12 @@ namespace latibot::util {
 /// was cut. Cuts only where a character starts, so a multi-byte character is
 /// never split.
 [[nodiscard]] std::string truncate(std::string_view text, std::size_t limit);
+
+/// A Discord ID written as text: digits only, surrounding whitespace allowed.
+/// Nothing for anything else, including 0, rather than the leading digits of
+/// "123abc" or a "-1" wrapped round to a huge number, which is what
+/// std::stoull would give.
+[[nodiscard]] std::optional<dpp::snowflake> parse_snowflake(std::string_view text);
 
 /// True when text starting after `before` is inside a Discord spoiler.
 ///

@@ -84,3 +84,20 @@ TEST_CASE("truncate cuts to a character limit and marks the cut", "[util]") {
         CHECK(truncate("hello", 0).empty());
     }
 }
+
+TEST_CASE("a Discord ID is read as digits and nothing else", "[util]") {
+    using latibot::util::parse_snowflake;
+
+    CHECK(parse_snowflake("123456789012345678") == dpp::snowflake{123456789012345678});
+    CHECK(parse_snowflake("  123456789012345678 ") == dpp::snowflake{123456789012345678});
+
+    // std::stoull would take the leading digits of the first, and wrap the
+    // second round to 18446744073709551615.
+    CHECK_FALSE(parse_snowflake("123abc").has_value());
+    CHECK_FALSE(parse_snowflake("-1").has_value());
+    CHECK_FALSE(parse_snowflake("+123").has_value());
+    CHECK_FALSE(parse_snowflake("<@123>").has_value());
+    CHECK_FALSE(parse_snowflake("").has_value());
+    CHECK_FALSE(parse_snowflake("0").has_value());
+    CHECK_FALSE(parse_snowflake("99999999999999999999999").has_value());
+}

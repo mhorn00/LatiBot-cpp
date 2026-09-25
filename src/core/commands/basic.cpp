@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <charconv>
 #include <chrono>
 #include <format>
 #include <memory>
@@ -99,18 +98,12 @@ say_decision plan_say(std::string_view message, std::string_view reply_to) {
     // Snowflakes are decimal, so anything else is a paste of the wrong thing:
     // a message link, a mention, a channel name. Saying so beats letting the
     // API reject it with a less helpful message.
-    std::uint64_t parsed = 0;
-    const char* first = id.data();
-    const char* last = first + id.size();
-    // from_chars takes an explicit end pointer, so the view needs no null
-    // terminator; the check cannot tell the two conventions apart.
-    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-    const auto [stopped, error] = std::from_chars(first, last, parsed);
-    if (error != std::errc{} || stopped != last) {
+    const auto parsed = util::parse_snowflake(id);
+    if (!parsed) {
         return {.action = say_action::bad_reply_id, .reply_to = {}};
     }
 
-    return {.action = say_action::reply, .reply_to = dpp::snowflake{parsed}};
+    return {.action = say_action::reply, .reply_to = *parsed};
 }
 
 dpp::activity_type parse_activity_type(std::string_view name) {

@@ -1,6 +1,8 @@
 #include "core/util/text.hpp"
 
 #include <algorithm>
+#include <charconv>
+#include <cstdint>
 
 namespace latibot::util {
 namespace {
@@ -66,6 +68,16 @@ std::string truncate(std::string_view text, std::size_t limit) {
         ++kept;
     }
     return std::string(text.substr(0, cut)) + "…";
+}
+
+std::optional<dpp::snowflake> parse_snowflake(std::string_view text) {
+    text = trim(text);
+    std::uint64_t value = 0;
+    const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (text.empty() || error != std::errc{} || stop != text.data() + text.size() || value == 0) {
+        return std::nullopt;
+    }
+    return dpp::snowflake(value);
 }
 
 bool is_inside_spoiler(std::string_view before) noexcept {
