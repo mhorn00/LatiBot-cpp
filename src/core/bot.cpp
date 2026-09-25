@@ -18,8 +18,11 @@
 #include "core/version.hpp"
 
 #include <chrono>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <stop_token>
 #include <string>
 #include <thread>
 #include <utility>
@@ -1039,13 +1042,21 @@ void bot::carry_out(const std::vector<events::action>& actions) {
                     detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
-                    // Detached, so the pause does not block DPP's event
-                    // thread. The process is on its way out either way.
+                    // A thread of its own, so the pause holds up none of
+                    // DPP's, and a member, so ~bot waits for it. Detached, it
+                    // could still be inside shutdown() while the cluster it
+                    // was shutting down was being destroyed. If the bot is
+                    // going down anyway, it stops waiting at once.
                     const auto delay = step.after;
-                    std::thread([this, delay] {
-                        std::this_thread::sleep_for(delay);
-                        cluster_.shutdown();
-                    }).detach();
+                    goodbye_ = std::jthread([this, delay](const std::stop_token& stopping) {
+                        std::mutex pause;
+                        std::condition_variable_any wake;
+                        std::unique_lock lock(pause);
+                        wake.wait_for(lock, stopping, delay, [] { return false; });
+                        if (!stopping.stop_requested()) {
+                            cluster_.shutdown();
+                        }
+                    });
                 }
             },
             wanted);

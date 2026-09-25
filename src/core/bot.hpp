@@ -23,6 +23,7 @@
 
 #include <map>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 namespace latibot {
@@ -181,6 +182,11 @@ private:
     /// one this run is still watching.
     std::mutex stranded_mutex_;
     std::map<dpp::snowflake, std::vector<events::replacement_record>> stranded_;
+
+    /// The pause between the goodbye and shutting down. Last, so it is
+    /// joined first when the bot is destroyed, while the cluster it shuts
+    /// down still exists.
+    std::jthread goodbye_;
 };
 
 } // namespace latibot
