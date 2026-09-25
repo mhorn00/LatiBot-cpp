@@ -267,7 +267,10 @@ std::vector<action> midnight_scheduler::tick() {
         }
 
         util::log().info("posting midnight message {} in channel {} for {} in {}", entry.id, entry.channel_id, local->date, entry.timezone);
-        posts.emplace_back(send_message{.channel_id = entry.channel_id, .content = entry.message, .flags = entry.message_flags});
+        posts.emplace_back(send_message{.channel_id = entry.channel_id,
+                                        .content = entry.message,
+                                        .flags = entry.message_flags,
+                                        .what = std::format("midnight message {}", entry.id)});
     }
 
     return posts;

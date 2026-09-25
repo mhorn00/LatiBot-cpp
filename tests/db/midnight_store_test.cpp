@@ -270,10 +270,13 @@ TEST_CASE("a midnight post carries its entry's flags", "[db]") {
 
     midnight_entry loud = entry_in("UTC");
     loud.message_flags = 0;
-    fixture.store.add(loud);
+    const std::int64_t id = fixture.store.add(loud);
 
     clock.set(utc(2026, 9, 23, 0, 0, 30));
     const auto posts = scheduler.tick();
     REQUIRE(posts.size() == 1);
     CHECK(std::get<latibot::events::send_message>(posts.front()).flags == 0);
+
+    // And says which entry it is, for the line saying whether it was posted.
+    CHECK(std::get<latibot::events::send_message>(posts.front()).what == std::format("midnight message {}", id));
 }

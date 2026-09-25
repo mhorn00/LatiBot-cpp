@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <format>
 #include <numeric>
 #include <random>
 #include <utility>
@@ -305,7 +306,10 @@ stage_result trigger_responder::operator()(const incoming_message& message) {
 
         util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id);
         last_fired_[key] = now;
-        result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = reply->text, .flags = entry.message_flags});
+        result.actions.emplace_back(send_message{.channel_id = message.channel_id,
+                                                 .content = reply->text,
+                                                 .flags = entry.message_flags,
+                                                 .what = std::format("trigger {}'s reply", entry.id)});
     }
 
     return result;

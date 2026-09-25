@@ -933,9 +933,23 @@ void bot::carry_out(const std::vector<events::action>& actions) {
                 if constexpr (std::is_same_v<step_type, events::send_message>) {
                     dpp::message reply(step.channel_id, step.content);
                     discord::apply_flags(reply, step.flags, discord::channel_message_flags);
-                    cluster_.message_create(reply);
-                    util::log().info("replied in channel {} ({}): \"{}\"", step.channel_id, discord::describe_flags(reply.flags),
-                                     step.content);
+
+                    // Logged once Discord answers, not before: a midnight
+                    // message has claimed its day already, so a refusal here
+                    // (no Send Messages, a deleted channel, text over the
+                    // limit) is that day's message gone, and the log is the
+                    // only place that can say so.
+                    cluster_.message_create(reply,
+                                            [what = step.what, channel = step.channel_id, content = step.content,
+                                             flags = discord::describe_flags(reply.flags)](const dpp::confirmation_callback_t& done) {
+                                                if (done.is_error()) {
+                                                    const dpp::error_info error = done.get_error();
+                                                    util::log().warn("could not post {} in channel {}: {}", what, channel,
+                                                                     error.human_readable.empty() ? error.message : error.human_readable);
+                                                    return;
+                                                }
+                                                util::log().info("posted {} in channel {} ({}): \"{}\"", what, channel, flags, content);
+                                            });
                 } else if constexpr (std::is_same_v<step_type, events::replace_links>) {
                     detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {

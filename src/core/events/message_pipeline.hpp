@@ -53,6 +53,10 @@ struct send_message {
     /// Silent unless said otherwise: these are jokes, acknowledgements and
     /// scheduled posts, not things to be pinged for, as in the Java bot.
     discord::message_flags flags = dpp::m_suppress_notifications;
+
+    /// What this is, for the log line saying whether it was posted: "trigger
+    /// 3's reply", "midnight message 2".
+    std::string what = "a message";
 };
 
 /// Stop the bot, after a pause long enough for the goodbye to be delivered.

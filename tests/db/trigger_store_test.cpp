@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <format>
 #include <latch>
 #include <string>
 #include <thread>
@@ -353,4 +354,17 @@ TEST_CASE("a trigger's reply carries its flags", "[db]") {
     const auto result = responder(message_saying("420"));
     REQUIRE(result.actions.size() == 1);
     CHECK(std::get<latibot::events::send_message>(result.actions.front()).flags == dpp::m_suppress_embeds);
+}
+
+TEST_CASE("a trigger's reply says which trigger it is from", "[db]") {
+    // For the line saying whether it was posted.
+    store_fixture fixture;
+    const std::int64_t id = fixture.store.add(nice_trigger());
+
+    latibot::testing::mock_clock clock;
+    trigger_responder responder(fixture.store, clock, [] { return 0; });
+
+    const auto result = responder(message_saying("420"));
+    REQUIRE(result.actions.size() == 1);
+    CHECK(std::get<latibot::events::send_message>(result.actions.front()).what == std::format("trigger {}'s reply", id));
 }
