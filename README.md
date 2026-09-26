@@ -171,6 +171,42 @@ An intent the application was not granted is not a warning: Discord refuses the
 gateway outright and the bot reconnects in a loop. The log says which toggle to
 go and find when that happens.
 
+### Configuration
+
+Settings for the whole bot go in `config.json`, in the directory the bot is
+run from; everything per server is set with commands instead, and kept in the
+database. The file is optional: without it every key takes its default. A key
+the bot does not know, or a value of the wrong type, stops startup with a
+message naming it, so a typo is never silently ignored.
+
+```json
+{
+  "log_level": "info",
+  "backups_to_keep": 14,
+  "track_nicknames": true
+}
+```
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `log_level` | text | `debug` in Debug, `info` in Release | how much is logged; see [Logging](#logging) |
+| `database_path` | text | `data/bot.db` | the SQLite database; its folder is created if missing, and `nicknames.json` and `UrlReplacements.txt` from the Java bot are looked for beside it |
+| `backup_directory` | text | `data/backups` | where database backups are written |
+| `backups_to_keep` | whole number | `7` | how many backups to keep, oldest removed first; `0` turns backups off |
+| `backup_interval_minutes` | whole number | `360` | how often a backup is taken; must be positive |
+| `track_nicknames` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above) |
+| `trusted_guilds` | list of IDs, as text | none | read but **not used yet**: servers whose administrators will be allowed DECtalk's host commands (phase 4) |
+| `trusted_users` | list of IDs, as text | none | read but **not used yet**: users allowed those commands in any server |
+| `llm_provider` | text | `anthropic` | read but **not used yet** (phase 5) |
+| `llm_model` | text | `claude-haiku-4-5` | read but **not used yet** (phase 5) |
+| `spend_cap_daily_usd` | number | `2.0` | read but **not used yet** (phase 5) |
+| `spend_cap_monthly_usd` | number | `20.0` | read but **not used yet** (phase 5) |
+| `llm_tool_rounds` | whole number | `4` | read but **not used yet** (phase 5); must be at least 1 |
+
+IDs are written as strings, `["123456789012345678"]`, because a JSON number
+cannot hold a Discord ID exactly; a number, or text that is not exactly an ID,
+stops startup.
+
 ### Testing with a second bot account
 
 `/linkstats recompute` finds old replacements by who posted them: the bot's own
