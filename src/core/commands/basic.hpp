@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -93,6 +94,23 @@ struct say_decision {
 /// rather than `name`, and expects the literal name "Custom Status".
 [[nodiscard]] dpp::activity make_activity(dpp::activity_type type, const std::string& text);
 
+/// The last `/status`, kept so a restart does not clear it (plan §6).
+struct saved_status {
+    std::string text;
+
+    /// As the option spells it: "playing", "custom" and so on.
+    std::string type;
+};
+
+/// Keeps a status, under `config::bot_wide`.
+void save_status(config::guild_settings& settings, const saved_status& status);
+
+/// The status last saved, or nothing when there is none.
+[[nodiscard]] std::optional<saved_status> load_status(const config::guild_settings& settings);
+
+/// The presence a status sets.
+[[nodiscard]] dpp::presence presence_for(const saved_status& status);
+
 // --------------------------------------------------------------------------
 // Commands
 // --------------------------------------------------------------------------
@@ -124,10 +142,10 @@ private:
     dpp::cluster* cluster_;
 };
 
-/// Sets the bot's presence.
+/// Sets the bot's presence, and keeps it for the next start.
 class status_command final : public command {
 public:
-    explicit status_command(dpp::cluster& cluster);
+    status_command(dpp::cluster& cluster, config::guild_settings& settings);
 
     [[nodiscard]] const command_info& info() const override { return info_; }
     [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
@@ -136,6 +154,7 @@ public:
 private:
     command_info info_;
     dpp::cluster* cluster_;
+    config::guild_settings* settings_;
 };
 
 /// Joins the caller's voice channel, or another user's.

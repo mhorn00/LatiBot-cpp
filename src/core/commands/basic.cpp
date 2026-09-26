@@ -115,6 +115,30 @@ dpp::activity make_activity(dpp::activity_type type, const std::string& text) {
     return {type, text, "", ""};
 }
 
+namespace {
+
+constexpr std::string_view status_text_key = "status_text";
+constexpr std::string_view status_type_key = "status_type";
+
+} // namespace
+
+void save_status(config::guild_settings& settings, const saved_status& status) {
+    settings.set(config::bot_wide, status_text_key, status.text);
+    settings.set(config::bot_wide, status_type_key, status.type);
+}
+
+std::optional<saved_status> load_status(const config::guild_settings& settings) {
+    auto text = settings.find(config::bot_wide, status_text_key);
+    if (!text || text->empty()) {
+        return std::nullopt;
+    }
+    return saved_status{.text = std::move(*text), .type = settings.get(config::bot_wide, status_type_key, "")};
+}
+
+dpp::presence presence_for(const saved_status& status) {
+    return {dpp::ps_online, make_activity(parse_activity_type(status.type), status.text)};
+}
+
 // --------------------------------------------------------------------------
 // /ping
 // --------------------------------------------------------------------------
@@ -219,7 +243,7 @@ dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
 // /status
 // --------------------------------------------------------------------------
 
-status_command::status_command(dpp::cluster& cluster)
+status_command::status_command(dpp::cluster& cluster, config::guild_settings& settings)
     : info_{.name = "status",
             .description = "Set the bot's status.",
             .aliases = {},
@@ -228,7 +252,8 @@ status_command::status_command(dpp::cluster& cluster)
             .guild_only = false,
             .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
-      cluster_(&cluster) {}
+      cluster_(&cluster),
+      settings_(&settings) {}
 
 dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake application_id) const {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -245,12 +270,14 @@ dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake 
 }
 
 dpp::task<void> status_command::execute(const dpp::slashcommand_t& event) {
-    const std::string text = string_option(event, "status");
-    const dpp::activity_type type = parse_activity_type(string_option(event, "type"));
+    const saved_status status{.text = string_option(event, "status"), .type = string_option(event, "type")};
 
-    cluster_->set_presence(dpp::presence(dpp::ps_online, make_activity(type, text)));
-    util::log().info("presence set to {} \"{}\" by {}", static_cast<int>(type), text, describe_user(event.command.get_issuing_user()));
-    co_await event.co_reply(result(event, std::format("status set to: {}", text)));
+    // Kept as well as set, so the next start puts it back (plan §6).
+    cluster_->set_presence(presence_for(status));
+    save_status(*settings_, status);
+    util::log().info("status set to {} \"{}\" by {}", status.type.empty() ? "playing" : status.type, status.text,
+                     describe_user(event.command.get_issuing_user()));
+    co_await event.co_reply(result(event, std::format("status set to: {}", status.text)));
 }
 
 // --------------------------------------------------------------------------
@@ -417,7 +444,7 @@ void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clo
                         std::function<void()> request_shutdown) {
     into.add(std::make_unique<ping_command>(clock));
     into.add(std::make_unique<say_command>(cluster));
-    into.add(std::make_unique<status_command>(cluster));
+    into.add(std::make_unique<status_command>(cluster, settings));
     into.add(std::make_unique<join_command>());
     into.add(std::make_unique<leave_command>());
     into.add(std::make_unique<shutdown_command>(std::move(request_shutdown)));

@@ -14,6 +14,10 @@ class database;
 
 namespace latibot::config {
 
+/// The guild id settings that belong to the bot itself are kept under, such
+/// as its `/status`. No guild has the id 0.
+inline constexpr dpp::snowflake bot_wide{};
+
 /// Per-guild settings, stored in the `guild_settings` table (plan §5.1).
 ///
 /// Values are edited at runtime through commands and panels, so they are read

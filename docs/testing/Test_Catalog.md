@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-499 test cases across 9 components, including 113 sections.
+500 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 110 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 123 | 27 |
+| [commands](#commands) | 124 | 27 |
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -172,13 +172,14 @@ Command framework (`src/core/commands`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:25](../../tests/unit/basic_commands_test.cpp#L25) |
-| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
-| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:56](../../tests/unit/basic_commands_test.cpp#L56) |
-| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:64](../../tests/unit/basic_commands_test.cpp#L64) |
-| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:71](../../tests/unit/basic_commands_test.cpp#L71) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:106](../../tests/unit/basic_commands_test.cpp#L106) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:122](../../tests/unit/basic_commands_test.cpp#L122) |
+| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:28](../../tests/unit/basic_commands_test.cpp#L28) |
+| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:53](../../tests/unit/basic_commands_test.cpp#L53) |
+| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:75](../../tests/unit/basic_commands_test.cpp#L75) |
+| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:81](../../tests/unit/basic_commands_test.cpp#L81) |
+| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:89](../../tests/unit/basic_commands_test.cpp#L89) |
+| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:96](../../tests/unit/basic_commands_test.cpp#L96) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:131](../../tests/unit/basic_commands_test.cpp#L131) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:147](../../tests/unit/basic_commands_test.cpp#L147) |
 | an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |

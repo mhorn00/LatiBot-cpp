@@ -48,6 +48,10 @@ private:
     void register_stages();
     void register_events();
 
+    /// Connected, or reconnected: puts the last `/status` back, and registers
+    /// the commands the first time.
+    void on_ready(const dpp::ready_t& event);
+
     /// Starts the things that happen on a clock rather than on an event: the
     /// midnight messages, the embed tracker's one-second tick and the
     /// database backups (plan §10, §9.3, §5.2).

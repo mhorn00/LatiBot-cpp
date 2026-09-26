@@ -322,31 +322,7 @@ void bot::register_events() {
         co_await commands_.dispatch(event.command.get_command_name(), event);
     });
 
-    cluster_.on_ready([this](const dpp::ready_t& event) {
-        util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
-
-        if (!dpp::run_once<struct register_bot_commands>()) {
-            // on_ready fires again after a reconnect; the commands are global
-            // and already registered, so this is the normal path, not a fault.
-            util::log().debug("reconnected (session {}); commands already registered", event.session_id);
-            return;
-        }
-
-        if (commands_.size() == 0) {
-            // A bulk create with an empty list deletes every registered
-            // command, which is not what "no commands built yet" should mean.
-            util::log().warn("no commands registered; skipping command registration");
-            return;
-        }
-
-        const std::vector<dpp::slashcommand> payloads = commands_.build_all(cluster_.me.id);
-        cluster_.global_bulk_command_create(payloads);
-
-        util::log().info("registering {} commands with Discord", payloads.size());
-        for (const dpp::slashcommand& payload : payloads) {
-            util::log().debug("  /{}: {}", payload.name, payload.description);
-        }
-    });
+    cluster_.on_ready([this](const dpp::ready_t& event) { on_ready(event); });
 
     // Guilds arrive as guild_create after the gateway connects, including the
     // ones the bot was already in, so this covers both cases plan §7 asks
@@ -436,6 +412,39 @@ void bot::register_events() {
         on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
     });
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
+}
+
+void bot::on_ready(const dpp::ready_t& event) {
+    util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
+
+    // A presence lasts one session, so every connect, a reconnect included,
+    // puts the last /status back (plan §6).
+    if (const auto status = commands::load_status(guild_settings_)) {
+        cluster_.set_presence(commands::presence_for(*status));
+        util::log().info("status restored: {} \"{}\"", status->type.empty() ? "playing" : status->type, status->text);
+    }
+
+    if (!dpp::run_once<struct register_bot_commands>()) {
+        // on_ready fires again after a reconnect; the commands are global
+        // and already registered, so this is the normal path, not a fault.
+        util::log().debug("reconnected (session {}); commands already registered", event.session_id);
+        return;
+    }
+
+    if (commands_.size() == 0) {
+        // A bulk create with an empty list deletes every registered
+        // command, which is not what "no commands built yet" should mean.
+        util::log().warn("no commands registered; skipping command registration");
+        return;
+    }
+
+    const std::vector<dpp::slashcommand> payloads = commands_.build_all(cluster_.me.id);
+    cluster_.global_bulk_command_create(payloads);
+
+    util::log().info("registering {} commands with Discord", payloads.size());
+    for (const dpp::slashcommand& payload : payloads) {
+        util::log().debug("  /{}: {}", payload.name, payload.description);
+    }
 }
 
 namespace {

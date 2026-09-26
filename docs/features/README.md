@@ -123,7 +123,8 @@ Sets the bot's presence.
 | **Bot needs** | nothing |
 
 Replies `status set to: <text>`. Presence is global — the bot has one, across
-every server it is in.
+every server it is in. It is **kept**, and set again whenever the bot connects,
+so a restart or a dropped connection does not clear it.
 
 `type` defaults to **Playing** when omitted or unrecognised, which is what the
 Java version did. **Custom** is the odd one out: Discord takes a custom status's

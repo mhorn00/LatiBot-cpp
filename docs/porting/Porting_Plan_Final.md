@@ -543,6 +543,10 @@ analysis, after the port had drifted without a record):
 - **`/say` needs Manage Messages**, where Java asked for Manage Roles.
   Speaking as the bot is about messages, and admins can change it per role in
   the server's Integrations settings either way.
+- **`/status` is remembered.** Java set one fixed status at every start; this
+  bot keeps the last `/status` (in `guild_settings` under guild 0, which is
+  the bot's own) and sets it again whenever it connects, so a restart does not
+  clear what the owner chose.
 
 **The goodbye phrase** is the one that needs care. The author must have
 Administrator **in that guild** — checked on the member, not the user globally —
