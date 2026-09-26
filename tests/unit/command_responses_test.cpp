@@ -75,21 +75,21 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
     stores all;
 
     const latibot::commands::nicknames_command nicknames(all.nicknames);
-    CHECK(nicknames.info().responses_for("").result == 0);
+    CHECK(nicknames.info().responses_for("").result == dpp::m_suppress_notifications);
     CHECK(nicknames.info().responses_for("").refusal == dpp::m_ephemeral);
 
     const latibot::commands::linkstats_command linkstats(all.reactions);
     const command_info& stats = linkstats.info();
     for (const char* board : {"top", "user", "emojis", "alias list"}) {
         INFO(board);
-        CHECK(stats.responses_for(board).result == 0);
+        CHECK(stats.responses_for(board).result == dpp::m_suppress_notifications);
     }
     for (const char* private_answer : {"alias add", "alias remove", "recompute start", "recompute cancel"}) {
         INFO(private_answer);
         CHECK(stats.responses_for(private_answer).result == dpp::m_ephemeral);
     }
     CHECK(stats.responses_for("top").refusal == dpp::m_ephemeral);
-    CHECK(stats.responses_for("recompute start").post == 0);
+    CHECK(stats.responses_for("recompute start").post == dpp::m_suppress_notifications);
 
     const latibot::commands::trigger_command trigger(all.triggers);
     CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
@@ -101,7 +101,7 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
     const latibot::commands::shutdown_command shutdown([] {});
     for (const command_info* voice : {&join.info(), &leave.info(), &shutdown.info()}) {
         INFO(voice->name);
-        CHECK(voice->responses_for("").result == 0);
+        CHECK(voice->responses_for("").result == dpp::m_suppress_notifications);
         CHECK(voice->responses_for("").refusal == dpp::m_ephemeral);
     }
 
