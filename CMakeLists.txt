@@ -55,6 +55,8 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.25)
     set_target_properties(dpp PROPERTIES SYSTEM TRUE)
 endif()
 
+include(dectalk)
+
 add_subdirectory(src)
 
 if(LATIBOT_BUILD_TESTS)
