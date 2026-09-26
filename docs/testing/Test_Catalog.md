@@ -211,9 +211,9 @@ Command framework (`src/core/commands`)
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
 | every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:52](../../tests/unit/command_responses_test.cpp#L52) |
 | the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:74](../../tests/unit/command_responses_test.cpp#L74) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:113](../../tests/unit/command_responses_test.cpp#L113) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:125](../../tests/unit/command_responses_test.cpp#L125) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:146](../../tests/unit/command_responses_test.cpp#L146) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:119](../../tests/unit/command_responses_test.cpp#L119) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:131](../../tests/unit/command_responses_test.cpp#L131) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:152](../../tests/unit/command_responses_test.cpp#L152) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:58](../../tests/unit/linkstats_command_test.cpp#L58) |
 | custom emojis that share a name are listed as likely duplicates |  |  | [tests/unit/linkstats_command_test.cpp:86](../../tests/unit/linkstats_command_test.cpp#L86) |
 | aliases are listed as what counts as what, within Discord's limit |  |  | [tests/unit/linkstats_command_test.cpp:98](../../tests/unit/linkstats_command_test.cpp#L98) |
