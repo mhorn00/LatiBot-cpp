@@ -20,6 +20,7 @@ add_library(latibot_core STATIC
     core/commands/message_options.cpp
     core/commands/options.cpp
     core/commands/bots.cpp
+    core/commands/chat.cpp
     core/commands/midnight.cpp
     core/commands/nickname.cpp
     core/commands/trigger.cpp

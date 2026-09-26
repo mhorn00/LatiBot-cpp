@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-581 test cases across 10 components, including 118 sections.
+583 test cases across 10 components, including 118 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 115 | 12 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 136 | 27 |
+| [commands](#commands) | 138 | 27 |
 | [events](#events) | 157 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -190,6 +190,7 @@ Command framework (`src/core/commands`)
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
 | the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
+| a voice message answers the interaction with its duration and waveform |  |  | [tests/unit/chat_command_test.cpp:14](../../tests/unit/chat_command_test.cpp#L14) |
 | a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:31](../../tests/unit/command_log_test.cpp#L31) |
 | options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:35](../../tests/unit/command_log_test.cpp#L35) |
 | a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:42](../../tests/unit/command_log_test.cpp#L42) |
@@ -261,11 +262,12 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
-| speech goes where the bot is, or joins whoever asked |  |  | [tests/unit/speak_command_test.cpp:39](../../tests/unit/speak_command_test.cpp#L39) |
-| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:53](../../tests/unit/speak_command_test.cpp#L53) |
-| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:65](../../tests/unit/speak_command_test.cpp#L65) |
-| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:81](../../tests/unit/speak_command_test.cpp#L81) |
-| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:92](../../tests/unit/speak_command_test.cpp#L92) |
+| speech goes where the bot is, or joins whoever asked |  |  | [tests/unit/speak_command_test.cpp:45](../../tests/unit/speak_command_test.cpp#L45) |
+| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:59](../../tests/unit/speak_command_test.cpp#L59) |
+| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:71](../../tests/unit/speak_command_test.cpp#L71) |
+| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:87](../../tests/unit/speak_command_test.cpp#L87) |
+| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:98](../../tests/unit/speak_command_test.cpp#L98) |
+| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:120](../../tests/unit/speak_command_test.cpp#L120) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |

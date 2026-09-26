@@ -1,16 +1,22 @@
 // What /speak and /tts decide (plan §12.6, §12.7).
 
+#include "core/audio/voice_store.hpp"
+#include "core/commands/registry.hpp"
 #include "core/commands/speak.hpp"
 #include "core/commands/voice.hpp"
+#include "core/commands/voice_lab.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
 #include "core/events/voice_sessions.hpp"
 
+#include "mocks/mock_clock.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
 #include <filesystem>
+#include <memory>
 #include <string>
 
 using namespace std::chrono_literals;
@@ -87,6 +93,28 @@ TEST_CASE("speech is stopped by whoever asked for it, an admin or a trusted user
     // With nothing playing, only admins and trusted users.
     CHECK_FALSE(may_stop_speech(alice, std::nullopt, false, false));
     CHECK(may_stop_speech(alice, std::nullopt, false, true));
+}
+
+TEST_CASE("the voice commands register, their flags checked against their subcommands", "[commands]") {
+    // registry::add refuses an override naming a subcommand the command does
+    // not have, which would otherwise stop the bot at startup.
+    settings_fixture test;
+    latibot::audio::voice_store voices(test.db);
+    latibot::events::voice_sessions sessions;
+    latibot::testing::mock_clock clock;
+    latibot::commands::voice_drafts drafts(clock);
+    latibot::commands::voice_lab lab(drafts, voices, clock, {});
+
+    latibot::commands::registry commands;
+    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::speak_command>(latibot::commands::speech_services{})));
+    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::tts_command>(latibot::commands::speech_services{})));
+    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::voice_command>(sessions, test.settings, voices, lab)));
+
+    const auto* voice = commands.find("voice");
+    REQUIRE(voice != nullptr);
+    CHECK(voice->info().responses_for("start").result == dpp::m_suppress_notifications);
+    CHECK(voice->info().responses_for("lab").result == dpp::m_ephemeral);
+    CHECK(voice->info().responses_for("delete").result == dpp::m_ephemeral);
 }
 
 TEST_CASE("the voice grace defaults to 30 seconds and is clamped", "[commands]") {

@@ -1,6 +1,8 @@
 #pragma once
 
+#include "core/audio/dectalk_sanitizer.hpp"
 #include "core/commands/registry.hpp"
+#include "core/ports/tts_engine.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -10,10 +12,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-
-namespace latibot::ports {
-class tts_engine;
-}
 
 namespace latibot::audio {
 class speech_queue;
@@ -74,6 +72,25 @@ inline constexpr std::int64_t max_seconds_limit = 600;
 /// §12.7). With nothing playing, only the latter two.
 [[nodiscard]] auto may_stop_speech(dpp::snowflake caller, std::optional<dpp::snowflake> speaking_for, bool trusted,
                                    bool administrator) noexcept -> bool;
+
+/// What `/speak` and `/chat` say when the sanitizer left nothing to say.
+inline constexpr std::string_view nothing_left_reply = "there's nothing left to say without the commands you can't use";
+
+/// The voice named `wanted`: a built-in one, or one of the guild's custom
+/// voices, which cannot share a built-in's name. Paul when `wanted` is
+/// blank; nothing when there is no such voice.
+[[nodiscard]] auto resolve_voice(const audio::voice_store* voices, dpp::snowflake guild, std::string_view wanted)
+    -> std::optional<ports::voice_settings>;
+
+/// How far to trust what whoever used `event` wants spoken (plan §2.4).
+[[nodiscard]] auto speech_trust_of(const config::bootstrap& bootstrap, const dpp::interaction_create_t& event) -> audio::speech_trust;
+
+/// Logs, at debug, which inline commands the sanitizer took out.
+auto log_removed(const audio::sanitized_speech& clean, std::string_view command, dpp::snowflake guild) -> void;
+
+/// Offers the built-in voices, then the guild's custom ones, for a `voice`
+/// option being typed into.
+auto offer_voices(const dpp::autocomplete_t& event, const audio::voice_store* voices) -> void;
 
 // --------------------------------------------------------------------------
 // Commands

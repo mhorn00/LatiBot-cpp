@@ -2,6 +2,7 @@
 
 #include "core/commands/basic.hpp"
 #include "core/commands/bots.hpp"
+#include "core/commands/chat.hpp"
 #include "core/commands/linkstats.hpp"
 #include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
@@ -254,6 +255,7 @@ auto bot::register_commands() -> void {
         .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
     commands_.add(std::make_unique<commands::speak_command>(speech));
     commands_.add(std::make_unique<commands::tts_command>(speech));
+    commands_.add(std::make_unique<commands::chat_command>(speech, raw_));
     commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_, voices_, voice_lab_));
     commands_.add(std::make_unique<commands::linkstats_command>(
         reactions_, commands::recompute_support{.service = &backfill_,

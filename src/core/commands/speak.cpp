@@ -95,6 +95,44 @@ auto speak_command::build(const std::string& name, dpp::snowflake application_id
 }
 
 auto speak_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
+    offer_voices(event, services_.voices);
+}
+
+auto resolve_voice(const audio::voice_store* voices, dpp::snowflake guild, std::string_view wanted)
+    -> std::optional<ports::voice_settings> {
+    ports::voice_settings voice;
+    if (util::is_blank(wanted)) return voice;
+
+    // Built-in names come first; a custom voice can never take one.
+    if (const audio::builtin_voice* builtin = audio::find_builtin_voice(wanted)) {
+        voice.voice = std::string(builtin->name);
+        return voice;
+    }
+    if (voices == nullptr) return std::nullopt;
+    const auto saved = voices->find(guild, wanted);
+    if (!saved) return std::nullopt;
+    voice.voice = saved->voice.base;
+    voice.custom_params = saved->voice.dv_parameters();
+    return voice;
+}
+
+auto log_removed(const audio::sanitized_speech& clean, std::string_view command, dpp::snowflake guild) -> void {
+    if (clean.removed.empty()) return;
+    std::string removed;
+    for (const std::string& name : clean.removed) {
+        if (!removed.empty()) removed += ", ";
+        removed += name;
+    }
+    util::log().debug("{} in guild {}: removed {}", command, guild, removed);
+}
+
+auto speech_trust_of(const config::bootstrap& bootstrap, const dpp::interaction_create_t& event) -> audio::speech_trust {
+    const bool administrator = invoker_permissions(event).can(dpp::p_administrator);
+    return bootstrap.is_trusted(event.command.guild_id, event.command.get_issuing_user().id, administrator) ? audio::speech_trust::trusted
+                                                                                                            : audio::speech_trust::user;
+}
+
+auto offer_voices(const dpp::autocomplete_t& event, const audio::voice_store* voices) -> void {
     const dpp::command_option* focused = focused_option(event.options);
     if (focused == nullptr || focused->name != "voice" || event.owner == nullptr) return;
 
@@ -109,8 +147,8 @@ auto speak_command::autocomplete(const dpp::autocomplete_t& event) const -> void
             dpp::command_option_choice(std::format("{} ({})", voice.name, voice.description), std::string(voice.name)));
         ++offered;
     }
-    if (services_.voices != nullptr) {
-        for (const audio::saved_voice& saved : services_.voices->list(event.command.guild_id)) {
+    if (voices != nullptr) {
+        for (const audio::saved_voice& saved : voices->list(event.command.guild_id)) {
             if (offered == voice_choices || !saved.name.starts_with(filter)) continue;
             reply.add_autocomplete_choice(
                 dpp::command_option_choice(std::format("{} (built on {})", saved.name, saved.voice.base), saved.name));
@@ -131,19 +169,13 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
         co_return;
     }
 
-    ports::voice_settings voice;
-    if (const std::string wanted = string_option(event, "voice"); !wanted.empty()) {
-        // Built-in names come first; a custom voice can never take one.
-        if (const audio::builtin_voice* builtin = audio::find_builtin_voice(wanted)) {
-            voice.voice = std::string(builtin->name);
-        } else if (const auto saved = services_.voices == nullptr ? std::nullopt : services_.voices->find(guild, wanted)) {
-            voice.voice = saved->voice.base;
-            voice.custom_params = saved->voice.dv_parameters();
-        } else {
-            co_await event.co_reply(refusal(event, std::format("i don't know a voice called \"{}\"", wanted)));
-            co_return;
-        }
+    const std::string wanted = string_option(event, "voice");
+    auto resolved = resolve_voice(services_.voices, guild, wanted);
+    if (!resolved) {
+        co_await event.co_reply(refusal(event, std::format("i don't know a voice called \"{}\"", wanted)));
+        co_return;
     }
+    ports::voice_settings voice = std::move(*resolved);
     voice.rate = static_cast<int>(int_option(event, "rate").value_or(audio::default_rate));
     voice.volume = static_cast<int>(int_option(event, "volume").value_or(100));
 
@@ -154,19 +186,10 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
         co_return;
     }
 
-    const bool administrator = invoker_permissions(event).can(dpp::p_administrator);
-    const auto trust =
-        services_.bootstrap->is_trusted(guild, caller, administrator) ? audio::speech_trust::trusted : audio::speech_trust::user;
-    audio::sanitized_speech clean = audio::sanitize_speech(text, trust);
-    if (!clean.removed.empty()) {
-        std::string removed;
-        for (const std::string& name : clean.removed) {
-            removed += (removed.empty() ? "" : ", ") + name;
-        }
-        util::log().debug("/speak in guild {}: removed {}", guild, removed);
-    }
+    audio::sanitized_speech clean = audio::sanitize_speech(text, speech_trust_of(*services_.bootstrap, event));
+    log_removed(clean, "/speak", guild);
     if (util::is_blank(clean.text)) {
-        co_await event.co_reply(refusal(event, "there's nothing left to say without the commands you can't use"));
+        co_await event.co_reply(refusal(event, std::string(nothing_left_reply)));
         co_return;
     }
 
