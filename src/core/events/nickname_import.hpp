@@ -32,7 +32,7 @@ inline constexpr std::string_view imported_timezone = "America/Chicago";
 ///   time in the gap.
 ///
 /// Nothing when the text is not a timestamp at all.
-[[nodiscard]] std::optional<std::chrono::system_clock::time_point> central_time_to_utc(std::string_view local_text);
+[[nodiscard]] auto central_time_to_utc(std::string_view local_text) -> std::optional<std::chrono::system_clock::time_point>;
 
 /// The author an imported entry can be trusted with.
 ///
@@ -40,7 +40,7 @@ inline constexpr std::string_view imported_timezone = "America/Chicago";
 /// made a change ("assuming self"), so that value says nothing at all. A
 /// different id could only have come from its `/nickname`, which is the one
 /// case it did know, so that one is kept.
-[[nodiscard]] std::optional<dpp::snowflake> imported_author(dpp::snowflake user_id, dpp::snowflake changed_by);
+[[nodiscard]] auto imported_author(dpp::snowflake user_id, dpp::snowflake changed_by) -> std::optional<dpp::snowflake>;
 
 /// What reading `nicknames.json` produced.
 struct import_report {
@@ -59,17 +59,17 @@ struct import_report {
 /// Pure, so the timezone conversion and every malformed shape can be tested
 /// without a file. An entry that cannot be read is reported and skipped; one
 /// bad row does not lose the rest.
-[[nodiscard]] import_report read_nicknames_json(std::string_view text);
+[[nodiscard]] auto read_nicknames_json(std::string_view text) -> import_report;
 
 /// Writes everything in `report` that is not already recorded.
 ///
 /// Idempotent, so importing the same file twice adds nothing the second time
 /// and the file can simply be left where it is. Returns how many rows were
 /// added.
-int import_nicknames(nickname_store& store, const import_report& report);
+auto import_nicknames(nickname_store& store, const import_report& report) -> int;
 
 /// Reads and imports the file, if it is there. Returns how many rows were
 /// added, and nothing at all when there is no file to read.
-[[nodiscard]] std::optional<int> import_nicknames_file(nickname_store& store, const std::filesystem::path& path);
+[[nodiscard]] auto import_nicknames_file(nickname_store& store, const std::filesystem::path& path) -> std::optional<int>;
 
 } // namespace latibot::events

@@ -9,7 +9,7 @@
 namespace latibot::discord {
 namespace {
 
-dpp::http_method to_dpp(ports::http_method method) {
+auto to_dpp(ports::http_method method) -> dpp::http_method {
     switch (method) {
     case ports::http_method::get:
         return dpp::m_get;
@@ -27,7 +27,7 @@ dpp::http_method to_dpp(ports::http_method method) {
 
 } // namespace
 
-dpp::task<ports::result<ports::http_response>> dpp_http_client::send(ports::http_request request) {
+auto dpp_http_client::send(ports::http_request request) -> dpp::task<ports::result<ports::http_response>> {
     // DPP takes headers as a multimap; ours are an ordered list (see the port).
     std::multimap<std::string, std::string> headers;
     for (const auto& [name, value] : request.headers) {

@@ -18,11 +18,11 @@ using latibot::testing::temp_directory;
 
 namespace {
 
-constexpr std::chrono::system_clock::time_point stamp(int minutes_past_epoch) {
+constexpr auto stamp(int minutes_past_epoch) -> std::chrono::system_clock::time_point {
     return std::chrono::system_clock::time_point{std::chrono::minutes{minutes_past_epoch}};
 }
 
-void seed(database& db, int rows) {
+auto seed(database& db, int rows) -> void {
     latibot::db::migrate(db);
     for (int i = 0; i < rows; ++i) {
         db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1234567890123456789ULL, "key-" + std::to_string(i),
@@ -31,13 +31,13 @@ void seed(database& db, int rows) {
     }
 }
 
-int row_count(const std::filesystem::path& file) {
+auto row_count(const std::filesystem::path& file) -> int {
     database copy{file};
     auto query = copy.prepare("SELECT COUNT(*) FROM guild_settings");
     return query.step() ? query.get<int>(0) : -1;
 }
 
-bool passes_integrity_check(const std::filesystem::path& file) {
+auto passes_integrity_check(const std::filesystem::path& file) -> bool {
     database copy{file};
     auto query = copy.prepare("PRAGMA integrity_check");
     return query.step() && query.get<std::string>(0) == "ok";

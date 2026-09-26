@@ -9,7 +9,7 @@
 namespace latibot::discord {
 namespace {
 
-dpp::http_method to_dpp(ports::http_method method) {
+auto to_dpp(ports::http_method method) -> dpp::http_method {
     switch (method) {
     case ports::http_method::get:
         return dpp::m_get;
@@ -28,7 +28,7 @@ dpp::http_method to_dpp(ports::http_method method) {
 /// What DPP hands back: the parsed body plus the transport result.
 using rest_reply = std::pair<nlohmann::json, dpp::http_request_completion_t>;
 
-ports::result<nlohmann::json> to_result(const rest_reply& reply) {
+auto to_result(const rest_reply& reply) -> ports::result<nlohmann::json> {
     const auto& [body, http] = reply;
 
     if (http.error != dpp::h_success) {
@@ -51,7 +51,7 @@ ports::result<nlohmann::json> to_result(const rest_reply& reply) {
 
 } // namespace
 
-std::string build_endpoint(std::string_view path) {
+auto build_endpoint(std::string_view path) -> std::string {
     std::string endpoint(path);
 
     if (!endpoint.starts_with("/api/")) {
@@ -69,7 +69,7 @@ std::string build_endpoint(std::string_view path) {
     return endpoint;
 }
 
-dpp::task<ports::result<nlohmann::json>> raw_api::request(ports::http_method method, std::string path, std::string body) {
+auto raw_api::request(ports::http_method method, std::string path, std::string body) -> dpp::task<ports::result<nlohmann::json>> {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
@@ -81,8 +81,8 @@ dpp::task<ports::result<nlohmann::json>> raw_api::request(ports::http_method met
     co_return to_result(reply);
 }
 
-dpp::task<ports::result<nlohmann::json>> raw_api::multipart(ports::http_method method, std::string path, std::string payload_json,
-                                                            std::vector<dpp::message_file_data> files) {
+auto raw_api::multipart(ports::http_method method, std::string path, std::string payload_json, std::vector<dpp::message_file_data> files)
+    -> dpp::task<ports::result<nlohmann::json>> {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {

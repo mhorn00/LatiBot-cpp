@@ -12,7 +12,7 @@
 namespace latibot::testing {
 
 /// An option as Discord delivers it inside a command interaction.
-inline dpp::command_data_option option(std::string name, dpp::command_value value, dpp::command_option_type type) {
+inline auto option(std::string name, dpp::command_value value, dpp::command_option_type type) -> dpp::command_data_option {
     dpp::command_data_option made;
     made.name = std::move(name);
     made.type = type;
@@ -20,7 +20,7 @@ inline dpp::command_data_option option(std::string name, dpp::command_value valu
     return made;
 }
 
-inline dpp::command_data_option bool_option(std::string name, bool value) {
+inline auto bool_option(std::string name, bool value) -> dpp::command_data_option {
     return option(std::move(name), value, dpp::co_boolean);
 }
 
@@ -30,8 +30,8 @@ inline dpp::command_data_option bool_option(std::string name, bool value) {
 /// `path` is empty, a subcommand ("test") or a group and a subcommand
 /// ("alias add"); `options` go on the innermost level, where Discord puts
 /// them.
-inline dpp::slashcommand_t slash_event(std::string_view command, std::string_view path,
-                                       std::vector<dpp::command_data_option> options = {}) {
+inline auto slash_event(std::string_view command, std::string_view path, std::vector<dpp::command_data_option> options = {})
+    -> dpp::slashcommand_t {
     dpp::command_interaction interaction;
     interaction.name = std::string(command);
 

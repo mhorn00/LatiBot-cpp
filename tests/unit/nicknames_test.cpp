@@ -27,7 +27,7 @@ constexpr dpp::snowflake self{9999};
 /// 2026-09-23 12:00:00 UTC, which is 1790164800 in Discord's markup.
 const auto noon = std::chrono::sys_days{std::chrono::year{2026} / std::chrono::September / 23} + 12h;
 
-nickname_change change_to(std::optional<std::string> nickname) {
+auto change_to(std::optional<std::string> nickname) -> nickname_change {
     return {.user_id = member, .nickname = std::move(nickname), .changed_at = noon};
 }
 

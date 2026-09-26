@@ -25,7 +25,7 @@ namespace latibot::commands {
 namespace {
 
 /// The voice channel a member is in, or 0.
-dpp::snowflake voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) {
+auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::snowflake {
     const dpp::guild* guild = dpp::find_guild(guild_id);
     if (guild == nullptr) {
         return {};
@@ -36,7 +36,7 @@ dpp::snowflake voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id)
 }
 
 /// The voice channel the bot is connected to in this guild, or 0.
-dpp::snowflake bot_voice_channel(const dpp::slashcommand_t& event) {
+auto bot_voice_channel(const dpp::slashcommand_t& event) -> dpp::snowflake {
     dpp::discord_client* shard = event.from();
     if (shard == nullptr) {
         return {};
@@ -52,7 +52,7 @@ dpp::snowflake bot_voice_channel(const dpp::slashcommand_t& event) {
 // Decisions
 // --------------------------------------------------------------------------
 
-join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept {
+auto plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept -> join_decision {
     if (target_channel.empty()) {
         return {.action = join_action::target_not_in_voice, .channel_id = {}};
     }
@@ -65,11 +65,11 @@ join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channe
     return {.action = join_action::move, .channel_id = target_channel};
 }
 
-std::string describe_join(join_action action, dpp::snowflake followed) {
+auto describe_join(join_action action, dpp::snowflake followed) -> std::string {
     return std::format("{} <@{}>", action == join_action::move ? "ok moving to" : "ok joining", followed.str());
 }
 
-say_decision plan_say(std::string_view message, std::string_view reply_to) {
+auto plan_say(std::string_view message, std::string_view reply_to) -> say_decision {
     if (util::is_blank(message)) {
         return {.action = say_action::blank_message, .reply_to = {}};
     }
@@ -90,7 +90,7 @@ say_decision plan_say(std::string_view message, std::string_view reply_to) {
     return {.action = say_action::reply, .reply_to = *parsed};
 }
 
-dpp::activity_type parse_activity_type(std::string_view name) {
+auto parse_activity_type(std::string_view name) -> dpp::activity_type {
     const std::string key = util::to_lower(util::trim(name));
 
     if (key == "watching") {
@@ -108,7 +108,7 @@ dpp::activity_type parse_activity_type(std::string_view name) {
     return dpp::at_game;
 }
 
-dpp::activity make_activity(dpp::activity_type type, const std::string& text) {
+auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::activity {
     if (type == dpp::at_custom) {
         return {type, "Custom Status", text, ""};
     }
@@ -122,12 +122,12 @@ constexpr std::string_view status_type_key = "status_type";
 
 } // namespace
 
-void save_status(config::guild_settings& settings, const saved_status& status) {
+auto save_status(config::guild_settings& settings, const saved_status& status) -> void {
     settings.set(config::bot_wide, status_text_key, status.text);
     settings.set(config::bot_wide, status_type_key, status.type);
 }
 
-std::optional<saved_status> load_status(const config::guild_settings& settings) {
+auto load_status(const config::guild_settings& settings) -> std::optional<saved_status> {
     auto text = settings.find(config::bot_wide, status_text_key);
     if (!text || text->empty()) {
         return std::nullopt;
@@ -135,7 +135,7 @@ std::optional<saved_status> load_status(const config::guild_settings& settings) 
     return saved_status{.text = std::move(*text), .type = settings.get(config::bot_wide, status_type_key, "")};
 }
 
-dpp::presence presence_for(const saved_status& status) {
+auto presence_for(const saved_status& status) -> dpp::presence {
     return {dpp::ps_online, make_activity(parse_activity_type(status.type), status.text)};
 }
 
@@ -154,7 +154,7 @@ ping_command::ping_command(ports::clock& clock)
             .subcommand_responses = {}},
       clock_(&clock) {}
 
-dpp::task<void> ping_command::execute(const dpp::slashcommand_t& event) {
+auto ping_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto started = clock_->steady_now();
     co_await event.co_reply(result(event, "Pong!"));
     const auto round_trip = std::chrono::duration_cast<std::chrono::milliseconds>(clock_->steady_now() - started);
@@ -184,14 +184,14 @@ say_command::say_command(dpp::cluster& cluster)
             .subcommand_responses = {}},
       cluster_(&cluster) {}
 
-dpp::slashcommand say_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto say_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
     payload.add_option(dpp::command_option(dpp::co_string, "message", "The message to send.", true).set_min_length(1).set_max_length(2000));
     payload.add_option(dpp::command_option(dpp::co_string, "reply", "Optional message id to reply to.", false));
     return payload;
 }
 
-dpp::task<void> say_command::execute(const dpp::slashcommand_t& event) {
+auto say_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string message = string_option(event, "message");
     const std::string reply_to = string_option(event, "reply");
     const say_decision decision = plan_say(message, reply_to);
@@ -255,7 +255,7 @@ status_command::status_command(dpp::cluster& cluster, config::guild_settings& se
       cluster_(&cluster),
       settings_(&settings) {}
 
-dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto status_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
     payload.add_option(dpp::command_option(dpp::co_string, "status", "The status text.", true).set_min_length(1).set_max_length(128));
 
@@ -269,7 +269,7 @@ dpp::slashcommand status_command::build(const std::string& name, dpp::snowflake 
     return payload;
 }
 
-dpp::task<void> status_command::execute(const dpp::slashcommand_t& event) {
+auto status_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const saved_status status{.text = string_option(event, "status"), .type = string_option(event, "type")};
 
     // Kept as well as set, so the next start puts it back (plan §6).
@@ -295,13 +295,13 @@ join_command::join_command()
             .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
-dpp::slashcommand join_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto join_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
     payload.add_option(dpp::command_option(dpp::co_user, "user", "Whose channel to join.", false));
     return payload;
 }
 
-dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
+auto join_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake caller = event.command.get_issuing_user().id;
     const dpp::snowflake target = snowflake_option(event, "user").value_or(caller);
     const bool following_someone_else = target != caller;
@@ -352,7 +352,7 @@ leave_command::leave_command()
             .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
-dpp::task<void> leave_command::execute(const dpp::slashcommand_t& event) {
+auto leave_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     dpp::discord_client* shard = event.from();
     if (shard == nullptr || bot_voice_channel(event).empty()) {
         co_await event.co_reply(refusal(event, "i'm not in a voice channel"));
@@ -380,7 +380,7 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}
 
-dpp::task<void> shutdown_command::execute(const dpp::slashcommand_t& event) {
+auto shutdown_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     util::log().info("shutdown requested by {}", describe_user(event.command.get_issuing_user()));
 
     // Awaited, not queued: the process is about to stop, and an unanswered
@@ -406,14 +406,14 @@ goodbye_command::goodbye_command(config::guild_settings& settings)
             .subcommand_responses = {}},
       settings_(&settings) {}
 
-dpp::slashcommand goodbye_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto goodbye_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
     payload.add_option(dpp::command_option(dpp::co_string, "phrase", "The new phrase.", false).set_min_length(1).set_max_length(200));
     payload.add_option(dpp::command_option(dpp::co_boolean, "off", "Turn the phrase off entirely.", false));
     return payload;
 }
 
-dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
+auto goodbye_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
 
     if (bool_option(event, "off").value_or(false)) {
@@ -440,8 +440,8 @@ dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
 
 // --------------------------------------------------------------------------
 
-void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
-                        std::function<void()> request_shutdown) {
+auto add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
+                        std::function<void()> request_shutdown) -> void {
     into.add(std::make_unique<ping_command>(clock));
     into.add(std::make_unique<say_command>(cluster));
     into.add(std::make_unique<status_command>(cluster, settings));

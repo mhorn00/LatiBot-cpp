@@ -20,7 +20,7 @@ constexpr std::chrono::seconds early_update_lifetime{30};
 /// through here and almost none of them are ours.
 constexpr std::size_t early_update_limit = 256;
 
-std::size_t at_least_one(std::size_t per_mirror) {
+auto at_least_one(std::size_t per_mirror) -> std::size_t {
     return std::max<std::size_t>(per_mirror, 1);
 }
 
@@ -29,7 +29,7 @@ std::size_t at_least_one(std::size_t per_mirror) {
 /// Mirrors tend to report the original site as their URL, so the host is no
 /// help; the path is. A translation suffix is taken off first, since it is
 /// part of the mirror's address and not of the post.
-bool same_target(std::string_view embed_url, const planned_link& link) {
+auto same_target(std::string_view embed_url, const planned_link& link) -> bool {
     const auto embed = util::split_url(embed_url);
     const auto original = util::split_url(link.original_url);
     if (!embed || !original) {
@@ -51,13 +51,13 @@ bool same_target(std::string_view embed_url, const planned_link& link) {
     return false;
 }
 
-std::vector<std::string> urls_of(std::span<const std::string> urls) {
+auto urls_of(std::span<const std::string> urls) -> std::vector<std::string> {
     return {urls.begin(), urls.end()};
 }
 
 } // namespace
 
-dpp::message build_edit(const edit_replacement& edit) {
+auto build_edit(const edit_replacement& edit) -> dpp::message {
     dpp::message message(edit.channel_id, edit.content);
     message.id = edit.message_id;
 
@@ -78,11 +78,11 @@ dpp::message build_edit(const edit_replacement& edit) {
     return message;
 }
 
-std::string current_url(const watched_link& link, std::size_t per_mirror) {
+auto current_url(const watched_link& link, std::size_t per_mirror) -> std::string {
     return mirror_url(link.link, link.attempt / at_least_one(per_mirror));
 }
 
-std::string render_replacement(std::span<const watched_link> links, std::size_t per_mirror) {
+auto render_replacement(std::span<const watched_link> links, std::size_t per_mirror) -> std::string {
     std::string content;
     for (const watched_link& link : links) {
         if (!content.empty()) {
@@ -95,7 +95,7 @@ std::string render_replacement(std::span<const watched_link> links, std::size_t 
     return content;
 }
 
-std::string render_failure(std::span<const planned_link> links) {
+auto render_failure(std::span<const planned_link> links) -> std::string {
     // Every mirror tried, across all the links, each named once and in the
     // order it was first tried.
     std::vector<std::string_view> hosts;
@@ -122,7 +122,7 @@ std::string render_failure(std::span<const planned_link> links) {
         links.size() == 1 ? "that link" : "those links", tried.empty() ? std::string("any mirror") : tried);
 }
 
-std::vector<bool> embedded_links(std::span<const watched_link> links, std::span<const std::string> embed_urls) {
+auto embedded_links(std::span<const watched_link> links, std::span<const std::string> embed_urls) -> std::vector<bool> {
     std::vector<bool> covered(links.size(), false);
     std::size_t unmatched = 0;
 
@@ -155,7 +155,7 @@ std::vector<bool> embedded_links(std::span<const watched_link> links, std::span<
 embed_tracker::embed_tracker(replacement_store& store, ports::clock& clock, std::chrono::milliseconds timeout)
     : store_(&store), clock_(&clock), timeout_(timeout) {}
 
-bool embed_tracker::absorb(watch_state& state, std::span<const std::string> embed_urls) {
+auto embed_tracker::absorb(watch_state& state, std::span<const std::string> embed_urls) -> bool {
     const std::vector<bool> covered = embedded_links(state.links, embed_urls);
     for (std::size_t index = 0; index < covered.size(); ++index) {
         if (covered[index]) {
@@ -166,7 +166,7 @@ bool embed_tracker::absorb(watch_state& state, std::span<const std::string> embe
     return std::ranges::none_of(state.links, [](const watched_link& link) { return link.progress == link_progress::waiting; });
 }
 
-std::vector<embed_action> embed_tracker::watch(watch_request request, std::span<const std::string> embed_urls) {
+auto embed_tracker::watch(watch_request request, std::span<const std::string> embed_urls) -> std::vector<embed_action> {
     const auto now = clock_->steady_now();
     const dpp::snowflake id = request.message_id;
 
@@ -196,7 +196,7 @@ std::vector<embed_action> embed_tracker::watch(watch_request request, std::span<
     return {};
 }
 
-std::vector<embed_action> embed_tracker::on_embeds(dpp::snowflake message_id, std::span<const std::string> embed_urls) {
+auto embed_tracker::on_embeds(dpp::snowflake message_id, std::span<const std::string> embed_urls) -> std::vector<embed_action> {
     const std::scoped_lock guard(mutex_);
 
     // An update for a message nobody is watching may be for one about to be
@@ -224,7 +224,7 @@ std::vector<embed_action> embed_tracker::on_embeds(dpp::snowflake message_id, st
     return actions;
 }
 
-std::vector<embed_action> embed_tracker::tick() {
+auto embed_tracker::tick() -> std::vector<embed_action> {
     const auto now = clock_->steady_now();
     std::vector<embed_action> actions;
 
@@ -289,7 +289,7 @@ std::vector<embed_action> embed_tracker::tick() {
     return actions;
 }
 
-std::vector<embed_action> embed_tracker::settle(watch_request request, std::span<const std::string> embed_urls) {
+auto embed_tracker::settle(watch_request request, std::span<const std::string> embed_urls) -> std::vector<embed_action> {
     watch_state state{.request = std::move(request), .links = {}, .deadline = {}};
     for (const planned_link& link : state.request.links) {
         state.links.push_back({.link = link, .attempt = 0, .progress = link_progress::waiting});
@@ -301,7 +301,7 @@ std::vector<embed_action> embed_tracker::settle(watch_request request, std::span
     return finish(state);
 }
 
-std::vector<embed_action> embed_tracker::finish(const watch_state& state) {
+auto embed_tracker::finish(const watch_state& state) -> std::vector<embed_action> {
     const watch_request& request = state.request;
     const auto embedded = std::ranges::count(state.links, link_progress::embedded, &watched_link::progress);
     const auto wall_now = std::chrono::floor<std::chrono::seconds>(clock_->now());
@@ -354,7 +354,7 @@ std::vector<embed_action> embed_tracker::finish(const watch_state& state) {
     return actions;
 }
 
-void embed_tracker::forget(dpp::snowflake message_id) {
+auto embed_tracker::forget(dpp::snowflake message_id) -> void {
     const std::scoped_lock guard(mutex_);
     if (watches_.erase(message_id) > 0) {
         util::log().debug("message {} was deleted while its previews were being checked", message_id);
@@ -362,12 +362,12 @@ void embed_tracker::forget(dpp::snowflake message_id) {
     early_.erase(message_id);
 }
 
-bool embed_tracker::watching(dpp::snowflake message_id) const {
+auto embed_tracker::watching(dpp::snowflake message_id) const -> bool {
     const std::scoped_lock guard(mutex_);
     return watches_.contains(message_id);
 }
 
-void embed_tracker::prune_early(std::chrono::steady_clock::time_point now) {
+auto embed_tracker::prune_early(std::chrono::steady_clock::time_point now) -> void {
     std::erase_if(early_, [&](const auto& entry) { return now - entry.second.seen > early_update_lifetime; });
 }
 

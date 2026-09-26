@@ -30,7 +30,7 @@ struct store_fixture {
 /// A fixed instant, so "recorded a minute ago" is exact rather than racy.
 const auto noon = std::chrono::sys_days{std::chrono::year{2026} / std::chrono::September / 23} + 12h;
 
-nickname_change change_to(std::optional<std::string> nickname, std::chrono::system_clock::time_point when = noon) {
+auto change_to(std::optional<std::string> nickname, std::chrono::system_clock::time_point when = noon) -> nickname_change {
     return {.guild_id = guild, .user_id = member, .nickname = std::move(nickname), .changed_at = when};
 }
 

@@ -31,11 +31,11 @@ inline constexpr log_level default_log_level =
     log_level::debug;
 #endif
 
-[[nodiscard]] std::string_view to_string(log_level level) noexcept;
+[[nodiscard]] auto to_string(log_level level) noexcept -> std::string_view;
 
 /// Parses a level name from the config file. Case-insensitive; returns
 /// nothing for an unknown name so the caller can report it.
-[[nodiscard]] std::optional<log_level> log_level_from_string(std::string_view name);
+[[nodiscard]] auto log_level_from_string(std::string_view name) -> std::optional<log_level>;
 
 // --------------------------------------------------------------------------
 // Colour
@@ -55,7 +55,7 @@ inline constexpr log_level default_log_level =
 struct text_style {
     std::string_view sgr;
 
-    [[nodiscard]] constexpr bool plain() const noexcept { return sgr.empty(); }
+    [[nodiscard]] constexpr auto plain() const noexcept -> bool { return sgr.empty(); }
 };
 
 /// The sixteen standard colours, named for how they look on a dark terminal.
@@ -119,7 +119,7 @@ inline constexpr log_palette palette{
     .duration = ansi::light_cyan,
 };
 
-[[nodiscard]] constexpr text_style style_of(log_level level) noexcept {
+[[nodiscard]] constexpr auto style_of(log_level level) noexcept -> text_style {
     switch (level) {
     case log_level::trace:
         return palette.trace;
@@ -166,26 +166,26 @@ concept character =
 template <typename T>
     requires((std::integral<T> && !std::same_as<T, bool> && !detail::character<T>) || std::floating_point<T>)
 struct log_style<T> {
-    static constexpr text_style of(const T& /*value*/) noexcept { return palette.number; }
+    static constexpr auto of(const T& /*value*/) noexcept -> text_style { return palette.number; }
 };
 
 /// true and false in different colours, since the difference is usually the
 /// point of logging one.
 template <>
 struct log_style<bool> {
-    static constexpr text_style of(bool value) noexcept { return value ? palette.boolean_true : palette.boolean_false; }
+    static constexpr auto of(bool value) noexcept -> text_style { return value ? palette.boolean_true : palette.boolean_false; }
 };
 
 /// Discord ids. Only when passed as the snowflake itself: `id.str()` is a
 /// string by the time the logger sees it, and strings are plain.
 template <>
 struct log_style<dpp::snowflake> {
-    static constexpr text_style of(const dpp::snowflake& /*value*/) noexcept { return palette.snowflake; }
+    static constexpr auto of(const dpp::snowflake& /*value*/) noexcept -> text_style { return palette.snowflake; }
 };
 
 template <typename Rep, typename Period>
 struct log_style<std::chrono::duration<Rep, Period>> {
-    static constexpr text_style of(const std::chrono::duration<Rep, Period>& /*value*/) noexcept { return palette.duration; }
+    static constexpr auto of(const std::chrono::duration<Rep, Period>& /*value*/) noexcept -> text_style { return palette.duration; }
 };
 
 /// A tag naming where a line came from, logged as `[name]`.
@@ -199,7 +199,7 @@ struct log_source {
 
 template <>
 struct log_style<log_source> {
-    static constexpr text_style of(const log_source& /*value*/) noexcept { return palette.source; }
+    static constexpr auto of(const log_source& /*value*/) noexcept -> text_style { return palette.source; }
 };
 
 namespace detail {
@@ -220,7 +220,7 @@ struct painted {
 /// Wraps a value whose type has a colour, and passes everything else through
 /// by reference, untouched.
 template <typename T>
-decltype(auto) paint(const T& value) {
+auto paint(const T& value) -> decltype(auto) {
     if constexpr (styled<T>) {
         return painted<T>{value};
     } else {
@@ -237,7 +237,7 @@ decltype(auto) paint(const T& value) {
 /// a user shown as `name (id)`: the logger colours whole arguments, and this
 /// is how one argument colours its own pieces.
 template <typename OutputIt, typename T>
-OutputIt paint_to(OutputIt out, const T& value) {
+auto paint_to(OutputIt out, const T& value) -> OutputIt {
     if constexpr (styled<T>) {
         const text_style style = log_style<T>::of(value);
         if (detail::painting && !style.plain()) {
@@ -256,7 +256,7 @@ public:
     ~painting_scope() { painting = previous_; }
 
     painting_scope(const painting_scope&) = delete;
-    painting_scope& operator=(const painting_scope&) = delete;
+    auto operator=(const painting_scope&) -> painting_scope& = delete;
 
 private:
     bool previous_;
@@ -268,7 +268,7 @@ private:
 /// logger. The format string was checked against the real argument types at
 /// the call site; colouring then only changes what those arguments write.
 template <typename... Args>
-[[nodiscard]] std::string format_message(bool colored, std::format_string<Args...> fmt, Args&&... args) {
+[[nodiscard]] auto format_message(bool colored, std::format_string<Args...> fmt, Args&&... args) -> std::string {
     if (!colored) {
         return std::format(fmt, std::forward<Args>(args)...);
     }
@@ -307,14 +307,14 @@ enum class color_mode : std::uint8_t {
 /// `off`, `false`, `0` and `no` all mean never, since nobody should have to
 /// look up which spelling of "no" is the right one. Nothing for a value that
 /// means none of these, so the caller can say so.
-[[nodiscard]] std::optional<color_mode> color_mode_from_string(std::string_view text);
+[[nodiscard]] auto color_mode_from_string(std::string_view text) -> std::optional<color_mode>;
 
 /// Whether the stderr sink should colour.
 ///
 /// Pure, so each combination can be tested. `NO_COLOR` is the convention
 /// other command-line tools already honour (no-color.org); an explicit
 /// `always` wins over it, as that convention says it should.
-[[nodiscard]] bool should_color(color_mode mode, bool no_color_set, bool stderr_is_terminal) noexcept;
+[[nodiscard]] auto should_color(color_mode mode, bool no_color_set, bool stderr_is_terminal) noexcept -> bool;
 
 /// Reads `LATIBOT_LOG_COLOR` and `NO_COLOR`, checks whether stderr is a
 /// terminal that can show colour, and applies the answer to `log()`.
@@ -322,12 +322,12 @@ enum class color_mode : std::uint8_t {
 /// Called once from main after `.env` has been read, so a colour setting
 /// there is honoured. On Windows this is also what switches the console into
 /// processing escape sequences, which it does not do by default.
-void apply_log_colors_from_environment();
+auto apply_log_colors_from_environment() -> void;
 
 /// One line as the stderr sink writes it: timestamp, level, message.
 ///
 /// Uncoloured, it is byte-for-byte what the log has always looked like.
-[[nodiscard]] std::string render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored);
+[[nodiscard]] auto render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored) -> std::string;
 
 // --------------------------------------------------------------------------
 // The logger
@@ -344,33 +344,33 @@ public:
     explicit logger(log_level minimum = default_log_level);
 
     logger(const logger&) = delete;
-    logger& operator=(const logger&) = delete;
+    auto operator=(const logger&) -> logger& = delete;
 
-    void set_level(log_level minimum);
-    [[nodiscard]] log_level level() const;
+    auto set_level(log_level minimum) -> void;
+    [[nodiscard]] auto level() const -> log_level;
 
     /// Replaces the destination. Passing an empty function restores the
     /// default, which writes timestamped lines to stderr.
     ///
     /// A replacement sink always receives plain text: colour is for a person
     /// reading a terminal, and a sink is usually a test reading a string.
-    void set_sink(sink_fn sink);
+    auto set_sink(sink_fn sink) -> void;
 
     /// Whether the stderr sink colours its output. Off until something turns
     /// it on, which in the bot is `apply_log_colors_from_environment`.
-    void set_colors(bool on);
+    auto set_colors(bool on) -> void;
 
     /// Whether the next line will be coloured: colours on, and the stderr
     /// sink in use.
-    [[nodiscard]] bool colors() const;
+    [[nodiscard]] auto colors() const -> bool;
 
-    [[nodiscard]] bool enabled(log_level level) const;
+    [[nodiscard]] auto enabled(log_level level) const -> bool;
 
     /// Writes a message that is already formatted.
-    void write(log_level level, std::string_view message);
+    auto write(log_level level, std::string_view message) -> void;
 
     template <typename... Args>
-    void log(log_level level, std::format_string<Args...> fmt, Args&&... args) {
+    auto log(log_level level, std::format_string<Args...> fmt, Args&&... args) -> void {
         if (!enabled(level)) {
             return;
         }
@@ -378,27 +378,27 @@ public:
     }
 
     template <typename... Args>
-    void trace(std::format_string<Args...> fmt, Args&&... args) {
+    auto trace(std::format_string<Args...> fmt, Args&&... args) -> void {
         log(log_level::trace, fmt, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void debug(std::format_string<Args...> fmt, Args&&... args) {
+    auto debug(std::format_string<Args...> fmt, Args&&... args) -> void {
         log(log_level::debug, fmt, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void info(std::format_string<Args...> fmt, Args&&... args) {
+    auto info(std::format_string<Args...> fmt, Args&&... args) -> void {
         log(log_level::info, fmt, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void warn(std::format_string<Args...> fmt, Args&&... args) {
+    auto warn(std::format_string<Args...> fmt, Args&&... args) -> void {
         log(log_level::warn, fmt, std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    void error(std::format_string<Args...> fmt, Args&&... args) {
+    auto error(std::format_string<Args...> fmt, Args&&... args) -> void {
         log(log_level::error, fmt, std::forward<Args>(args)...);
     }
 
@@ -413,7 +413,7 @@ private:
 
 /// The bot's logger. One instance, because logging is called from everywhere
 /// including DPP's own threads.
-[[nodiscard]] logger& log();
+[[nodiscard]] auto log() -> logger&;
 
 } // namespace latibot::util
 

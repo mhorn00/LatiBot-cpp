@@ -35,7 +35,7 @@ struct store_fixture {
     store_fixture() { latibot::db::migrate(db); }
 };
 
-trigger nice_trigger(dpp::snowflake in = guild) {
+auto nice_trigger(dpp::snowflake in = guild) -> trigger {
     return {.guild_id = in,
             .pattern = "420",
             .mode = match_mode::whole_word,
@@ -44,13 +44,13 @@ trigger nice_trigger(dpp::snowflake in = guild) {
             .responses = {{.text = "nice", .weight = 1}}};
 }
 
-latibot::events::incoming_message message_saying(std::string content, dpp::snowflake in_channel = channel) {
+auto message_saying(std::string content, dpp::snowflake in_channel = channel) -> latibot::events::incoming_message {
     return {.guild_id = guild, .channel_id = in_channel, .author_id = dpp::snowflake{9}, .content = std::move(content)};
 }
 
 /// A message from a bot this guild has already allowed, so the only question
 /// left is whether the trigger itself answers bots.
-latibot::events::incoming_message message_from_allowed_bot(std::string content) {
+auto message_from_allowed_bot(std::string content) -> latibot::events::incoming_message {
     auto message = message_saying(std::move(content));
     message.from_bot = true;
     message.author_is_allowed_bot = true;

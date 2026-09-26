@@ -19,7 +19,7 @@ using latibot::util::split_url;
 
 namespace {
 
-std::vector<std::string_view> urls_in(std::string_view text) {
+auto urls_in(std::string_view text) -> std::vector<std::string_view> {
     std::vector<std::string_view> urls;
     for (const found_link& link : find_links(text)) {
         urls.push_back(link.url);
@@ -27,7 +27,7 @@ std::vector<std::string_view> urls_in(std::string_view text) {
     return urls;
 }
 
-std::string rehosted(std::string_view url, std::string_view host, std::string_view suffix = {}) {
+auto rehosted(std::string_view url, std::string_view host, std::string_view suffix = {}) -> std::string {
     const auto parts = split_url(url);
     REQUIRE(parts.has_value());
     return rehost(*parts, host, suffix);

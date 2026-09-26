@@ -16,15 +16,15 @@ namespace {
 
 constexpr std::string_view whitespace = " \t\n\r\f\v";
 
-bool is_space(char letter) {
+auto is_space(char letter) -> bool {
     return whitespace.find(letter) != std::string_view::npos;
 }
 
-bool is_continuation(char byte) {
+auto is_continuation(char byte) -> bool {
     return (static_cast<unsigned char>(byte) & 0xC0U) == 0x80U;
 }
 
-void require(bool holds) {
+auto require(bool holds) -> void {
     if (!holds) {
         std::abort();
     }
@@ -32,7 +32,7 @@ void require(bool holds) {
 
 } // namespace
 
-extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) -> int {
     const std::string_view text(reinterpret_cast<const char*>(data), size);
     using namespace latibot::util;
 

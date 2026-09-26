@@ -14,23 +14,23 @@ namespace {
 
 using json = nlohmann::json;
 
-[[noreturn]] void wrong_type(std::string_view key, std::string_view expected) {
+[[noreturn]] auto wrong_type(std::string_view key, std::string_view expected) -> void {
     throw config_error("config key \"" + std::string(key) + "\" must be " + std::string(expected));
 }
 
-std::string require_string(const json& object, std::string_view key) {
+auto require_string(const json& object, std::string_view key) -> std::string {
     const auto& value = object.at(std::string(key));
     if (!value.is_string()) wrong_type(key, "a string");
     return value.get<std::string>();
 }
 
-double require_number(const json& object, std::string_view key) {
+auto require_number(const json& object, std::string_view key) -> double {
     const auto& value = object.at(std::string(key));
     if (!value.is_number()) wrong_type(key, "a number");
     return value.get<double>();
 }
 
-int require_int(const json& object, std::string_view key) {
+auto require_int(const json& object, std::string_view key) -> int {
     const auto& value = object.at(std::string(key));
     if (!value.is_number_integer()) wrong_type(key, "a whole number");
     return value.get<int>();
@@ -39,7 +39,7 @@ int require_int(const json& object, std::string_view key) {
 /// Snowflakes are 64-bit and JSON numbers are doubles, which silently lose
 /// precision past 2^53, so IDs are written as strings everywhere they cross a
 /// JSON boundary (plan §5.2).
-std::vector<dpp::snowflake> require_snowflakes(const json& object, std::string_view key) {
+auto require_snowflakes(const json& object, std::string_view key) -> std::vector<dpp::snowflake> {
     const auto& value = object.at(std::string(key));
     if (!value.is_array()) wrong_type(key, "an array of ID strings");
 
@@ -61,7 +61,7 @@ std::vector<dpp::snowflake> require_snowflakes(const json& object, std::string_v
     return ids;
 }
 
-bool require_bool(const json& object, std::string_view key) {
+auto require_bool(const json& object, std::string_view key) -> bool {
     const auto& value = object.at(std::string(key));
     if (!value.is_boolean()) wrong_type(key, "true or false");
     return value.get<bool>();
@@ -69,7 +69,7 @@ bool require_bool(const json& object, std::string_view key) {
 
 /// Rejects anything we do not recognise, so a typo in a hand-edited file is
 /// reported instead of silently doing nothing.
-void reject_unknown_keys(const json& parsed) {
+auto reject_unknown_keys(const json& parsed) -> void {
     static constexpr std::array<std::string_view, 13> known_keys{
         "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
         "track_nicknames", "llm_provider",   "llm_model",        "spend_cap_daily_usd", "spend_cap_monthly_usd",
@@ -84,7 +84,7 @@ void reject_unknown_keys(const json& parsed) {
 }
 
 /// Where the database lives and how often it is copied.
-void read_storage_keys(const json& parsed, bootstrap& config) {
+auto read_storage_keys(const json& parsed, bootstrap& config) -> void {
     if (parsed.contains("database_path")) config.database_path = require_string(parsed, "database_path");
     if (parsed.contains("backup_directory")) config.backup_directory = require_string(parsed, "backup_directory");
 
@@ -101,7 +101,7 @@ void read_storage_keys(const json& parsed, bootstrap& config) {
 }
 
 /// Which model answers, and what it is allowed to cost (plan §14).
-void read_llm_keys(const json& parsed, bootstrap& config) {
+auto read_llm_keys(const json& parsed, bootstrap& config) -> void {
     if (parsed.contains("llm_provider")) config.llm_provider = require_string(parsed, "llm_provider");
     if (parsed.contains("llm_model")) config.llm_model = require_string(parsed, "llm_model");
     if (parsed.contains("spend_cap_daily_usd")) config.spend_cap_daily_usd = require_number(parsed, "spend_cap_daily_usd");
@@ -115,7 +115,7 @@ void read_llm_keys(const json& parsed, bootstrap& config) {
 
 } // namespace
 
-bootstrap bootstrap::from_json(std::string_view text) {
+auto bootstrap::from_json(std::string_view text) -> bootstrap {
     const json parsed = json::parse(text, nullptr, /*allow_exceptions=*/false);
     if (parsed.is_discarded()) throw config_error("config file is not valid JSON");
     if (!parsed.is_object()) throw config_error("config file must contain a JSON object");
@@ -142,7 +142,7 @@ bootstrap bootstrap::from_json(std::string_view text) {
     return config;
 }
 
-bootstrap bootstrap::load(const std::filesystem::path& path) {
+auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
     bootstrap config;
 
     const std::ifstream file(path);
@@ -170,7 +170,7 @@ bootstrap bootstrap::load(const std::filesystem::path& path) {
     return config;
 }
 
-std::optional<util::log_level> log_level_from_environment() {
+auto log_level_from_environment() -> std::optional<util::log_level> {
     const auto wanted = util::env_var("LATIBOT_LOG_LEVEL");
     if (!wanted || wanted->empty()) {
         return std::nullopt;
@@ -183,7 +183,7 @@ std::optional<util::log_level> log_level_from_environment() {
     return level;
 }
 
-std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build) {
+auto recompute_bot_id_from_environment(bool debug_build) -> std::optional<dpp::snowflake> {
     constexpr const char* name = "LATIBOT_DEBUG_RECOMPUTE_BOT_ID";
     const auto wanted = util::env_var(name);
     if (!wanted || wanted->empty()) {
@@ -202,7 +202,7 @@ std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build
     return id;
 }
 
-bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const {
+auto bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool {
     if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) {
         return true;
     }
@@ -211,7 +211,7 @@ bool bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool
     return administrator && std::ranges::find(trusted_guilds, guild_id) != trusted_guilds.end();
 }
 
-secrets secrets::from_environment() {
+auto secrets::from_environment() -> secrets {
     secrets loaded;
 
     const auto token = util::env_var("DISCORD_BOT_TOKEN");

@@ -36,23 +36,23 @@ class guild_settings {
 public:
     explicit guild_settings(db::database& db) : db_(&db) {}
 
-    [[nodiscard]] std::optional<std::string> find(dpp::snowflake guild_id, std::string_view key) const;
+    [[nodiscard]] auto find(dpp::snowflake guild_id, std::string_view key) const -> std::optional<std::string>;
 
-    [[nodiscard]] std::string get(dpp::snowflake guild_id, std::string_view key, std::string_view fallback) const;
-    [[nodiscard]] std::int64_t get_int(dpp::snowflake guild_id, std::string_view key, std::int64_t fallback) const;
-    [[nodiscard]] bool get_bool(dpp::snowflake guild_id, std::string_view key, bool fallback) const;
-    [[nodiscard]] double get_real(dpp::snowflake guild_id, std::string_view key, double fallback) const;
+    [[nodiscard]] auto get(dpp::snowflake guild_id, std::string_view key, std::string_view fallback) const -> std::string;
+    [[nodiscard]] auto get_int(dpp::snowflake guild_id, std::string_view key, std::int64_t fallback) const -> std::int64_t;
+    [[nodiscard]] auto get_bool(dpp::snowflake guild_id, std::string_view key, bool fallback) const -> bool;
+    [[nodiscard]] auto get_real(dpp::snowflake guild_id, std::string_view key, double fallback) const -> double;
 
-    void set(dpp::snowflake guild_id, std::string_view key, std::string_view value);
-    void set_int(dpp::snowflake guild_id, std::string_view key, std::int64_t value);
-    void set_bool(dpp::snowflake guild_id, std::string_view key, bool value);
-    void set_real(dpp::snowflake guild_id, std::string_view key, double value);
+    auto set(dpp::snowflake guild_id, std::string_view key, std::string_view value) -> void;
+    auto set_int(dpp::snowflake guild_id, std::string_view key, std::int64_t value) -> void;
+    auto set_bool(dpp::snowflake guild_id, std::string_view key, bool value) -> void;
+    auto set_real(dpp::snowflake guild_id, std::string_view key, double value) -> void;
 
     /// True when a row was removed.
-    bool erase(dpp::snowflake guild_id, std::string_view key);
+    auto erase(dpp::snowflake guild_id, std::string_view key) -> bool;
 
     /// Everything set for one guild, for a settings panel to display.
-    [[nodiscard]] std::map<std::string, std::string, std::less<>> all(dpp::snowflake guild_id) const;
+    [[nodiscard]] auto all(dpp::snowflake guild_id) const -> std::map<std::string, std::string, std::less<>>;
 
 private:
     db::database* db_;

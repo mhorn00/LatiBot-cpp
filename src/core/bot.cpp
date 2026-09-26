@@ -31,7 +31,7 @@
 namespace latibot {
 namespace {
 
-util::log_level from_dpp(dpp::loglevel level) {
+auto from_dpp(dpp::loglevel level) -> util::log_level {
     switch (level) {
     case dpp::ll_trace:
         return util::log_level::trace;
@@ -58,7 +58,7 @@ util::log_level from_dpp(dpp::loglevel level) {
 /// changes and a complete member list arrive at all (plan §8). It is asked
 /// for only when nickname tracking is on, because a bot that asks for an
 /// intent it was not granted is refused the gateway outright.
-std::uint32_t intents_for(const config::bootstrap& settings) {
+auto intents_for(const config::bootstrap& settings) -> std::uint32_t {
     std::uint32_t intents = dpp::i_default_intents | dpp::i_message_content;
     if (settings.track_nicknames) {
         intents |= dpp::i_guild_members;
@@ -76,7 +76,7 @@ constexpr std::uint32_t audit_fallback_entries = 25;
 ///
 /// `dpp::audit_entry` does not carry it, and the event's own payload is the
 /// only place it appears, so this reaches past DPP into the raw frame.
-dpp::snowflake guild_of(const dpp::guild_audit_log_entry_create_t& event) {
+auto guild_of(const dpp::guild_audit_log_entry_create_t& event) -> dpp::snowflake {
     const auto frame = nlohmann::json::parse(event.raw_event, nullptr, /*allow_exceptions=*/false);
     if (frame.is_discarded() || !frame.contains("d")) {
         return {};
@@ -92,7 +92,7 @@ dpp::snowflake guild_of(const dpp::guild_audit_log_entry_create_t& event) {
 
 /// The nickname an audit entry says a member ended up with, or nothing when
 /// the entry is not about a nickname at all.
-std::optional<dpp::audit_change> nickname_change_in(const dpp::audit_entry& entry) {
+auto nickname_change_in(const dpp::audit_entry& entry) -> std::optional<dpp::audit_change> {
     for (const dpp::audit_change& change : entry.changes) {
         if (change.key == "nick") {
             return change;
@@ -106,7 +106,7 @@ std::optional<dpp::audit_change> nickname_change_in(const dpp::audit_entry& entr
 /// `dpp::job` is DPP's fire-and-forget coroutine. The catch is the point of
 /// this function: an exception leaving a job is rethrown on whichever DPP
 /// thread resumed it, which would end the process.
-dpp::job detach(dpp::task<void> work, std::string what) {
+auto detach(dpp::task<void> work, std::string what) -> dpp::job {
     try {
         co_await std::move(work);
     } catch (const std::exception& error) {
@@ -122,14 +122,14 @@ dpp::job detach(dpp::task<void> work, std::string what) {
 /// whether it is ephemeral cannot change after it is sent, but whether it
 /// shows previews can, so an update without them would bring back previews
 /// the command hid.
-void update_panel(const dpp::interaction_create_t& event, dpp::message message) {
+auto update_panel(const dpp::interaction_create_t& event, dpp::message message) -> void {
     const auto kept = static_cast<discord::message_flags>(event.command.msg.flags);
     event.reply(dpp::ir_update_message, discord::apply_flags(message, kept, discord::channel_message_flags));
 }
 
 /// Answers a button, menu or form with a note only the person who used it
 /// sees.
-void answer_privately(const dpp::interaction_create_t& event, std::string_view text) {
+auto answer_privately(const dpp::interaction_create_t& event, std::string_view text) -> void {
     dpp::message note{std::string(text)};
     note.set_flags(dpp::m_ephemeral);
     event.reply(note);
@@ -141,7 +141,7 @@ void answer_privately(const dpp::interaction_create_t& event, std::string_view t
 constexpr std::string_view stale_component_reply = "that's from an older version of me; run the command again for a fresh one";
 
 /// The URLs of a message's previews, which is all the embed tracker needs.
-std::vector<std::string> embed_urls_of(const dpp::message& message) {
+auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
     std::vector<std::string> urls;
     urls.reserve(message.embeds.size());
     for (const dpp::embed& embed : message.embeds) {
@@ -153,7 +153,7 @@ std::vector<std::string> embed_urls_of(const dpp::message& message) {
 /// Every channel in a guild that holds ordinary messages, from DPP's cache,
 /// for a recompute that was not given one. Threads are left out: listing the
 /// archived ones is its own set of calls, and links in them are rare.
-std::vector<dpp::snowflake> text_channels(dpp::snowflake guild_id) {
+auto text_channels(dpp::snowflake guild_id) -> std::vector<dpp::snowflake> {
     std::vector<dpp::snowflake> found;
     const dpp::guild* guild = dpp::find_guild(guild_id);
     if (guild == nullptr) {
@@ -180,7 +180,7 @@ constexpr std::string_view url_rules_imported_key = "url_rules_imported";
 /// clean machine works without setup. Returns by value: handing back a
 /// reference to the parameter would dangle if a caller ever passed a
 /// temporary.
-std::filesystem::path prepare(const std::filesystem::path& database_path) {
+auto prepare(const std::filesystem::path& database_path) -> std::filesystem::path {
     if (database_path.has_parent_path() && !database_path.parent_path().empty()) {
         std::filesystem::create_directories(database_path.parent_path());
     }
@@ -273,7 +273,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     util::log().debug("{} commands registered; message stages: {}", commands_.size(), stages);
 }
 
-void bot::register_commands() {
+auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::trigger_command>(triggers_));
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
@@ -289,7 +289,7 @@ void bot::register_commands() {
                                                 .bot_id = [this] { return settings_.recompute_bot_id.value_or(cluster_.me.id); }}));
 }
 
-void bot::register_stages() {
+auto bot::register_stages() -> void {
     // The order is plan §5.4, and it is a list so that changing it is one
     // line. The LLM stages join it in phase 5.
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
@@ -297,7 +297,7 @@ void bot::register_stages() {
     pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
 }
 
-void bot::register_events() {
+auto bot::register_events() -> void {
     // DPP's own logging goes through our logger, so there is one format and
     // one level to configure. DPP hands over finished text, so there are no
     // types left to colour; the [dpp] tag is coloured instead, which is what
@@ -414,7 +414,7 @@ void bot::register_events() {
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
 }
 
-void bot::on_ready(const dpp::ready_t& event) {
+auto bot::on_ready(const dpp::ready_t& event) -> void {
     util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
 
     // A presence lasts one session, so every connect, a reconnect included,
@@ -469,7 +469,7 @@ auto guarded(std::string_view what, Work work) {
 
 } // namespace
 
-void bot::register_timers() {
+auto bot::register_timers() -> void {
     // Polling the wall clock is the fix for the Java bot's random-fire bug: it
     // computed a delay from the wall clock and then waited on a monotonic
     // timer, so a machine that slept woke up and posted at whatever time it
@@ -511,7 +511,7 @@ void bot::register_timers() {
 namespace {
 
 /// The id a panel button carries, or 0 when it carries none.
-std::int64_t argument_id(const ui::page_state& state) {
+auto argument_id(const ui::page_state& state) -> std::int64_t {
     std::int64_t id = 0;
     const char* begin = state.argument.data();
     const char* end = begin + state.argument.size();
@@ -520,7 +520,7 @@ std::int64_t argument_id(const ui::page_state& state) {
 }
 
 /// A modal's field, by the id it was built with.
-std::string field_of(const dpp::form_submit_t& event, std::string_view name) {
+auto field_of(const dpp::form_submit_t& event, std::string_view name) -> std::string {
     for (const dpp::component& row : event.components) {
         for (const dpp::component& input : row.components) {
             if (input.custom_id == name) {
@@ -535,8 +535,8 @@ std::string field_of(const dpp::form_submit_t& event, std::string_view name) {
 
 } // namespace
 
-std::optional<std::int64_t> bot::record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id,
-                                                 const std::optional<std::string>& nickname, events::nickname_source source) {
+auto bot::record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                          events::nickname_source source) -> std::optional<std::int64_t> {
     const auto latest = nicknames_.latest(guild_id, user_id);
     if (!events::is_new_nickname(latest, nickname)) {
         return std::nullopt;
@@ -556,7 +556,7 @@ std::optional<std::int64_t> bot::record_nickname(dpp::snowflake guild_id, dpp::s
     return row;
 }
 
-void bot::on_member_update(const dpp::guild_member& member) {
+auto bot::on_member_update(const dpp::guild_member& member) -> void {
     // DPP's cached member is already the new one by the time this runs, so
     // "what were they called before" can only come from our own history.
     const std::string current = member.get_nickname();
@@ -582,7 +582,7 @@ void bot::on_member_update(const dpp::guild_member& member) {
     attribute_later(member.guild_id, member.user_id, *row);
 }
 
-void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) {
+auto bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void {
     // A self-cancelling repeat, which is the one-shot DPP does not have. The
     // handle arrives in the callback, so nothing has to be kept alive here.
     cluster_.start_timer(guarded("the audit log fallback",
@@ -624,7 +624,7 @@ void bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::
                          static_cast<std::uint64_t>(events::audit_fallback_delay.count()));
 }
 
-void bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) {
+auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void {
     if (entry.type != dpp::aut_member_update || guild_id.empty()) {
         return;
     }
@@ -653,7 +653,7 @@ void bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id)
     }
 }
 
-void bot::reconcile_nicknames(const dpp::guild& guild) {
+auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
     if (!settings_.track_nicknames) {
         return;
     }
@@ -673,7 +673,7 @@ void bot::reconcile_nicknames(const dpp::guild& guild) {
                       recorded);
 }
 
-void bot::import_url_rules(const dpp::guild& guild) {
+auto bot::import_url_rules(const dpp::guild& guild) -> void {
     if (guild_settings_.get_bool(guild.id, url_rules_imported_key, false)) {
         return;
     }
@@ -691,7 +691,7 @@ void bot::import_url_rules(const dpp::guild& guild) {
                      url_rules_.enabled(guild.id) ? "" : "; they apply once someone runs /urlrepl enable there");
 }
 
-void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) {
+auto bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void {
     auto plan = events::plan_retry(replacements_, url_rules_, message_id, event.command.guild_id);
     if (const auto* reason = std::get_if<std::string>(&plan)) {
         dpp::message note(*reason);
@@ -710,7 +710,7 @@ void bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowfla
     carry_out(embed_tracker_.watch(std::move(retry.request)));
 }
 
-void bot::settle_stranded_replacements(dpp::snowflake guild_id) {
+auto bot::settle_stranded_replacements(dpp::snowflake guild_id) -> void {
     std::vector<events::replacement_record> mine;
     {
         const std::scoped_lock guard(stranded_mutex_);
@@ -726,18 +726,18 @@ void bot::settle_stranded_replacements(dpp::snowflake guild_id) {
            "settling replacements the last run left unfinished");
 }
 
-std::chrono::sys_seconds bot::now_seconds() const {
+auto bot::now_seconds() const -> std::chrono::sys_seconds {
     return std::chrono::floor<std::chrono::seconds>(clock_.now());
 }
 
-void bot::carry_out(std::vector<events::embed_action> actions) {
+auto bot::carry_out(std::vector<events::embed_action> actions) -> void {
     if (!actions.empty()) {
         detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
     }
 }
 
-void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
-                         const std::function<std::string_view(events::trigger&)>& change) {
+auto bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
+                         const std::function<std::string_view(events::trigger&)>& change) -> void {
     auto entry = triggers_.find(id, guild);
     if (!entry) {
         // Deleted from another client while this panel was open. The caller
@@ -754,7 +754,7 @@ void bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::
     util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild, became, who);
 }
 
-void bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) {
+auto bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) -> void {
     const auto state = ui::decode(custom_id);
     if (!state) {
         // Discord only sends the bot its own components, so this is one of
@@ -784,8 +784,8 @@ void bot::on_component(const dpp::interaction_create_t& event, const std::string
     }
 }
 
-bool bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                          const commands::user_label& who) {
+auto bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                          const commands::user_label& who) -> bool {
     const dpp::snowflake guild = event.command.guild_id;
 
     // Every one of these edits the message the component is on rather than
@@ -812,8 +812,8 @@ bool bot::route_component(const dpp::interaction_create_t& event, const ui::page
     return true;
 }
 
-bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                               const commands::user_label& who) {
+auto bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                               const commands::user_label& who) -> bool {
     // Buttons carry the trigger they act on in the argument. The select menu
     // carries its choice in `chosen` instead, and is read below.
     const dpp::snowflake guild = event.command.guild_id;
@@ -860,8 +860,8 @@ bool bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
     return true;
 }
 
-bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                           const commands::user_label& who) {
+auto bot::on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                           const commands::user_label& who) -> bool {
     const dpp::snowflake guild = event.command.guild_id;
 
     // As the trigger panel, except that the argument is a domain rather than
@@ -899,7 +899,7 @@ bool bot::on_url_component(const dpp::interaction_create_t& event, const ui::pag
     return true;
 }
 
-void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) {
+auto bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void {
     const dpp::snowflake guild = event.command.guild_id;
     const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
 
@@ -932,7 +932,7 @@ void bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& sta
     update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, rule.domain));
 }
 
-void bot::on_form(const dpp::form_submit_t& event) {
+auto bot::on_form(const dpp::form_submit_t& event) -> void {
     const auto state = ui::decode(event.custom_id);
 
     // Answered when it fails or is not recognised, as a button is.
@@ -952,7 +952,7 @@ void bot::on_form(const dpp::form_submit_t& event) {
     }
 }
 
-void bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) {
+auto bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void {
     const dpp::snowflake guild = event.command.guild_id;
     const std::int64_t id = argument_id(state);
     const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
@@ -996,7 +996,7 @@ void bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state&
     update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, saved));
 }
 
-events::incoming_message bot::describe(const dpp::message& message) const {
+auto bot::describe(const dpp::message& message) const -> events::incoming_message {
     events::incoming_message described;
     described.guild_id = message.guild_id;
     described.channel_id = message.channel_id;
@@ -1021,7 +1021,7 @@ events::incoming_message bot::describe(const dpp::message& message) const {
     return described;
 }
 
-void bot::carry_out(const std::vector<events::action>& actions) {
+auto bot::carry_out(const std::vector<events::action>& actions) -> void {
     for (const events::action& wanted : actions) {
         std::visit(
             [this](const auto& step) {
@@ -1072,7 +1072,7 @@ void bot::carry_out(const std::vector<events::action>& actions) {
     }
 }
 
-void bot::check_permissions(const dpp::guild& guild) const {
+auto bot::check_permissions(const dpp::guild& guild) const -> void {
     const auto self = guild.members.find(cluster_.me.id);
     if (self == guild.members.end()) {
         // Without GUILD_MEMBERS the bot's own member object may be absent.
@@ -1098,7 +1098,7 @@ void bot::check_permissions(const dpp::guild& guild) const {
     }
 }
 
-void bot::run() {
+auto bot::run() -> void {
     util::log().info("connecting to Discord");
     cluster_.start(dpp::st_wait);
 

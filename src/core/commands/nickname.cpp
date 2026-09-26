@@ -24,7 +24,7 @@ struct named_user {
     std::string name;
 };
 
-std::optional<named_user> user_option(const dpp::slashcommand_t& event, const char* name) {
+auto user_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<named_user> {
     const dpp::command_value value = event.get_parameter(name);
     const auto* id = std::get_if<dpp::snowflake>(&value);
     if (id == nullptr || id->empty()) {
@@ -37,7 +37,7 @@ std::optional<named_user> user_option(const dpp::slashcommand_t& event, const ch
 }
 
 /// The `nickname` option, where absent means "clear it".
-std::optional<std::string> nickname_option(const dpp::slashcommand_t& event) {
+auto nickname_option(const dpp::slashcommand_t& event) -> std::optional<std::string> {
     const dpp::command_value value = event.get_parameter("nickname");
     const auto* text = std::get_if<std::string>(&value);
     if (text == nullptr || text->empty()) {
@@ -48,7 +48,7 @@ std::optional<std::string> nickname_option(const dpp::slashcommand_t& event) {
 
 /// What a failed edit should say. Discord's own message is more useful than
 /// anything we could guess, and the two common refusals are worth naming.
-std::string explain(const dpp::error_info& error) {
+auto explain(const dpp::error_info& error) -> std::string {
     // 50013 is Missing Permissions, which for a nickname almost always means
     // the target sits above the bot in the role list.
     if (error.code == 50013) {
@@ -59,7 +59,7 @@ std::string explain(const dpp::error_info& error) {
 
 } // namespace
 
-dpp::message render_nickname_history(std::span<const events::nickname_change> history, dpp::snowflake user_id, int page) {
+auto render_nickname_history(std::span<const events::nickname_change> history, dpp::snowflake user_id, int page) -> dpp::message {
     const int current = ui::clamp_page(page, history.size(), nicknames_per_page);
     const ui::page_range window = ui::range_for(current, history.size(), nicknames_per_page);
 
@@ -107,7 +107,7 @@ nickname_command::nickname_command(events::nickname_store& store, events::pendin
       clock_(&clock),
       cluster_(&cluster) {}
 
-dpp::slashcommand nickname_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto nickname_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     payload.add_option(dpp::command_option(dpp::co_user, "user", "Whose nickname to change.", true));
@@ -116,7 +116,7 @@ dpp::slashcommand nickname_command::build(const std::string& name, dpp::snowflak
     return payload;
 }
 
-dpp::task<void> nickname_command::execute(const dpp::slashcommand_t& event) {
+auto nickname_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto target = user_option(event, "user");
     if (!target) {
         co_await event.co_reply(refusal(event, "whose nickname?"));
@@ -190,14 +190,14 @@ nicknames_command::nicknames_command(events::nickname_store& store)
             .subcommand_responses = {}},
       store_(&store) {}
 
-dpp::slashcommand nicknames_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto nicknames_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     payload.add_option(dpp::command_option(dpp::co_user, "user", "Whose history to show.", true));
     return payload;
 }
 
-dpp::task<void> nicknames_command::execute(const dpp::slashcommand_t& event) {
+auto nicknames_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto target = user_option(event, "user");
     if (!target) {
         co_await event.co_reply(refusal(event, "whose nicknames?"));

@@ -10,7 +10,7 @@
 
 namespace latibot::config {
 
-std::optional<std::string> guild_settings::find(dpp::snowflake guild_id, std::string_view key) const {
+auto guild_settings::find(dpp::snowflake guild_id, std::string_view key) const -> std::optional<std::string> {
     auto query = db_->prepare("SELECT value FROM guild_settings WHERE guild_id = ? AND key = ?", guild_id, key);
     if (!query.step()) {
         return std::nullopt;
@@ -18,11 +18,11 @@ std::optional<std::string> guild_settings::find(dpp::snowflake guild_id, std::st
     return query.get<std::string>(0);
 }
 
-std::string guild_settings::get(dpp::snowflake guild_id, std::string_view key, std::string_view fallback) const {
+auto guild_settings::get(dpp::snowflake guild_id, std::string_view key, std::string_view fallback) const -> std::string {
     return find(guild_id, key).value_or(std::string(fallback));
 }
 
-std::int64_t guild_settings::get_int(dpp::snowflake guild_id, std::string_view key, std::int64_t fallback) const {
+auto guild_settings::get_int(dpp::snowflake guild_id, std::string_view key, std::int64_t fallback) const -> std::int64_t {
     const auto stored = find(guild_id, key);
     if (!stored) {
         return fallback;
@@ -38,7 +38,7 @@ std::int64_t guild_settings::get_int(dpp::snowflake guild_id, std::string_view k
     return parsed;
 }
 
-bool guild_settings::get_bool(dpp::snowflake guild_id, std::string_view key, bool fallback) const {
+auto guild_settings::get_bool(dpp::snowflake guild_id, std::string_view key, bool fallback) const -> bool {
     const auto stored = find(guild_id, key);
     if (!stored) {
         return fallback;
@@ -57,7 +57,7 @@ bool guild_settings::get_bool(dpp::snowflake guild_id, std::string_view key, boo
     return fallback;
 }
 
-double guild_settings::get_real(dpp::snowflake guild_id, std::string_view key, double fallback) const {
+auto guild_settings::get_real(dpp::snowflake guild_id, std::string_view key, double fallback) const -> double {
     const auto stored = find(guild_id, key);
     if (!stored) {
         return fallback;
@@ -74,7 +74,7 @@ double guild_settings::get_real(dpp::snowflake guild_id, std::string_view key, d
     }
 }
 
-void guild_settings::set(dpp::snowflake guild_id, std::string_view key, std::string_view value) {
+auto guild_settings::set(dpp::snowflake guild_id, std::string_view key, std::string_view value) -> void {
     db_->prepare(
            "INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?) "
            "ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
@@ -82,26 +82,26 @@ void guild_settings::set(dpp::snowflake guild_id, std::string_view key, std::str
         .run();
 }
 
-void guild_settings::set_int(dpp::snowflake guild_id, std::string_view key, std::int64_t value) {
+auto guild_settings::set_int(dpp::snowflake guild_id, std::string_view key, std::int64_t value) -> void {
     set(guild_id, key, std::to_string(value));
 }
 
-void guild_settings::set_bool(dpp::snowflake guild_id, std::string_view key, bool value) {
+auto guild_settings::set_bool(dpp::snowflake guild_id, std::string_view key, bool value) -> void {
     set(guild_id, key, value ? "1" : "0");
 }
 
-void guild_settings::set_real(dpp::snowflake guild_id, std::string_view key, double value) {
+auto guild_settings::set_real(dpp::snowflake guild_id, std::string_view key, double value) -> void {
     set(guild_id, key, std::to_string(value));
 }
 
-bool guild_settings::erase(dpp::snowflake guild_id, std::string_view key) {
+auto guild_settings::erase(dpp::snowflake guild_id, std::string_view key) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM guild_settings WHERE guild_id = ? AND key = ?", guild_id, key).run();
     return db_->changes() > 0;
 }
 
-std::map<std::string, std::string, std::less<>> guild_settings::all(dpp::snowflake guild_id) const {
+auto guild_settings::all(dpp::snowflake guild_id) const -> std::map<std::string, std::string, std::less<>> {
     std::map<std::string, std::string, std::less<>> settings;
 
     auto query = db_->prepare("SELECT key, value FROM guild_settings WHERE guild_id = ?", guild_id);

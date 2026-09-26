@@ -11,13 +11,13 @@ constexpr char separator = ':';
 
 /// The view name and the page number are read back by splitting on ':', so
 /// neither may contain one. The argument may: it is whatever is left.
-bool usable_view_name(std::string_view view) {
+auto usable_view_name(std::string_view view) -> bool {
     return !view.empty() && view.find(separator) == std::string_view::npos;
 }
 
 } // namespace
 
-std::optional<std::string> encode(const page_state& state) {
+auto encode(const page_state& state) -> std::optional<std::string> {
     if (!usable_view_name(state.view) || state.page < 0) {
         return std::nullopt;
     }
@@ -29,7 +29,7 @@ std::optional<std::string> encode(const page_state& state) {
     return id;
 }
 
-std::optional<page_state> decode(std::string_view custom_id) {
+auto decode(std::string_view custom_id) -> std::optional<page_state> {
     const std::size_t first = custom_id.find(separator);
     if (first == std::string_view::npos) {
         return std::nullopt;
@@ -56,18 +56,18 @@ std::optional<page_state> decode(std::string_view custom_id) {
     return page_state{.view = std::string(view), .page = page, .argument = std::string(custom_id.substr(second + 1))};
 }
 
-int page_count(std::size_t total, std::size_t per_page) {
+auto page_count(std::size_t total, std::size_t per_page) -> int {
     if (per_page == 0 || total == 0) {
         return 1;
     }
     return static_cast<int>((total + per_page - 1) / per_page);
 }
 
-int clamp_page(int page, std::size_t total, std::size_t per_page) {
+auto clamp_page(int page, std::size_t total, std::size_t per_page) -> int {
     return std::clamp(page, 0, page_count(total, per_page) - 1);
 }
 
-page_range range_for(int page, std::size_t total, std::size_t per_page) {
+auto range_for(int page, std::size_t total, std::size_t per_page) -> page_range {
     if (per_page == 0) {
         return {.begin = 0, .end = total};
     }
@@ -79,12 +79,12 @@ page_range range_for(int page, std::size_t total, std::size_t per_page) {
     return {.begin = first, .end = std::min(first + per_page, total)};
 }
 
-std::string page_label(int page, std::size_t total, std::size_t per_page) {
+auto page_label(int page, std::size_t total, std::size_t per_page) -> std::string {
     const int pages = page_count(total, per_page);
     return std::format("Page {} of {}", clamp_page(page, total, per_page) + 1, pages);
 }
 
-std::optional<dpp::component> controls(const page_state& state, std::size_t total, std::size_t per_page) {
+auto controls(const page_state& state, std::size_t total, std::size_t per_page) -> std::optional<dpp::component> {
     const int pages = page_count(total, per_page);
     if (pages <= 1) {
         return std::nullopt;

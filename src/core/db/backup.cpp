@@ -14,19 +14,19 @@
 namespace latibot::db {
 namespace {
 
-std::string to_utf8(const std::filesystem::path& path) {
+auto to_utf8(const std::filesystem::path& path) -> std::string {
     const std::u8string utf8 = path.generic_u8string();
     return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
 }
 
-std::string backup_file_name(std::string_view prefix, std::chrono::system_clock::time_point at) {
+auto backup_file_name(std::string_view prefix, std::chrono::system_clock::time_point at) -> std::string {
     const auto seconds = std::chrono::floor<std::chrono::seconds>(at);
     return std::format("{}-{:%Y%m%d-%H%M%S}.db", prefix, seconds);
 }
 
 } // namespace
 
-void backup_to_file(database& source, const std::filesystem::path& destination) {
+auto backup_to_file(database& source, const std::filesystem::path& destination) -> void {
     // Hold the source lock for the whole copy: with a single connection this
     // is what makes the snapshot consistent.
     const auto guard = source.lock();
@@ -67,7 +67,7 @@ void backup_to_file(database& source, const std::filesystem::path& destination) 
     }
 }
 
-std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory, std::string_view prefix) {
+auto list_backups(const std::filesystem::path& directory, std::string_view prefix) -> std::vector<std::filesystem::path> {
     std::vector<std::filesystem::path> backups;
 
     std::error_code error;
@@ -92,7 +92,7 @@ std::vector<std::filesystem::path> list_backups(const std::filesystem::path& dir
     return backups;
 }
 
-int rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep) {
+auto rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep) -> int {
     if (keep < 0) {
         return 0;
     }
@@ -113,8 +113,8 @@ int rotate_backups(const std::filesystem::path& directory, std::string_view pref
     return removed;
 }
 
-std::filesystem::path create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix, int keep,
-                                    std::chrono::system_clock::time_point at) {
+auto create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix, int keep,
+                   std::chrono::system_clock::time_point at) -> std::filesystem::path {
     std::filesystem::create_directories(directory);
 
     const std::filesystem::path destination = directory / backup_file_name(prefix, at);

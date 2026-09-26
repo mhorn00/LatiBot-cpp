@@ -41,14 +41,14 @@ constexpr dpp::snowflake original{3000};
 constexpr dpp::snowflake ours{4000};
 constexpr dpp::snowflake author{5000};
 
-planned_link x_link(const std::string& path = "/a/status/1", bool spoilered = false) {
+auto x_link(const std::string& path = "/a/status/1", bool spoilered = false) -> planned_link {
     return {.original_url = "https://x.com" + path,
             .domain = "x.com",
             .spoilered = spoilered,
             .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}, {.host = "vxtwitter.com", .translate_suffix = ""}}};
 }
 
-planned_link tiktok_link() {
+auto tiktok_link() -> planned_link {
     return {.original_url = "https://tiktok.com/@a/video/9",
             .domain = "tiktok.com",
             .spoilered = false,
@@ -56,7 +56,7 @@ planned_link tiktok_link() {
 }
 
 /// A watch on our message, as a fresh replacement or a Retry asks for one.
-watch_request request(std::vector<planned_link> links, bool retry = false) {
+auto request(std::vector<planned_link> links, bool retry = false) -> watch_request {
     return {.guild_id = guild,
             .channel_id = channel,
             .message_id = ours,
@@ -80,7 +80,7 @@ struct fixture {
         rules.set_enabled(guild, true);
     }
 
-    void record(std::vector<planned_link> links, replacement_state state = replacement_state::pending) {
+    auto record(std::vector<planned_link> links, replacement_state state = replacement_state::pending) -> void {
         replacements.record({.message_id = ours,
                              .guild_id = guild,
                              .channel_id = channel,
@@ -92,20 +92,20 @@ struct fixture {
                              .links = std::move(links)});
     }
 
-    [[nodiscard]] replacement_state state() const { return replacements.find(ours)->state; }
+    [[nodiscard]] auto state() const -> replacement_state { return replacements.find(ours)->state; }
 
     /// Lets one attempt's time run out.
-    std::vector<embed_action> time_out() {
+    auto time_out() -> std::vector<embed_action> {
         clock.advance(latibot::events::embed_timeout + 1s);
         return tracker.tick();
     }
 };
 
-std::vector<std::string> embeds(std::initializer_list<const char*> urls) {
+auto embeds(std::initializer_list<const char*> urls) -> std::vector<std::string> {
     return {urls.begin(), urls.end()};
 }
 
-const edit_replacement& only_edit(const std::vector<embed_action>& actions) {
+auto only_edit(const std::vector<embed_action>& actions) -> const edit_replacement& {
     REQUIRE(actions.size() == 1);
     REQUIRE(std::holds_alternative<edit_replacement>(actions[0]));
     return std::get<edit_replacement>(actions[0]);
@@ -522,7 +522,7 @@ TEST_CASE("a failure's actions reach Discord", "[events][coro]") {
 namespace {
 
 /// Our message as Discord hands it back, with whatever previews it has.
-dpp::message as_fetched(std::vector<std::string> embed_urls = {}) {
+auto as_fetched(std::vector<std::string> embed_urls = {}) -> dpp::message {
     dpp::message message(channel, "🔗 [_](https://vxtwitter.com/a/status/1)");
     message.id = ours;
     for (std::string& url : embed_urls) {
@@ -534,7 +534,7 @@ dpp::message as_fetched(std::vector<std::string> embed_urls = {}) {
 }
 
 /// The last run's unfinished replacements, as the bot reads them at startup.
-void settle(fixture& test, latibot::testing::mock_discord& discord) {
+auto settle(fixture& test, latibot::testing::mock_discord& discord) -> void {
     latibot::events::settle_stranded(discord, test.replacements, test.rules, test.tracker, test.replacements.unsettled()).sync_wait_for(2s);
 }
 
@@ -628,7 +628,7 @@ TEST_CASE("a stranded replacement that is gone is marked failed, and one Discord
 
 namespace {
 
-latibot::events::incoming_message link_message(std::string content) {
+auto link_message(std::string content) -> latibot::events::incoming_message {
     latibot::events::incoming_message message;
     message.guild_id = guild;
     message.channel_id = channel;

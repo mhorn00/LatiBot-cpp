@@ -43,39 +43,39 @@ struct page_state {
 /// Returning nothing rather than a truncated id matters: Discord rejects an
 /// over-long custom_id at send time, and a silently truncated one produces a
 /// button that decodes to the wrong page.
-[[nodiscard]] std::optional<std::string> encode(const page_state& state);
+[[nodiscard]] auto encode(const page_state& state) -> std::optional<std::string>;
 
 /// The inverse. Nothing when the text is not one of ours.
-[[nodiscard]] std::optional<page_state> decode(std::string_view custom_id);
+[[nodiscard]] auto decode(std::string_view custom_id) -> std::optional<page_state>;
 
 /// Total pages for `total` items at `per_page`, never less than one: an empty
 /// list is one empty page, not zero pages.
-[[nodiscard]] int page_count(std::size_t total, std::size_t per_page);
+[[nodiscard]] auto page_count(std::size_t total, std::size_t per_page) -> int;
 
 /// `page` brought inside [0, page_count). Out-of-range input is clamped
 /// rather than rejected, since a stale button from an older, longer list is
 /// ordinary rather than an error.
-[[nodiscard]] int clamp_page(int page, std::size_t total, std::size_t per_page);
+[[nodiscard]] auto clamp_page(int page, std::size_t total, std::size_t per_page) -> int;
 
 /// The half-open range of item indices shown on `page`.
 struct page_range {
     std::size_t begin = 0;
     std::size_t end = 0;
 
-    [[nodiscard]] std::size_t size() const noexcept { return end - begin; }
-    [[nodiscard]] bool empty() const noexcept { return begin == end; }
+    [[nodiscard]] auto size() const noexcept -> std::size_t { return end - begin; }
+    [[nodiscard]] auto empty() const noexcept -> bool { return begin == end; }
 };
 
-[[nodiscard]] page_range range_for(int page, std::size_t total, std::size_t per_page);
+[[nodiscard]] auto range_for(int page, std::size_t total, std::size_t per_page) -> page_range;
 
 /// "Page 2 of 7", or "Page 1 of 1" for an empty list.
-[[nodiscard]] std::string page_label(int page, std::size_t total, std::size_t per_page);
+[[nodiscard]] auto page_label(int page, std::size_t total, std::size_t per_page) -> std::string;
 
 /// The ◀ / ▶ row for a view, with the ends disabled at the ends.
 ///
 /// Returns nothing when there is only one page: a row of two dead buttons is
 /// worse than no row. Also nothing when the state will not fit in a
 /// custom_id, which the caller cannot tell apart from the first case.
-[[nodiscard]] std::optional<dpp::component> controls(const page_state& state, std::size_t total, std::size_t per_page);
+[[nodiscard]] auto controls(const page_state& state, std::size_t total, std::size_t per_page) -> std::optional<dpp::component>;
 
 } // namespace latibot::ui

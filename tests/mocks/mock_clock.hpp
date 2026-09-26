@@ -12,16 +12,16 @@ class mock_clock final : public ports::clock {
 public:
     explicit mock_clock(std::chrono::system_clock::time_point start = {}) : now_(start) {}
 
-    [[nodiscard]] std::chrono::system_clock::time_point now() const override { return now_; }
+    [[nodiscard]] auto now() const -> std::chrono::system_clock::time_point override { return now_; }
 
-    [[nodiscard]] std::chrono::steady_clock::time_point steady_now() const override { return steady_; }
+    [[nodiscard]] auto steady_now() const -> std::chrono::steady_clock::time_point override { return steady_; }
 
-    void advance(std::chrono::nanoseconds amount) {
+    auto advance(std::chrono::nanoseconds amount) -> void {
         now_ += std::chrono::duration_cast<std::chrono::system_clock::duration>(amount);
         steady_ += std::chrono::duration_cast<std::chrono::steady_clock::duration>(amount);
     }
 
-    void set(std::chrono::system_clock::time_point when) { now_ = when; }
+    auto set(std::chrono::system_clock::time_point when) -> void { now_ = when; }
 
 private:
     std::chrono::system_clock::time_point now_;

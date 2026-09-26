@@ -23,13 +23,13 @@ constexpr std::size_t reply_budget = 1900;
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t domain_choices = 25;
 
-dpp::component button(dpp::component_style style, std::string_view label, const std::string& id) {
+auto button(dpp::component_style style, std::string_view label, const std::string& id) -> dpp::component {
     return dpp::component().set_type(dpp::cot_button).set_style(style).set_label(std::string(label)).set_id(id);
 }
 
 /// Splits on newlines, commas and spaces, which covers the modal's one per
 /// line and a slash command's single line alike.
-std::vector<std::string_view> mirror_words(std::string_view text) {
+auto mirror_words(std::string_view text) -> std::vector<std::string_view> {
     std::vector<std::string_view> words;
     std::size_t at = 0;
     while (at < text.size()) {
@@ -45,7 +45,7 @@ std::vector<std::string_view> mirror_words(std::string_view text) {
 }
 
 /// Keeps a reply under Discord's limit, line by line, saying what was cut.
-void append_line(std::string& out, std::string_view line, std::size_t& dropped) {
+auto append_line(std::string& out, std::string_view line, std::size_t& dropped) -> void {
     if (dropped > 0 || out.size() + line.size() + 1 > reply_budget) {
         ++dropped;
         return;
@@ -56,7 +56,7 @@ void append_line(std::string& out, std::string_view line, std::size_t& dropped) 
 
 } // namespace
 
-std::string describe_mirrors(std::span<const events::mirror> mirrors) {
+auto describe_mirrors(std::span<const events::mirror> mirrors) -> std::string {
     std::string text;
     for (const events::mirror& entry : mirrors) {
         if (!text.empty()) {
@@ -67,17 +67,17 @@ std::string describe_mirrors(std::span<const events::mirror> mirrors) {
     return text;
 }
 
-std::string describe(const events::url_rule& rule) {
+auto describe(const events::url_rule& rule) -> std::string {
     return std::format("**{}** → {}", rule.domain, describe_mirrors(rule.mirrors));
 }
 
-std::string describe_state(bool enabled) {
+auto describe_state(bool enabled) -> std::string {
     return enabled ? "Link replacement is **on** in this server."
                    : "Link replacement is **off** in this server, so nothing is replaced yet.";
 }
 
-bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
-                            std::string_view from) {
+auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
+                            std::string_view from) -> bool {
     if (store.enabled(guild_id) == enabled) {
         return false;
     }
@@ -86,7 +86,7 @@ bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
     return true;
 }
 
-std::string render_switch(bool changed, bool enabled, std::size_t rule_count) {
+auto render_switch(bool changed, bool enabled, std::size_t rule_count) -> std::string {
     if (!changed) {
         return std::format("Link replacement was already {} here.", enabled ? "on" : "off");
     }
@@ -100,7 +100,7 @@ std::string render_switch(bool changed, bool enabled, std::size_t rule_count) {
     return std::format("Link replacement is on in this server. {} from now on; `/urlrepl list` shows them.", applying);
 }
 
-std::variant<events::url_rule, std::string> build_rule(std::string_view domain_text, std::string_view mirrors_text) {
+auto build_rule(std::string_view domain_text, std::string_view mirrors_text) -> std::variant<events::url_rule, std::string> {
     const auto domain = events::normalise_domain(domain_text);
     if (!domain || domain->find('.') == std::string::npos) {
         return std::format("\"{}\" doesn't look like a site; try something like x.com", util::trim(domain_text));
@@ -130,7 +130,7 @@ std::variant<events::url_rule, std::string> build_rule(std::string_view domain_t
     return rule;
 }
 
-std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled) {
+auto render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled) -> std::string {
     const std::vector<events::link_verdict> verdicts = events::explain_links(content, rules);
     if (verdicts.empty()) {
         return "There are no links in that.";
@@ -184,7 +184,7 @@ std::string render_test(std::string_view content, std::span<const events::url_ru
     return reply;
 }
 
-dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page) {
+auto render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page) -> dpp::message {
     const std::vector<events::url_rule> rules = store.for_guild(guild_id);
     const int current = ui::clamp_page(page, rules.size(), url_rules_per_page);
     const ui::page_range window = ui::range_for(current, rules.size(), url_rules_per_page);
@@ -220,7 +220,7 @@ dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snow
 
 namespace {
 
-std::optional<dpp::component> pick_menu(std::span<const events::url_rule> page_of, int page, std::string_view selected) {
+auto pick_menu(std::span<const events::url_rule> page_of, int page, std::string_view selected) -> std::optional<dpp::component> {
     const auto id = ui::encode({.view = std::string(url_pick_view), .page = page, .argument = {}});
     if (page_of.empty() || !id) {
         return std::nullopt;
@@ -239,7 +239,7 @@ std::optional<dpp::component> pick_menu(std::span<const events::url_rule> page_o
     return row;
 }
 
-std::optional<dpp::component> selection_row(int page, std::string_view selected, bool confirming_delete) {
+auto selection_row(int page, std::string_view selected, bool confirming_delete) -> std::optional<dpp::component> {
     if (selected.empty()) {
         return std::nullopt;
     }
@@ -272,7 +272,7 @@ std::optional<dpp::component> selection_row(int page, std::string_view selected,
     return row;
 }
 
-std::optional<dpp::component> footer_row(int page, std::size_t total, bool enabled) {
+auto footer_row(int page, std::size_t total, bool enabled) -> std::optional<dpp::component> {
     dpp::component row;
     row.set_type(dpp::cot_action_row);
 
@@ -293,8 +293,8 @@ std::optional<dpp::component> footer_row(int page, std::size_t total, bool enabl
 
 } // namespace
 
-dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page, std::string_view selected,
-                              bool confirming_delete) {
+auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page, std::string_view selected,
+                      bool confirming_delete) -> dpp::message {
     const std::vector<events::url_rule> rules = store.for_guild(guild_id);
     int current = ui::clamp_page(page, rules.size(), url_rules_per_page);
 
@@ -338,7 +338,7 @@ dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflak
     return reply;
 }
 
-dpp::interaction_modal_response url_rule_form(int page, const events::url_rule* rule) {
+auto url_rule_form(int page, const events::url_rule* rule) -> dpp::interaction_modal_response {
     const std::string argument = rule == nullptr ? std::string{} : rule->domain;
     const auto custom_id = ui::encode({.view = std::string(url_form_view), .page = page, .argument = argument});
 
@@ -398,7 +398,7 @@ urlrepl_command::urlrepl_command(events::url_rule_store& store)
                  {"test", {.result = dpp::m_ephemeral | dpp::m_suppress_embeds, .refusal = std::nullopt, .post = std::nullopt}}}},
       store_(&store) {}
 
-dpp::slashcommand urlrepl_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto urlrepl_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     const dpp::command_option enable(dpp::co_sub_command, "enable", "Start replacing links in this server. It's off until turned on.");
@@ -432,7 +432,7 @@ dpp::slashcommand urlrepl_command::build(const std::string& name, dpp::snowflake
     return payload;
 }
 
-void urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const {
+auto urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
     if (focused == nullptr || focused->name != "domain" || event.owner == nullptr) {
         return;
@@ -456,7 +456,7 @@ void urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const {
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
-dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
+auto urlrepl_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "enable" || action == "disable") {
@@ -476,13 +476,13 @@ dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
     }
 }
 
-dpp::task<void> urlrepl_command::turn(const dpp::slashcommand_t& event, bool enabled) {
+auto urlrepl_command::turn(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const bool changed = switch_url_replacement(*store_, guild, enabled, describe_user(event.command.get_issuing_user()), "");
     co_await event.co_reply(result(event, render_switch(changed, enabled, store_->for_guild(guild).size())));
 }
 
-dpp::task<void> urlrepl_command::set(const dpp::slashcommand_t& event) {
+auto urlrepl_command::set(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto built = build_rule(string_option(event, "domain"), string_option(event, "mirrors"));
     if (const auto* problem = std::get_if<std::string>(&built)) {
         co_await event.co_reply(refusal(event, *problem));
@@ -499,7 +499,7 @@ dpp::task<void> urlrepl_command::set(const dpp::slashcommand_t& event) {
         event, std::format("{}: links to {} now go to {}", existed ? "Updated" : "Added", rule.domain, describe_mirrors(rule.mirrors))));
 }
 
-dpp::task<void> urlrepl_command::remove(const dpp::slashcommand_t& event) {
+auto urlrepl_command::remove(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string typed = string_option(event, "domain");
     const auto domain = events::normalise_domain(typed);
     if (!domain || !store_->remove(event.command.guild_id, *domain)) {
@@ -512,7 +512,7 @@ dpp::task<void> urlrepl_command::remove(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("Links to {} will be left alone from now on.", *domain)));
 }
 
-dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
+auto urlrepl_command::test(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const std::vector<events::url_rule> rules = store_->for_guild(guild);
     const bool opted_out = store_->opted_out(guild, event.command.get_issuing_user().id);
@@ -524,7 +524,7 @@ dpp::task<void> urlrepl_command::test(const dpp::slashcommand_t& event) {
 // /urltoggle
 // --------------------------------------------------------------------------
 
-std::optional<std::string> urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions) {
+auto urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions) -> std::optional<std::string> {
     if (target == invoker || permissions.can(dpp::p_manage_guild)) {
         return std::nullopt;
     }
@@ -542,13 +542,13 @@ urltoggle_command::urltoggle_command(events::url_rule_store& store)
             .subcommand_responses = {}},
       store_(&store) {}
 
-dpp::slashcommand urltoggle_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto urltoggle_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
     payload.add_option(dpp::command_option(dpp::co_user, "user", "Somebody else. Needs Manage Server.", false));
     return payload;
 }
 
-dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
+auto urltoggle_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const dpp::user& invoker = event.command.get_issuing_user();
 

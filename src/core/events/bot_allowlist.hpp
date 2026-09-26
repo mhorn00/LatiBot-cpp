@@ -24,11 +24,11 @@ public:
 
     /// False when it was already listed, which the command reports rather
     /// than claiming to have changed something.
-    bool allow(dpp::snowflake guild_id, dpp::snowflake bot_id);
-    bool deny(dpp::snowflake guild_id, dpp::snowflake bot_id);
+    auto allow(dpp::snowflake guild_id, dpp::snowflake bot_id) -> bool;
+    auto deny(dpp::snowflake guild_id, dpp::snowflake bot_id) -> bool;
 
-    [[nodiscard]] bool contains(dpp::snowflake guild_id, dpp::snowflake bot_id) const;
-    [[nodiscard]] std::vector<dpp::snowflake> for_guild(dpp::snowflake guild_id) const;
+    [[nodiscard]] auto contains(dpp::snowflake guild_id, dpp::snowflake bot_id) const -> bool;
+    [[nodiscard]] auto for_guild(dpp::snowflake guild_id) const -> std::vector<dpp::snowflake>;
 
 private:
     db::database* db_;

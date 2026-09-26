@@ -33,8 +33,8 @@ enum class nickname_source : std::uint8_t {
     imported,
 };
 
-[[nodiscard]] std::string_view to_string(nickname_source source) noexcept;
-[[nodiscard]] std::optional<nickname_source> nickname_source_from_string(std::string_view name);
+[[nodiscard]] auto to_string(nickname_source source) noexcept -> std::string_view;
+[[nodiscard]] auto nickname_source_from_string(std::string_view name) -> std::optional<nickname_source>;
 
 /// One nickname a member had, and what is known about how it got there.
 struct nickname_change {
@@ -68,14 +68,14 @@ struct nickname_change {
 /// somebody was called a moment ago is only knowable from our own history.
 /// That makes this the same question at startup as it is mid-run, which is
 /// why reconciliation needs no separate rule (plan §8.4).
-[[nodiscard]] bool is_new_nickname(const std::optional<nickname_change>& latest, const std::optional<std::string>& current);
+[[nodiscard]] auto is_new_nickname(const std::optional<nickname_change>& latest, const std::optional<std::string>& current) -> bool;
 
 /// Whether an audit entry is about this row: same member, same resulting
 /// nickname.
 ///
 /// Discord writes the audit entry and sends the member update separately, so
 /// they are matched on what they say rather than on any shared identifier.
-[[nodiscard]] bool describes(const nickname_change& change, dpp::snowflake target, const std::optional<std::string>& new_nickname);
+[[nodiscard]] auto describes(const nickname_change& change, dpp::snowflake target, const std::optional<std::string>& new_nickname) -> bool;
 
 /// The nickname an audit log change carries.
 ///
@@ -83,36 +83,36 @@ struct nickname_change {
 /// arrives quoted and a cleared one arrives as `null`. Returns nothing for
 /// both "cleared" and "unreadable", which are the same thing to a caller that
 /// is only trying to match a row it already wrote.
-[[nodiscard]] std::optional<std::string> audit_nickname(std::string_view dumped_json);
+[[nodiscard]] auto audit_nickname(std::string_view dumped_json) -> std::optional<std::string>;
 
 /// Whether `actor` may be written into a row that has no author yet.
 ///
 /// Never the bot: when the bot calls the API it is what Discord records, and
 /// overwriting a known invoker with "LatiBot" is how the Java version lost
 /// the only attribution that was ever certain (plan §8.1).
-[[nodiscard]] bool may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self);
+[[nodiscard]] auto may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self) -> bool;
 
 // --------------------------------------------------------------------------
 // Display
 // --------------------------------------------------------------------------
 
 /// A nickname as it is shown: the text, or *(cleared)*.
-[[nodiscard]] std::string show_nickname(const std::optional<std::string>& nickname);
+[[nodiscard]] auto show_nickname(const std::optional<std::string>& nickname) -> std::string;
 
 /// Who a row is attributed to, as it is shown.
 ///
 /// A mention when somebody is named, "unknown" when nothing could attribute
 /// it, and nothing at all for imported rows, whose author the Java bot mostly
 /// guessed. Mentions in an embed resolve to a name without pinging anyone.
-[[nodiscard]] std::string show_author(const nickname_change& change);
+[[nodiscard]] auto show_author(const nickname_change& change) -> std::string;
 
 /// One line of `/nicknames`, using Discord's own timestamp markup so each
 /// reader sees it in their own timezone.
-[[nodiscard]] std::string describe_change(const nickname_change& change);
+[[nodiscard]] auto describe_change(const nickname_change& change) -> std::string;
 
 /// The whole history as plain text, for the attachment a long history gets
 /// instead of pages. Times are UTC, since a file has no reader to localise for.
-[[nodiscard]] std::string render_history_text(std::span<const nickname_change> history, std::string_view who);
+[[nodiscard]] auto render_history_text(std::span<const nickname_change> history, std::string_view who) -> std::string;
 
 /// How long a change the bot just made stays claimable.
 ///
@@ -135,21 +135,21 @@ inline constexpr std::chrono::seconds audit_fallback_delay{10};
 /// different threads, so it locks (plan §2.5).
 class pending_nicknames {
 public:
-    void expect(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                std::chrono::system_clock::time_point now);
+    auto expect(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                std::chrono::system_clock::time_point now) -> void;
 
     /// Consumes a matching expectation. True when this change was ours, which
     /// means it is already in the history with the invoker against it.
-    bool claim(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-               std::chrono::system_clock::time_point now);
+    auto claim(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+               std::chrono::system_clock::time_point now) -> bool;
 
     /// Drops an expectation whose change never arrived, so a `/nickname` that
     /// Discord refused does not silently swallow the next matching change.
-    void forget(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname);
+    auto forget(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname) -> void;
 
     /// How many expectations are waiting. For the tests, which check that
     /// claiming and forgetting leave nothing behind.
-    [[nodiscard]] std::size_t size() const;
+    [[nodiscard]] auto size() const -> std::size_t;
 
 private:
     struct expectation {
@@ -173,43 +173,43 @@ public:
     explicit nickname_store(db::database& db) : db_(&db) {}
 
     /// Records a change and returns the new row id.
-    std::int64_t record(const nickname_change& change);
+    auto record(const nickname_change& change) -> std::int64_t;
 
     /// Everything recorded for one member, newest first.
-    [[nodiscard]] std::vector<nickname_change> history(dpp::snowflake guild_id, dpp::snowflake user_id) const;
+    [[nodiscard]] auto history(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::vector<nickname_change>;
 
     /// The most recent row for a member, which is what a new sighting is
     /// compared against.
-    [[nodiscard]] std::optional<nickname_change> latest(dpp::snowflake guild_id, dpp::snowflake user_id) const;
+    [[nodiscard]] auto latest(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<nickname_change>;
 
-    [[nodiscard]] std::optional<nickname_change> find(std::int64_t id) const;
+    [[nodiscard]] auto find(std::int64_t id) const -> std::optional<nickname_change>;
 
     /// The newest row for this member that still has no author, if it matches
     /// `nickname` and was recorded within `window` of `now`.
     ///
     /// The window is what stops an audit entry from attaching itself to a
     /// change from last week that happens to have the same nickname.
-    [[nodiscard]] std::optional<nickname_change> unattributed(dpp::snowflake guild_id, dpp::snowflake user_id,
-                                                              const std::optional<std::string>& nickname,
-                                                              std::chrono::system_clock::time_point now, std::chrono::seconds window) const;
+    [[nodiscard]] auto unattributed(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                    std::chrono::system_clock::time_point now, std::chrono::seconds window) const
+        -> std::optional<nickname_change>;
 
     /// Fills in the author of a row that has none. False when the row is gone
     /// or somebody has already been named.
-    bool attribute(std::int64_t id, dpp::snowflake changed_by, nickname_source source);
+    auto attribute(std::int64_t id, dpp::snowflake changed_by, nickname_source source) -> bool;
 
     /// Whether this exact row is already there.
     ///
     /// What makes importing the Java bot's file idempotent, so it can simply
     /// be left where it is rather than having to be moved after one run.
-    [[nodiscard]] bool already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                                        std::chrono::system_clock::time_point at) const;
+    [[nodiscard]] auto already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                        std::chrono::system_clock::time_point at) const -> bool;
 
     /// Removes a row, for when a change the bot recorded did not go through.
-    bool remove(std::int64_t id);
+    auto remove(std::int64_t id) -> bool;
 
     /// How many rows one member has. For the tests, which check what was
     /// written; the bot itself reads whole histories.
-    [[nodiscard]] std::size_t count(dpp::snowflake guild_id, dpp::snowflake user_id) const;
+    [[nodiscard]] auto count(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::size_t;
 
 private:
     db::database* db_;

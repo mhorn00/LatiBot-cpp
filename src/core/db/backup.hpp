@@ -15,18 +15,18 @@ class database;
 ///
 /// The source connection is locked for the duration, so nothing else writes
 /// to it mid-copy. An existing destination file is replaced.
-void backup_to_file(database& source, const std::filesystem::path& destination);
+auto backup_to_file(database& source, const std::filesystem::path& destination) -> void;
 
 /// Backups in `directory` named `<prefix>-YYYYMMDD-HHMMSS.db`, oldest first.
-[[nodiscard]] std::vector<std::filesystem::path> list_backups(const std::filesystem::path& directory, std::string_view prefix);
+[[nodiscard]] auto list_backups(const std::filesystem::path& directory, std::string_view prefix) -> std::vector<std::filesystem::path>;
 
 /// Deletes all but the `keep` newest backups. Returns how many were removed.
-int rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep);
+auto rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep) -> int;
 
 /// Writes a timestamped backup into `directory` and rotates it, keeping the
 /// `keep` newest. The timestamp is UTC and is a parameter so tests are
 /// deterministic.
-std::filesystem::path create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix, int keep,
-                                    std::chrono::system_clock::time_point at = std::chrono::system_clock::now());
+auto create_backup(database& source, const std::filesystem::path& directory, std::string_view prefix, int keep,
+                   std::chrono::system_clock::time_point at = std::chrono::system_clock::now()) -> std::filesystem::path;
 
 } // namespace latibot::db

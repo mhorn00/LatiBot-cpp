@@ -6,7 +6,7 @@
 
 namespace latibot::events {
 
-bool bot_allowlist::allow(dpp::snowflake guild_id, dpp::snowflake bot_id) {
+auto bot_allowlist::allow(dpp::snowflake guild_id, dpp::snowflake bot_id) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("INSERT OR IGNORE INTO allowed_bots (guild_id, bot_id) VALUES (?, ?)", guild_id, bot_id).run();
@@ -14,7 +14,7 @@ bool bot_allowlist::allow(dpp::snowflake guild_id, dpp::snowflake bot_id) {
     return db_->changes() > 0;
 }
 
-bool bot_allowlist::deny(dpp::snowflake guild_id, dpp::snowflake bot_id) {
+auto bot_allowlist::deny(dpp::snowflake guild_id, dpp::snowflake bot_id) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM allowed_bots WHERE guild_id = ? AND bot_id = ?", guild_id, bot_id).run();
@@ -22,14 +22,14 @@ bool bot_allowlist::deny(dpp::snowflake guild_id, dpp::snowflake bot_id) {
     return db_->changes() > 0;
 }
 
-bool bot_allowlist::contains(dpp::snowflake guild_id, dpp::snowflake bot_id) const {
+auto bot_allowlist::contains(dpp::snowflake guild_id, dpp::snowflake bot_id) const -> bool {
     const auto guard = db_->lock();
 
     auto query = db_->prepare("SELECT 1 FROM allowed_bots WHERE guild_id = ? AND bot_id = ?", guild_id, bot_id);
     return query.step();
 }
 
-std::vector<dpp::snowflake> bot_allowlist::for_guild(dpp::snowflake guild_id) const {
+auto bot_allowlist::for_guild(dpp::snowflake guild_id) const -> std::vector<dpp::snowflake> {
     const auto guard = db_->lock();
 
     std::vector<dpp::snowflake> listed;

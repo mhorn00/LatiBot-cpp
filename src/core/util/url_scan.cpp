@@ -25,7 +25,8 @@ constexpr std::string_view trailing_punctuation = ".,:;!?'*~";
 ///
 /// `next` is an index into `code` that only moves forward, as the ranges
 /// asked about do, which keeps a message full of links linear.
-std::size_t count_markers(std::string_view text, std::size_t from, std::size_t to, std::span<const text_span> code, std::size_t& next) {
+auto count_markers(std::string_view text, std::size_t from, std::size_t to, std::span<const text_span> code, std::size_t& next)
+    -> std::size_t {
     std::size_t markers = 0;
     while (from < to) {
         // Spans that ended before here are behind us for good.
@@ -54,7 +55,7 @@ std::size_t count_markers(std::string_view text, std::size_t from, std::size_t t
 /// link ending "(film)" survives while "(see https://x.com/a)" loses the ")".
 /// The counts are kept as it goes rather than recounted per character, so a
 /// link followed by thousands of brackets is still linear.
-std::string_view trim_link(std::string_view url) {
+auto trim_link(std::string_view url) -> std::string_view {
     const auto count = [&](char bracket) { return static_cast<std::size_t>(std::ranges::count(url, bracket)); };
     const std::size_t open_round = count('(');
     std::size_t close_round = count(')');
@@ -80,7 +81,7 @@ std::string_view trim_link(std::string_view url) {
 
 } // namespace
 
-std::vector<text_span> code_spans(std::string_view text) {
+auto code_spans(std::string_view text) -> std::vector<text_span> {
     std::vector<text_span> spans;
 
     std::size_t at = 0;
@@ -122,7 +123,7 @@ std::vector<text_span> code_spans(std::string_view text) {
     return spans;
 }
 
-std::vector<found_link> find_links(std::string_view text) {
+auto find_links(std::string_view text) -> std::vector<found_link> {
     std::vector<found_link> links;
 
     const std::vector<text_span> code = code_spans(text);
@@ -183,7 +184,7 @@ std::vector<found_link> find_links(std::string_view text) {
     return links;
 }
 
-std::optional<url_parts> split_url(std::string_view url) {
+auto split_url(std::string_view url) -> std::optional<url_parts> {
     const std::size_t separator = url.find("://");
     if (separator == std::string_view::npos) {
         return std::nullopt;
@@ -224,7 +225,7 @@ std::optional<url_parts> split_url(std::string_view url) {
     return parts;
 }
 
-std::string rule_host(std::string_view authority) {
+auto rule_host(std::string_view authority) -> std::string {
     // Credentials first, since they may contain ':' themselves.
     if (const std::size_t at = authority.rfind('@'); at != std::string_view::npos) {
         authority.remove_prefix(at + 1);
@@ -248,7 +249,7 @@ std::string rule_host(std::string_view authority) {
     return host;
 }
 
-std::string rehost(const url_parts& parts, std::string_view host, std::string_view path_suffix) {
+auto rehost(const url_parts& parts, std::string_view host, std::string_view path_suffix) -> std::string {
     std::string rebuilt = "https://";
     rebuilt += host;
 
@@ -275,7 +276,7 @@ std::string rehost(const url_parts& parts, std::string_view host, std::string_vi
     return rebuilt;
 }
 
-std::string_view comparable_path(std::string_view path) noexcept {
+auto comparable_path(std::string_view path) noexcept -> std::string_view {
     while (path.ends_with('/')) {
         path.remove_suffix(1);
     }

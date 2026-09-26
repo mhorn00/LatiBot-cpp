@@ -264,11 +264,11 @@ constexpr std::array<migration, 9> all_migrations{{
 
 } // namespace
 
-std::span<const migration> schema() noexcept {
+auto schema() noexcept -> std::span<const migration> {
     return all_migrations;
 }
 
-int migrate(database& db, std::span<const migration> migrations) {
+auto migrate(database& db, std::span<const migration> migrations) -> int {
     // One lock for the whole run, so a second thread cannot interleave.
     const auto guard = db.lock();
 
@@ -297,7 +297,7 @@ int migrate(database& db, std::span<const migration> migrations) {
     return version;
 }
 
-int migrate(database& db) {
+auto migrate(database& db) -> int {
     return migrate(db, schema());
 }
 

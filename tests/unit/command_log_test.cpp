@@ -12,7 +12,7 @@ using latibot::commands::describe_user;
 
 namespace {
 
-dpp::command_data_option option(const std::string& name, dpp::command_value value, dpp::command_option_type type = dpp::co_string) {
+auto option(const std::string& name, dpp::command_value value, dpp::command_option_type type = dpp::co_string) -> dpp::command_data_option {
     dpp::command_data_option built;
     built.name = name;
     built.type = type;
@@ -20,7 +20,7 @@ dpp::command_data_option option(const std::string& name, dpp::command_value valu
     return built;
 }
 
-dpp::command_interaction command_named(const std::string& name) {
+auto command_named(const std::string& name) -> dpp::command_interaction {
     dpp::command_interaction interaction;
     interaction.name = name;
     return interaction;
@@ -128,7 +128,7 @@ TEST_CASE("a user is logged by name and id", "[commands]") {
 
 namespace {
 
-dpp::command_option typed_option(const std::string& name, const std::string& value, bool focused) {
+auto typed_option(const std::string& name, const std::string& value, bool focused) -> dpp::command_option {
     dpp::command_option built(dpp::co_string, name, "");
     built.value = value;
     built.focused = focused;

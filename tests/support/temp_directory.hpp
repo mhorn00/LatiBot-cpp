@@ -22,7 +22,7 @@ public:
     }
 
     temp_directory(const temp_directory&) = delete;
-    temp_directory& operator=(const temp_directory&) = delete;
+    auto operator=(const temp_directory&) -> temp_directory& = delete;
 
     ~temp_directory() {
         // The error_code overload still allocates while it walks the tree, so
@@ -38,9 +38,9 @@ public:
         }
     }
 
-    [[nodiscard]] const std::filesystem::path& path() const noexcept { return path_; }
+    [[nodiscard]] auto path() const noexcept -> const std::filesystem::path& { return path_; }
 
-    [[nodiscard]] std::filesystem::path file(std::string_view name) const { return path_ / name; }
+    [[nodiscard]] auto file(std::string_view name) const -> std::filesystem::path { return path_ / name; }
 
 private:
     std::filesystem::path path_;

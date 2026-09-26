@@ -17,7 +17,9 @@ class quiet_log final : public Catch::EventListenerBase {
 public:
     using Catch::EventListenerBase::EventListenerBase;
 
-    void testRunStarting(const Catch::TestRunInfo& /*run*/) override { latibot::util::log().set_level(latibot::util::log_level::off); }
+    auto testRunStarting(const Catch::TestRunInfo& /*run*/) -> void override {
+        latibot::util::log().set_level(latibot::util::log_level::off);
+    }
 };
 
 CATCH_REGISTER_LISTENER(quiet_log)

@@ -19,7 +19,7 @@ namespace latibot::discord {
 
 /// Turns a path into the endpoint DPP expects, prefixing the API version and
 /// trimming a trailing slash. Exposed for testing.
-[[nodiscard]] std::string build_endpoint(std::string_view path);
+[[nodiscard]] auto build_endpoint(std::string_view path) -> std::string;
 
 /// Calls Discord endpoints DPP does not wrap (plan §5.5).
 ///
@@ -32,7 +32,7 @@ public:
     explicit raw_api(dpp::cluster& cluster) : cluster_(&cluster) {}
 
     raw_api(const raw_api&) = delete;
-    raw_api& operator=(const raw_api&) = delete;
+    auto operator=(const raw_api&) -> raw_api& = delete;
 
     /// `path` may be a full endpoint ("/api/v10/channels/1/messages") or just
     /// the part after the version ("/channels/1/messages").
@@ -44,12 +44,12 @@ public:
     /// from a cluster-wide slot which another thread's request can consume,
     /// so it cannot be attached reliably. Attribution lives in the database
     /// instead (plan §8.1).
-    dpp::task<ports::result<nlohmann::json>> request(ports::http_method method, std::string path, std::string body = {});
+    auto request(ports::http_method method, std::string path, std::string body = {}) -> dpp::task<ports::result<nlohmann::json>>;
 
     /// Multipart form upload, for endpoints that take `payload_json` plus
     /// files: voice messages, attachments (plan §12.8).
-    dpp::task<ports::result<nlohmann::json>> multipart(ports::http_method method, std::string path, std::string payload_json,
-                                                       std::vector<dpp::message_file_data> files);
+    auto multipart(ports::http_method method, std::string path, std::string payload_json, std::vector<dpp::message_file_data> files)
+        -> dpp::task<ports::result<nlohmann::json>>;
 
 private:
     dpp::cluster* cluster_;

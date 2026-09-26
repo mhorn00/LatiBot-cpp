@@ -22,7 +22,7 @@ struct named_bot {
     bool is_bot = false;
 };
 
-std::optional<named_bot> bot_option(const dpp::slashcommand_t& event) {
+auto bot_option(const dpp::slashcommand_t& event) -> std::optional<named_bot> {
     const auto id = snowflake_option(event, "bot");
     if (!id || id->empty()) {
         return std::nullopt;
@@ -38,7 +38,7 @@ std::optional<named_bot> bot_option(const dpp::slashcommand_t& event) {
 
 } // namespace
 
-std::string render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known) {
+auto render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known) -> std::string {
     if (known.empty()) {
         return "No bots are allowed here. Every bot is ignored until you add one with `/bots allow`.";
     }
@@ -62,7 +62,7 @@ bots_command::bots_command(events::bot_allowlist& allowlist)
             .subcommand_responses = {}},
       allowlist_(&allowlist) {}
 
-dpp::slashcommand bots_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto bots_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     dpp::command_option allow(dpp::co_sub_command, "allow", "Let me hear this bot.");
@@ -79,7 +79,7 @@ dpp::slashcommand bots_command::build(const std::string& name, dpp::snowflake ap
     return payload;
 }
 
-dpp::task<void> bots_command::execute(const dpp::slashcommand_t& event) {
+auto bots_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "allow") {
@@ -93,7 +93,7 @@ dpp::task<void> bots_command::execute(const dpp::slashcommand_t& event) {
     }
 }
 
-dpp::task<void> bots_command::allow(const dpp::slashcommand_t& event) {
+auto bots_command::allow(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto chosen = bot_option(event);
     if (!chosen) {
         co_await event.co_reply(refusal(event, "which bot?"));
@@ -120,7 +120,7 @@ dpp::task<void> bots_command::allow(const dpp::slashcommand_t& event) {
                                                 : std::format("i was already listening to {}", chosen->name)));
 }
 
-dpp::task<void> bots_command::deny(const dpp::slashcommand_t& event) {
+auto bots_command::deny(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto chosen = bot_option(event);
     if (!chosen) {
         co_await event.co_reply(refusal(event, "which bot?"));
@@ -136,7 +136,7 @@ dpp::task<void> bots_command::deny(const dpp::slashcommand_t& event) {
                                                   : std::format("i was not listening to {} anyway", chosen->name)));
 }
 
-dpp::task<void> bots_command::list(const dpp::slashcommand_t& event) {
+auto bots_command::list(const dpp::slashcommand_t& event) -> dpp::task<void> {
     std::vector<std::pair<dpp::snowflake, std::string>> known;
     for (const dpp::snowflake id : allowlist_->for_guild(event.command.guild_id)) {
         const dpp::user* found = dpp::find_user(id);

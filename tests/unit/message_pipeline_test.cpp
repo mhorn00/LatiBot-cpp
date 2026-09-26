@@ -17,7 +17,7 @@ using latibot::events::stage_result;
 
 namespace {
 
-incoming_message from_human(std::string content = "hello") {
+auto from_human(std::string content = "hello") -> incoming_message {
     return {.guild_id = dpp::snowflake{1},
             .channel_id = dpp::snowflake{2},
             .author_id = dpp::snowflake{3},
@@ -28,7 +28,7 @@ incoming_message from_human(std::string content = "hello") {
 }
 
 /// A stage that records that it ran and optionally answers.
-pipeline::stage_fn recorder(std::vector<std::string>& ran, std::string name, bool consumes = false, bool answers = false) {
+auto recorder(std::vector<std::string>& ran, std::string name, bool consumes = false, bool answers = false) -> pipeline::stage_fn {
     return [&ran, name = std::move(name), consumes, answers](const incoming_message& message) {
         ran.push_back(name);
         stage_result result;
@@ -40,7 +40,7 @@ pipeline::stage_fn recorder(std::vector<std::string>& ran, std::string name, boo
     };
 }
 
-std::vector<std::string> sent(const std::vector<action>& actions) {
+auto sent(const std::vector<action>& actions) -> std::vector<std::string> {
     std::vector<std::string> contents;
     for (const action& one : actions) {
         if (const auto* post = std::get_if<send_message>(&one)) {

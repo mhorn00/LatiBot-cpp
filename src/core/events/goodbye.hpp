@@ -32,12 +32,12 @@ inline constexpr std::chrono::milliseconds goodbye_delay{1500};
 ///
 /// An empty phrase never matches, so clearing the setting turns the feature
 /// off rather than making every message a match.
-[[nodiscard]] bool is_goodbye(std::string_view content, std::string_view phrase);
+[[nodiscard]] auto is_goodbye(std::string_view content, std::string_view phrase) -> bool;
 
 /// The pipeline stage.
 ///
 /// Administrator only, checked by the caller and passed through
 /// `incoming_message`. Consumes the message: nothing after this matters.
-[[nodiscard]] pipeline::stage_fn goodbye_stage(const config::guild_settings& settings);
+[[nodiscard]] auto goodbye_stage(const config::guild_settings& settings) -> pipeline::stage_fn;
 
 } // namespace latibot::events

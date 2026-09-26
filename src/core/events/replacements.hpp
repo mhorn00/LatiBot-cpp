@@ -28,8 +28,8 @@ enum class replacement_state : std::uint8_t {
     retrying,
 };
 
-[[nodiscard]] std::string_view to_string(replacement_state state) noexcept;
-[[nodiscard]] std::optional<replacement_state> replacement_state_from_string(std::string_view name);
+[[nodiscard]] auto to_string(replacement_state state) noexcept -> std::string_view;
+[[nodiscard]] auto replacement_state_from_string(std::string_view name) -> std::optional<replacement_state>;
 
 /// A message the bot posted in place of somebody's links.
 struct replacement_record {
@@ -59,24 +59,24 @@ public:
 
     /// Writes a replacement and its links, replacing any earlier row for the
     /// same message.
-    void record(const replacement_record& entry);
+    auto record(const replacement_record& entry) -> void;
 
-    [[nodiscard]] std::optional<replacement_record> find(dpp::snowflake message_id) const;
+    [[nodiscard]] auto find(dpp::snowflake message_id) const -> std::optional<replacement_record>;
 
     /// Whether a message is one of ours. Asked on every reaction, so it reads
     /// one indexed row and nothing else.
-    [[nodiscard]] bool contains(dpp::snowflake message_id) const;
+    [[nodiscard]] auto contains(dpp::snowflake message_id) const -> bool;
 
     /// False when there is no such replacement.
-    bool set_state(dpp::snowflake message_id, replacement_state state);
+    auto set_state(dpp::snowflake message_id, replacement_state state) -> bool;
 
     /// Records a Retry that finished, whatever it found.
-    bool mark_retried(dpp::snowflake message_id, replacement_state state, std::chrono::sys_seconds at);
+    auto mark_retried(dpp::snowflake message_id, replacement_state state, std::chrono::sys_seconds at) -> bool;
 
     /// Every replacement still `pending` or `retrying`, oldest first. Read at
     /// startup, before anything is posted, these are the ones the last run
     /// was still watching when it stopped.
-    [[nodiscard]] std::vector<replacement_record> unsettled() const;
+    [[nodiscard]] auto unsettled() const -> std::vector<replacement_record>;
 
 private:
     db::database* db_;

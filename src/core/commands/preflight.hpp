@@ -30,17 +30,17 @@ struct gap {
 /// passive features, which have nobody to declare for them. Each phase adds
 /// its entries as the feature lands, so the check never warns about something
 /// that is not implemented yet.
-[[nodiscard]] std::span<const requirement> passive_requirements() noexcept;
+[[nodiscard]] auto passive_requirements() noexcept -> std::span<const requirement>;
 
 /// Requirements that `granted` does not satisfy.
 ///
 /// Administrator satisfies everything, exactly as Discord treats it, so a
 /// guild that granted it produces no warnings.
-[[nodiscard]] std::vector<gap> unmet(std::span<const requirement> required, std::uint64_t granted);
+[[nodiscard]] auto unmet(std::span<const requirement> required, std::uint64_t granted) -> std::vector<gap>;
 
 /// Permission bits as Discord's own names, comma separated, e.g.
 /// "Manage Nicknames, View Audit Log". Unknown bits are reported in hex
 /// rather than dropped, so a newly added permission is still visible.
-[[nodiscard]] std::string describe_permissions(std::uint64_t permissions);
+[[nodiscard]] auto describe_permissions(std::uint64_t permissions) -> std::string;
 
 } // namespace latibot::commands

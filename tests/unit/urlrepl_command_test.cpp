@@ -25,13 +25,13 @@ namespace {
 
 constexpr dpp::snowflake guild{1000};
 
-url_rule rule_from(std::string_view domain, std::string_view mirrors) {
+auto rule_from(std::string_view domain, std::string_view mirrors) -> url_rule {
     auto built = build_rule(domain, mirrors);
     REQUIRE(std::holds_alternative<url_rule>(built));
     return std::get<url_rule>(built);
 }
 
-std::string problem_with(std::string_view domain, std::string_view mirrors) {
+auto problem_with(std::string_view domain, std::string_view mirrors) -> std::string {
     auto built = build_rule(domain, mirrors);
     REQUIRE(std::holds_alternative<std::string>(built));
     return std::get<std::string>(built);

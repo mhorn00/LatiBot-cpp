@@ -32,7 +32,7 @@ class url_replacer {
 public:
     explicit url_replacer(const url_rule_store& rules) : rules_(&rules) {}
 
-    stage_result operator()(const incoming_message& message) const;
+    auto operator()(const incoming_message& message) const -> stage_result;
 
 private:
     const url_rule_store* rules_;
@@ -44,12 +44,12 @@ private:
 /// Posting comes first: if it fails, the original keeps its preview, which is
 /// better than a message with none. The replacement is a plain message rather
 /// than a reply, with notifications suppressed and nobody mentioned.
-dpp::task<void> post_replacement(ports::discord_gateway& discord, replacement_store& replacements, embed_tracker& tracker,
-                                 ports::clock& clock, replace_links request);
+auto post_replacement(ports::discord_gateway& discord, replacement_store& replacements, embed_tracker& tracker, ports::clock& clock,
+                      replace_links request) -> dpp::task<void>;
 
 /// Does what the tracker decided. Failures are logged and otherwise
 /// ignored: a preview that could not be switched is not worth more than that.
-dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions);
+auto carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions) -> dpp::task<void>;
 
 /// Settles one guild's replacements the last run was still watching when it
 /// stopped.
@@ -61,8 +61,8 @@ dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::ve
 /// ended it, and the actions are carried out. One whose message cannot be
 /// reached any more (403, 404) is marked failed, so it is not asked about
 /// again; any other error leaves it for the next start.
-dpp::task<void> settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules,
-                                embed_tracker& tracker, std::vector<replacement_record> stranded);
+auto settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules, embed_tracker& tracker,
+                     std::vector<replacement_record> stranded) -> dpp::task<void>;
 
 /// What pressing Retry does, decided.
 struct retry_plan {
@@ -80,7 +80,7 @@ struct retry_plan {
 /// since the failure is exactly why somebody presses Retry. A link whose rule
 /// has since been removed is dropped, and nothing is retried in a guild that
 /// has since turned replacement off.
-[[nodiscard]] std::variant<retry_plan, std::string> plan_retry(const replacement_store& replacements, const url_rule_store& rules,
-                                                               dpp::snowflake message_id, dpp::snowflake guild_id);
+[[nodiscard]] auto plan_retry(const replacement_store& replacements, const url_rule_store& rules, dpp::snowflake message_id,
+                              dpp::snowflake guild_id) -> std::variant<retry_plan, std::string>;
 
 } // namespace latibot::events

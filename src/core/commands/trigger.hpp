@@ -29,19 +29,19 @@ inline constexpr std::string_view trigger_list_view = "triggers";
 ///
 /// Free text rather than separate options because Discord caps a command at
 /// 25 options, and a trigger can have any number of responses.
-[[nodiscard]] std::vector<events::weighted_response> parse_responses(std::string_view text);
+[[nodiscard]] auto parse_responses(std::string_view text) -> std::vector<events::weighted_response>;
 
 /// The inverse, for showing an existing trigger back to whoever is editing it.
-[[nodiscard]] std::string format_responses(std::span<const events::weighted_response> responses);
+[[nodiscard]] auto format_responses(std::span<const events::weighted_response> responses) -> std::string;
 
 /// One line of `/trigger list`.
-[[nodiscard]] std::string describe(const events::trigger& entry);
+[[nodiscard]] auto describe(const events::trigger& entry) -> std::string;
 
 /// One page of the list, with its ◀ / ▶ row.
 ///
 /// Shared by the command and the button handler, so a page reached by paging
 /// is built the same way as the first one.
-[[nodiscard]] dpp::message render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page);
+[[nodiscard]] auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page) -> dpp::message;
 
 // --------------------------------------------------------------------------
 // The panel (plan §11)
@@ -70,7 +70,7 @@ inline constexpr std::string_view trigger_previews_view = "trigprev";
 using trigger_toggle = std::string_view (*)(events::trigger&);
 
 /// The change a toggle view makes, or null for a view that is not a toggle.
-[[nodiscard]] trigger_toggle toggle_for(std::string_view view);
+[[nodiscard]] auto toggle_for(std::string_view view) -> trigger_toggle;
 
 /// What the edit and add modals collect. Everything is free text, because a
 /// modal has no other kind of input.
@@ -87,7 +87,7 @@ struct form_fields {
 /// nothing when `entry` was updated. Unparseable optional fields are left
 /// alone rather than reset: someone typing "thirty" into the cooldown box
 /// should not silently lose the cooldown they had.
-[[nodiscard]] std::optional<std::string> apply_form(events::trigger& entry, const form_fields& fields);
+[[nodiscard]] auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optional<std::string>;
 
 /// The panel, at `page`.
 ///
@@ -95,27 +95,27 @@ struct form_fields {
 /// `confirming_delete` swaps the Edit/Delete row for a confirmation. Both ride
 /// in the buttons' custom_ids, so the panel needs no server-side state and
 /// keeps working after a restart.
-[[nodiscard]] dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page,
-                                                std::int64_t selected = 0, bool confirming_delete = false);
+[[nodiscard]] auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected = 0,
+                                        bool confirming_delete = false) -> dpp::message;
 
 /// The add or edit modal. `entry` is null for add.
-[[nodiscard]] dpp::interaction_modal_response trigger_form(int page, const events::trigger* entry);
+[[nodiscard]] auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_modal_response;
 
 /// `/trigger add | edit | remove | list | panel` (plan §11).
 class trigger_command final : public command {
 public:
     explicit trigger_command(events::trigger_store& store);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
-    dpp::task<void> add(const dpp::slashcommand_t& event);
-    dpp::task<void> edit(const dpp::slashcommand_t& event);
-    dpp::task<void> remove(const dpp::slashcommand_t& event);
-    dpp::task<void> list(const dpp::slashcommand_t& event, int page);
-    dpp::task<void> panel(const dpp::slashcommand_t& event);
+    auto add(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto edit(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto remove(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto list(const dpp::slashcommand_t& event, int page) -> dpp::task<void>;
+    auto panel(const dpp::slashcommand_t& event) -> dpp::task<void>;
 
     command_info info_;
     events::trigger_store* store_;

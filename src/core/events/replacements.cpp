@@ -13,12 +13,12 @@ constexpr std::array<std::string_view, 4> state_names{"pending", "ok", "failed",
 
 } // namespace
 
-std::string_view to_string(replacement_state state) noexcept {
+auto to_string(replacement_state state) noexcept -> std::string_view {
     const auto index = static_cast<std::size_t>(state);
     return index < state_names.size() ? state_names[index] : "pending";
 }
 
-std::optional<replacement_state> replacement_state_from_string(std::string_view name) {
+auto replacement_state_from_string(std::string_view name) -> std::optional<replacement_state> {
     for (std::size_t index = 0; index < state_names.size(); ++index) {
         if (state_names[index] == name) {
             return static_cast<replacement_state>(index);
@@ -27,7 +27,7 @@ std::optional<replacement_state> replacement_state_from_string(std::string_view 
     return std::nullopt;
 }
 
-void replacement_store::record(const replacement_record& entry) {
+auto replacement_store::record(const replacement_record& entry) -> void {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
@@ -54,7 +54,7 @@ void replacement_store::record(const replacement_record& entry) {
     tx.commit();
 }
 
-std::optional<replacement_record> replacement_store::find(dpp::snowflake message_id) const {
+auto replacement_store::find(dpp::snowflake message_id) const -> std::optional<replacement_record> {
     const auto guard = db_->lock();
 
     replacement_record entry;
@@ -89,24 +89,24 @@ std::optional<replacement_record> replacement_store::find(dpp::snowflake message
     return entry;
 }
 
-bool replacement_store::contains(dpp::snowflake message_id) const {
+auto replacement_store::contains(dpp::snowflake message_id) const -> bool {
     auto query = db_->prepare("SELECT 1 FROM replacement_messages WHERE message_id = ?", message_id);
     return query.step();
 }
 
-bool replacement_store::set_state(dpp::snowflake message_id, replacement_state state) {
+auto replacement_store::set_state(dpp::snowflake message_id, replacement_state state) -> bool {
     const auto guard = db_->lock();
     db_->prepare("UPDATE replacement_messages SET state = ? WHERE message_id = ?", to_string(state), message_id).run();
     return db_->changes() > 0;
 }
 
-bool replacement_store::mark_retried(dpp::snowflake message_id, replacement_state state, std::chrono::sys_seconds at) {
+auto replacement_store::mark_retried(dpp::snowflake message_id, replacement_state state, std::chrono::sys_seconds at) -> bool {
     const auto guard = db_->lock();
     db_->prepare("UPDATE replacement_messages SET state = ?, retried_at = ? WHERE message_id = ?", to_string(state), at, message_id).run();
     return db_->changes() > 0;
 }
 
-std::vector<replacement_record> replacement_store::unsettled() const {
+auto replacement_store::unsettled() const -> std::vector<replacement_record> {
     const auto guard = db_->lock();
 
     std::vector<dpp::snowflake> ids;

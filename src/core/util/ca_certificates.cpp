@@ -17,7 +17,7 @@ namespace latibot::util {
 
 #ifdef _WIN32
 
-std::optional<std::filesystem::path> export_system_certificates(const std::filesystem::path& destination) {
+auto export_system_certificates(const std::filesystem::path& destination) -> std::optional<std::filesystem::path> {
     // "ROOT" is the trusted root store: the anchors Windows Update keeps
     // current, and the same set Edge and PowerShell verify against.
     HCERTSTORE store = CertOpenSystemStoreW(0, L"ROOT");
@@ -70,13 +70,13 @@ std::optional<std::filesystem::path> export_system_certificates(const std::files
 
 #else
 
-std::optional<std::filesystem::path> export_system_certificates(const std::filesystem::path&) {
+auto export_system_certificates(const std::filesystem::path&) -> std::optional<std::filesystem::path> {
     return std::nullopt;
 }
 
 #endif
 
-void use_system_certificates(const std::filesystem::path& destination) {
+auto use_system_certificates(const std::filesystem::path& destination) -> void {
     for (const char* already : {"SSL_CERT_FILE", "SSL_CERT_DIR"}) {
         if (const auto set = env_var(already); set && !set->empty()) {
             log().debug("{} is set; leaving certificate verification alone", already);

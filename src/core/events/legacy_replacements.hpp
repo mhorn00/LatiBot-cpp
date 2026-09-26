@@ -43,14 +43,14 @@ struct history_message {
     std::vector<reaction_count> reactions;
 };
 
-[[nodiscard]] history_message describe_history(const dpp::message& message);
+[[nodiscard]] auto describe_history(const dpp::message& message) -> history_message;
 
 /// When Discord made a message, from its id.
-[[nodiscard]] std::chrono::sys_seconds created_at(dpp::snowflake id) noexcept;
+[[nodiscard]] auto created_at(dpp::snowflake id) noexcept -> std::chrono::sys_seconds;
 
 /// The smallest id Discord could give a message made at `when`, which is
 /// what paging "before a time" needs.
-[[nodiscard]] dpp::snowflake first_id_at(std::chrono::sys_seconds when) noexcept;
+[[nodiscard]] auto first_id_at(std::chrono::sys_seconds when) noexcept -> dpp::snowflake;
 
 /// The shapes the bot's replacements have had over the years (plan §9.7).
 enum class legacy_format : std::uint8_t {
@@ -96,7 +96,7 @@ struct legacy_match {
 /// mirror, current or historical. That holds across every format, since each
 /// one contains the replaced link; the format then says where to look for
 /// the original.
-[[nodiscard]] legacy_match classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors);
+[[nodiscard]] auto classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors) -> legacy_match;
 
 /// Who a replacement was for.
 struct attribution {
@@ -131,7 +131,7 @@ inline constexpr std::size_t attribution_candidates = 10;
 /// failing that, leaves the message unattributed rather than guessed.
 ///
 /// `older` is the channel before `message`, newest first.
-[[nodiscard]] attribution attribute(const history_message& message, const legacy_match& match, std::span<const history_message> older,
-                                    dpp::snowflake bot_id);
+[[nodiscard]] auto attribute(const history_message& message, const legacy_match& match, std::span<const history_message> older,
+                             dpp::snowflake bot_id) -> attribution;
 
 } // namespace latibot::events

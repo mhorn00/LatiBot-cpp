@@ -23,7 +23,7 @@ struct store_fixture {
     store_fixture() { latibot::db::migrate(db); }
 };
 
-replacement_record sample() {
+auto sample() -> replacement_record {
     return {.message_id = ours,
             .guild_id = dpp::snowflake{1000},
             .channel_id = dpp::snowflake{2000},

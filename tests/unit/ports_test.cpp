@@ -19,7 +19,7 @@ namespace {
 
 /// A stand-in for a real feature: talks to Discord through the port, and
 /// reports what happened rather than doing the I/O itself.
-dpp::task<std::string> post_then_edit(latibot::ports::discord_gateway& gateway) {
+auto post_then_edit(latibot::ports::discord_gateway& gateway) -> dpp::task<std::string> {
     const auto sent = co_await gateway.send_message(dpp::message(dpp::snowflake{42}, "hello"));
     if (!sent.ok()) {
         co_return "send failed: " + sent.error().message;

@@ -10,7 +10,7 @@ namespace latibot::util {
 ///
 /// Windows only. Elsewhere this does nothing and returns nothing, because
 /// OpenSSL's compiled-in default paths already find the system bundle.
-[[nodiscard]] std::optional<std::filesystem::path> export_system_certificates(const std::filesystem::path& destination);
+[[nodiscard]] auto export_system_certificates(const std::filesystem::path& destination) -> std::optional<std::filesystem::path>;
 
 /// Points OpenSSL at the system's root certificates for this process.
 ///
@@ -24,6 +24,6 @@ namespace latibot::util {
 /// Does nothing when SSL_CERT_FILE or SSL_CERT_DIR is already set, so an
 /// explicit choice in `.env` or the shell still wins. Failures are not fatal:
 /// the connection is what reports them, and it may still succeed.
-void use_system_certificates(const std::filesystem::path& destination);
+auto use_system_certificates(const std::filesystem::path& destination) -> void;
 
 } // namespace latibot::util

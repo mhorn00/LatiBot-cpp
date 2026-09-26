@@ -18,7 +18,7 @@ class dpp_http_client final : public ports::http_client {
 public:
     explicit dpp_http_client(dpp::cluster& cluster) : cluster_(&cluster) {}
 
-    dpp::task<ports::result<ports::http_response>> send(ports::http_request request) override;
+    auto send(ports::http_request request) -> dpp::task<ports::result<ports::http_response>> override;
 
 private:
     dpp::cluster* cluster_;

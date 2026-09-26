@@ -15,7 +15,7 @@ namespace {
 
 /// The `||` markers that start before `before` and are outside every code
 /// span, found the slow way: each occurrence, checked against each span.
-std::size_t markers_outside_code(std::string_view text, const std::vector<latibot::util::text_span>& code, std::size_t before) {
+auto markers_outside_code(std::string_view text, const std::vector<latibot::util::text_span>& code, std::size_t before) -> std::size_t {
     std::size_t markers = 0;
     for (std::size_t at = text.find("||"); at != std::string_view::npos && at + 2 <= before; at = text.find("||", at + 2)) {
         const bool in_code =
@@ -29,7 +29,7 @@ std::size_t markers_outside_code(std::string_view text, const std::vector<latibo
 
 } // namespace
 
-extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) -> int {
     const std::string_view text(reinterpret_cast<const char*>(data), size);
     const std::vector<latibot::util::text_span> code = latibot::util::code_spans(text);
 

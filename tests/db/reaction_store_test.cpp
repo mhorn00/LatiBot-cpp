@@ -35,22 +35,22 @@ const std::chrono::sys_seconds day_one{std::chrono::sys_days{std::chrono::year{2
 
 // Functions rather than constants: building one allocates, and a static that
 // throws while the test binary is starting cannot be caught.
-const emoji_ref& skull() {
+auto skull() -> const emoji_ref& {
     static const emoji_ref made = reaction_emoji({}, "💀");
     return made;
 }
 
-const emoji_ref& laugh() {
+auto laugh() -> const emoji_ref& {
     static const emoji_ref made = reaction_emoji({}, "😂");
     return made;
 }
 
-const emoji_ref& custom_skull() {
+auto custom_skull() -> const emoji_ref& {
     static const emoji_ref made = reaction_emoji(dpp::snowflake{7001}, "skull");
     return made;
 }
 
-const emoji_ref& custom_skull_again() {
+auto custom_skull_again() -> const emoji_ref& {
     static const emoji_ref made = reaction_emoji(dpp::snowflake{7002}, "Skull");
     return made;
 }
@@ -67,7 +67,7 @@ struct store_fixture {
         replacement(unattributed, std::nullopt, day_one + 48h);
     }
 
-    void replacement(dpp::snowflake id, std::optional<dpp::snowflake> author, std::chrono::sys_seconds at) {
+    auto replacement(dpp::snowflake id, std::optional<dpp::snowflake> author, std::chrono::sys_seconds at) -> void {
         replacements.record({.message_id = id,
                              .guild_id = guild,
                              .channel_id = channel,
@@ -79,8 +79,8 @@ struct store_fixture {
                              .links = {}});
     }
 
-    [[nodiscard]] std::int64_t count(stat_kind kind, std::optional<dpp::snowflake> who = std::nullopt,
-                                     std::optional<std::string> emoji = std::nullopt) const {
+    [[nodiscard]] auto count(stat_kind kind, std::optional<dpp::snowflake> who = std::nullopt,
+                             std::optional<std::string> emoji = std::nullopt) const -> std::int64_t {
         return reactions.total(guild, {.kind = kind, .emoji_key = std::move(emoji), .user_id = who, .since = {}, .until = {}});
     }
 };

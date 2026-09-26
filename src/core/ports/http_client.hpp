@@ -41,11 +41,11 @@ public:
 
     http_client() = default;
     http_client(const http_client&) = delete;
-    http_client& operator=(const http_client&) = delete;
+    auto operator=(const http_client&) -> http_client& = delete;
 
     /// A non-2xx status is still a successful call and arrives as a response;
     /// only transport failures produce an `api_error`.
-    virtual dpp::task<result<http_response>> send(http_request request) = 0;
+    virtual auto send(http_request request) -> dpp::task<result<http_response>> = 0;
 };
 
 } // namespace latibot::ports

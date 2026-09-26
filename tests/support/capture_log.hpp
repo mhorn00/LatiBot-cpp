@@ -23,25 +23,25 @@ public:
     }
 
     capture_log(const capture_log&) = delete;
-    capture_log& operator=(const capture_log&) = delete;
+    auto operator=(const capture_log&) -> capture_log& = delete;
 
     ~capture_log() {
         util::log().set_sink({}); // restores the default stderr sink
         util::log().set_level(previous_level_);
     }
 
-    [[nodiscard]] std::vector<std::pair<util::log_level, std::string>> lines() const {
+    [[nodiscard]] auto lines() const -> std::vector<std::pair<util::log_level, std::string>> {
         const std::scoped_lock guard(mutex_);
         return lines_;
     }
 
-    [[nodiscard]] std::size_t count() const {
+    [[nodiscard]] auto count() const -> std::size_t {
         const std::scoped_lock guard(mutex_);
         return lines_.size();
     }
 
     /// True when some line at `severity` contains `text`.
-    [[nodiscard]] bool contains(util::log_level severity, std::string_view text) const {
+    [[nodiscard]] auto contains(util::log_level severity, std::string_view text) const -> bool {
         const std::scoped_lock guard(mutex_);
         return std::ranges::any_of(lines_,
                                    [&](const auto& line) { return line.first == severity && line.second.find(text) != std::string::npos; });

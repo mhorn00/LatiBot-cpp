@@ -7,11 +7,11 @@
 
 namespace latibot::events {
 
-void pipeline::add(std::string name, stage_fn handler) {
+auto pipeline::add(std::string name, stage_fn handler) -> void {
     stages_.push_back({.name = std::move(name), .handler = std::move(handler)});
 }
 
-std::vector<action> pipeline::run(const incoming_message& message) const {
+auto pipeline::run(const incoming_message& message) const -> std::vector<action> {
     std::vector<action> actions;
 
     // Answering ourselves is a loop with no exit. Answering another bot is one
@@ -61,7 +61,7 @@ std::vector<action> pipeline::run(const incoming_message& message) const {
     return actions;
 }
 
-std::vector<std::string_view> pipeline::stage_names() const {
+auto pipeline::stage_names() const -> std::vector<std::string_view> {
     std::vector<std::string_view> names;
     names.reserve(stages_.size());
     for (const stage& entry : stages_) {

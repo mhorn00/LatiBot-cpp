@@ -17,7 +17,7 @@ namespace latibot::events {
 namespace {
 
 /// Removes a scheme a person pasted along with a host.
-std::string_view without_scheme(std::string_view text) {
+auto without_scheme(std::string_view text) -> std::string_view {
     if (const std::size_t separator = text.find("://"); separator != std::string_view::npos) {
         text.remove_prefix(separator + 3);
     }
@@ -26,7 +26,7 @@ std::string_view without_scheme(std::string_view text) {
 
 } // namespace
 
-std::optional<mirror> parse_mirror(std::string_view text) {
+auto parse_mirror(std::string_view text) -> std::optional<mirror> {
     text = without_scheme(util::trim(text));
 
     const std::size_t slash = text.find('/');
@@ -41,11 +41,11 @@ std::optional<mirror> parse_mirror(std::string_view text) {
     return mirror{.host = host, .translate_suffix = std::string(suffix)};
 }
 
-std::string format_mirror(const mirror& entry) {
+auto format_mirror(const mirror& entry) -> std::string {
     return entry.host + entry.translate_suffix;
 }
 
-std::optional<std::string> normalise_domain(std::string_view text) {
+auto normalise_domain(std::string_view text) -> std::optional<std::string> {
     text = without_scheme(util::trim(text));
     std::string domain = util::rule_host(text.substr(0, text.find_first_of("/?#")));
     if (domain.empty()) {
@@ -54,7 +54,7 @@ std::optional<std::string> normalise_domain(std::string_view text) {
     return domain;
 }
 
-std::string_view to_string(link_decision decision) noexcept {
+auto to_string(link_decision decision) noexcept -> std::string_view {
     switch (decision) {
     case link_decision::replaced:
         return "replaced";
@@ -72,7 +72,7 @@ std::string_view to_string(link_decision decision) noexcept {
     return "unknown";
 }
 
-std::vector<link_verdict> explain_links(std::string_view content, std::span<const url_rule> rules) {
+auto explain_links(std::string_view content, std::span<const url_rule> rules) -> std::vector<link_verdict> {
     std::vector<link_verdict> verdicts;
     std::size_t replaced = 0;
 
@@ -117,7 +117,7 @@ std::vector<link_verdict> explain_links(std::string_view content, std::span<cons
     return verdicts;
 }
 
-std::vector<planned_link> plan_replacements(std::string_view content, std::span<const url_rule> rules) {
+auto plan_replacements(std::string_view content, std::span<const url_rule> rules) -> std::vector<planned_link> {
     std::vector<planned_link> planned;
     if (rules.empty()) {
         return planned;
@@ -131,7 +131,7 @@ std::vector<planned_link> plan_replacements(std::string_view content, std::span<
     return planned;
 }
 
-std::string mirror_url(const planned_link& link, std::size_t index) {
+auto mirror_url(const planned_link& link, std::size_t index) -> std::string {
     const auto parts = util::split_url(link.original_url);
     if (!parts || link.mirrors.empty()) {
         return link.original_url;
@@ -143,7 +143,7 @@ std::string mirror_url(const planned_link& link, std::size_t index) {
 
 // --------------------------------------------------------------------------
 
-std::vector<url_rule> url_rule_store::for_guild(dpp::snowflake guild_id) const {
+auto url_rule_store::for_guild(dpp::snowflake guild_id) const -> std::vector<url_rule> {
     std::vector<url_rule> rules;
 
     auto query =
@@ -160,7 +160,7 @@ std::vector<url_rule> url_rule_store::for_guild(dpp::snowflake guild_id) const {
     return rules;
 }
 
-std::optional<url_rule> url_rule_store::find(dpp::snowflake guild_id, std::string_view domain) const {
+auto url_rule_store::find(dpp::snowflake guild_id, std::string_view domain) const -> std::optional<url_rule> {
     url_rule rule{.domain = std::string(domain), .mirrors = {}};
 
     auto query =
@@ -176,14 +176,14 @@ std::optional<url_rule> url_rule_store::find(dpp::snowflake guild_id, std::strin
     return rule;
 }
 
-void url_rule_store::set(dpp::snowflake guild_id, const url_rule& rule) {
+auto url_rule_store::set(dpp::snowflake guild_id, const url_rule& rule) -> void {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
     write(guild_id, rule);
     tx.commit();
 }
 
-void url_rule_store::rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) {
+auto url_rule_store::rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) -> void {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
     db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, previous).run();
@@ -191,7 +191,7 @@ void url_rule_store::rename(dpp::snowflake guild_id, std::string_view previous, 
     tx.commit();
 }
 
-void url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) {
+auto url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) -> void {
     db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, rule.domain).run();
 
     int position = 0;
@@ -205,26 +205,26 @@ void url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) {
     }
 }
 
-bool url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) {
+auto url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) -> bool {
     const auto guard = db_->lock();
     db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, domain).run();
     return db_->changes() > 0;
 }
 
-bool url_rule_store::enabled(dpp::snowflake guild_id) const {
+auto url_rule_store::enabled(dpp::snowflake guild_id) const -> bool {
     return config::guild_settings(*db_).get_bool(guild_id, url_replacement_enabled_key, false);
 }
 
-void url_rule_store::set_enabled(dpp::snowflake guild_id, bool enabled) {
+auto url_rule_store::set_enabled(dpp::snowflake guild_id, bool enabled) -> void {
     config::guild_settings(*db_).set_bool(guild_id, url_replacement_enabled_key, enabled);
 }
 
-bool url_rule_store::opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const {
+auto url_rule_store::opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const -> bool {
     auto query = db_->prepare("SELECT 1 FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", guild_id, user_id);
     return query.step();
 }
 
-bool url_rule_store::toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id) {
+auto url_rule_store::toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", guild_id, user_id).run();
@@ -236,7 +236,7 @@ bool url_rule_store::toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user
     return true;
 }
 
-mirror_map url_rule_store::known_mirrors(dpp::snowflake guild_id) const {
+auto url_rule_store::known_mirrors(dpp::snowflake guild_id) const -> mirror_map {
     mirror_map known;
     auto query = db_->prepare("SELECT host, domain FROM known_mirrors WHERE guild_id = ?", guild_id);
     while (query.step()) {
@@ -245,7 +245,7 @@ mirror_map url_rule_store::known_mirrors(dpp::snowflake guild_id) const {
     return known;
 }
 
-void url_rule_store::remember_mirror(dpp::snowflake guild_id, std::string_view host, std::string_view domain) {
+auto url_rule_store::remember_mirror(dpp::snowflake guild_id, std::string_view host, std::string_view domain) -> void {
     // The latest rule wins when a host moves between domains, which only
     // happens when somebody fixes a mistake.
     db_->prepare(
@@ -257,7 +257,7 @@ void url_rule_store::remember_mirror(dpp::snowflake guild_id, std::string_view h
 
 // --------------------------------------------------------------------------
 
-legacy_rules parse_legacy_rules(std::string_view text) {
+auto parse_legacy_rules(std::string_view text) -> legacy_rules {
     legacy_rules parsed;
 
     // One rule per line: "domain|mirror^mirror". A line that cannot be read is
@@ -309,7 +309,7 @@ legacy_rules parse_legacy_rules(std::string_view text) {
     return parsed;
 }
 
-std::optional<int> import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const std::filesystem::path& file) {
+auto import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const std::filesystem::path& file) -> std::optional<int> {
     const std::ifstream input(file);
     if (!input) {
         return std::nullopt;

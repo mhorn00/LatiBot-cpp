@@ -25,9 +25,9 @@ class spy_command final : public command {
 public:
     explicit spy_command(command_info details) : info_(std::move(details)) {}
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
 
-    dpp::task<void> execute(const dpp::slashcommand_t& /*event*/) override {
+    auto execute(const dpp::slashcommand_t& /*event*/) -> dpp::task<void> override {
         ++runs;
         if (should_throw) {
             throw std::runtime_error("command blew up");
@@ -42,7 +42,7 @@ private:
     command_info info_;
 };
 
-command_info basic(std::string name, std::vector<std::string> aliases = {}, std::uint64_t permissions = 0) {
+auto basic(std::string name, std::vector<std::string> aliases = {}, std::uint64_t permissions = 0) -> command_info {
     return command_info{.name = std::move(name),
                         .description = "a test command",
                         .aliases = std::move(aliases),
@@ -173,9 +173,9 @@ class grouped_command final : public command {
 public:
     explicit grouped_command(command_info details) : info_(std::move(details)) {}
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
 
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override {
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override {
         dpp::slashcommand payload = command::build(name, application_id);
         payload.add_option(dpp::command_option(dpp::co_sub_command, "list", "List them."));
         dpp::command_option alias(dpp::co_sub_command_group, "alias", "Aliases.");
@@ -184,7 +184,7 @@ public:
         return payload;
     }
 
-    dpp::task<void> execute(const dpp::slashcommand_t& /*event*/) override { co_return; }
+    auto execute(const dpp::slashcommand_t& /*event*/) -> dpp::task<void> override { co_return; }
 
 private:
     command_info info_;
@@ -192,7 +192,7 @@ private:
 
 /// Public results, private refusals, silent posts, and "alias add" answered
 /// privately: the shape `/linkstats` has.
-command_info grouped_info() {
+auto grouped_info() -> command_info {
     command_info details = basic("stats");
     details.responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = dpp::m_suppress_notifications};
     details.subcommand_responses = {{"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}};

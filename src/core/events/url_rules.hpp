@@ -31,7 +31,7 @@ struct mirror {
     /// asked to: "/en". Empty for none.
     std::string translate_suffix;
 
-    friend bool operator==(const mirror&, const mirror&) = default;
+    friend auto operator==(const mirror&, const mirror&) -> bool = default;
 };
 
 /// Where links to one site go instead, in the order to try them.
@@ -45,14 +45,14 @@ struct url_rule {
 /// "fxtwitter.com/en" as a mirror: everything after the host is the
 /// translation suffix. A pasted scheme or trailing slash is tolerated, since
 /// people copy these out of a browser. Nothing when there is no host.
-[[nodiscard]] std::optional<mirror> parse_mirror(std::string_view text);
+[[nodiscard]] auto parse_mirror(std::string_view text) -> std::optional<mirror>;
 
 /// The inverse: "fxtwitter.com/en", or just the host.
-[[nodiscard]] std::string format_mirror(const mirror& entry);
+[[nodiscard]] auto format_mirror(const mirror& entry) -> std::string;
 
 /// A domain as a person typed it, reduced to what a rule is keyed by:
 /// "https://www.X.com/" is "x.com". Nothing when no host is left.
-[[nodiscard]] std::optional<std::string> normalise_domain(std::string_view text);
+[[nodiscard]] auto normalise_domain(std::string_view text) -> std::optional<std::string>;
 
 /// A link a rule applies to, with everything needed to post it elsewhere.
 struct planned_link {
@@ -84,7 +84,7 @@ enum class link_decision : std::uint8_t {
 };
 
 /// Why, in words, for `/urlrepl test`.
-[[nodiscard]] std::string_view to_string(link_decision decision) noexcept;
+[[nodiscard]] auto to_string(link_decision decision) noexcept -> std::string_view;
 
 struct link_verdict {
     link_decision decision = link_decision::replaced;
@@ -97,7 +97,7 @@ struct link_verdict {
 ///
 /// `plan_replacements` is this, filtered, so the dry run in `/urlrepl test`
 /// cannot disagree with what a real message gets.
-[[nodiscard]] std::vector<link_verdict> explain_links(std::string_view content, std::span<const url_rule> rules);
+[[nodiscard]] auto explain_links(std::string_view content, std::span<const url_rule> rules) -> std::vector<link_verdict>;
 
 /// The links in `content` that a rule covers, in the order they appear, each
 /// once.
@@ -107,11 +107,11 @@ struct link_verdict {
 /// replacement (plan §9.1). Links in code, and links written as `<…>` to
 /// turn their preview off, are left alone as well: Discord was not going to
 /// embed those anyway.
-[[nodiscard]] std::vector<planned_link> plan_replacements(std::string_view content, std::span<const url_rule> rules);
+[[nodiscard]] auto plan_replacements(std::string_view content, std::span<const url_rule> rules) -> std::vector<planned_link>;
 
 /// `link` on its mirror at `index`. An index past the last mirror uses the
 /// last one, so a caller counting attempts cannot fall off the end.
-[[nodiscard]] std::string mirror_url(const planned_link& link, std::size_t index);
+[[nodiscard]] auto mirror_url(const planned_link& link, std::size_t index) -> std::string;
 
 // --------------------------------------------------------------------------
 // Storage
@@ -125,49 +125,49 @@ class url_rule_store {
 public:
     explicit url_rule_store(db::database& db) : db_(&db) {}
 
-    [[nodiscard]] std::vector<url_rule> for_guild(dpp::snowflake guild_id) const;
-    [[nodiscard]] std::optional<url_rule> find(dpp::snowflake guild_id, std::string_view domain) const;
+    [[nodiscard]] auto for_guild(dpp::snowflake guild_id) const -> std::vector<url_rule>;
+    [[nodiscard]] auto find(dpp::snowflake guild_id, std::string_view domain) const -> std::optional<url_rule>;
 
     /// Replaces a domain's mirrors wholesale, which is how both the command
     /// and the panel edit them: the order is the list.
-    void set(dpp::snowflake guild_id, const url_rule& rule);
+    auto set(dpp::snowflake guild_id, const url_rule& rule) -> void;
 
     /// Replaces the rule for `previous` with `rule`, for another site, in one
     /// transaction: a rename that fails leaves the old rule in place rather
     /// than no rule at all.
-    void rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule);
+    auto rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) -> void;
 
     /// False when there was no such rule.
-    bool remove(dpp::snowflake guild_id, std::string_view domain);
+    auto remove(dpp::snowflake guild_id, std::string_view domain) -> bool;
 
     /// Whether links are being replaced in this guild at all. Off until
     /// somebody with Manage Server turns it on, so a server that invited the
     /// bot for something else does not find its links rewritten; the rules
     /// can be written, imported and dry-run before then.
-    [[nodiscard]] bool enabled(dpp::snowflake guild_id) const;
+    [[nodiscard]] auto enabled(dpp::snowflake guild_id) const -> bool;
 
     /// Kept in `guild_settings`, so it outlasts a restart.
-    void set_enabled(dpp::snowflake guild_id, bool enabled);
+    auto set_enabled(dpp::snowflake guild_id, bool enabled) -> void;
 
     /// Whether this member asked for their links to be left alone.
-    [[nodiscard]] bool opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const;
+    [[nodiscard]] auto opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const -> bool;
 
     /// Flips a member's opt-out and says where it ended up: true for opted
     /// out. Stored, unlike the Java `/toggle`, which forgot on restart.
-    bool toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id);
+    auto toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id) -> bool;
 
     /// Every mirror host this guild has had a rule for, including rules since
     /// removed. Recognising the bot's old replacements depends on it, and they
     /// do not stop existing when a rule changes (plan §9.7).
-    [[nodiscard]] mirror_map known_mirrors(dpp::snowflake guild_id) const;
+    [[nodiscard]] auto known_mirrors(dpp::snowflake guild_id) const -> mirror_map;
 
     /// Remembers a mirror without making a rule of it, for hosts the bot used
     /// before this database existed.
-    void remember_mirror(dpp::snowflake guild_id, std::string_view host, std::string_view domain);
+    auto remember_mirror(dpp::snowflake guild_id, std::string_view host, std::string_view domain) -> void;
 
 private:
     /// What `set` and `rename` share, for a caller already in a transaction.
-    void write(dpp::snowflake guild_id, const url_rule& rule);
+    auto write(dpp::snowflake guild_id, const url_rule& rule) -> void;
 
     db::database* db_;
 };
@@ -187,13 +187,13 @@ struct legacy_rules {
 
 /// Parses `domain|mirror^mirror^…`, one rule per line. A domain listed twice
 /// keeps its last line, which is what the Java bot's map did.
-[[nodiscard]] legacy_rules parse_legacy_rules(std::string_view text);
+[[nodiscard]] auto parse_legacy_rules(std::string_view text) -> legacy_rules;
 
 /// Copies the Java bot's rules into a guild.
 ///
 /// Nothing when the file does not exist, which is the ordinary case on a
 /// fresh install. Returns the number of rules written; a rule the guild
 /// already has is left as it is, so importing twice changes nothing.
-std::optional<int> import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const std::filesystem::path& file);
+auto import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const std::filesystem::path& file) -> std::optional<int>;
 
 } // namespace latibot::events

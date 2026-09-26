@@ -12,14 +12,14 @@ namespace latibot::events {
 namespace {
 
 /// Unix seconds, for the <t:…> timestamps Discord shows in local time.
-std::int64_t to_unix(std::chrono::system_clock::time_point when) {
+auto to_unix(std::chrono::system_clock::time_point when) -> std::int64_t {
     return std::chrono::duration_cast<std::chrono::seconds>(when.time_since_epoch()).count();
 }
 
 /// Every column of a history row, in the order `read_row` expects.
 constexpr std::string_view row_columns = "id, guild_id, user_id, nickname, changed_at, changed_by, source, imported_raw";
 
-nickname_change read_row(const db::statement& row) {
+auto read_row(const db::statement& row) -> nickname_change {
     nickname_change change;
     change.id = row.get<std::int64_t>(0);
     change.guild_id = row.get<dpp::snowflake>(1);
@@ -33,13 +33,13 @@ nickname_change read_row(const db::statement& row) {
 }
 
 /// Text to store, where an empty string means "no value" rather than "".
-std::optional<std::string> text_or_null(const std::string& text) {
+auto text_or_null(const std::string& text) -> std::optional<std::string> {
     return text.empty() ? std::optional<std::string>{} : std::optional(text);
 }
 
 } // namespace
 
-std::string_view to_string(nickname_source source) noexcept {
+auto to_string(nickname_source source) noexcept -> std::string_view {
     switch (source) {
     case nickname_source::command:
         return "command";
@@ -55,7 +55,7 @@ std::string_view to_string(nickname_source source) noexcept {
     return "seen";
 }
 
-std::optional<nickname_source> nickname_source_from_string(std::string_view name) {
+auto nickname_source_from_string(std::string_view name) -> std::optional<nickname_source> {
     if (name == "command") return nickname_source::command;
     if (name == "audit_log") return nickname_source::audit_log;
     if (name == "seen") return nickname_source::seen;
@@ -66,7 +66,7 @@ std::optional<nickname_source> nickname_source_from_string(std::string_view name
 
 // --------------------------------------------------------------------------
 
-bool is_new_nickname(const std::optional<nickname_change>& latest, const std::optional<std::string>& current) {
+auto is_new_nickname(const std::optional<nickname_change>& latest, const std::optional<std::string>& current) -> bool {
     if (!latest) {
         // Nothing on record. A member with no nickname is not a change worth
         // writing down; one with a nickname is the first thing known about them.
@@ -75,11 +75,11 @@ bool is_new_nickname(const std::optional<nickname_change>& latest, const std::op
     return latest->nickname != current;
 }
 
-bool describes(const nickname_change& change, dpp::snowflake target, const std::optional<std::string>& new_nickname) {
+auto describes(const nickname_change& change, dpp::snowflake target, const std::optional<std::string>& new_nickname) -> bool {
     return change.user_id == target && change.nickname == new_nickname;
 }
 
-std::optional<std::string> audit_nickname(std::string_view dumped_json) {
+auto audit_nickname(std::string_view dumped_json) -> std::optional<std::string> {
     if (dumped_json.empty() || dumped_json == "null") {
         return std::nullopt;
     }
@@ -91,7 +91,7 @@ std::optional<std::string> audit_nickname(std::string_view dumped_json) {
     return parsed.get<std::string>();
 }
 
-bool may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self) {
+auto may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self) -> bool {
     if (actor.empty() || actor == self) {
         return false;
     }
@@ -100,11 +100,11 @@ bool may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::sno
 
 // --------------------------------------------------------------------------
 
-std::string show_nickname(const std::optional<std::string>& nickname) {
+auto show_nickname(const std::optional<std::string>& nickname) -> std::string {
     return nickname && !nickname->empty() ? *nickname : "*(cleared)*";
 }
 
-std::string show_author(const nickname_change& change) {
+auto show_author(const nickname_change& change) -> std::string {
     if (change.changed_by) {
         return std::format("<@{}>", change.changed_by->str());
     }
@@ -114,7 +114,7 @@ std::string show_author(const nickname_change& change) {
     return change.source == nickname_source::imported ? std::string{} : "unknown";
 }
 
-std::string describe_change(const nickname_change& change) {
+auto describe_change(const nickname_change& change) -> std::string {
     // Discord renders <t:seconds:f> in the reader's own timezone, which is the
     // only way one stored instant reads correctly for everybody.
     std::string line = std::format("**{}** — <t:{}:f>", show_nickname(change.nickname), to_unix(change.changed_at));
@@ -126,7 +126,7 @@ std::string describe_change(const nickname_change& change) {
     return line;
 }
 
-std::string render_history_text(std::span<const nickname_change> history, std::string_view who) {
+auto render_history_text(std::span<const nickname_change> history, std::string_view who) -> std::string {
     std::string text = std::format("Nickname history for {}\n", who);
     text += std::format("{} entr{}, newest first. Times are UTC.\n\n", history.size(), history.size() == 1 ? "y" : "ies");
 
@@ -146,8 +146,8 @@ std::string render_history_text(std::span<const nickname_change> history, std::s
 
 // --------------------------------------------------------------------------
 
-void pending_nicknames::expect(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                               std::chrono::system_clock::time_point now) {
+auto pending_nicknames::expect(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                               std::chrono::system_clock::time_point now) -> void {
     const std::scoped_lock guard(mutex_);
 
     // Expired entries are cleared here rather than on a timer: the list only
@@ -157,8 +157,8 @@ void pending_nicknames::expect(dpp::snowflake guild_id, dpp::snowflake user_id, 
     expected_.push_back({.guild_id = guild_id, .user_id = user_id, .nickname = nickname, .expires_at = now + pending_nickname_ttl});
 }
 
-bool pending_nicknames::claim(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                              std::chrono::system_clock::time_point now) {
+auto pending_nicknames::claim(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                              std::chrono::system_clock::time_point now) -> bool {
     const std::scoped_lock guard(mutex_);
 
     const auto found = std::ranges::find_if(expected_, [&](const expectation& waiting) {
@@ -173,7 +173,7 @@ bool pending_nicknames::claim(dpp::snowflake guild_id, dpp::snowflake user_id, c
     return true;
 }
 
-void pending_nicknames::forget(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname) {
+auto pending_nicknames::forget(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname) -> void {
     const std::scoped_lock guard(mutex_);
 
     const auto found = std::ranges::find_if(expected_, [&](const expectation& waiting) {
@@ -184,14 +184,14 @@ void pending_nicknames::forget(dpp::snowflake guild_id, dpp::snowflake user_id, 
     }
 }
 
-std::size_t pending_nicknames::size() const {
+auto pending_nicknames::size() const -> std::size_t {
     const std::scoped_lock guard(mutex_);
     return expected_.size();
 }
 
 // --------------------------------------------------------------------------
 
-std::int64_t nickname_store::record(const nickname_change& change) {
+auto nickname_store::record(const nickname_change& change) -> std::int64_t {
     const auto guard = db_->lock();
 
     db_->prepare(std::format("INSERT INTO nickname_history ({}) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)", row_columns), change.guild_id,
@@ -202,7 +202,7 @@ std::int64_t nickname_store::record(const nickname_change& change) {
     return db_->last_insert_rowid();
 }
 
-std::vector<nickname_change> nickname_store::history(dpp::snowflake guild_id, dpp::snowflake user_id) const {
+auto nickname_store::history(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::vector<nickname_change> {
     const auto guard = db_->lock();
 
     // id breaks ties, so two changes recorded in the same second still read in
@@ -219,7 +219,7 @@ std::vector<nickname_change> nickname_store::history(dpp::snowflake guild_id, dp
     return found;
 }
 
-std::optional<nickname_change> nickname_store::latest(dpp::snowflake guild_id, dpp::snowflake user_id) const {
+auto nickname_store::latest(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<nickname_change> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM nickname_history WHERE guild_id = ? AND user_id = ? "
@@ -230,16 +230,16 @@ std::optional<nickname_change> nickname_store::latest(dpp::snowflake guild_id, d
     return query.step() ? std::optional(read_row(query)) : std::nullopt;
 }
 
-std::optional<nickname_change> nickname_store::find(std::int64_t id) const {
+auto nickname_store::find(std::int64_t id) const -> std::optional<nickname_change> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM nickname_history WHERE id = ?", row_columns), id);
     return query.step() ? std::optional(read_row(query)) : std::nullopt;
 }
 
-std::optional<nickname_change> nickname_store::unattributed(dpp::snowflake guild_id, dpp::snowflake user_id,
-                                                            const std::optional<std::string>& nickname,
-                                                            std::chrono::system_clock::time_point now, std::chrono::seconds window) const {
+auto nickname_store::unattributed(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                  std::chrono::system_clock::time_point now, std::chrono::seconds window) const
+    -> std::optional<nickname_change> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM nickname_history "
@@ -257,7 +257,7 @@ std::optional<nickname_change> nickname_store::unattributed(dpp::snowflake guild
     return std::nullopt;
 }
 
-bool nickname_store::attribute(std::int64_t id, dpp::snowflake changed_by, nickname_source source) {
+auto nickname_store::attribute(std::int64_t id, dpp::snowflake changed_by, nickname_source source) -> bool {
     const auto guard = db_->lock();
 
     // `changed_by IS NULL` sits in the statement rather than in a read first,
@@ -269,8 +269,8 @@ bool nickname_store::attribute(std::int64_t id, dpp::snowflake changed_by, nickn
     return db_->changes() > 0;
 }
 
-bool nickname_store::already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                                      std::chrono::system_clock::time_point at) const {
+auto nickname_store::already_recorded(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                                      std::chrono::system_clock::time_point at) const -> bool {
     const auto guard = db_->lock();
 
     // `IS` rather than `=`, so a cleared nickname matches a cleared nickname:
@@ -281,14 +281,14 @@ bool nickname_store::already_recorded(dpp::snowflake guild_id, dpp::snowflake us
     return query.step();
 }
 
-bool nickname_store::remove(std::int64_t id) {
+auto nickname_store::remove(std::int64_t id) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM nickname_history WHERE id = ?", id).run();
     return db_->changes() > 0;
 }
 
-std::size_t nickname_store::count(dpp::snowflake guild_id, dpp::snowflake user_id) const {
+auto nickname_store::count(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::size_t {
     const auto guard = db_->lock();
 
     auto query = db_->prepare("SELECT COUNT(*) FROM nickname_history WHERE guild_id = ? AND user_id = ?", guild_id, user_id);

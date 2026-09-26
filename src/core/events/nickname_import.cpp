@@ -15,7 +15,7 @@ namespace {
 using json = nlohmann::json;
 
 /// An id the Java bot wrote as a string, or nothing when it is not one.
-std::optional<dpp::snowflake> read_id(const json& value) {
+auto read_id(const json& value) -> std::optional<dpp::snowflake> {
     if (!value.is_string()) {
         return std::nullopt;
     }
@@ -23,7 +23,7 @@ std::optional<dpp::snowflake> read_id(const json& value) {
 }
 
 /// One `nicknames` element: `{nickname, changedById, datetime}`.
-void read_entry(const json& element, dpp::snowflake guild_id, dpp::snowflake user_id, import_report& report) {
+auto read_entry(const json& element, dpp::snowflake guild_id, dpp::snowflake user_id, import_report& report) -> void {
     if (!element.is_object() || !element.contains("nickname") || !element.contains("datetime")) {
         report.problems.push_back(std::format("{} has an entry with no nickname or no time", user_id.str()));
         return;
@@ -64,7 +64,7 @@ void read_entry(const json& element, dpp::snowflake guild_id, dpp::snowflake use
 }
 
 /// One member's record: `{guild, member: {id, username}, nicknames: [...]}`.
-void read_member(const json& record, dpp::snowflake guild_id, import_report& report) {
+auto read_member(const json& record, dpp::snowflake guild_id, import_report& report) -> void {
     if (!record.is_object() || !record.contains("member") || !record.contains("nicknames")) {
         report.problems.push_back(std::format("guild {} has a record with no member or no nicknames", guild_id.str()));
         return;
@@ -101,7 +101,7 @@ void read_member(const json& record, dpp::snowflake guild_id, import_report& rep
 
 } // namespace
 
-std::optional<std::chrono::system_clock::time_point> central_time_to_utc(std::string_view local_text) {
+auto central_time_to_utc(std::string_view local_text) -> std::optional<std::chrono::system_clock::time_point> {
     std::istringstream stream{std::string(local_text)};
     std::chrono::local_seconds local{};
     stream >> std::chrono::parse("%Y-%m-%d %H:%M:%S", local);
@@ -132,14 +132,14 @@ std::optional<std::chrono::system_clock::time_point> central_time_to_utc(std::st
     }
 }
 
-std::optional<dpp::snowflake> imported_author(dpp::snowflake user_id, dpp::snowflake changed_by) {
+auto imported_author(dpp::snowflake user_id, dpp::snowflake changed_by) -> std::optional<dpp::snowflake> {
     if (changed_by.empty() || changed_by == user_id) {
         return std::nullopt;
     }
     return changed_by;
 }
 
-import_report read_nicknames_json(std::string_view text) {
+auto read_nicknames_json(std::string_view text) -> import_report {
     import_report report;
 
     const json parsed = json::parse(text, nullptr, /*allow_exceptions=*/false);
@@ -168,7 +168,7 @@ import_report read_nicknames_json(std::string_view text) {
     return report;
 }
 
-int import_nicknames(nickname_store& store, const import_report& report) {
+auto import_nicknames(nickname_store& store, const import_report& report) -> int {
     int added = 0;
     for (const nickname_change& entry : report.entries) {
         if (store.already_recorded(entry.guild_id, entry.user_id, entry.nickname, entry.changed_at)) {
@@ -180,7 +180,7 @@ int import_nicknames(nickname_store& store, const import_report& report) {
     return added;
 }
 
-std::optional<int> import_nicknames_file(nickname_store& store, const std::filesystem::path& path) {
+auto import_nicknames_file(nickname_store& store, const std::filesystem::path& path) -> std::optional<int> {
     const std::ifstream file(path);
     if (!file) {
         return std::nullopt;

@@ -19,7 +19,7 @@ namespace {
 /// was typed, short enough that a full-length `/say` stays one readable line.
 constexpr std::size_t value_limit = 120;
 
-void append_text(std::string& out, const std::string& text) {
+auto append_text(std::string& out, const std::string& text) -> void {
     out.push_back('"');
 
     const bool truncated = text.size() > value_limit;
@@ -47,7 +47,7 @@ void append_text(std::string& out, const std::string& text) {
     }
 }
 
-void append_value(std::string& out, const dpp::command_value& value) {
+auto append_value(std::string& out, const dpp::command_value& value) -> void {
     std::visit(
         [&out](const auto& held) {
             using held_type = std::decay_t<decltype(held)>;
@@ -71,7 +71,7 @@ void append_value(std::string& out, const dpp::command_value& value) {
 // subcommand group, which holds a subcommand, which holds plain options. Three
 // levels, enforced at registration by Discord itself.
 // NOLINTNEXTLINE(misc-no-recursion)
-void append_options(std::string& out, const std::vector<dpp::command_data_option>& options) {
+auto append_options(std::string& out, const std::vector<dpp::command_data_option>& options) -> void {
     for (const dpp::command_data_option& option : options) {
         // A subcommand is not an argument, it is part of the command's name,
         // so it reads as "/trigger add pattern=…" rather than "add=…".
@@ -91,17 +91,17 @@ void append_options(std::string& out, const std::vector<dpp::command_data_option
 
 } // namespace
 
-std::string describe_invocation(const dpp::command_interaction& interaction) {
+auto describe_invocation(const dpp::command_interaction& interaction) -> std::string {
     std::string line = "/" + interaction.name;
     append_options(line, interaction.options);
     return line;
 }
 
-user_label describe_user(const dpp::user& who) {
+auto describe_user(const dpp::user& who) -> user_label {
     return {.name = who.username, .id = who.id};
 }
 
-response_flags command_info::responses_for(std::string_view subcommand) const {
+auto command_info::responses_for(std::string_view subcommand) const -> response_flags {
     response_flags flags = responses;
     const auto found = subcommand_responses.find(subcommand);
     if (found == subcommand_responses.end()) {
@@ -115,7 +115,7 @@ response_flags command_info::responses_for(std::string_view subcommand) const {
     return flags;
 }
 
-std::string subcommand_path(const dpp::command_interaction& interaction) {
+auto subcommand_path(const dpp::command_interaction& interaction) -> std::string {
     // At most a group and then a subcommand, which Discord enforces.
     std::string path;
     const std::vector<dpp::command_data_option>* level = &interaction.options;
@@ -133,7 +133,7 @@ std::string subcommand_path(const dpp::command_interaction& interaction) {
     return path;
 }
 
-std::vector<std::string> subcommand_paths(const dpp::slashcommand& payload) {
+auto subcommand_paths(const dpp::slashcommand& payload) -> std::vector<std::string> {
     std::vector<std::string> paths;
     for (const dpp::command_option& option : payload.options) {
         if (option.type == dpp::co_sub_command) {
@@ -147,31 +147,31 @@ std::vector<std::string> subcommand_paths(const dpp::slashcommand& payload) {
     return paths;
 }
 
-response_flags command::responses_for(const dpp::slashcommand_t& event) const {
+auto command::responses_for(const dpp::slashcommand_t& event) const -> response_flags {
     return info().responses_for(subcommand_path(event.command.get_command_interaction()));
 }
 
-dpp::message command::result(const dpp::slashcommand_t& event, dpp::message message) const {
+auto command::result(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::message {
     return discord::apply_flags(message, responses_for(event).result);
 }
 
-dpp::message command::result(const dpp::slashcommand_t& event, std::string_view text) const {
+auto command::result(const dpp::slashcommand_t& event, std::string_view text) const -> dpp::message {
     return result(event, dpp::message(text));
 }
 
-dpp::message command::refusal(const dpp::slashcommand_t& event, std::string_view text) const {
+auto command::refusal(const dpp::slashcommand_t& event, std::string_view text) const -> dpp::message {
     dpp::message message(text);
     return discord::apply_flags(message, responses_for(event).refusal);
 }
 
-dpp::message command::post(const dpp::slashcommand_t& event, dpp::message message) const {
+auto command::post(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::message {
     // Ephemeral is cleared as well as never applied: only a reply to a
     // command can be ephemeral, so on a channel message it means nothing.
     const auto wanted = static_cast<discord::message_flags>(responses_for(event).post & discord::channel_message_flags);
     return discord::apply_flags(message, wanted);
 }
 
-dpp::task<void> command::defer(const dpp::slashcommand_t& event) const {
+auto command::defer(const dpp::slashcommand_t& event) const -> dpp::task<void> {
     const bool ephemeral = (responses_for(event).result & dpp::m_ephemeral) != 0;
     const auto deferred = co_await event.co_thinking(ephemeral);
     if (deferred.is_error()) {
@@ -179,7 +179,7 @@ dpp::task<void> command::defer(const dpp::slashcommand_t& event) const {
     }
 }
 
-dpp::task<void> command::answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const {
+auto command::answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::task<void> {
     // Only what an edit can change goes along; ephemeral was settled by defer.
     message.flags &= discord::edit_flags;
     const auto edited = co_await event.co_edit_original_response(message);
@@ -191,7 +191,7 @@ dpp::task<void> command::answer_deferred(const dpp::slashcommand_t& event, dpp::
 // Recursive for the same reason `append_options` is, and bounded the same way:
 // Discord allows a group, a subcommand, then plain options.
 // NOLINTNEXTLINE(misc-no-recursion)
-const dpp::command_option* focused_option(const std::vector<dpp::command_option>& options) {
+auto focused_option(const std::vector<dpp::command_option>& options) -> const dpp::command_option* {
     for (const dpp::command_option& option : options) {
         if (option.focused) {
             return &option;
@@ -203,13 +203,13 @@ const dpp::command_option* focused_option(const std::vector<dpp::command_option>
     return nullptr;
 }
 
-void command::autocomplete(const dpp::autocomplete_t& event) const {
+auto command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     // Most commands have nothing to complete. Saying so at debug beats a
     // silent return when somebody is wondering why a box stays empty.
     util::log().debug("no completions to offer for /{}", event.name);
 }
 
-dpp::slashcommand command::build(const std::string& name, dpp::snowflake application_id) const {
+auto command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     const command_info& details = info();
 
     dpp::slashcommand payload(name, details.description, application_id);
@@ -222,15 +222,15 @@ dpp::slashcommand command::build(const std::string& name, dpp::snowflake applica
 
 namespace {
 
-void check_flags(const command_info& details, std::string_view where, std::string_view kind, discord::message_flags flags,
-                 discord::message_flags allowed) {
+auto check_flags(const command_info& details, std::string_view where, std::string_view kind, discord::message_flags flags,
+                 discord::message_flags allowed) -> void {
     if ((flags & ~allowed) != 0) {
         throw registry_error(std::format("/{}{}: {} flags include {}, which {} messages cannot carry", details.name, where, kind,
                                          discord::describe_flags(static_cast<discord::message_flags>(flags & ~allowed)), kind));
     }
 }
 
-void check_all(const command_info& details, std::string_view where, const response_flags& flags) {
+auto check_all(const command_info& details, std::string_view where, const response_flags& flags) -> void {
     check_flags(details, where, "result", flags.result, discord::reply_flags);
     check_flags(details, where, "refusal", flags.refusal, discord::reply_flags);
     check_flags(details, where, "post", flags.post, discord::channel_message_flags);
@@ -238,7 +238,7 @@ void check_all(const command_info& details, std::string_view where, const respon
 
 } // namespace
 
-void registry::check_responses(const command& candidate) {
+auto registry::check_responses(const command& candidate) -> void {
     // The command's own flags first, which every subcommand starts from.
     const command_info& details = candidate.info();
     check_all(details, "", details.responses);
@@ -263,7 +263,7 @@ void registry::check_responses(const command& candidate) {
     }
 }
 
-void registry::add(std::unique_ptr<command> new_command) {
+auto registry::add(std::unique_ptr<command> new_command) -> void {
     if (new_command == nullptr) {
         throw registry_error("cannot register a null command");
     }
@@ -292,12 +292,12 @@ void registry::add(std::unique_ptr<command> new_command) {
     }
 }
 
-command* registry::find(std::string_view name_or_alias) const {
+auto registry::find(std::string_view name_or_alias) const -> command* {
     const auto found = by_name_.find(name_or_alias);
     return found == by_name_.end() ? nullptr : found->second;
 }
 
-std::vector<dpp::slashcommand> registry::build_all(dpp::snowflake application_id) const {
+auto registry::build_all(dpp::snowflake application_id) const -> std::vector<dpp::slashcommand> {
     std::vector<dpp::slashcommand> payloads;
     payloads.reserve(by_name_.size());
 
@@ -307,7 +307,7 @@ std::vector<dpp::slashcommand> registry::build_all(dpp::snowflake application_id
     return payloads;
 }
 
-std::uint64_t registry::required_bot_permissions() const {
+auto registry::required_bot_permissions() const -> std::uint64_t {
     std::uint64_t permissions = 0;
     for (const auto& stored : commands_) {
         permissions |= stored->info().required_bot_permissions;
@@ -320,7 +320,7 @@ namespace {
 /// Replies, or, when the command had already responded before it failed,
 /// replaces its "thinking…" if it deferred and follows up if it did not.
 /// Either way the person who ran it hears something.
-dpp::task<void> answer_anyway(const dpp::slashcommand_t& event, dpp::message message) {
+auto answer_anyway(const dpp::slashcommand_t& event, dpp::message message) -> dpp::task<void> {
     // An event with no cluster behind it cannot be answered. Only tests build
     // those.
     if (event.owner == nullptr) {
@@ -352,7 +352,7 @@ dpp::task<void> answer_anyway(const dpp::slashcommand_t& event, dpp::message mes
 
 } // namespace
 
-dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& event) const {
+auto registry::dispatch(std::string name, const dpp::slashcommand_t& event) const -> dpp::task<void> {
     // Logged before the command runs, so an invocation that hangs or crashes
     // the process still leaves a record of what was asked.
     const user_label who = describe_user(event.command.get_issuing_user());
@@ -400,7 +400,7 @@ dpp::task<void> registry::dispatch(std::string name, const dpp::slashcommand_t& 
     util::log().debug("{} finished in {}", what, took);
 }
 
-void registry::offer_completions(std::string_view name, const dpp::autocomplete_t& event) const {
+auto registry::offer_completions(std::string_view name, const dpp::autocomplete_t& event) const -> void {
     const command* target = find(name);
     if (target == nullptr) {
         util::log().debug("no command registered for \"{}\" to autocomplete", name);

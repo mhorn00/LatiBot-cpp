@@ -87,15 +87,15 @@ struct command_info {
     std::map<std::string, response_overrides, std::less<>> subcommand_responses;
 
     /// The flags for one subcommand path: its overrides over the command's.
-    [[nodiscard]] response_flags responses_for(std::string_view subcommand) const;
+    [[nodiscard]] auto responses_for(std::string_view subcommand) const -> response_flags;
 };
 
 /// The subcommand an interaction ran, as `"alias add"` or `"test"`; empty for
 /// a command without subcommands.
-[[nodiscard]] std::string subcommand_path(const dpp::command_interaction& interaction);
+[[nodiscard]] auto subcommand_path(const dpp::command_interaction& interaction) -> std::string;
 
 /// Every subcommand path a registration payload offers, groups included.
-[[nodiscard]] std::vector<std::string> subcommand_paths(const dpp::slashcommand& payload);
+[[nodiscard]] auto subcommand_paths(const dpp::slashcommand& payload) -> std::vector<std::string>;
 
 /// What the bot says when a command threw, rather than leaving Discord to say
 /// "The application did not respond".
@@ -111,7 +111,7 @@ inline constexpr std::string_view unknown_command_reply = "i don't have that com
 /// For the log, so it has to stay one line and stay bounded — newlines are
 /// escaped and long values are cut with their full length noted, otherwise a
 /// single 2000-character `/say` would bury everything around it.
-[[nodiscard]] std::string describe_invocation(const dpp::command_interaction& interaction);
+[[nodiscard]] auto describe_invocation(const dpp::command_interaction& interaction) -> std::string;
 
 /// Who ran something, as the log shows them: `name (id)`.
 ///
@@ -123,14 +123,14 @@ struct user_label {
 };
 
 /// Names are not unique and ids are not readable, so the log carries both.
-[[nodiscard]] user_label describe_user(const dpp::user& who);
+[[nodiscard]] auto describe_user(const dpp::user& who) -> user_label;
 
 /// The option Discord is asking for completions on.
 ///
 /// Options nest: a command holds a subcommand, which holds the option being
 /// typed into, so the focused one is not always at the top. Returns nullptr
 /// when nothing is focused, which happens if Discord's payload changes shape.
-[[nodiscard]] const dpp::command_option* focused_option(const std::vector<dpp::command_option>& options);
+[[nodiscard]] auto focused_option(const std::vector<dpp::command_option>& options) -> const dpp::command_option*;
 
 /// One slash command.
 ///
@@ -142,31 +142,31 @@ public:
 
     command() = default;
     command(const command&) = delete;
-    command& operator=(const command&) = delete;
+    auto operator=(const command&) -> command& = delete;
 
-    [[nodiscard]] virtual const command_info& info() const = 0;
+    [[nodiscard]] virtual auto info() const -> const command_info& = 0;
 
     /// Builds the registration payload under `name`, which may be an alias.
     /// Commands with options override this and add them.
-    [[nodiscard]] virtual dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const;
+    [[nodiscard]] virtual auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand;
 
-    virtual dpp::task<void> execute(const dpp::slashcommand_t& event) = 0;
+    virtual auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> = 0;
 
     /// The flags this command sends messages with, for the subcommand `event`
     /// ran.
-    [[nodiscard]] response_flags responses_for(const dpp::slashcommand_t& event) const;
+    [[nodiscard]] auto responses_for(const dpp::slashcommand_t& event) const -> response_flags;
 
     /// A reply carrying this command's `result` flags. Every reply goes
     /// through one of these three, which is what makes `command_info` the one
     /// place its flags are decided; a flag a renderer set is replaced.
-    [[nodiscard]] dpp::message result(const dpp::slashcommand_t& event, dpp::message message) const;
-    [[nodiscard]] dpp::message result(const dpp::slashcommand_t& event, std::string_view text) const;
+    [[nodiscard]] auto result(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::message;
+    [[nodiscard]] auto result(const dpp::slashcommand_t& event, std::string_view text) const -> dpp::message;
 
     /// A reply carrying the `refusal` flags.
-    [[nodiscard]] dpp::message refusal(const dpp::slashcommand_t& event, std::string_view text) const;
+    [[nodiscard]] auto refusal(const dpp::slashcommand_t& event, std::string_view text) const -> dpp::message;
 
     /// A channel message carrying the `post` flags.
-    [[nodiscard]] dpp::message post(const dpp::slashcommand_t& event, dpp::message message) const;
+    [[nodiscard]] auto post(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::message;
 
     /// Tells Discord the answer is on its way, for a command that has to wait
     /// on Discord before it knows what to say.
@@ -176,18 +176,18 @@ public:
     /// when this subcommand's result is, since that cannot change afterwards:
     /// a refusal that follows is only as private as the result. After this,
     /// answer with `answer_deferred`, not `co_reply`.
-    dpp::task<void> defer(const dpp::slashcommand_t& event) const;
+    auto defer(const dpp::slashcommand_t& event) const -> dpp::task<void>;
 
     /// Replaces the "thinking…" `defer` left with `message`, a `result` or a
     /// `refusal`.
-    dpp::task<void> answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const;
+    auto answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::task<void>;
 
     /// Offers completions for the option being typed into.
     ///
     /// Not a coroutine: Discord gives an autocomplete three seconds and there
     /// is nothing to await, since the answer comes from what the bot already
     /// knows. Commands without an autocompleted option leave it alone.
-    virtual void autocomplete(const dpp::autocomplete_t& event) const;
+    virtual auto autocomplete(const dpp::autocomplete_t& event) const -> void;
 };
 
 /// Holds the commands and routes interactions to them.
@@ -197,17 +197,17 @@ public:
     /// if the command's response flags name a subcommand it does not have or
     /// a flag its messages cannot carry. All of these are programming
     /// errors, so they stop startup rather than surfacing in a reply.
-    void add(std::unique_ptr<command> new_command);
+    auto add(std::unique_ptr<command> new_command) -> void;
 
-    [[nodiscard]] command* find(std::string_view name_or_alias) const;
+    [[nodiscard]] auto find(std::string_view name_or_alias) const -> command*;
 
     /// Every registration payload, including one per alias.
-    [[nodiscard]] std::vector<dpp::slashcommand> build_all(dpp::snowflake application_id) const;
+    [[nodiscard]] auto build_all(dpp::snowflake application_id) const -> std::vector<dpp::slashcommand>;
 
     /// Union of what every command needs, for the startup permission check.
-    [[nodiscard]] std::uint64_t required_bot_permissions() const;
+    [[nodiscard]] auto required_bot_permissions() const -> std::uint64_t;
 
-    [[nodiscard]] std::size_t size() const { return commands_.size(); }
+    [[nodiscard]] auto size() const -> std::size_t { return commands_.size(); }
 
     /// Runs the command registered under `name`.
     ///
@@ -216,17 +216,17 @@ public:
     /// exception escaping a handler is logged too, since letting it leave the
     /// coroutine would take the process down. Either way the person who ran
     /// it is told, with the command's refusal flags.
-    dpp::task<void> dispatch(std::string name, const dpp::slashcommand_t& event) const;
+    auto dispatch(std::string name, const dpp::slashcommand_t& event) const -> dpp::task<void>;
 
     /// Routes an autocomplete to the command that owns it.
     ///
     /// Unknown names are ignored rather than logged at anything louder than
     /// debug: these arrive on every keystroke.
-    void offer_completions(std::string_view name, const dpp::autocomplete_t& event) const;
+    auto offer_completions(std::string_view name, const dpp::autocomplete_t& event) const -> void;
 
 private:
     /// Throws `registry_error` for response flags `add` should refuse.
-    static void check_responses(const command& candidate);
+    static auto check_responses(const command& candidate) -> void;
 
     std::vector<std::unique_ptr<command>> commands_;
     std::map<std::string, command*, std::less<>> by_name_;

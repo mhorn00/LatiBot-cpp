@@ -15,7 +15,7 @@ public:
     db_error(int code, const std::string& message);
 
     /// The SQLite result code, e.g. SQLITE_CONSTRAINT.
-    [[nodiscard]] int code() const noexcept { return code_; }
+    [[nodiscard]] auto code() const noexcept -> int { return code_; }
 
 private:
     int code_;

@@ -44,21 +44,21 @@ inline constexpr std::string_view url_switch_view = "urlswitch";
 
 /// "Link replacement is **on** in this server.", or off: the line the list
 /// and the panel open with.
-[[nodiscard]] std::string describe_state(bool enabled);
+[[nodiscard]] auto describe_state(bool enabled) -> std::string;
 
 /// Turns URL replacement on or off in a guild and logs who did it, from
 /// where. False when it was already that way.
-bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
-                            std::string_view from);
+auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
+                            std::string_view from) -> bool;
 
 /// The answer to `/urlrepl enable` or `/urlrepl disable`.
-[[nodiscard]] std::string render_switch(bool changed, bool enabled, std::size_t rule_count);
+[[nodiscard]] auto render_switch(bool changed, bool enabled, std::size_t rule_count) -> std::string;
 
 /// "fxtwitter.com/en, vxtwitter.com": the mirrors as they are typed.
-[[nodiscard]] std::string describe_mirrors(std::span<const events::mirror> mirrors);
+[[nodiscard]] auto describe_mirrors(std::span<const events::mirror> mirrors) -> std::string;
 
 /// One line of the list: "**x.com** → fxtwitter.com/en, vxtwitter.com".
-[[nodiscard]] std::string describe(const events::url_rule& rule);
+[[nodiscard]] auto describe(const events::url_rule& rule) -> std::string;
 
 /// A rule from what somebody typed, or why it cannot be one.
 ///
@@ -66,24 +66,25 @@ bool switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 /// by commas or spaces, which is what fits in a slash command. Their order is
 /// the order they are tried in. A mirror that is the site itself would
 /// "replace" a link with the same link, so it is refused.
-[[nodiscard]] std::variant<events::url_rule, std::string> build_rule(std::string_view domain, std::string_view mirrors);
+[[nodiscard]] auto build_rule(std::string_view domain, std::string_view mirrors) -> std::variant<events::url_rule, std::string>;
 
 /// The dry run behind `/urlrepl test`: what would be posted for `content`,
 /// and what happened to every link in it (plan §9.5). It works while
 /// replacement is off, so rules can be tried before anyone sees them, and
 /// says so when it is.
-[[nodiscard]] std::string render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled);
+[[nodiscard]] auto render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled)
+    -> std::string;
 
 /// One page of `/urlrepl list`.
-[[nodiscard]] dpp::message render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page);
+[[nodiscard]] auto render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page) -> dpp::message;
 
 /// The panel at `page`. `selected` is the domain the select menu points at,
 /// empty for none; `confirming_delete` swaps Edit/Delete for a confirmation.
-[[nodiscard]] dpp::message render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page,
-                                            std::string_view selected = {}, bool confirming_delete = false);
+[[nodiscard]] auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page, std::string_view selected = {},
+                                    bool confirming_delete = false) -> dpp::message;
 
 /// The add or edit modal. `rule` is null for add.
-[[nodiscard]] dpp::interaction_modal_response url_rule_form(int page, const events::url_rule* rule);
+[[nodiscard]] auto url_rule_form(int page, const events::url_rule* rule) -> dpp::interaction_modal_response;
 
 /// `/urlrepl enable | disable | list | set | remove | test | panel` (plan
 /// §9.5).
@@ -91,19 +92,19 @@ class urlrepl_command final : public command {
 public:
     explicit urlrepl_command(events::url_rule_store& store);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
     /// Domains that already have a rule, so nobody has to remember how they
     /// spelled one.
-    void autocomplete(const dpp::autocomplete_t& event) const override;
+    auto autocomplete(const dpp::autocomplete_t& event) const -> void override;
 
 private:
-    dpp::task<void> turn(const dpp::slashcommand_t& event, bool enabled);
-    dpp::task<void> set(const dpp::slashcommand_t& event);
-    dpp::task<void> remove(const dpp::slashcommand_t& event);
-    dpp::task<void> test(const dpp::slashcommand_t& event);
+    auto turn(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void>;
+    auto set(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto remove(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto test(const dpp::slashcommand_t& event) -> dpp::task<void>;
 
     command_info info_;
     events::url_rule_store* store_;
@@ -116,7 +117,8 @@ private:
 /// the permission that manages the rules, which the Java `/toggle` did not
 /// ask for at all. Discord cannot check this for us: everyone may run
 /// `/urltoggle`, and the difference is in an option (plan §21.13).
-[[nodiscard]] std::optional<std::string> urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions);
+[[nodiscard]] auto urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions)
+    -> std::optional<std::string>;
 
 /// `/urltoggle [user]`: leave somebody's links alone, or stop doing so.
 ///
@@ -126,9 +128,9 @@ class urltoggle_command final : public command {
 public:
     explicit urltoggle_command(events::url_rule_store& store);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;

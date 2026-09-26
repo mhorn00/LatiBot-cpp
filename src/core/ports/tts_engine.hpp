@@ -26,7 +26,7 @@ struct pcm_audio {
     std::uint32_t sample_rate = 11025;
     std::uint8_t channels = 1;
 
-    [[nodiscard]] std::chrono::milliseconds duration() const {
+    [[nodiscard]] auto duration() const -> std::chrono::milliseconds {
         if (sample_rate == 0 || channels == 0) {
             return std::chrono::milliseconds{0};
         }
@@ -45,13 +45,13 @@ public:
 
     tts_engine() = default;
     tts_engine(const tts_engine&) = delete;
-    tts_engine& operator=(const tts_engine&) = delete;
+    auto operator=(const tts_engine&) -> tts_engine& = delete;
 
     /// `text` must already have been through the sanitizer (plan §12.5).
-    virtual dpp::task<result<pcm_audio>> synthesize(std::string text, voice_settings settings) = 0;
+    virtual auto synthesize(std::string text, voice_settings settings) -> dpp::task<result<pcm_audio>> = 0;
 
     /// Abandons the current utterance and anything queued.
-    virtual void stop() = 0;
+    virtual auto stop() -> void = 0;
 };
 
 } // namespace latibot::ports

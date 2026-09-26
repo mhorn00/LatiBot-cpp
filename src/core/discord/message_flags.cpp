@@ -7,12 +7,12 @@
 
 namespace latibot::discord {
 
-dpp::message& apply_flags(dpp::message& message, message_flags wanted, message_flags choosable) {
+auto apply_flags(dpp::message& message, message_flags wanted, message_flags choosable) -> dpp::message& {
     message.flags = static_cast<message_flags>((message.flags & ~choosable) | (wanted & choosable));
     return message;
 }
 
-std::string describe_flags(message_flags flags) {
+auto describe_flags(message_flags flags) -> std::string {
     static constexpr std::array<std::pair<message_flags, std::string_view>, 3> names{{
         {dpp::m_ephemeral, "ephemeral"},
         {dpp::m_suppress_notifications, "silent"},

@@ -15,7 +15,7 @@ namespace latibot::commands {
 /// an interaction. `known` names the bots that are still in the guild; ones
 /// that are not are listed by id, because a bot that left is still listed and
 /// saying so beats showing a bare number with no explanation.
-[[nodiscard]] std::string render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known);
+[[nodiscard]] auto render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known) -> std::string;
 
 /// `/bots allow | deny | list` (plan §5.4, §14.4).
 ///
@@ -25,14 +25,14 @@ class bots_command final : public command {
 public:
     explicit bots_command(events::bot_allowlist& allowlist);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
-    dpp::task<void> allow(const dpp::slashcommand_t& event);
-    dpp::task<void> deny(const dpp::slashcommand_t& event);
-    dpp::task<void> list(const dpp::slashcommand_t& event);
+    auto allow(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto deny(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto list(const dpp::slashcommand_t& event) -> dpp::task<void>;
 
     command_info info_;
     events::bot_allowlist* allowlist_;

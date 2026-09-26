@@ -17,21 +17,21 @@ public:
 
     clock() = default;
     clock(const clock&) = delete;
-    clock& operator=(const clock&) = delete;
+    auto operator=(const clock&) -> clock& = delete;
 
     /// Wall-clock time. Use for anything stored or compared against a date.
-    [[nodiscard]] virtual std::chrono::system_clock::time_point now() const = 0;
+    [[nodiscard]] virtual auto now() const -> std::chrono::system_clock::time_point = 0;
 
     /// Monotonic time. Use for durations and cooldowns: unlike `now()`, it
     /// does not jump when the machine's clock is corrected.
-    [[nodiscard]] virtual std::chrono::steady_clock::time_point steady_now() const = 0;
+    [[nodiscard]] virtual auto steady_now() const -> std::chrono::steady_clock::time_point = 0;
 };
 
 /// The real clock.
 class system_clock final : public clock {
 public:
-    [[nodiscard]] std::chrono::system_clock::time_point now() const override;
-    [[nodiscard]] std::chrono::steady_clock::time_point steady_now() const override;
+    [[nodiscard]] auto now() const -> std::chrono::system_clock::time_point override;
+    [[nodiscard]] auto steady_now() const -> std::chrono::steady_clock::time_point override;
 };
 
 } // namespace latibot::ports

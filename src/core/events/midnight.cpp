@@ -15,7 +15,7 @@ namespace {
 /// Every column of an entry, in the order `read_row` expects.
 constexpr std::string_view row_columns = "id, guild_id, channel_id, timezone, message, enabled, last_fired_date, message_flags";
 
-midnight_entry read_row(const db::statement& row) {
+auto read_row(const db::statement& row) -> midnight_entry {
     midnight_entry entry;
     entry.id = row.get<std::int64_t>(0);
     entry.guild_id = row.get<dpp::snowflake>(1);
@@ -30,7 +30,7 @@ midnight_entry read_row(const db::statement& row) {
 
 } // namespace
 
-std::optional<local_reading> read_local(std::string_view timezone, std::chrono::system_clock::time_point now) {
+auto read_local(std::string_view timezone, std::chrono::system_clock::time_point now) -> std::optional<local_reading> {
     const std::chrono::time_zone* zone = nullptr;
     try {
         zone = std::chrono::locate_zone(timezone);
@@ -45,7 +45,7 @@ std::optional<local_reading> read_local(std::string_view timezone, std::chrono::
                          .since_midnight = std::chrono::duration_cast<std::chrono::seconds>(local - midnight)};
 }
 
-midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now) {
+auto verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> midnight_verdict {
     if (!entry.enabled) {
         return midnight_verdict::wait;
     }
@@ -73,12 +73,12 @@ midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_cl
     return local->since_midnight <= midnight_window ? midnight_verdict::post : midnight_verdict::missed;
 }
 
-std::string already_posted_today(std::string_view timezone, std::chrono::system_clock::time_point now) {
+auto already_posted_today(std::string_view timezone, std::chrono::system_clock::time_point now) -> std::string {
     const auto local = read_local(timezone, now);
     return local ? local->date : std::string{};
 }
 
-bool is_known_timezone(std::string_view name) {
+auto is_known_timezone(std::string_view name) -> bool {
     try {
         return std::chrono::locate_zone(name) != nullptr;
     } catch (const std::exception&) {
@@ -86,7 +86,7 @@ bool is_known_timezone(std::string_view name) {
     }
 }
 
-std::vector<std::string> matching_timezones(std::string_view typed, std::size_t limit) {
+auto matching_timezones(std::string_view typed, std::size_t limit) -> std::vector<std::string> {
     std::vector<std::string> found;
     if (limit == 0) {
         return found;
@@ -117,7 +117,7 @@ std::vector<std::string> matching_timezones(std::string_view typed, std::size_t 
 
 // --------------------------------------------------------------------------
 
-std::vector<midnight_entry> midnight_store::for_guild(dpp::snowflake guild_id) const {
+auto midnight_store::for_guild(dpp::snowflake guild_id) const -> std::vector<midnight_entry> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE guild_id = ? ORDER BY id", row_columns), guild_id);
@@ -129,7 +129,7 @@ std::vector<midnight_entry> midnight_store::for_guild(dpp::snowflake guild_id) c
     return found;
 }
 
-std::vector<midnight_entry> midnight_store::enabled() const {
+auto midnight_store::enabled() const -> std::vector<midnight_entry> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE enabled != 0 ORDER BY id", row_columns));
@@ -141,7 +141,7 @@ std::vector<midnight_entry> midnight_store::enabled() const {
     return found;
 }
 
-std::optional<midnight_entry> midnight_store::find(std::int64_t id, dpp::snowflake guild_id) const {
+auto midnight_store::find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<midnight_entry> {
     const auto guard = db_->lock();
 
     auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE id = ? AND guild_id = ?", row_columns), id, guild_id);
@@ -149,7 +149,7 @@ std::optional<midnight_entry> midnight_store::find(std::int64_t id, dpp::snowfla
     return query.step() ? std::optional(read_row(query)) : std::nullopt;
 }
 
-std::int64_t midnight_store::add(const midnight_entry& entry) {
+auto midnight_store::add(const midnight_entry& entry) -> std::int64_t {
     const auto guard = db_->lock();
 
     db_->prepare(
@@ -163,7 +163,7 @@ std::int64_t midnight_store::add(const midnight_entry& entry) {
     return db_->last_insert_rowid();
 }
 
-bool midnight_store::update(const midnight_entry& entry) {
+auto midnight_store::update(const midnight_entry& entry) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare(
@@ -176,14 +176,14 @@ bool midnight_store::update(const midnight_entry& entry) {
     return db_->changes() > 0;
 }
 
-bool midnight_store::remove(std::int64_t id, dpp::snowflake guild_id) {
+auto midnight_store::remove(std::int64_t id, dpp::snowflake guild_id) -> bool {
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM midnight_messages WHERE id = ? AND guild_id = ?", id, guild_id).run();
     return db_->changes() > 0;
 }
 
-bool midnight_store::mark_fired(std::int64_t id, std::string_view date) {
+auto midnight_store::mark_fired(std::int64_t id, std::string_view date) -> bool {
     const auto guard = db_->lock();
 
     // The date is part of the condition, so claiming a day is one statement
@@ -199,7 +199,7 @@ bool midnight_store::mark_fired(std::int64_t id, std::string_view date) {
 
 // --------------------------------------------------------------------------
 
-void midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now) {
+auto midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> void {
     const auto local = read_local(entry.timezone, now);
     if (!local) {
         return;
@@ -217,7 +217,7 @@ void midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::s
                      local->date, entry.timezone, std::format("{:%H:%M}", local->since_midnight));
 }
 
-std::vector<action> midnight_scheduler::tick() {
+auto midnight_scheduler::tick() -> std::vector<action> {
     const auto now = clock_->now();
 
     // Every enabled entry, every tick: `verdict_for` decides from the entry's

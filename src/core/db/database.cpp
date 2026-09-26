@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 /// For the transaction destructor, which must not throw even while logging.
-void log_failed_rollback(const char* why) noexcept {
+auto log_failed_rollback(const char* why) noexcept -> void {
     try {
         util::log().error("could not roll back a transaction, so later writes will fail: {}", why);
     } catch (...) { // NOLINT(bugprone-empty-catch)
@@ -21,7 +21,7 @@ void log_failed_rollback(const char* why) noexcept {
     }
 }
 
-std::string describe(sqlite3* handle, int result_code, const char* context) {
+auto describe(sqlite3* handle, int result_code, const char* context) -> std::string {
     std::string message = context;
     message += ": ";
     if (handle != nullptr) {
@@ -60,7 +60,7 @@ database::~database() {
     sqlite3_close(handle_);
 }
 
-void database::configure() {
+auto database::configure() -> void {
     // WAL keeps readers from blocking writers. It is a no-op for in-memory
     // databases, which SQLite reports as "memory"; that is not an error.
     execute("PRAGMA journal_mode = WAL");
@@ -69,13 +69,13 @@ void database::configure() {
     execute("PRAGMA busy_timeout = 5000");
 }
 
-void database::check(int result_code, const char* context) const {
+auto database::check(int result_code, const char* context) const -> void {
     if (result_code != SQLITE_OK) {
         throw db_error(result_code, describe(handle_, result_code, context));
     }
 }
 
-void database::execute(std::string_view sql) {
+auto database::execute(std::string_view sql) -> void {
     const std::unique_lock guard(mutex_);
 
     char* error_message = nullptr;
@@ -90,7 +90,7 @@ void database::execute(std::string_view sql) {
     sqlite3_free(error_message);
 }
 
-statement database::prepare(std::string_view sql) {
+auto database::prepare(std::string_view sql) -> statement {
     std::unique_lock guard(mutex_);
 
     sqlite3_stmt* stmt = nullptr;
@@ -102,17 +102,17 @@ statement database::prepare(std::string_view sql) {
     return statement(*this, stmt, std::move(guard));
 }
 
-std::int64_t database::last_insert_rowid() {
+auto database::last_insert_rowid() -> std::int64_t {
     const std::unique_lock guard(mutex_);
     return sqlite3_last_insert_rowid(handle_);
 }
 
-int database::changes() {
+auto database::changes() -> int {
     const std::unique_lock guard(mutex_);
     return sqlite3_changes(handle_);
 }
 
-int database::user_version() {
+auto database::user_version() -> int {
     statement stmt = prepare("PRAGMA user_version");
     if (!stmt.step()) {
         throw db_error(SQLITE_ERROR, "PRAGMA user_version returned no row");
@@ -120,7 +120,7 @@ int database::user_version() {
     return stmt.get<int>(0);
 }
 
-void database::set_user_version(int version) {
+auto database::set_user_version(int version) -> void {
     // PRAGMA does not take bound parameters, so the value is formatted in.
     // It is an int, so there is nothing to inject.
     execute("PRAGMA user_version = " + std::to_string(version));
@@ -148,12 +148,12 @@ transaction::~transaction() {
     }
 }
 
-void transaction::commit() {
+auto transaction::commit() -> void {
     db_->execute("COMMIT");
     finished_ = true;
 }
 
-void transaction::rollback() {
+auto transaction::rollback() -> void {
     db_->execute("ROLLBACK");
     finished_ = true;
 }

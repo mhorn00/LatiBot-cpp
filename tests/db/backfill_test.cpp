@@ -37,11 +37,11 @@ constexpr dpp::snowflake carol{13};
 const std::chrono::sys_seconds day_one{std::chrono::sys_days{std::chrono::year{2025} / 3 / 1}};
 
 /// An id for a message posted `later` after day one.
-dpp::snowflake id_at(std::chrono::seconds later) {
+auto id_at(std::chrono::seconds later) -> dpp::snowflake {
     return first_id_at(day_one + later);
 }
 
-dpp::message message(dpp::snowflake id, dpp::snowflake author, const std::string& content, bool is_bot = false) {
+auto message(dpp::snowflake id, dpp::snowflake author, const std::string& content, bool is_bot = false) -> dpp::message {
     dpp::message made(channel, content);
     made.id = id;
     made.author.id = author;
@@ -51,7 +51,7 @@ dpp::message message(dpp::snowflake id, dpp::snowflake author, const std::string
     return made;
 }
 
-dpp::reaction reaction(std::string name, std::uint32_t count, dpp::snowflake emoji_id = {}) {
+auto reaction(std::string name, std::uint32_t count, dpp::snowflake emoji_id = {}) -> dpp::reaction {
     dpp::reaction made;
     made.emoji_name = std::move(name);
     made.emoji_id = emoji_id;
@@ -60,7 +60,7 @@ dpp::reaction reaction(std::string name, std::uint32_t count, dpp::snowflake emo
 }
 
 /// A channel's history, newest first, as Discord pages it.
-std::vector<dpp::message> history() {
+auto history() -> std::vector<dpp::message> {
     dpp::message replacement = message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true);
     replacement.reactions = {reaction("💀", 2), reaction("skull", 1, dpp::snowflake{7001})};
 
@@ -71,7 +71,7 @@ std::vector<dpp::message> history() {
     };
 }
 
-backfill_request request(bool fresh = false) {
+auto request(bool fresh = false) -> backfill_request {
     return {.guild_id = guild, .channel_ids = {channel}, .since = day_one - 24h, .until = std::nullopt, .bot_id = bot, .fresh = fresh};
 }
 
@@ -93,13 +93,13 @@ struct fixture {
     }
 
     /// Scripts one pass over `history()`: the page, then who reacted.
-    void script_history() {
+    auto script_history() -> void {
         discord.message_pages.emplace_back(history());
         discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob, carol});
         discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{alice});
     }
 
-    backfill_report run(backfill_request wanted) { return *service.run(std::move(wanted)).sync_wait_for(2s); }
+    auto run(backfill_request wanted) -> backfill_report { return *service.run(std::move(wanted)).sync_wait_for(2s); }
 };
 
 } // namespace

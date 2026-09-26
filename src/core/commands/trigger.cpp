@@ -29,7 +29,7 @@ constexpr std::uint32_t responses_length_limit = 2000;
 constexpr std::size_t select_option_limit = 100;
 
 /// Splits a leading "<weight> |" off a response line.
-std::optional<int> leading_weight(std::string_view& line) {
+auto leading_weight(std::string_view& line) -> std::optional<int> {
     const std::size_t bar = line.find('|');
     if (bar == std::string_view::npos) {
         return std::nullopt;
@@ -54,7 +54,7 @@ std::optional<int> leading_weight(std::string_view& line) {
 
 } // namespace
 
-std::vector<events::weighted_response> parse_responses(std::string_view text) {
+auto parse_responses(std::string_view text) -> std::vector<events::weighted_response> {
     std::vector<events::weighted_response> responses;
 
     for (std::string_view line : util::lines(text)) {
@@ -70,7 +70,7 @@ std::vector<events::weighted_response> parse_responses(std::string_view text) {
     return responses;
 }
 
-std::string format_responses(std::span<const events::weighted_response> responses) {
+auto format_responses(std::span<const events::weighted_response> responses) -> std::string {
     std::string text;
     for (const events::weighted_response& option : responses) {
         if (!text.empty()) {
@@ -87,7 +87,7 @@ std::string format_responses(std::span<const events::weighted_response> response
     return text;
 }
 
-std::string describe(const events::trigger& entry) {
+auto describe(const events::trigger& entry) -> std::string {
     const std::string mode = entry.mode == events::match_mode::substring ? "anywhere" : "whole word";
     const std::string cooldown = entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s", entry.cooldown.count());
 
@@ -105,7 +105,7 @@ std::string describe(const events::trigger& entry) {
     return line;
 }
 
-dpp::message render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page) {
+auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page) -> dpp::message {
     const std::vector<events::trigger> all = store.for_guild(guild_id);
     const int current = ui::clamp_page(page, all.size(), triggers_per_page);
     const ui::page_range window = ui::range_for(current, all.size(), triggers_per_page);
@@ -143,7 +143,7 @@ trigger_command::trigger_command(events::trigger_store& store)
             .subcommand_responses = {}},
       store_(&store) {}
 
-dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto trigger_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone.", false);
@@ -189,7 +189,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
     return payload;
 }
 
-dpp::task<void> trigger_command::execute(const dpp::slashcommand_t& event) {
+auto trigger_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "add") {
@@ -207,7 +207,7 @@ dpp::task<void> trigger_command::execute(const dpp::slashcommand_t& event) {
     }
 }
 
-dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
+auto trigger_command::add(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string pattern = std::string(util::trim(string_option(event, "pattern")));
     if (pattern.empty()) {
         co_await event.co_reply(refusal(event, "a pattern of only whitespace would match everything"));
@@ -247,7 +247,7 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
                                                       responses.size() == 1 ? "" : "s")));
 }
 
-dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
+auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto id = int_option(event, "id");
     if (!id) {
         co_await event.co_reply(refusal(event, "which trigger? run `/trigger list` for the ids"));
@@ -299,7 +299,7 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("updated {}", describe(*entry))));
 }
 
-dpp::task<void> trigger_command::remove(const dpp::slashcommand_t& event) {
+auto trigger_command::remove(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const auto id = int_option(event, "id");
     if (!id) {
         co_await event.co_reply(refusal(event, "which trigger? run `/trigger list` for the ids"));
@@ -316,11 +316,11 @@ dpp::task<void> trigger_command::remove(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("removed trigger `{}`", *id)));
 }
 
-dpp::task<void> trigger_command::list(const dpp::slashcommand_t& event, int page) {
+auto trigger_command::list(const dpp::slashcommand_t& event, int page) -> dpp::task<void> {
     co_await event.co_reply(result(event, render_trigger_list(*store_, event.command.guild_id, page)));
 }
 
-dpp::task<void> trigger_command::panel(const dpp::slashcommand_t& event) {
+auto trigger_command::panel(const dpp::slashcommand_t& event) -> dpp::task<void> {
     co_await event.co_reply(result(event, render_trigger_panel(*store_, event.command.guild_id, 0)));
 }
 
@@ -328,7 +328,7 @@ dpp::task<void> trigger_command::panel(const dpp::slashcommand_t& event) {
 // The panel
 // --------------------------------------------------------------------------
 
-std::optional<std::string> apply_form(events::trigger& entry, const form_fields& fields) {
+auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optional<std::string> {
     const std::string_view pattern = util::trim(fields.pattern);
     if (pattern.empty()) {
         return "a pattern of only whitespace would match everything";
@@ -365,13 +365,13 @@ std::optional<std::string> apply_form(events::trigger& entry, const form_fields&
 
 namespace {
 
-dpp::component button(dpp::component_style style, std::string_view label, const std::string& id) {
+auto button(dpp::component_style style, std::string_view label, const std::string& id) -> dpp::component {
     return dpp::component().set_type(dpp::cot_button).set_style(style).set_label(std::string(label)).set_id(id);
 }
 
 /// The menu naming the triggers on this page, so its labels always match the
 /// lines above it.
-std::optional<dpp::component> pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t selected) {
+auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t selected) -> std::optional<dpp::component> {
     const auto id = ui::encode({.view = std::string(trigger_pick_view), .page = page, .argument = {}});
     if (page_of.empty() || !id) {
         return std::nullopt;
@@ -397,8 +397,8 @@ std::optional<dpp::component> pick_menu(std::span<const events::trigger> page_of
 ///
 /// Confirming happens in the panel itself rather than in a second message, so
 /// there is nothing left behind if it is ignored (plan §9.5).
-std::optional<dpp::component> selection_row(std::span<const events::trigger> page_of, int page, std::int64_t selected,
-                                            bool confirming_delete) {
+auto selection_row(std::span<const events::trigger> page_of, int page, std::int64_t selected, bool confirming_delete)
+    -> std::optional<dpp::component> {
     if (selected == 0) {
         return std::nullopt;
     }
@@ -445,7 +445,7 @@ std::optional<dpp::component> selection_row(std::span<const events::trigger> pag
     return row;
 }
 
-discord::message_flags flipped(discord::message_flags flags, discord::message_flags bit) {
+auto flipped(discord::message_flags flags, discord::message_flags bit) -> discord::message_flags {
     return static_cast<discord::message_flags>(flags ^ bit);
 }
 
@@ -476,8 +476,8 @@ constexpr std::array<std::pair<std::string_view, trigger_toggle>, 4> toggles{{
 /// How the selected trigger's replies are posted: silent or not, previews or
 /// not. A row of its own, since the selection row already has four buttons
 /// and a row takes five.
-std::optional<dpp::component> reply_options_row(std::span<const events::trigger> page_of, int page, std::int64_t selected,
-                                                bool confirming_delete) {
+auto reply_options_row(std::span<const events::trigger> page_of, int page, std::int64_t selected, bool confirming_delete)
+    -> std::optional<dpp::component> {
     const auto found = std::ranges::find(page_of, selected, &events::trigger::id);
     if (selected == 0 || confirming_delete || found == page_of.end()) {
         return std::nullopt;
@@ -504,7 +504,7 @@ std::optional<dpp::component> reply_options_row(std::span<const events::trigger>
 ///
 /// They share a row because a message has five at most, and the select menu,
 /// the selection row and the reply options already take three.
-std::optional<dpp::component> footer_row(int page, std::size_t total) {
+auto footer_row(int page, std::size_t total) -> std::optional<dpp::component> {
     dpp::component row;
     row.set_type(dpp::cot_action_row);
 
@@ -523,13 +523,13 @@ std::optional<dpp::component> footer_row(int page, std::size_t total) {
 
 } // namespace
 
-trigger_toggle toggle_for(std::string_view view) {
+auto toggle_for(std::string_view view) -> trigger_toggle {
     const auto found = std::ranges::find(toggles, view, &std::pair<std::string_view, trigger_toggle>::first);
     return found == toggles.end() ? nullptr : found->second;
 }
 
-dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected,
-                                  bool confirming_delete) {
+auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected,
+                          bool confirming_delete) -> dpp::message {
     const std::vector<events::trigger> all = store.for_guild(guild_id);
     const int current = ui::clamp_page(page, all.size(), triggers_per_page);
     const ui::page_range window = ui::range_for(current, all.size(), triggers_per_page);
@@ -564,7 +564,7 @@ dpp::message render_trigger_panel(const events::trigger_store& store, dpp::snowf
     return reply;
 }
 
-dpp::interaction_modal_response trigger_form(int page, const events::trigger* entry) {
+auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_modal_response {
     const std::string id = entry == nullptr ? "0" : std::to_string(entry->id);
     const auto custom_id = ui::encode({.view = std::string(trigger_form_view), .page = page, .argument = id});
 

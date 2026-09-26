@@ -46,7 +46,7 @@ struct text_span {
 /// closes, which covers `inline`, ``double`` and ```blocks``` with one rule.
 /// A run that is never closed is literal text. Inside them Discord shows
 /// links and spoiler markers as plain text.
-[[nodiscard]] std::vector<text_span> code_spans(std::string_view text);
+[[nodiscard]] auto code_spans(std::string_view text) -> std::vector<text_span>;
 
 /// Every http(s) link in `text`, in order.
 ///
@@ -58,7 +58,7 @@ struct text_span {
 ///
 /// Built on CTRE, which compiles the pattern into ordinary code: no recursion,
 /// no allocation while matching, and nothing to overflow on a long message.
-[[nodiscard]] std::vector<found_link> find_links(std::string_view text);
+[[nodiscard]] auto find_links(std::string_view text) -> std::vector<found_link>;
 
 /// A URL taken apart. Every part points into the original text.
 struct url_parts {
@@ -79,12 +79,12 @@ struct url_parts {
 };
 
 /// Nothing when `url` is not an http(s) URL with a host.
-[[nodiscard]] std::optional<url_parts> split_url(std::string_view url);
+[[nodiscard]] auto split_url(std::string_view url) -> std::optional<url_parts>;
 
 /// The host a URL rule is looked up by: lowercased, without credentials, port,
 /// or a leading "www.". "https://WWW.X.com:443/a" and "https://x.com/a" are
 /// the same site, and a rule written once should catch both.
-[[nodiscard]] std::string rule_host(std::string_view authority);
+[[nodiscard]] auto rule_host(std::string_view authority) -> std::string;
 
 /// The URL again, on `host`, with `path_suffix` appended to the path.
 ///
@@ -93,10 +93,10 @@ struct url_parts {
 /// '/' does not become "//en", and a path that already ends in the suffix does
 /// not get it twice. The scheme is always https: every mirror worth using
 /// serves it.
-[[nodiscard]] std::string rehost(const url_parts& parts, std::string_view host, std::string_view path_suffix = {});
+[[nodiscard]] auto rehost(const url_parts& parts, std::string_view host, std::string_view path_suffix = {}) -> std::string;
 
 /// The path compared when deciding whether two links point at the same thing:
 /// no trailing slash, so ".../status/1" and ".../status/1/" agree.
-[[nodiscard]] std::string_view comparable_path(std::string_view path) noexcept;
+[[nodiscard]] auto comparable_path(std::string_view path) noexcept -> std::string_view;
 
 } // namespace latibot::util

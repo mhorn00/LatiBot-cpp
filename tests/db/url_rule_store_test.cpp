@@ -25,7 +25,7 @@ struct store_fixture {
     store_fixture() { latibot::db::migrate(db); }
 };
 
-url_rule x_rule() {
+auto x_rule() -> url_rule {
     return {.domain = "x.com",
             .mirrors = {{.host = "fxtwitter.com", .translate_suffix = "/en"}, {.host = "vxtwitter.com", .translate_suffix = ""}}};
 }

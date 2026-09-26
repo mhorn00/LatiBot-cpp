@@ -25,7 +25,7 @@ public:
     std::vector<std::pair<std::string, ports::voice_settings>> requests;
     int stop_count = 0;
 
-    dpp::task<ports::result<ports::pcm_audio>> synthesize(std::string text, ports::voice_settings settings) override {
+    auto synthesize(std::string text, ports::voice_settings settings) -> dpp::task<ports::result<ports::pcm_audio>> override {
         requests.emplace_back(text, settings);
 
         if (next_error) {
@@ -48,7 +48,7 @@ public:
         co_return audio;
     }
 
-    void stop() override { ++stop_count; }
+    auto stop() -> void override { ++stop_count; }
 };
 
 } // namespace latibot::testing

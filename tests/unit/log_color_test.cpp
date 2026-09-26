@@ -25,7 +25,7 @@ namespace {
 
 /// `text` as it looks in `style`, built from the palette rather than written
 /// out, so changing a colour does not break a test about the mechanism.
-std::string in(text_style style, std::string_view text) {
+auto in(text_style style, std::string_view text) -> std::string {
     return std::format("\x1b[{}m{}\x1b[0m", style.sgr, text);
 }
 
@@ -36,7 +36,7 @@ public:
     ~colors_on() { latibot::util::log().set_colors(false); }
 
     colors_on(const colors_on&) = delete;
-    colors_on& operator=(const colors_on&) = delete;
+    auto operator=(const colors_on&) -> colors_on& = delete;
 };
 
 } // namespace

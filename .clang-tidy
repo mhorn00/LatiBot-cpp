@@ -7,7 +7,6 @@
 # Why the disabled checks are disabled:
 #   misc-include-cleaner            unusable against the MSVC standard headers
 #   modernize-return-braced-...     "return {a, b};" hides the returned type
-#   modernize-use-trailing-...      we write leading return types
 #   readability-braces-around-...   .clang-format allows a short if on one
 #                                    line (AllowShortIfStatementsOnASingleLine:
 #                                    WithoutElse); this is the matching tidy
@@ -28,10 +27,15 @@ Checks: >
   -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -modernize-return-braced-init-list,
-  -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
   -readability-identifier-length,
   -readability-magic-numbers
+
+# Functions are written "auto name(...) -> type", void ones included, though
+# this check does not flag a void return, so those are kept by hand. A
+# lambda's return type is left to deduction unless it needs saying.
+CheckOptions:
+  modernize-use-trailing-return-type.TransformLambdas: none
 
 HeaderFilterRegex: '.*[\\/](src|tests)[\\/].*'
 WarningsAsErrors: ''

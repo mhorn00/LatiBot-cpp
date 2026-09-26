@@ -16,7 +16,7 @@ namespace {
 /// exclamation marks make no difference. Bytes above 127 are kept as part of
 /// a word rather than dropped, so a message with an emoji in it is not the
 /// phrase: this stops the bot, and near enough is not good enough.
-std::string words_of(std::string_view text) {
+auto words_of(std::string_view text) -> std::string {
     std::string normalized;
     normalized.reserve(text.size());
 
@@ -41,7 +41,7 @@ std::string words_of(std::string_view text) {
 
 } // namespace
 
-bool is_goodbye(std::string_view content, std::string_view phrase) {
+auto is_goodbye(std::string_view content, std::string_view phrase) -> bool {
     const std::string wanted = words_of(phrase);
     if (wanted.empty()) {
         return false;
@@ -49,7 +49,7 @@ bool is_goodbye(std::string_view content, std::string_view phrase) {
     return words_of(content) == wanted;
 }
 
-pipeline::stage_fn goodbye_stage(const config::guild_settings& settings) {
+auto goodbye_stage(const config::guild_settings& settings) -> pipeline::stage_fn {
     return [&settings](const incoming_message& message) -> stage_result {
         const std::string phrase = settings.get(message.guild_id, goodbye_phrase_key, default_goodbye_phrase);
         if (!is_goodbye(message.content, phrase)) {

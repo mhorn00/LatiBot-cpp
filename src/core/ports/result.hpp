@@ -31,17 +31,17 @@ public:
     result(T value) : data_(std::move(value)) {}         // NOLINT(google-explicit-constructor)
     result(api_error error) : data_(std::move(error)) {} // NOLINT(google-explicit-constructor)
 
-    [[nodiscard]] bool ok() const noexcept { return std::holds_alternative<T>(data_); }
+    [[nodiscard]] auto ok() const noexcept -> bool { return std::holds_alternative<T>(data_); }
     explicit operator bool() const noexcept { return ok(); }
 
     /// Throws std::bad_variant_access when the result holds an error.
-    [[nodiscard]] const T& value() const { return std::get<T>(data_); }
-    [[nodiscard]] T& value() { return std::get<T>(data_); }
+    [[nodiscard]] auto value() const -> const T& { return std::get<T>(data_); }
+    [[nodiscard]] auto value() -> T& { return std::get<T>(data_); }
 
-    [[nodiscard]] T value_or(T fallback) const { return ok() ? value() : std::move(fallback); }
+    [[nodiscard]] auto value_or(T fallback) const -> T { return ok() ? value() : std::move(fallback); }
 
     /// Throws std::bad_variant_access when the result holds a value.
-    [[nodiscard]] const api_error& error() const { return std::get<api_error>(data_); }
+    [[nodiscard]] auto error() const -> const api_error& { return std::get<api_error>(data_); }
 
 private:
     std::variant<T, api_error> data_;
@@ -55,10 +55,10 @@ public:
     result(api_error error) // NOLINT(google-explicit-constructor)
         : error_(std::move(error)), ok_(false) {}
 
-    [[nodiscard]] bool ok() const noexcept { return ok_; }
+    [[nodiscard]] auto ok() const noexcept -> bool { return ok_; }
     explicit operator bool() const noexcept { return ok_; }
 
-    [[nodiscard]] const api_error& error() const { return error_; }
+    [[nodiscard]] auto error() const -> const api_error& { return error_; }
 
 private:
     api_error error_;

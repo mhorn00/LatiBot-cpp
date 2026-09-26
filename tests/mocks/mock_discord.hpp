@@ -57,7 +57,7 @@ public:
     std::map<dpp::snowflake, dpp::message> stored_messages;
     std::map<dpp::snowflake, ports::api_error> message_errors;
 
-    dpp::task<ports::result<dpp::message>> send_message(dpp::message message) override {
+    auto send_message(dpp::message message) -> dpp::task<ports::result<dpp::message>> override {
         sent.push_back(message);
         if (!send_results.empty()) {
             auto scripted = std::move(send_results.front());
@@ -68,7 +68,7 @@ public:
         co_return message;
     }
 
-    dpp::task<ports::result<dpp::message>> edit_message(dpp::message message) override {
+    auto edit_message(dpp::message message) -> dpp::task<ports::result<dpp::message>> override {
         edited.push_back(message);
         if (!edit_results.empty()) {
             auto scripted = std::move(edit_results.front());
@@ -78,7 +78,7 @@ public:
         co_return message;
     }
 
-    dpp::task<ports::result<void>> delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) override {
+    auto delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) -> dpp::task<ports::result<void>> override {
         deleted.emplace_back(channel_id, message_id);
         if (!delete_results.empty()) {
             auto scripted = std::move(delete_results.front());
@@ -88,7 +88,8 @@ public:
         co_return ports::result<void>{};
     }
 
-    dpp::task<ports::result<void>> set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed) override {
+    auto set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed)
+        -> dpp::task<ports::result<void>> override {
         suppressions.push_back({.channel_id = channel_id, .message_id = message_id, .suppressed = suppressed});
         if (!suppress_results.empty()) {
             auto scripted = std::move(suppress_results.front());
@@ -98,7 +99,7 @@ public:
         co_return ports::result<void>{};
     }
 
-    dpp::task<ports::result<dpp::message>> get_message(dpp::snowflake /*channel_id*/, dpp::snowflake message_id) override {
+    auto get_message(dpp::snowflake /*channel_id*/, dpp::snowflake message_id) -> dpp::task<ports::result<dpp::message>> override {
         if (const auto failing = message_errors.find(message_id); failing != message_errors.end()) {
             co_return failing->second;
         }
@@ -109,8 +110,8 @@ public:
         co_return found->second;
     }
 
-    dpp::task<ports::result<std::vector<dpp::message>>> get_messages(dpp::snowflake channel_id, dpp::snowflake before,
-                                                                     std::uint64_t limit) override {
+    auto get_messages(dpp::snowflake channel_id, dpp::snowflake before, std::uint64_t limit)
+        -> dpp::task<ports::result<std::vector<dpp::message>>> override {
         history_requests.push_back({.channel_id = channel_id, .before = before, .limit = limit});
         if (!message_pages.empty()) {
             auto scripted = std::move(message_pages.front());
@@ -122,9 +123,8 @@ public:
         co_return std::vector<dpp::message>{};
     }
 
-    dpp::task<ports::result<std::vector<dpp::snowflake>>> get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake message_id,
-                                                                             std::string emoji, dpp::snowflake after,
-                                                                             std::uint64_t /*limit*/) override {
+    auto get_reaction_users(dpp::snowflake /*channel_id*/, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
+                            std::uint64_t /*limit*/) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override {
         reaction_requests.push_back({.message_id = message_id, .emoji = emoji, .after = after});
         if (!reaction_pages.empty()) {
             auto scripted = std::move(reaction_pages.front());
@@ -135,7 +135,7 @@ public:
     }
 
 private:
-    dpp::snowflake next_id() { return dpp::snowflake{++last_id_}; }
+    auto next_id() -> dpp::snowflake { return dpp::snowflake{++last_id_}; }
 
     std::uint64_t last_id_ = 1000;
 };

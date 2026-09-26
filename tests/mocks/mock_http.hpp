@@ -20,11 +20,15 @@ public:
     /// Handed out in order, one per call.
     std::deque<ports::result<ports::http_response>> responses;
 
-    void queue(int status, std::string body) { responses.emplace_back(ports::http_response{.status = status, .body = std::move(body)}); }
+    auto queue(int status, std::string body) -> void {
+        responses.emplace_back(ports::http_response{.status = status, .body = std::move(body)});
+    }
 
-    void queue_error(std::string message) { responses.emplace_back(ports::api_error{.http_status = 0, .message = std::move(message)}); }
+    auto queue_error(std::string message) -> void {
+        responses.emplace_back(ports::api_error{.http_status = 0, .message = std::move(message)});
+    }
 
-    dpp::task<ports::result<ports::http_response>> send(ports::http_request request) override {
+    auto send(ports::http_request request) -> dpp::task<ports::result<ports::http_response>> override {
         requests.push_back(std::move(request));
 
         if (responses.empty()) {

@@ -19,25 +19,25 @@ namespace {
 
 /// Word characters for the purposes of whole-word matching: what sits either
 /// side of "420" in "4200" but not in "it's 420 somewhere".
-bool is_word_character(char letter) {
+auto is_word_character(char letter) -> bool {
     const auto byte = static_cast<unsigned char>(letter);
     return byte == '_' || std::isalnum(byte) != 0;
 }
 
 /// A generator per responder, seeded once. Sharing one across guilds is fine:
 /// the only thing riding on it is which of several jokes gets picked.
-std::function<std::uint64_t()> default_roll() {
+auto default_roll() -> std::function<std::uint64_t()> {
     auto engine = std::make_shared<std::mt19937_64>(std::random_device{}());
     return [engine] { return (*engine)(); };
 }
 
 } // namespace
 
-std::string_view to_string(match_mode mode) noexcept {
+auto to_string(match_mode mode) noexcept -> std::string_view {
     return mode == match_mode::substring ? "substring" : "whole_word";
 }
 
-std::optional<match_mode> match_mode_from_string(std::string_view name) {
+auto match_mode_from_string(std::string_view name) -> std::optional<match_mode> {
     const std::string key = util::to_lower(name);
     if (key == "whole_word" || key == "word") {
         return match_mode::whole_word;
@@ -48,7 +48,7 @@ std::optional<match_mode> match_mode_from_string(std::string_view name) {
     return std::nullopt;
 }
 
-bool matches(std::string_view content, std::string_view pattern, match_mode mode) {
+auto matches(std::string_view content, std::string_view pattern, match_mode mode) -> bool {
     if (pattern.empty()) {
         return false;
     }
@@ -74,7 +74,7 @@ bool matches(std::string_view content, std::string_view pattern, match_mode mode
     return false;
 }
 
-const weighted_response* choose(std::span<const weighted_response> responses, std::uint64_t roll) {
+auto choose(std::span<const weighted_response> responses, std::uint64_t roll) -> const weighted_response* {
     std::uint64_t total = 0;
     for (const weighted_response& option : responses) {
         if (option.weight > 0) {
@@ -102,8 +102,8 @@ const weighted_response* choose(std::span<const weighted_response> responses, st
     return nullptr;
 }
 
-bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
-                  std::chrono::seconds cooldown) {
+auto off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
+                  std::chrono::seconds cooldown) -> bool {
     if (cooldown <= std::chrono::seconds::zero() || !last_fired) {
         return true;
     }
@@ -112,7 +112,7 @@ bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fire
 
 // --------------------------------------------------------------------------
 
-std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
+auto trigger_store::for_guild(dpp::snowflake guild_id) const -> std::vector<trigger> {
     const auto guard = db_->lock();
 
     std::vector<trigger> found;
@@ -153,7 +153,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
     return found;
 }
 
-std::optional<trigger> trigger_store::find(std::int64_t id, dpp::snowflake guild_id) const {
+auto trigger_store::find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<trigger> {
     for (trigger& entry : for_guild(guild_id)) {
         if (entry.id == id) {
             return std::move(entry);
@@ -162,7 +162,7 @@ std::optional<trigger> trigger_store::find(std::int64_t id, dpp::snowflake guild
     return std::nullopt;
 }
 
-void trigger_store::replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses) {
+auto trigger_store::replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses) -> void {
     db_->prepare("DELETE FROM trigger_responses WHERE trigger_id = ?", trigger_id).run();
     for (const weighted_response& option : responses) {
         db_->prepare("INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (?, ?, ?)", trigger_id, option.text,
@@ -171,7 +171,7 @@ void trigger_store::replace_responses(std::int64_t trigger_id, std::span<const w
     }
 }
 
-std::int64_t trigger_store::add(const trigger& entry) {
+auto trigger_store::add(const trigger& entry) -> std::int64_t {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
@@ -189,7 +189,7 @@ std::int64_t trigger_store::add(const trigger& entry) {
     return id;
 }
 
-bool trigger_store::update(const trigger& entry) {
+auto trigger_store::update(const trigger& entry) -> bool {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
@@ -209,7 +209,7 @@ bool trigger_store::update(const trigger& entry) {
     return true;
 }
 
-bool trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) {
+auto trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) -> bool {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
@@ -226,7 +226,7 @@ bool trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) {
     return true;
 }
 
-int trigger_store::seed_defaults(dpp::snowflake guild_id) {
+auto trigger_store::seed_defaults(dpp::snowflake guild_id) -> int {
     const auto guard = db_->lock();
 
     auto count = db_->prepare("SELECT COUNT(*) FROM triggers WHERE guild_id = ?", guild_id);
@@ -253,7 +253,7 @@ int trigger_store::seed_defaults(dpp::snowflake guild_id) {
 trigger_responder::trigger_responder(const trigger_store& store, ports::clock& clock, std::function<std::uint64_t()> roll)
     : store_(&store), clock_(&clock), roll_(roll ? std::move(roll) : default_roll()) {}
 
-stage_result trigger_responder::operator()(const incoming_message& message) {
+auto trigger_responder::operator()(const incoming_message& message) -> stage_result {
     stage_result result;
 
     // Read before any lock is taken, so no message waits on SQLite while

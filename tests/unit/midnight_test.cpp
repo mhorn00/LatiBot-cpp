@@ -17,12 +17,12 @@ using namespace std::chrono_literals;
 namespace {
 
 /// The instant a UTC wall-clock reading names.
-std::chrono::system_clock::time_point utc(int year, unsigned month, unsigned day, int hour, int minute = 0, int second = 0) {
+auto utc(int year, unsigned month, unsigned day, int hour, int minute = 0, int second = 0) -> std::chrono::system_clock::time_point {
     return std::chrono::sys_days{std::chrono::year{year} / std::chrono::month{month} / std::chrono::day{day}} + std::chrono::hours{hour} +
            std::chrono::minutes{minute} + std::chrono::seconds{second};
 }
 
-midnight_entry entry_in(std::string timezone, std::string last_fired = {}) {
+auto entry_in(std::string timezone, std::string last_fired = {}) -> midnight_entry {
     return {.id = 1,
             .guild_id = dpp::snowflake{1000},
             .channel_id = dpp::snowflake{2000},

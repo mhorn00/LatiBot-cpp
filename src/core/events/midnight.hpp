@@ -83,7 +83,7 @@ struct local_reading {
 };
 
 /// Reads `now` in `timezone`, or nothing when the zone is not a real one.
-[[nodiscard]] std::optional<local_reading> read_local(std::string_view timezone, std::chrono::system_clock::time_point now);
+[[nodiscard]] auto read_local(std::string_view timezone, std::chrono::system_clock::time_point now) -> std::optional<local_reading>;
 
 /// What a tick should do about one entry.
 enum class midnight_verdict : std::uint8_t {
@@ -100,7 +100,7 @@ enum class midnight_verdict : std::uint8_t {
 /// What to do about an entry now.
 ///
 /// Pure, so every daylight-saving case can be tested without waiting for one.
-[[nodiscard]] midnight_verdict verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now);
+[[nodiscard]] auto verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> midnight_verdict;
 
 /// The date a new entry should start out having "already posted" for.
 ///
@@ -111,17 +111,17 @@ enum class midnight_verdict : std::uint8_t {
 ///
 /// Empty when the zone is unknown, which the command refuses before it gets
 /// this far.
-[[nodiscard]] std::string already_posted_today(std::string_view timezone, std::chrono::system_clock::time_point now);
+[[nodiscard]] auto already_posted_today(std::string_view timezone, std::chrono::system_clock::time_point now) -> std::string;
 
 /// Whether `name` is a timezone this machine knows.
-[[nodiscard]] bool is_known_timezone(std::string_view name);
+[[nodiscard]] auto is_known_timezone(std::string_view name) -> bool;
 
 /// Timezone names matching what somebody has typed, for autocomplete.
 ///
 /// Matching is case-insensitive and anywhere in the name, so "chicago" finds
 /// America/Chicago. Returns at most `limit`, which is Discord's ceiling on
 /// autocomplete choices.
-[[nodiscard]] std::vector<std::string> matching_timezones(std::string_view typed, std::size_t limit);
+[[nodiscard]] auto matching_timezones(std::string_view typed, std::size_t limit) -> std::vector<std::string>;
 
 // --------------------------------------------------------------------------
 // Storage
@@ -132,24 +132,24 @@ class midnight_store {
 public:
     explicit midnight_store(db::database& db) : db_(&db) {}
 
-    [[nodiscard]] std::vector<midnight_entry> for_guild(dpp::snowflake guild_id) const;
+    [[nodiscard]] auto for_guild(dpp::snowflake guild_id) const -> std::vector<midnight_entry>;
 
     /// Every enabled entry across every guild, which is what a tick looks at.
-    [[nodiscard]] std::vector<midnight_entry> enabled() const;
+    [[nodiscard]] auto enabled() const -> std::vector<midnight_entry>;
 
-    [[nodiscard]] std::optional<midnight_entry> find(std::int64_t id, dpp::snowflake guild_id) const;
+    [[nodiscard]] auto find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<midnight_entry>;
 
-    std::int64_t add(const midnight_entry& entry);
+    auto add(const midnight_entry& entry) -> std::int64_t;
 
     /// False when the entry does not exist, or belongs to another guild.
-    bool update(const midnight_entry& entry);
-    bool remove(std::int64_t id, dpp::snowflake guild_id);
+    auto update(const midnight_entry& entry) -> bool;
+    auto remove(std::int64_t id, dpp::snowflake guild_id) -> bool;
 
     /// Writes down that an entry has posted for `date`.
     ///
     /// False when it had already posted for that date, which is what makes
     /// firing safe to attempt more than once.
-    bool mark_fired(std::int64_t id, std::string_view date);
+    auto mark_fired(std::int64_t id, std::string_view date) -> bool;
 
 private:
     db::database* db_;
@@ -167,11 +167,11 @@ public:
     /// Everything to post now. Each entry is marked as fired before it is
     /// returned, so a crash between deciding and posting costs one message
     /// rather than repeating it every thirty seconds.
-    [[nodiscard]] std::vector<action> tick();
+    [[nodiscard]] auto tick() -> std::vector<action>;
 
 private:
     /// Says once that a day went by without the bot being there for it.
-    void note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now);
+    auto note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> void;
 
     midnight_store* store_;
     ports::clock* clock_;

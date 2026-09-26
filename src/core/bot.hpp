@@ -38,79 +38,79 @@ public:
     bot(config::bootstrap settings, const config::secrets& credentials);
 
     bot(const bot&) = delete;
-    bot& operator=(const bot&) = delete;
+    auto operator=(const bot&) -> bot& = delete;
 
     /// Connects and blocks until the bot shuts down.
-    void run();
+    auto run() -> void;
 
 private:
-    void register_commands();
-    void register_stages();
-    void register_events();
+    auto register_commands() -> void;
+    auto register_stages() -> void;
+    auto register_events() -> void;
 
     /// Connected, or reconnected: puts the last `/status` back, and registers
     /// the commands the first time.
-    void on_ready(const dpp::ready_t& event);
+    auto on_ready(const dpp::ready_t& event) -> void;
 
     /// Starts the things that happen on a clock rather than on an event: the
     /// midnight messages, the embed tracker's one-second tick and the
     /// database backups (plan §10, §9.3, §5.2).
-    void register_timers();
+    auto register_timers() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot (plan §7).
-    void check_permissions(const dpp::guild& guild) const;
+    auto check_permissions(const dpp::guild& guild) const -> void;
 
     /// Turns a DPP message into the plain struct the stages work on, which is
     /// where the Administrator check happens.
-    [[nodiscard]] events::incoming_message describe(const dpp::message& message) const;
+    [[nodiscard]] auto describe(const dpp::message& message) const -> events::incoming_message;
 
     /// Performs what the stages decided.
-    void carry_out(const std::vector<events::action>& actions);
+    auto carry_out(const std::vector<events::action>& actions) -> void;
 
     /// Buttons and select menus. `chosen` is the select menu's value, empty
     /// for a button. Both arrive here because a panel mixes the two and the
     /// custom_id says what to do either way; the id is passed separately
     /// because DPP puts it on each event type rather than on their base.
-    void on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen);
+    auto on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) -> void;
 
     /// Does what a decoded component asks. False when no panel claims it,
     /// which `on_component` answers.
-    bool route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                         const commands::user_label& who);
+    auto route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                         const commands::user_label& who) -> bool;
 
     /// Modal submissions.
-    void on_form(const dpp::form_submit_t& event);
+    auto on_form(const dpp::form_submit_t& event) -> void;
 
     /// The URL rule modal: add, edit, or rename a rule.
-    void on_url_form(const dpp::form_submit_t& event, const ui::page_state& state);
+    auto on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void;
 
     /// The trigger modal: add a trigger, or edit one.
-    void on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state);
+    auto on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void;
 
     /// The trigger panel's and list's buttons and menu. False when the view
     /// is not one of theirs.
-    bool on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                              const commands::user_label& who);
+    auto on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                              const commands::user_label& who) -> bool;
 
     /// The URL rule panel's buttons and menu. False when `view` is not one of
     /// its views.
-    bool on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                          const commands::user_label& who);
+    auto on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
+                          const commands::user_label& who) -> bool;
 
     /// Records a nickname change, if it is one, and says which row it wrote.
     ///
     /// Shared by the gateway event and the startup sweep, because "is this
     /// different from what we last saw" is the same question either way
     /// (plan §8.4).
-    std::optional<std::int64_t> record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                                                events::nickname_source source);
+    auto record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
+                         events::nickname_source source) -> std::optional<std::int64_t>;
 
     /// A nickname change seen on the gateway.
-    void on_member_update(const dpp::guild_member& member);
+    auto on_member_update(const dpp::guild_member& member) -> void;
 
     /// An audit entry that may name who made a change already recorded.
-    void on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id);
+    auto on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void;
 
     /// Asks Discord for the audit log a little later, for the one row it was
     /// hoping to attribute.
@@ -118,32 +118,32 @@ private:
     /// The safety net for a gateway entry that never arrived — a reconnect, a
     /// dropped event (plan §8.1). Costs one API call per change that is
     /// still unattributed when it runs, which is normally none of them.
-    void attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row);
+    auto attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void;
 
     /// Writes down nicknames that changed while the bot was not running.
-    void reconcile_nicknames(const dpp::guild& guild);
+    auto reconcile_nicknames(const dpp::guild& guild) -> void;
 
     /// Copies the Java bot's URL rules into a guild, once (plan §9.5).
-    void import_url_rules(const dpp::guild& guild);
+    auto import_url_rules(const dpp::guild& guild) -> void;
 
     /// Somebody pressed Retry on a replacement that found no preview.
-    void retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who);
+    auto retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void;
 
     /// Settles this guild's replacements the last run left mid-watch, once:
     /// its first guild_create hands them over (plan §9.4).
-    void settle_stranded_replacements(dpp::snowflake guild_id);
+    auto settle_stranded_replacements(dpp::snowflake guild_id) -> void;
 
     /// Runs what the embed tracker decided, without holding up the caller.
-    void carry_out(std::vector<events::embed_action> actions);
+    auto carry_out(std::vector<events::embed_action> actions) -> void;
 
     /// The clock's time to the second, which is what the database stores.
-    [[nodiscard]] std::chrono::sys_seconds now_seconds() const;
+    [[nodiscard]] auto now_seconds() const -> std::chrono::sys_seconds;
 
     /// Applies one change to a trigger from the panel and logs what happened.
     /// `change` returns the past-tense verb for the log, so the two toggles
     /// differ only in the field they flip.
-    void toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
-                        const std::function<std::string_view(events::trigger&)>& change);
+    auto toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
+                        const std::function<std::string_view(events::trigger&)>& change) -> void;
 
     config::bootstrap settings_;
     db::database database_;

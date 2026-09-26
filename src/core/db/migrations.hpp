@@ -18,16 +18,16 @@ struct migration {
 };
 
 /// The schema, in ascending version order.
-[[nodiscard]] std::span<const migration> schema() noexcept;
+[[nodiscard]] auto schema() noexcept -> std::span<const migration>;
 
 /// Applies every migration newer than the database's `user_version`, each in
 /// its own transaction, and returns the version afterwards.
 ///
 /// A failing migration rolls back, leaving `user_version` at the last version
 /// that applied cleanly, and rethrows.
-int migrate(database& db, std::span<const migration> migrations);
+auto migrate(database& db, std::span<const migration> migrations) -> int;
 
 /// Migrates to the current schema.
-int migrate(database& db);
+auto migrate(database& db) -> int;
 
 } // namespace latibot::db

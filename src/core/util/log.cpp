@@ -26,7 +26,7 @@ namespace {
 
 constexpr std::array<std::string_view, 6> level_names{"trace", "debug", "info", "warn", "error", "off"};
 
-void write_to_stderr(log_level level, std::string_view message, bool colored) {
+auto write_to_stderr(log_level level, std::string_view message, bool colored) -> void {
     const auto stamp = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
     std::clog << render_line(stamp, level, message, colored);
 }
@@ -39,7 +39,7 @@ void write_to_stderr(log_level level, std::string_view message, bool colored) {
 /// the classic console host needs the mode set. A handle that is not a
 /// console at all (a file, a pipe) fails `GetConsoleMode`, which doubles as
 /// the "is this a terminal" test.
-bool stderr_can_show_color() {
+auto stderr_can_show_color() -> bool {
 #ifdef _WIN32
     auto* const handle = GetStdHandle(STD_ERROR_HANDLE);
     DWORD mode = 0;
@@ -57,12 +57,12 @@ bool stderr_can_show_color() {
 
 } // namespace
 
-std::string_view to_string(log_level level) noexcept {
+auto to_string(log_level level) noexcept -> std::string_view {
     const auto index = static_cast<std::size_t>(level);
     return index < level_names.size() ? level_names[index] : "unknown";
 }
 
-std::optional<log_level> log_level_from_string(std::string_view name) {
+auto log_level_from_string(std::string_view name) -> std::optional<log_level> {
     const std::string lowered = to_lower(name);
 
     const auto found = std::ranges::find(level_names, lowered);
@@ -74,7 +74,7 @@ std::optional<log_level> log_level_from_string(std::string_view name) {
 
 // --------------------------------------------------------------------------
 
-std::optional<color_mode> color_mode_from_string(std::string_view text) {
+auto color_mode_from_string(std::string_view text) -> std::optional<color_mode> {
     const std::string wanted = to_lower(text);
 
     if (wanted.empty() || wanted == "auto" || wanted == "automatic") {
@@ -89,7 +89,7 @@ std::optional<color_mode> color_mode_from_string(std::string_view text) {
     return std::nullopt;
 }
 
-bool should_color(color_mode mode, bool no_color_set, bool stderr_is_terminal) noexcept {
+auto should_color(color_mode mode, bool no_color_set, bool stderr_is_terminal) noexcept -> bool {
     switch (mode) {
     case color_mode::always:
         return true;
@@ -101,7 +101,7 @@ bool should_color(color_mode mode, bool no_color_set, bool stderr_is_terminal) n
     return !no_color_set && stderr_is_terminal;
 }
 
-void apply_log_colors_from_environment() {
+auto apply_log_colors_from_environment() -> void {
     color_mode mode = color_mode::automatic;
     std::optional<std::string> unrecognised;
 
@@ -130,7 +130,7 @@ void apply_log_colors_from_environment() {
     }
 }
 
-std::string render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored) {
+auto render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored) -> std::string {
     // One line per message, timestamp first, so logs stay greppable and sort
     // chronologically.
     if (!colored) {
@@ -147,37 +147,37 @@ std::string render_line(std::chrono::sys_seconds stamp, log_level level, std::st
 
 logger::logger(log_level minimum) : level_(minimum) {}
 
-void logger::set_level(log_level minimum) {
+auto logger::set_level(log_level minimum) -> void {
     const std::scoped_lock guard(mutex_);
     level_ = minimum;
 }
 
-log_level logger::level() const {
+auto logger::level() const -> log_level {
     const std::scoped_lock guard(mutex_);
     return level_;
 }
 
-void logger::set_sink(sink_fn sink) {
+auto logger::set_sink(sink_fn sink) -> void {
     const std::scoped_lock guard(mutex_);
     sink_ = std::move(sink);
 }
 
-void logger::set_colors(bool on) {
+auto logger::set_colors(bool on) -> void {
     const std::scoped_lock guard(mutex_);
     colors_ = on;
 }
 
-bool logger::colors() const {
+auto logger::colors() const -> bool {
     const std::scoped_lock guard(mutex_);
     return colors_ && !sink_;
 }
 
-bool logger::enabled(log_level level) const {
+auto logger::enabled(log_level level) const -> bool {
     const std::scoped_lock guard(mutex_);
     return level != log_level::off && level >= level_;
 }
 
-void logger::write(log_level level, std::string_view message) {
+auto logger::write(log_level level, std::string_view message) -> void {
     // The lock covers the sink call as well, so lines from different threads
     // do not interleave mid-message.
     const std::scoped_lock guard(mutex_);
@@ -192,7 +192,7 @@ void logger::write(log_level level, std::string_view message) {
     }
 }
 
-logger& log() {
+auto log() -> logger& {
     static logger instance;
     return instance;
 }

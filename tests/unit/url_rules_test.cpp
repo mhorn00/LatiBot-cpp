@@ -17,7 +17,7 @@ using latibot::events::url_rule;
 
 namespace {
 
-std::vector<url_rule> sample_rules() {
+auto sample_rules() -> std::vector<url_rule> {
     return {
         {.domain = "x.com",
          .mirrors = {{.host = "fxtwitter.com", .translate_suffix = "/en"}, {.host = "vxtwitter.com", .translate_suffix = ""}}},

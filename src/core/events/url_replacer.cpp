@@ -11,7 +11,7 @@
 namespace latibot::events {
 namespace {
 
-std::vector<watched_link> first_attempts(const std::vector<planned_link>& links) {
+auto first_attempts(const std::vector<planned_link>& links) -> std::vector<watched_link> {
     std::vector<watched_link> watched;
     watched.reserve(links.size());
     for (const planned_link& link : links) {
@@ -20,7 +20,7 @@ std::vector<watched_link> first_attempts(const std::vector<planned_link>& links)
     return watched;
 }
 
-std::vector<std::string> embed_urls_of(const dpp::message& message) {
+auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
     std::vector<std::string> urls;
     urls.reserve(message.embeds.size());
     for (const dpp::embed& embed : message.embeds) {
@@ -31,7 +31,7 @@ std::vector<std::string> embed_urls_of(const dpp::message& message) {
 
 } // namespace
 
-stage_result url_replacer::operator()(const incoming_message& message) const {
+auto url_replacer::operator()(const incoming_message& message) const -> stage_result {
     // Bots are heard only when a guild allows them, and even then their links
     // are theirs to post as they like. A DM has no rules to apply.
     if (message.from_bot || message.guild_id.empty()) {
@@ -88,8 +88,8 @@ stage_result url_replacer::operator()(const incoming_message& message) const {
             .consumed = false};
 }
 
-dpp::task<void> post_replacement(ports::discord_gateway& discord, replacement_store& replacements, embed_tracker& tracker,
-                                 ports::clock& clock, replace_links request) {
+auto post_replacement(ports::discord_gateway& discord, replacement_store& replacements, embed_tracker& tracker, ports::clock& clock,
+                      replace_links request) -> dpp::task<void> {
     dpp::message ours(request.channel_id, render_replacement(first_attempts(request.links), attempts_per_mirror));
     // Suppressed notifications, as the Java bot did: a preview is not news.
     ours.set_flags(dpp::m_suppress_notifications);
@@ -134,7 +134,7 @@ dpp::task<void> post_replacement(ports::discord_gateway& discord, replacement_st
     co_await carry_out_embed_actions(discord, std::move(actions));
 }
 
-dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions) {
+auto carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_action> actions) -> dpp::task<void> {
     // One at a time, in the tracker's order, each awaited before the next,
     // so an edit and a flag change on the same message cannot cross.
     for (const embed_action& wanted : actions) {
@@ -153,8 +153,8 @@ dpp::task<void> carry_out_embed_actions(ports::discord_gateway& discord, std::ve
     }
 }
 
-dpp::task<void> settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules,
-                                embed_tracker& tracker, std::vector<replacement_record> stranded) {
+auto settle_stranded(ports::discord_gateway& discord, replacement_store& replacements, const url_rule_store& rules, embed_tracker& tracker,
+                     std::vector<replacement_record> stranded) -> dpp::task<void> {
     std::size_t working = 0;
     std::size_t noted = 0;
     std::size_t gone = 0;
@@ -214,8 +214,8 @@ dpp::task<void> settle_stranded(ports::discord_gateway& discord, replacement_sto
     }
 }
 
-std::variant<retry_plan, std::string> plan_retry(const replacement_store& replacements, const url_rule_store& rules,
-                                                 dpp::snowflake message_id, dpp::snowflake guild_id) {
+auto plan_retry(const replacement_store& replacements, const url_rule_store& rules, dpp::snowflake message_id, dpp::snowflake guild_id)
+    -> std::variant<retry_plan, std::string> {
     const auto found = replacements.find(message_id);
     if (!found || found->guild_id != guild_id) {
         return std::string("that replacement isn't one i know about any more");

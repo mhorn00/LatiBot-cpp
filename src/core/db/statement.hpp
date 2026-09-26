@@ -43,25 +43,25 @@ struct is_optional<std::optional<T>> : std::true_type {
 class statement {
 public:
     statement(statement&& other) noexcept;
-    statement& operator=(statement&& other) noexcept;
+    auto operator=(statement&& other) noexcept -> statement&;
     statement(const statement&) = delete;
-    statement& operator=(const statement&) = delete;
+    auto operator=(const statement&) -> statement& = delete;
     ~statement();
 
     /// Parameter indices are 1-based, as in SQLite.
-    statement& bind(int index, std::nullptr_t);
-    statement& bind(int index, bool value);
-    statement& bind(int index, double value);
-    statement& bind(int index, std::string_view value);
-    statement& bind(int index, const char* value);
-    statement& bind(int index, std::span<const std::byte> value);
+    auto bind(int index, std::nullptr_t) -> statement&;
+    auto bind(int index, bool value) -> statement&;
+    auto bind(int index, double value) -> statement&;
+    auto bind(int index, std::string_view value) -> statement&;
+    auto bind(int index, const char* value) -> statement&;
+    auto bind(int index, std::span<const std::byte> value) -> statement&;
 
     /// Covers every integer width. Discord snowflakes are unsigned 64-bit and
     /// are stored as SQLite INTEGER, which is signed 64-bit; real snowflakes
     /// stay well inside the positive range.
     template <std::integral T>
         requires(!std::same_as<T, bool>)
-    statement& bind(int index, T value) {
+    auto bind(int index, T value) -> statement& {
         return bind_int64(index, static_cast<std::int64_t>(value));
     }
 
@@ -70,25 +70,25 @@ public:
     /// overload would make every std::string argument ambiguous.
     template <typename T>
         requires std::same_as<T, dpp::snowflake>
-    statement& bind(int index, T value) {
+    auto bind(int index, T value) -> statement& {
         return bind_int64(index, static_cast<std::int64_t>(static_cast<std::uint64_t>(value)));
     }
 
     /// A time, as whole Unix seconds, which is how every table stores one.
     /// Anything finer than a second is dropped.
     template <typename Duration>
-    statement& bind(int index, std::chrono::sys_time<Duration> value) {
+    auto bind(int index, std::chrono::sys_time<Duration> value) -> statement& {
         return bind_int64(index, std::chrono::floor<std::chrono::seconds>(value).time_since_epoch().count());
     }
 
     template <typename T>
-    statement& bind(int index, const std::optional<T>& value) {
+    auto bind(int index, const std::optional<T>& value) -> statement& {
         return value ? bind(index, *value) : bind(index, nullptr);
     }
 
     /// Binds every argument in order, starting at parameter 1.
     template <typename... Args>
-    statement& bind_all(const Args&... args) {
+    auto bind_all(const Args&... args) -> statement& {
         int index = 0;
         (bind(++index, args), ...);
         return *this;
@@ -96,20 +96,20 @@ public:
 
     /// Advances to the next row. True when a row is available, false when the
     /// statement is finished.
-    [[nodiscard]] bool step();
+    [[nodiscard]] auto step() -> bool;
 
     /// Runs a statement that returns no rows (INSERT, UPDATE, DDL).
-    void run();
+    auto run() -> void;
 
     /// Re-runs the statement from the start; bound values are kept.
-    void reset();
+    auto reset() -> void;
 
     /// Column indices are 0-based, as in SQLite.
-    [[nodiscard]] bool is_null(int column) const;
-    [[nodiscard]] int column_count() const;
+    [[nodiscard]] auto is_null(int column) const -> bool;
+    [[nodiscard]] auto column_count() const -> int;
 
     template <typename T>
-    [[nodiscard]] T get(int column) const {
+    [[nodiscard]] auto get(int column) const -> T {
         if constexpr (detail::is_optional<T>::value) {
             using value_type = detail::is_optional<T>::value_type;
             if (is_null(column)) {
@@ -140,14 +140,14 @@ private:
 
     statement(database& owner, sqlite3_stmt* handle, std::unique_lock<std::recursive_mutex> lock);
 
-    statement& bind_int64(int index, std::int64_t value);
+    auto bind_int64(int index, std::int64_t value) -> statement&;
 
-    [[nodiscard]] std::int64_t column_int64(int column) const;
-    [[nodiscard]] double column_double(int column) const;
-    [[nodiscard]] std::string column_text(int column) const;
-    [[nodiscard]] std::vector<std::byte> column_blob(int column) const;
+    [[nodiscard]] auto column_int64(int column) const -> std::int64_t;
+    [[nodiscard]] auto column_double(int column) const -> double;
+    [[nodiscard]] auto column_text(int column) const -> std::string;
+    [[nodiscard]] auto column_blob(int column) const -> std::vector<std::byte>;
 
-    void check(int result_code, const char* context) const;
+    auto check(int result_code, const char* context) const -> void;
 
     database* owner_ = nullptr;
     sqlite3_stmt* handle_ = nullptr;

@@ -36,46 +36,46 @@ public:
     ~database();
 
     database(const database&) = delete;
-    database& operator=(const database&) = delete;
+    auto operator=(const database&) -> database& = delete;
     database(database&&) = delete;
-    database& operator=(database&&) = delete;
+    auto operator=(database&&) -> database& = delete;
 
     /// Runs one or more statements that return no rows.
-    void execute(std::string_view sql);
+    auto execute(std::string_view sql) -> void;
 
     /// Prepares a single statement. The returned object holds the lock.
-    [[nodiscard]] statement prepare(std::string_view sql);
+    [[nodiscard]] auto prepare(std::string_view sql) -> statement;
 
     /// Prepares and binds in one step: `db.prepare("... ?, ?", guild_id, key)`.
     template <typename... Args>
         requires(sizeof...(Args) > 0)
-    [[nodiscard]] statement prepare(std::string_view sql, const Args&... args) {
+    [[nodiscard]] auto prepare(std::string_view sql, const Args&... args) -> statement {
         statement stmt = prepare(sql);
         stmt.bind_all(args...);
         return stmt;
     }
 
-    [[nodiscard]] std::int64_t last_insert_rowid();
+    [[nodiscard]] auto last_insert_rowid() -> std::int64_t;
 
     /// Rows changed by the most recent statement.
-    [[nodiscard]] int changes();
+    [[nodiscard]] auto changes() -> int;
 
     /// Schema version, held in `PRAGMA user_version` (plan §5.2).
-    [[nodiscard]] int user_version();
-    void set_user_version(int version);
+    [[nodiscard]] auto user_version() -> int;
+    auto set_user_version(int version) -> void;
 
     /// The underlying handle, for SQLite APIs we don't wrap (the backup API).
     /// Callers must hold `lock()` while using it.
-    [[nodiscard]] sqlite3* handle() noexcept { return handle_; }
+    [[nodiscard]] auto handle() noexcept -> sqlite3* { return handle_; }
 
     /// Locks the connection for a compound operation.
-    [[nodiscard]] std::unique_lock<std::recursive_mutex> lock() { return std::unique_lock(mutex_); }
+    [[nodiscard]] auto lock() -> std::unique_lock<std::recursive_mutex> { return std::unique_lock(mutex_); }
 
     /// Throws `db_error` unless `result_code` is SQLITE_OK.
-    void check(int result_code, const char* context) const;
+    auto check(int result_code, const char* context) const -> void;
 
 private:
-    void configure();
+    auto configure() -> void;
 
     sqlite3* handle_ = nullptr;
     std::recursive_mutex mutex_;
@@ -91,10 +91,10 @@ public:
     ~transaction();
 
     transaction(const transaction&) = delete;
-    transaction& operator=(const transaction&) = delete;
+    auto operator=(const transaction&) -> transaction& = delete;
 
-    void commit();
-    void rollback();
+    auto commit() -> void;
+    auto rollback() -> void;
 
 private:
     database* db_;

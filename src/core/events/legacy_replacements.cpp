@@ -23,7 +23,7 @@ struct masked_link {
 
 /// The masked link around `link`, if it is inside one. `(<link>)` counts as
 /// well as `(link)`.
-std::optional<masked_link> masked_around(std::string_view content, const util::found_link& link) {
+auto masked_around(std::string_view content, const util::found_link& link) -> std::optional<masked_link> {
     std::size_t open = link.begin;
     if (open > 0 && content[open - 1] == '<') {
         --open;
@@ -50,7 +50,7 @@ std::optional<masked_link> masked_around(std::string_view content, const util::f
 }
 
 /// Whether `rest` is nothing but the link emoji, spoiler bars and spaces.
-bool only_decoration(std::string rest) {
+auto only_decoration(std::string rest) -> bool {
     for (const std::string_view decoration : decorations) {
         for (std::size_t at = rest.find(decoration); at != std::string::npos; at = rest.find(decoration)) {
             rest.erase(at, decoration.size());
@@ -60,14 +60,14 @@ bool only_decoration(std::string rest) {
                                [](unsigned char letter) { return letter == ' ' || letter == '\n' || letter == '\r' || letter == '\t'; });
 }
 
-std::string_view path_of(std::string_view url) {
+auto path_of(std::string_view url) -> std::string_view {
     const auto parts = util::split_url(url);
     return parts ? util::comparable_path(parts->path) : std::string_view{};
 }
 
 } // namespace
 
-history_message describe_history(const dpp::message& message) {
+auto describe_history(const dpp::message& message) -> history_message {
     history_message described;
     described.id = message.id;
     described.author_id = message.author.id;
@@ -83,12 +83,12 @@ history_message describe_history(const dpp::message& message) {
     return described;
 }
 
-std::chrono::sys_seconds created_at(dpp::snowflake id) noexcept {
+auto created_at(dpp::snowflake id) noexcept -> std::chrono::sys_seconds {
     const std::uint64_t ms = (static_cast<std::uint64_t>(id) >> 22) + discord_epoch_ms;
     return std::chrono::sys_seconds(std::chrono::seconds(static_cast<std::int64_t>(ms / 1000)));
 }
 
-dpp::snowflake first_id_at(std::chrono::sys_seconds when) noexcept {
+auto first_id_at(std::chrono::sys_seconds when) noexcept -> dpp::snowflake {
     const auto seconds = when.time_since_epoch().count();
     if (seconds <= 0) {
         return {};
@@ -97,7 +97,7 @@ dpp::snowflake first_id_at(std::chrono::sys_seconds when) noexcept {
     return ms <= discord_epoch_ms ? dpp::snowflake{} : dpp::snowflake((ms - discord_epoch_ms) << 22);
 }
 
-legacy_match classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors) {
+auto classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors) -> legacy_match {
     legacy_match match;
 
     // Step 1: a replacement always links to a known mirror. A message with
@@ -189,8 +189,8 @@ legacy_match classify(const history_message& message, dpp::snowflake bot_id, con
     return match;
 }
 
-attribution attribute(const history_message& message, const legacy_match& match, std::span<const history_message> older,
-                      dpp::snowflake bot_id) {
+auto attribute(const history_message& message, const legacy_match& match, std::span<const history_message> older, dpp::snowflake bot_id)
+    -> attribution {
     attribution found;
 
     // A reply names its original outright. It may be older than the page in

@@ -18,7 +18,7 @@ namespace {
 /// bot cannot read fails every page the same way.
 constexpr std::size_t problem_limit = 20;
 
-void note(backfill_report& report, std::string problem) {
+auto note(backfill_report& report, std::string problem) -> void {
     util::log().warn("link stats recompute: {}", problem);
     if (report.problems.size() < problem_limit) {
         report.problems.push_back(std::move(problem));
@@ -31,7 +31,7 @@ void note(backfill_report& report, std::string problem) {
 /// The original link is not known for every format, so these hold the
 /// mirror link as posted; nothing retries an old replacement, so nothing
 /// needs the original.
-std::vector<planned_link> links_of(const legacy_match& match, const mirror_map& mirrors) {
+auto links_of(const legacy_match& match, const mirror_map& mirrors) -> std::vector<planned_link> {
     std::vector<planned_link> links;
     for (const std::string& url : match.mirror_urls) {
         const auto parts = util::split_url(url);
@@ -47,7 +47,7 @@ std::vector<planned_link> links_of(const legacy_match& match, const mirror_map& 
 }
 
 /// How the reactions endpoint wants an emoji: itself, or `name:id`.
-std::string emoji_for_api(const history_message::reaction_count& reaction) {
+auto emoji_for_api(const history_message::reaction_count& reaction) -> std::string {
     if (reaction.emoji_id.empty()) {
         return reaction.emoji_name;
     }
@@ -58,9 +58,8 @@ std::string emoji_for_api(const history_message::reaction_count& reaction) {
 
 // --------------------------------------------------------------------------
 
-std::optional<channel_progress> backfill_progress_store::find(dpp::snowflake guild_id, dpp::snowflake channel_id,
-                                                              std::chrono::sys_seconds since,
-                                                              std::optional<std::chrono::sys_seconds> until) const {
+auto backfill_progress_store::find(dpp::snowflake guild_id, dpp::snowflake channel_id, std::chrono::sys_seconds since,
+                                   std::optional<std::chrono::sys_seconds> until) const -> std::optional<channel_progress> {
     auto query = db_->prepare(
         "SELECT oldest_scanned_id, complete FROM backfill_progress "
         "WHERE guild_id = ? AND channel_id = ? AND since = ? AND until IS ?",
@@ -75,9 +74,9 @@ std::optional<channel_progress> backfill_progress_store::find(dpp::snowflake gui
     return found;
 }
 
-void backfill_progress_store::save(dpp::snowflake guild_id, dpp::snowflake channel_id, std::chrono::sys_seconds since,
+auto backfill_progress_store::save(dpp::snowflake guild_id, dpp::snowflake channel_id, std::chrono::sys_seconds since,
                                    std::optional<std::chrono::sys_seconds> until, const channel_progress& progress,
-                                   std::chrono::sys_seconds now) {
+                                   std::chrono::sys_seconds now) -> void {
     db_->prepare(
            "INSERT INTO backfill_progress (guild_id, channel_id, since, until, oldest_scanned_id, complete, updated_at) "
            "VALUES (?, ?, ?, ?, ?, ?, ?) "
@@ -93,17 +92,17 @@ backfill_service::backfill_service(ports::discord_gateway& discord, const url_ru
                                    reaction_store& reactions, backfill_progress_store& progress, ports::clock& clock)
     : discord_(&discord), rules_(&rules), replacements_(&replacements), reactions_(&reactions), progress_(&progress), clock_(&clock) {}
 
-bool backfill_service::begin(dpp::snowflake guild_id) {
+auto backfill_service::begin(dpp::snowflake guild_id) -> bool {
     const std::scoped_lock guard(mutex_);
     return jobs_.try_emplace(guild_id, std::make_shared<std::atomic<bool>>(false)).second;
 }
 
-void backfill_service::end(dpp::snowflake guild_id) {
+auto backfill_service::end(dpp::snowflake guild_id) -> void {
     const std::scoped_lock guard(mutex_);
     jobs_.erase(guild_id);
 }
 
-bool backfill_service::cancel(dpp::snowflake guild_id) {
+auto backfill_service::cancel(dpp::snowflake guild_id) -> bool {
     const std::scoped_lock guard(mutex_);
     const auto found = jobs_.find(guild_id);
     if (found == jobs_.end()) {
@@ -113,19 +112,19 @@ bool backfill_service::cancel(dpp::snowflake guild_id) {
     return true;
 }
 
-bool backfill_service::running(dpp::snowflake guild_id) const {
+auto backfill_service::running(dpp::snowflake guild_id) const -> bool {
     const std::scoped_lock guard(mutex_);
     return jobs_.contains(guild_id);
 }
 
-backfill_service::flag backfill_service::cancel_flag(dpp::snowflake guild_id) const {
+auto backfill_service::cancel_flag(dpp::snowflake guild_id) const -> backfill_service::flag {
     const std::scoped_lock guard(mutex_);
     const auto found = jobs_.find(guild_id);
     // A run nobody began cannot be cancelled, but it still needs a flag.
     return found == jobs_.end() ? std::make_shared<std::atomic<bool>>(false) : found->second;
 }
 
-dpp::task<backfill_report> backfill_service::run(backfill_request request, progress_fn progress) {
+auto backfill_service::run(backfill_request request, progress_fn progress) -> dpp::task<backfill_report> {
     backfill_report report;
     report.channels_total = request.channel_ids.size();
 
@@ -163,8 +162,8 @@ dpp::task<backfill_report> backfill_service::run(backfill_request request, progr
     co_return report;
 }
 
-dpp::task<std::optional<std::vector<history_message>>> backfill_service::page_before(dpp::snowflake channel_id, dpp::snowflake before,
-                                                                                     backfill_report& report) {
+auto backfill_service::page_before(dpp::snowflake channel_id, dpp::snowflake before, backfill_report& report)
+    -> dpp::task<std::optional<std::vector<history_message>>> {
     const auto page = co_await discord_->get_messages(channel_id, before, history_page_size);
     if (!page.ok()) {
         // Most often a channel the bot cannot read, which the permission
@@ -181,7 +180,7 @@ dpp::task<std::optional<std::vector<history_message>>> backfill_service::page_be
     co_return described;
 }
 
-std::optional<dpp::snowflake> backfill_service::starting_point(const channel_scan& scan) const {
+auto backfill_service::starting_point(const channel_scan& scan) const -> std::optional<dpp::snowflake> {
     const backfill_request& request = *scan.request;
     const auto saved = request.fresh ? std::nullopt : progress_->find(request.guild_id, scan.channel_id, request.since, request.until);
     if (saved && saved->complete) {
@@ -196,14 +195,13 @@ std::optional<dpp::snowflake> backfill_service::starting_point(const channel_sca
     return request.until ? first_id_at(*request.until) : dpp::snowflake{};
 }
 
-void backfill_service::save_progress(const channel_scan& scan, channel_progress progress) {
+auto backfill_service::save_progress(const channel_scan& scan, channel_progress progress) -> void {
     progress_->save(scan.request->guild_id, scan.channel_id, scan.request->since, scan.request->until, progress,
                     std::chrono::floor<std::chrono::seconds>(clock_->now()));
 }
 
-dpp::task<std::optional<std::vector<history_message>>> backfill_service::scan_page(const channel_scan& scan,
-                                                                                   std::vector<history_message> page,
-                                                                                   backfill_report& report) {
+auto backfill_service::scan_page(const channel_scan& scan, std::vector<history_message> page, backfill_report& report)
+    -> dpp::task<std::optional<std::vector<history_message>>> {
     // The page after this one too, since the original a replacement answered
     // can be the first message of the next page. It is also the next page.
     std::vector<history_message> next;
@@ -246,8 +244,8 @@ dpp::task<std::optional<std::vector<history_message>>> backfill_service::scan_pa
     co_return std::move(next);
 }
 
-dpp::task<void> backfill_service::scan_channel(channel_scan scan, backfill_report& report, const progress_fn& progress,
-                                               std::int64_t& next_progress) {
+auto backfill_service::scan_channel(channel_scan scan, backfill_report& report, const progress_fn& progress, std::int64_t& next_progress)
+    -> dpp::task<void> {
     const auto start = starting_point(scan);
     if (!start) {
         util::log().debug("link stats recompute: channel {} was finished by an earlier run", scan.channel_id);
@@ -285,8 +283,8 @@ dpp::task<void> backfill_service::scan_channel(channel_scan scan, backfill_repor
     }
 }
 
-dpp::task<void> backfill_service::consider(const channel_scan& scan, const history_message& message, std::span<const history_message> older,
-                                           backfill_report& report) {
+auto backfill_service::consider(const channel_scan& scan, const history_message& message, std::span<const history_message> older,
+                                backfill_report& report) -> dpp::task<void> {
     const backfill_request& request = *scan.request;
     const legacy_match match = classify(message, request.bot_id, *scan.mirrors);
 
@@ -365,8 +363,8 @@ dpp::task<void> backfill_service::consider(const channel_scan& scan, const histo
     report.reactions += reactions_->replace_for_message(message.id, *seen);
 }
 
-dpp::task<std::optional<std::vector<reaction_store::observed>>> backfill_service::reactors(dpp::snowflake channel_id,
-                                                                                           const history_message& message) {
+auto backfill_service::reactors(dpp::snowflake channel_id, const history_message& message)
+    -> dpp::task<std::optional<std::vector<reaction_store::observed>>> {
     std::vector<reaction_store::observed> seen;
 
     for (const history_message::reaction_count& reaction : message.reactions) {

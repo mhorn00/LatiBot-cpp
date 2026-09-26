@@ -25,7 +25,7 @@ struct lookup {
     std::string problem;
 };
 
-lookup entry_named(const events::midnight_store& store, const dpp::slashcommand_t& event) {
+auto entry_named(const events::midnight_store& store, const dpp::slashcommand_t& event) -> lookup {
     const auto id = int_option(event, "id");
     if (!id) {
         return {.entry = std::nullopt, .problem = "which one? `/midnight list` has the numbers"};
@@ -40,7 +40,7 @@ lookup entry_named(const events::midnight_store& store, const dpp::slashcommand_
 
 } // namespace
 
-std::string describe(const events::midnight_entry& entry) {
+auto describe(const events::midnight_entry& entry) -> std::string {
     std::string line = std::format("`{}` <#{}> **{}**", entry.id, entry.channel_id.str(), entry.timezone);
     std::string notes = entry.enabled ? std::string{} : std::string("off");
     if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) {
@@ -57,7 +57,7 @@ std::string describe(const events::midnight_entry& entry) {
     return line;
 }
 
-std::string render_midnight_list(std::span<const events::midnight_entry> entries) {
+auto render_midnight_list(std::span<const events::midnight_entry> entries) -> std::string {
     if (entries.empty()) {
         return "Nothing posts at midnight here. Add one with `/midnight add`.";
     }
@@ -84,7 +84,7 @@ midnight_command::midnight_command(events::midnight_store& store, ports::clock& 
       store_(&store),
       clock_(&clock) {}
 
-dpp::slashcommand midnight_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto midnight_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     // set_auto_complete, not a list of choices: there are hundreds of zones,
@@ -122,7 +122,7 @@ dpp::slashcommand midnight_command::build(const std::string& name, dpp::snowflak
     return payload;
 }
 
-void midnight_command::autocomplete(const dpp::autocomplete_t& event) const {
+auto midnight_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
     if (focused == nullptr || focused->name != "timezone" || event.owner == nullptr) {
         return;
@@ -137,7 +137,7 @@ void midnight_command::autocomplete(const dpp::autocomplete_t& event) const {
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
-dpp::task<void> midnight_command::execute(const dpp::slashcommand_t& event) {
+auto midnight_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "add") {
@@ -155,7 +155,7 @@ dpp::task<void> midnight_command::execute(const dpp::slashcommand_t& event) {
     }
 }
 
-dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
+auto midnight_command::add(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string timezone = string_option(event, "timezone");
     if (!events::is_known_timezone(timezone)) {
         co_await event.co_reply(
@@ -187,7 +187,7 @@ dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("ok, that posts in <#{}> at the next midnight in {}", channel->str(), timezone)));
 }
 
-dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
+auto midnight_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
         co_await event.co_reply(refusal(event, problem));
@@ -218,7 +218,7 @@ dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
         result(event, std::format("ok, {} posts in <#{}> at midnight in {}", found->id, found->channel_id.str(), found->timezone)));
 }
 
-dpp::task<void> midnight_command::remove(const dpp::slashcommand_t& event) {
+auto midnight_command::remove(const dpp::slashcommand_t& event) -> dpp::task<void> {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
         co_await event.co_reply(refusal(event, problem));
@@ -232,7 +232,7 @@ dpp::task<void> midnight_command::remove(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("gone: midnight message {}", found->id)));
 }
 
-dpp::task<void> midnight_command::toggle(const dpp::slashcommand_t& event) {
+auto midnight_command::toggle(const dpp::slashcommand_t& event) -> dpp::task<void> {
     auto [found, problem] = entry_named(*store_, event);
     if (!found) {
         co_await event.co_reply(refusal(event, problem));
@@ -249,7 +249,7 @@ dpp::task<void> midnight_command::toggle(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, std::format("midnight message {} is {}", found->id, became)));
 }
 
-dpp::task<void> midnight_command::list(const dpp::slashcommand_t& event) {
+auto midnight_command::list(const dpp::slashcommand_t& event) -> dpp::task<void> {
     co_await event.co_reply(result(event, render_midnight_list(store_->for_guild(event.command.guild_id))));
 }
 

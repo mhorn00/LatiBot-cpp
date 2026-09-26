@@ -23,16 +23,16 @@ namespace {
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t emoji_choices = 25;
 
-bool is_word(std::string_view text) {
+auto is_word(std::string_view text) -> bool {
     return !text.empty() && std::ranges::all_of(text, [](unsigned char letter) { return std::isalnum(letter) != 0 || letter == '_'; });
 }
 
-std::string format_day(std::chrono::sys_seconds when) {
+auto format_day(std::chrono::sys_seconds when) -> std::string {
     return std::format("{:%Y-%m-%d}", std::chrono::floor<std::chrono::days>(when));
 }
 
 /// "since 2024-01-01", "until 2024-06-30", both, or nothing for all time.
-std::string describe_window(const events::stat_query& query) {
+auto describe_window(const events::stat_query& query) -> std::string {
     std::string text;
     if (query.since) {
         text += " since " + format_day(*query.since);
@@ -45,7 +45,7 @@ std::string describe_window(const events::stat_query& query) {
 }
 
 /// The since, until and domain options, or what was wrong with them.
-std::optional<std::string> read_window(const dpp::slashcommand_t& event, events::stat_query& query) {
+auto read_window(const dpp::slashcommand_t& event, events::stat_query& query) -> std::optional<std::string> {
     const std::string since = string_option(event, "since");
     const std::string until = string_option(event, "until");
 
@@ -79,7 +79,7 @@ std::optional<std::string> read_window(const dpp::slashcommand_t& event, events:
     return std::nullopt;
 }
 
-std::string emoji_list(std::span<const events::emoji_tally> tallies) {
+auto emoji_list(std::span<const events::emoji_tally> tallies) -> std::string {
     std::string text;
     for (const events::emoji_tally& tally : tallies) {
         if (!text.empty()) {
@@ -90,23 +90,23 @@ std::string emoji_list(std::span<const events::emoji_tally> tallies) {
     return text;
 }
 
-dpp::command_option date_option(const char* name, const char* description) {
+auto date_option(const char* name, const char* description) -> dpp::command_option {
     return dpp::command_option(dpp::co_string, name, description, false).set_max_length(10);
 }
 
-dpp::command_option domain_option() {
+auto domain_option() -> dpp::command_option {
     return dpp::command_option(dpp::co_string, "domain", "Only links to this site, like x.com.", false)
         .set_auto_complete(true)
         .set_max_length(domain_length_limit);
 }
 
-dpp::command_option emoji_option(const char* name, const char* description, bool required) {
+auto emoji_option(const char* name, const char* description, bool required) -> dpp::command_option {
     return dpp::command_option(dpp::co_string, name, description, required).set_auto_complete(true).set_max_length(100);
 }
 
 } // namespace
 
-std::optional<std::chrono::sys_days> parse_day(std::string_view text) {
+auto parse_day(std::string_view text) -> std::optional<std::chrono::sys_days> {
     text = util::trim(text);
     if (text.size() != 10 || text[4] != '-' || text[7] != '-') {
         return std::nullopt;
@@ -137,7 +137,7 @@ std::optional<std::chrono::sys_days> parse_day(std::string_view text) {
     return std::chrono::sys_days(date);
 }
 
-std::optional<board> board_from_string(std::string_view name) {
+auto board_from_string(std::string_view name) -> std::optional<board> {
     if (name.empty() || name == "received") {
         return board::received;
     }
@@ -153,7 +153,8 @@ std::optional<board> board_from_string(std::string_view name) {
     return std::nullopt;
 }
 
-std::optional<events::emoji_ref> resolve_emoji(const events::reaction_store& store, dpp::snowflake guild_id, std::string_view typed) {
+auto resolve_emoji(const events::reaction_store& store, dpp::snowflake guild_id, std::string_view typed)
+    -> std::optional<events::emoji_ref> {
     std::string_view text = util::trim(typed);
     if (text.size() > 2 && text.starts_with(':') && text.ends_with(':')) {
         text = text.substr(1, text.size() - 2);
@@ -185,7 +186,7 @@ namespace {
 
 constexpr char board_separator = ';';
 
-char board_letter(board which) {
+auto board_letter(board which) -> char {
     switch (which) {
     case board::given:
         return 'g';
@@ -201,7 +202,7 @@ char board_letter(board which) {
 
 /// Which side of a reaction a board counts. The emoji board counts what
 /// people received, leaving self-reactions out like every other board.
-events::stat_kind kind_for(board which) {
+auto kind_for(board which) -> events::stat_kind {
     switch (which) {
     case board::given:
         return events::stat_kind::given;
@@ -214,7 +215,7 @@ events::stat_kind kind_for(board which) {
     return events::stat_kind::received;
 }
 
-std::optional<std::int64_t> whole_number(std::string_view text) {
+auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
     std::int64_t value = 0;
     const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
     if (error != std::errc{} || stop != text.data() + text.size()) {
@@ -223,7 +224,7 @@ std::optional<std::int64_t> whole_number(std::string_view text) {
     return value;
 }
 
-std::string board_title(const events::reaction_store& store, board which, const events::stat_query& query) {
+auto board_title(const events::reaction_store& store, board which, const events::stat_query& query) -> std::string {
     const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
     const std::string site = query.domain ? *query.domain + " " : std::string{};
     const std::string window = describe_window(query);
@@ -243,7 +244,7 @@ std::string board_title(const events::reaction_store& store, board which, const 
 
 } // namespace
 
-std::string encode_board(board which, const events::stat_query& query) {
+auto encode_board(board which, const events::stat_query& query) -> std::string {
     const auto day = [](const std::optional<std::chrono::sys_seconds>& when) {
         return when ? std::to_string(std::chrono::floor<std::chrono::days>(*when).time_since_epoch().count()) : std::string{};
     };
@@ -251,7 +252,7 @@ std::string encode_board(board which, const events::stat_query& query) {
                        query.domain.value_or(std::string{}), day(query.since), day(query.until));
 }
 
-std::optional<std::pair<board, events::stat_query>> decode_board(std::string_view argument) {
+auto decode_board(std::string_view argument) -> std::optional<std::pair<board, events::stat_query>> {
     // Split on ';' into exactly the five fields `encode_board` writes: board
     // letter, emoji key, site, since and until. Anything else was not made
     // here and is refused whole.
@@ -306,8 +307,8 @@ std::optional<std::pair<board, events::stat_query>> decode_board(std::string_vie
     return std::pair{which, query};
 }
 
-dpp::message render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
-                          int page) {
+auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query, int page)
+    -> dpp::message {
     const bool by_emoji = which == board::emoji;
     const auto total =
         static_cast<std::size_t>(std::max<std::int64_t>(0, by_emoji ? store.emojis(guild_id, query) : store.people(guild_id, query)));
@@ -343,8 +344,8 @@ dpp::message render_board(const events::reaction_store& store, dpp::snowflake gu
     return reply;
 }
 
-std::string render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id,
-                           const events::stat_query& window) {
+auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id, const events::stat_query& window)
+    -> std::string {
     events::stat_query query = window;
     query.user_id = user_id;
 
@@ -367,7 +368,7 @@ std::string render_profile(const events::reaction_store& store, dpp::snowflake g
     return text;
 }
 
-std::string render_duplicates(const events::reaction_store& store, dpp::snowflake guild_id) {
+auto render_duplicates(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
     const auto groups = store.likely_duplicates(guild_id);
     if (groups.empty()) {
         return "No two custom emojis here share a name, so nothing looks duplicated.";
@@ -384,7 +385,7 @@ std::string render_duplicates(const events::reaction_store& store, dpp::snowflak
     return text;
 }
 
-std::string render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) {
+auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
     const auto aliases = store.aliases(guild_id);
     if (aliases.empty()) {
         return "No emoji aliases here. `/linkstats emojis` lists likely candidates.";
@@ -403,7 +404,7 @@ std::string render_aliases(const events::reaction_store& store, dpp::snowflake g
 
 // --------------------------------------------------------------------------
 
-std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) {
+auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) -> std::string {
     std::string range = std::format("since {}", format_day(request.since));
     if (request.until) {
         range += std::format(" until {}", format_day(*request.until - std::chrono::days{1}));
@@ -457,7 +458,7 @@ namespace {
 
 /// Shows a recompute's progress. A plain function rather than a capturing
 /// lambda, since a coroutine lambda's captures die with the lambda.
-dpp::task<void> show_progress(ports::discord_gateway& discord, dpp::message message) {
+auto show_progress(ports::discord_gateway& discord, dpp::message message) -> dpp::task<void> {
     const auto edited = co_await discord.edit_message(std::move(message));
     if (!edited.ok()) {
         util::log().debug("could not update the recompute progress message: {}", edited.error().message);
@@ -486,7 +487,7 @@ linkstats_command::linkstats_command(events::reaction_store& store, recompute_su
       store_(&store),
       recompute_(std::move(recompute)) {}
 
-dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowflake application_id) const {
+auto linkstats_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
     dpp::command_option by(dpp::co_string, "by", "What to rank. Received if left out.", false);
@@ -546,7 +547,7 @@ dpp::slashcommand linkstats_command::build(const std::string& name, dpp::snowfla
     return payload;
 }
 
-void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
+auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
     if (focused == nullptr || event.owner == nullptr) {
         return;
@@ -587,7 +588,7 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
-std::optional<std::string> linkstats_refusal(std::string_view subcommand, dpp::permission invoker) {
+auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> std::optional<std::string> {
     if (invoker.can(dpp::p_manage_guild)) {
         return std::nullopt;
     }
@@ -602,7 +603,7 @@ std::optional<std::string> linkstats_refusal(std::string_view subcommand, dpp::p
     return std::nullopt;
 }
 
-dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
+auto linkstats_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string subcommand = subcommand_path(event.command.get_command_interaction());
 
     if (const auto refused = linkstats_refusal(subcommand, invoker_permissions(event))) {
@@ -625,7 +626,7 @@ dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
     }
 }
 
-dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
+auto linkstats_command::top(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const auto which = board_from_string(string_option(event, "by"));
 
@@ -650,7 +651,7 @@ dpp::task<void> linkstats_command::top(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, render_board(*store_, guild, chosen, query)));
 }
 
-dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
+auto linkstats_command::user(const dpp::slashcommand_t& event) -> dpp::task<void> {
     events::stat_query window;
     if (const auto problem = read_window(event, window)) {
         co_await event.co_reply(refusal(event, *problem));
@@ -662,7 +663,7 @@ dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
     co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
 }
 
-dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view subcommand) {
+auto linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
 
     if (subcommand == "alias list") {
@@ -711,7 +712,7 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, std::
                                   events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
 }
 
-dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, std::string_view subcommand) {
+auto linkstats_command::recompute(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void> {
     // Manage Server has been checked by execute.
     if (recompute_.service == nullptr || recompute_.discord == nullptr) {
         co_await event.co_reply(refusal(event, "recomputing isn't available in this build"));
@@ -732,7 +733,7 @@ dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, s
     }
 }
 
-dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& event) {
+auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
 
     events::stat_query window;

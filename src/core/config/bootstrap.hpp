@@ -69,13 +69,13 @@ struct bootstrap {
     ///
     /// Unknown keys are rejected rather than ignored, so a typo in a
     /// hand-edited file is reported instead of silently doing nothing.
-    [[nodiscard]] static bootstrap from_json(std::string_view text);
+    [[nodiscard]] static auto from_json(std::string_view text) -> bootstrap;
 
     /// Reads the file, or returns the defaults when it does not exist.
-    [[nodiscard]] static bootstrap load(const std::filesystem::path& path);
+    [[nodiscard]] static auto load(const std::filesystem::path& path) -> bootstrap;
 
     /// Whether this user may use the host-touching DECtalk commands here.
-    [[nodiscard]] bool is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const;
+    [[nodiscard]] auto is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool;
 };
 
 /// The level `LATIBOT_LOG_LEVEL` asks for, or nothing when it is unset.
@@ -83,7 +83,7 @@ struct bootstrap {
 /// Separate from `bootstrap::load` so the level can be applied before the
 /// configuration is read, which is the only way loading it is itself logged at
 /// the level that was asked for. Throws `config_error` naming the valid levels.
-[[nodiscard]] std::optional<util::log_level> log_level_from_environment();
+[[nodiscard]] auto log_level_from_environment() -> std::optional<util::log_level>;
 
 /// Whether this build reads the `LATIBOT_DEBUG_*` variables. Only a debug
 /// build does, so a line left in `.env` cannot change what a release build
@@ -102,7 +102,7 @@ inline constexpr bool reads_debug_overrides =
 /// rather than quietly obeyed. Throws `config_error` when a debug build finds
 /// something that is not an ID: a typo in a testing aid should stop the run,
 /// not fall back to reading the wrong history.
-[[nodiscard]] std::optional<dpp::snowflake> recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides);
+[[nodiscard]] auto recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides) -> std::optional<dpp::snowflake>;
 
 /// Credentials. These only ever come from the environment, never from a file
 /// that could be committed (plan §5.1).
@@ -112,7 +112,7 @@ struct secrets {
     std::optional<std::string> openai_key;
 
     /// Throws `config_error` when `DISCORD_BOT_TOKEN` is missing or empty.
-    [[nodiscard]] static secrets from_environment();
+    [[nodiscard]] static auto from_environment() -> secrets;
 };
 
 } // namespace latibot::config

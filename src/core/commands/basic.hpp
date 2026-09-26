@@ -53,13 +53,13 @@ struct join_decision {
     dpp::snowflake channel_id;
 };
 
-[[nodiscard]] join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept;
+[[nodiscard]] auto plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept -> join_decision;
 
 /// What `/join` says in the channel once it goes: "ok joining <@id>" or "ok
 /// moving to <@id>", naming whom it followed, as the Java bot did. The reply
 /// is public, since the room sees the bot arrive anyway, and is sent with
 /// mentions off, so the name shows without pinging anyone.
-[[nodiscard]] std::string describe_join(join_action action, dpp::snowflake followed);
+[[nodiscard]] auto describe_join(join_action action, dpp::snowflake followed) -> std::string;
 
 /// What `/say` should do with the options it was given.
 enum class say_action : std::uint8_t {
@@ -80,19 +80,19 @@ struct say_decision {
 };
 
 /// `reply_to` is the raw option text, empty when the option was not given.
-[[nodiscard]] say_decision plan_say(std::string_view message, std::string_view reply_to);
+[[nodiscard]] auto plan_say(std::string_view message, std::string_view reply_to) -> say_decision;
 
 /// Maps the `type` option of `/status` onto a DPP activity type.
 ///
 /// Case-insensitive, and unknown or empty text falls back to "playing", which
 /// is what the Java bot did when the option was omitted.
-[[nodiscard]] dpp::activity_type parse_activity_type(std::string_view name);
+[[nodiscard]] auto parse_activity_type(std::string_view name) -> dpp::activity_type;
 
 /// Builds the activity for a presence update.
 ///
 /// A custom status is the odd one out: Discord reads its text from `state`
 /// rather than `name`, and expects the literal name "Custom Status".
-[[nodiscard]] dpp::activity make_activity(dpp::activity_type type, const std::string& text);
+[[nodiscard]] auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::activity;
 
 /// The last `/status`, kept so a restart does not clear it (plan §6).
 struct saved_status {
@@ -103,13 +103,13 @@ struct saved_status {
 };
 
 /// Keeps a status, under `config::bot_wide`.
-void save_status(config::guild_settings& settings, const saved_status& status);
+auto save_status(config::guild_settings& settings, const saved_status& status) -> void;
 
 /// The status last saved, or nothing when there is none.
-[[nodiscard]] std::optional<saved_status> load_status(const config::guild_settings& settings);
+[[nodiscard]] auto load_status(const config::guild_settings& settings) -> std::optional<saved_status>;
 
 /// The presence a status sets.
-[[nodiscard]] dpp::presence presence_for(const saved_status& status);
+[[nodiscard]] auto presence_for(const saved_status& status) -> dpp::presence;
 
 // --------------------------------------------------------------------------
 // Commands
@@ -120,8 +120,8 @@ class ping_command final : public command {
 public:
     explicit ping_command(ports::clock& clock);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -133,9 +133,9 @@ class say_command final : public command {
 public:
     explicit say_command(dpp::cluster& cluster);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -147,9 +147,9 @@ class status_command final : public command {
 public:
     status_command(dpp::cluster& cluster, config::guild_settings& settings);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -162,9 +162,9 @@ class join_command final : public command {
 public:
     join_command();
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -175,8 +175,8 @@ class leave_command final : public command {
 public:
     leave_command();
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -189,8 +189,8 @@ public:
     /// caller sees an answer rather than a failed interaction.
     explicit shutdown_command(std::function<void()> request_shutdown);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -205,9 +205,9 @@ class goodbye_command final : public command {
 public:
     explicit goodbye_command(config::guild_settings& settings);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -215,7 +215,7 @@ private:
 };
 
 /// Adds all of the above to `registry`.
-void add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
-                        std::function<void()> request_shutdown);
+auto add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
+                        std::function<void()> request_shutdown) -> void;
 
 } // namespace latibot::commands

@@ -46,11 +46,11 @@ constexpr std::array<requirement, 4> passive{{
 
 } // namespace
 
-std::span<const requirement> passive_requirements() noexcept {
+auto passive_requirements() noexcept -> std::span<const requirement> {
     return passive;
 }
 
-std::vector<gap> unmet(std::span<const requirement> required, std::uint64_t granted) {
+auto unmet(std::span<const requirement> required, std::uint64_t granted) -> std::vector<gap> {
     std::vector<gap> gaps;
 
     // Administrator overrides every other permission on Discord's side, so a
@@ -68,7 +68,7 @@ std::vector<gap> unmet(std::span<const requirement> required, std::uint64_t gran
     return gaps;
 }
 
-std::string describe_permissions(std::uint64_t permissions) {
+auto describe_permissions(std::uint64_t permissions) -> std::string {
     std::string description;
     std::uint64_t remaining = permissions;
 

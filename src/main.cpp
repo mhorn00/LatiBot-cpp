@@ -11,7 +11,7 @@
 // the log inside a handler could itself throw. There is nowhere left to
 // report that, so terminating is the correct outcome.
 // NOLINTNEXTLINE(bugprone-exception-escape)
-int main(int argc, char** argv) {
+auto main(int argc, char** argv) -> int {
     try {
         const std::filesystem::path config_path = argc > 1 ? argv[1] : "config.json";
 

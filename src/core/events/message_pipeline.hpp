@@ -107,7 +107,7 @@ public:
     using stage_fn = std::function<stage_result(const incoming_message&)>;
 
     /// The name is for logging and for reading the order back in a test.
-    void add(std::string name, stage_fn handler);
+    auto add(std::string name, stage_fn handler) -> void;
 
     /// Everything the stages asked for, in order.
     ///
@@ -115,10 +115,10 @@ public:
     /// guild allows that one (plan §5.4). Reaching the stages is only
     /// permission to be considered: a stage still decides for itself whether
     /// it answers a bot.
-    [[nodiscard]] std::vector<action> run(const incoming_message& message) const;
+    [[nodiscard]] auto run(const incoming_message& message) const -> std::vector<action>;
 
-    [[nodiscard]] std::vector<std::string_view> stage_names() const;
-    [[nodiscard]] std::size_t size() const noexcept { return stages_.size(); }
+    [[nodiscard]] auto stage_names() const -> std::vector<std::string_view>;
+    [[nodiscard]] auto size() const noexcept -> std::size_t { return stages_.size(); }
 
 private:
     struct stage {

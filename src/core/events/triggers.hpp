@@ -36,8 +36,8 @@ enum class match_mode : std::uint8_t {
     substring,
 };
 
-[[nodiscard]] std::string_view to_string(match_mode mode) noexcept;
-[[nodiscard]] std::optional<match_mode> match_mode_from_string(std::string_view name);
+[[nodiscard]] auto to_string(match_mode mode) noexcept -> std::string_view;
+[[nodiscard]] auto match_mode_from_string(std::string_view name) -> std::optional<match_mode>;
 
 struct weighted_response {
     std::string text;
@@ -78,21 +78,21 @@ inline constexpr std::chrono::seconds default_trigger_cooldown{30};
 
 /// Whether `content` fires `pattern`. Case-insensitive, and the pattern is
 /// literal text rather than a regular expression.
-[[nodiscard]] bool matches(std::string_view content, std::string_view pattern, match_mode mode);
+[[nodiscard]] auto matches(std::string_view content, std::string_view pattern, match_mode mode) -> bool;
 
 /// Picks a response, weighted.
 ///
 /// `roll` is any number; the caller owns the randomness, which is what makes
 /// the distribution testable. Returns nullptr when there is nothing to pick:
 /// no responses, or every weight zero or negative.
-[[nodiscard]] const weighted_response* choose(std::span<const weighted_response> responses, std::uint64_t roll);
+[[nodiscard]] auto choose(std::span<const weighted_response> responses, std::uint64_t roll) -> const weighted_response*;
 
 /// Whether a trigger may fire again in a channel.
 ///
 /// `last_fired` is empty when it has not fired there yet. A zero cooldown
 /// always allows it, which is the documented way to turn cooldowns off.
-[[nodiscard]] bool off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
-                                std::chrono::seconds cooldown);
+[[nodiscard]] auto off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
+                                std::chrono::seconds cooldown) -> bool;
 
 // --------------------------------------------------------------------------
 // Storage
@@ -103,23 +103,23 @@ class trigger_store {
 public:
     explicit trigger_store(db::database& db) : db_(&db) {}
 
-    [[nodiscard]] std::vector<trigger> for_guild(dpp::snowflake guild_id) const;
-    [[nodiscard]] std::optional<trigger> find(std::int64_t id, dpp::snowflake guild_id) const;
+    [[nodiscard]] auto for_guild(dpp::snowflake guild_id) const -> std::vector<trigger>;
+    [[nodiscard]] auto find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<trigger>;
 
     /// Returns the new id. Responses are replaced wholesale, which is how the
     /// command and the panel both edit them.
-    std::int64_t add(const trigger& entry);
+    auto add(const trigger& entry) -> std::int64_t;
 
     /// False when the trigger does not exist, or belongs to another guild.
-    bool update(const trigger& entry);
-    bool remove(std::int64_t id, dpp::snowflake guild_id);
+    auto update(const trigger& entry) -> bool;
+    auto remove(std::int64_t id, dpp::snowflake guild_id) -> bool;
 
     /// The three the Java bot had, added only when the guild has none
     /// (plan §11). Returns how many were added.
-    int seed_defaults(dpp::snowflake guild_id);
+    auto seed_defaults(dpp::snowflake guild_id) -> int;
 
 private:
-    void replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses);
+    auto replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses) -> void;
 
     db::database* db_;
 };
@@ -142,7 +142,7 @@ public:
     /// a seeded generator; tests pass something predictable.
     trigger_responder(const trigger_store& store, ports::clock& clock, std::function<std::uint64_t()> roll = {});
 
-    stage_result operator()(const incoming_message& message);
+    auto operator()(const incoming_message& message) -> stage_result;
 
 private:
     const trigger_store* store_;

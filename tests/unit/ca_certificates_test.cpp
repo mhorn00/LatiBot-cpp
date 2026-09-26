@@ -12,14 +12,14 @@ using latibot::util::export_system_certificates;
 
 namespace {
 
-std::string read(const std::filesystem::path& path) {
+auto read(const std::filesystem::path& path) -> std::string {
     const std::ifstream file(path, std::ios::binary);
     std::ostringstream contents;
     contents << file.rdbuf();
     return contents.str();
 }
 
-std::size_t count_of(std::string_view text, std::string_view needle) {
+auto count_of(std::string_view text, std::string_view needle) -> std::size_t {
     std::size_t found = 0;
     for (std::size_t at = text.find(needle); at != std::string_view::npos; at = text.find(needle, at + needle.size())) {
         ++found;

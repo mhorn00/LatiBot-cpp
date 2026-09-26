@@ -19,28 +19,28 @@ namespace latibot::commands {
 inline constexpr std::size_t autocomplete_limit = 25;
 
 /// One line of `/midnight list`.
-[[nodiscard]] std::string describe(const events::midnight_entry& entry);
+[[nodiscard]] auto describe(const events::midnight_entry& entry) -> std::string;
 
 /// The body of `/midnight list`, as its own function so it can be tested
 /// without an interaction.
-[[nodiscard]] std::string render_midnight_list(std::span<const events::midnight_entry> entries);
+[[nodiscard]] auto render_midnight_list(std::span<const events::midnight_entry> entries) -> std::string;
 
 /// `/midnight list | add | edit | remove | toggle` (plan §10).
 class midnight_command final : public command {
 public:
     midnight_command(events::midnight_store& store, ports::clock& clock);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
-    void autocomplete(const dpp::autocomplete_t& event) const override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
+    auto autocomplete(const dpp::autocomplete_t& event) const -> void override;
 
 private:
-    dpp::task<void> add(const dpp::slashcommand_t& event);
-    dpp::task<void> edit(const dpp::slashcommand_t& event);
-    dpp::task<void> remove(const dpp::slashcommand_t& event);
-    dpp::task<void> toggle(const dpp::slashcommand_t& event);
-    dpp::task<void> list(const dpp::slashcommand_t& event);
+    auto add(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto edit(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto remove(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto toggle(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto list(const dpp::slashcommand_t& event) -> dpp::task<void>;
 
     command_info info_;
     events::midnight_store* store_;

@@ -27,7 +27,7 @@ constexpr std::array<migration, 2> two_steps{{
     {.version = 2, .name = "second", .sql = "CREATE TABLE second_table (id INTEGER PRIMARY KEY);"},
 }};
 
-bool table_exists(database& db, std::string_view name) {
+auto table_exists(database& db, std::string_view name) -> bool {
     auto query = db.prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", name);
     return query.step() && query.get<int>(0) == 1;
 }

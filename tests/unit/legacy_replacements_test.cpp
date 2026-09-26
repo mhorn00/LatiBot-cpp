@@ -25,12 +25,12 @@ constexpr dpp::snowflake other_bot{43};
 
 // A function rather than a constant: building the map allocates, and a static
 // that throws while the test binary is starting cannot be caught.
-const mirror_map& mirrors() {
+auto mirrors() -> const mirror_map& {
     static const mirror_map made{{"fxtwitter.com", "x.com"}, {"vxtwitter.com", "x.com"}, {"tfxktok.com", "tiktok.com"}};
     return made;
 }
 
-history_message from_bot(std::string content, dpp::snowflake id = dpp::snowflake{900}) {
+auto from_bot(std::string content, dpp::snowflake id = dpp::snowflake{900}) -> history_message {
     return {.id = id,
             .author_id = bot,
             .author_is_bot = true,
@@ -41,7 +41,7 @@ history_message from_bot(std::string content, dpp::snowflake id = dpp::snowflake
             .reactions = {}};
 }
 
-history_message from_person(dpp::snowflake who, std::string content, dpp::snowflake id) {
+auto from_person(dpp::snowflake who, std::string content, dpp::snowflake id) -> history_message {
     return {.id = id,
             .author_id = who,
             .author_is_bot = false,
@@ -52,7 +52,7 @@ history_message from_person(dpp::snowflake who, std::string content, dpp::snowfl
             .reactions = {}};
 }
 
-legacy_match recognised(const history_message& message) {
+auto recognised(const history_message& message) -> legacy_match {
     const legacy_match match = classify(message, bot, mirrors());
     REQUIRE(match.what == legacy_match::kind::recognised);
     return match;

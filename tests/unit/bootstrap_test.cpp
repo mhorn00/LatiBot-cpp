@@ -29,12 +29,12 @@ public:
     }
 
     scoped_env(const scoped_env&) = delete;
-    scoped_env& operator=(const scoped_env&) = delete;
+    auto operator=(const scoped_env&) -> scoped_env& = delete;
 
     ~scoped_env() { set(previous_ ? previous_->c_str() : nullptr); }
 
 private:
-    void set(const char* value) const { _putenv_s(name_, value != nullptr ? value : ""); }
+    auto set(const char* value) const -> void { _putenv_s(name_, value != nullptr ? value : ""); }
 
     const char* name_;
     std::optional<std::string> previous_;

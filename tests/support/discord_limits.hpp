@@ -40,7 +40,7 @@ inline constexpr std::size_t input_length = 4000;
 /// Checks one message's content and components. A custom ID must be unique
 /// within its message, which is the rule a panel breaks when two of its rows
 /// happen to encode the same state.
-inline void check_message_fits(const dpp::message& message) {
+inline auto check_message_fits(const dpp::message& message) -> void {
     CHECK(util::character_count(message.content) <= discord_limit::content);
     CHECK(message.components.size() <= discord_limit::rows);
 
@@ -87,7 +87,7 @@ inline void check_message_fits(const dpp::message& message) {
 }
 
 /// Checks a modal: its title, its ID, and each text input's.
-inline void check_modal_fits(const dpp::interaction_modal_response& form) {
+inline auto check_modal_fits(const dpp::interaction_modal_response& form) -> void {
     CHECK_FALSE(form.title.empty());
     CHECK(util::character_count(form.title) <= discord_limit::modal_title);
     CHECK_FALSE(form.custom_id.empty());

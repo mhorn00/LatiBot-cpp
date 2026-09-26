@@ -42,7 +42,8 @@ inline constexpr std::size_t nickname_length_limit = 32;
 /// Takes the history rather than the store so it can be tested as the pure
 /// function it is; the button handler and the command both load it the same
 /// way and call this.
-[[nodiscard]] dpp::message render_nickname_history(std::span<const events::nickname_change> history, dpp::snowflake user_id, int page);
+[[nodiscard]] auto render_nickname_history(std::span<const events::nickname_change> history, dpp::snowflake user_id, int page)
+    -> dpp::message;
 
 /// `/nickname` (plan §8.1).
 ///
@@ -53,9 +54,9 @@ class nickname_command final : public command {
 public:
     nickname_command(events::nickname_store& store, events::pending_nicknames& pending, ports::clock& clock, dpp::cluster& cluster);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;
@@ -70,9 +71,9 @@ class nicknames_command final : public command {
 public:
     explicit nicknames_command(events::nickname_store& store);
 
-    [[nodiscard]] const command_info& info() const override { return info_; }
-    [[nodiscard]] dpp::slashcommand build(const std::string& name, dpp::snowflake application_id) const override;
-    dpp::task<void> execute(const dpp::slashcommand_t& event) override;
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
 private:
     command_info info_;

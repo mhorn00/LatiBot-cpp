@@ -11,7 +11,7 @@ using latibot::events::midnight_entry;
 
 namespace {
 
-midnight_entry entry_in(std::string timezone) {
+auto entry_in(std::string timezone) -> midnight_entry {
     return {.id = 4,
             .guild_id = dpp::snowflake{1000},
             .channel_id = dpp::snowflake{3000},

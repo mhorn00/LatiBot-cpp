@@ -27,16 +27,16 @@ inline constexpr message_flags edit_flags = dpp::m_suppress_embeds;
 /// `flags` narrowed to `channel_message_flags`, which is how a stored message
 /// setting is read and written: a value from a hand edit, or from a later
 /// build that allowed more, cannot bring in a flag this one does not expect.
-[[nodiscard]] constexpr message_flags channel_flags(std::int64_t flags) noexcept {
+[[nodiscard]] constexpr auto channel_flags(std::int64_t flags) noexcept -> message_flags {
     return static_cast<message_flags>(flags & channel_message_flags);
 }
 
 /// Replaces the flags in `choosable` with `wanted`, leaving every other flag
 /// as it was. `wanted` outside `choosable` is dropped rather than applied.
-dpp::message& apply_flags(dpp::message& message, message_flags wanted, message_flags choosable = reply_flags);
+auto apply_flags(dpp::message& message, message_flags wanted, message_flags choosable = reply_flags) -> dpp::message&;
 
 /// "ephemeral, silent, no previews", or "none": the flags this bot chooses,
 /// named for the log and for lists. Anything else is written in hex.
-[[nodiscard]] std::string describe_flags(message_flags flags);
+[[nodiscard]] auto describe_flags(message_flags flags) -> std::string;
 
 } // namespace latibot::discord

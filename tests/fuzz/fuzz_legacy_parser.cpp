@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
+extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) -> int {
     const std::string_view text(reinterpret_cast<const char*>(data), size);
 
     static const latibot::events::mirror_map mirrors{{"fxtwitter.com", "x.com"}, {"vxtwitter.com", "x.com"}};

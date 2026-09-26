@@ -17,20 +17,20 @@ namespace latibot::commands {
 // so a handler checks one value rather than the variant.
 
 /// A text option, or empty when it was not given.
-[[nodiscard]] std::string string_option(const dpp::slashcommand_t& event, const char* name);
+[[nodiscard]] auto string_option(const dpp::slashcommand_t& event, const char* name) -> std::string;
 
 /// An integer option.
-[[nodiscard]] std::optional<std::int64_t> int_option(const dpp::slashcommand_t& event, const char* name);
+[[nodiscard]] auto int_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<std::int64_t>;
 
 /// A true-or-false option. Nothing when it was not given, which is not the
 /// same as false: an edit leaves what it was not told to change.
-[[nodiscard]] std::optional<bool> bool_option(const dpp::slashcommand_t& event, const char* name);
+[[nodiscard]] auto bool_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<bool>;
 
 /// A user, channel or role option: its id.
-[[nodiscard]] std::optional<dpp::snowflake> snowflake_option(const dpp::slashcommand_t& event, const char* name);
+[[nodiscard]] auto snowflake_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<dpp::snowflake>;
 
 /// What the person running the command may do in this channel, as Discord
 /// worked it out for the interaction. Empty in a DM, where it sends none.
-[[nodiscard]] dpp::permission invoker_permissions(const dpp::slashcommand_t& event);
+[[nodiscard]] auto invoker_permissions(const dpp::slashcommand_t& event) -> dpp::permission;
 
 } // namespace latibot::commands

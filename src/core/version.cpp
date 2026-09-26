@@ -2,7 +2,7 @@
 
 namespace latibot {
 
-std::string_view version_string() noexcept {
+auto version_string() noexcept -> std::string_view {
     return "0.1.0";
 }
 
