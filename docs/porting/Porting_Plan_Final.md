@@ -30,13 +30,15 @@ the order of work behind it.
 | 1 | Basic commands, goodbye phrase, preflight, pipeline, triggers, panel UI, bot allowlist | ✅ done |
 | 2 | Nicknames, the import, midnight, scheduled backups | ✅ done |
 | 3 | URL replacement, reaction statistics, backfill | ✅ done |
-| 4 | DECtalk, mixer, voice sessions | ⏳ next |
-| 5 | LLM | ⏳ |
-| — | Music, emote statistics, appearance tracking | ⏳ unscheduled |
+| 4 | DECtalk, speech queue, voice sessions, custom voices, `/chat` | ✅ done |
+| 5 | LLM | ⏳ next |
+| — | Music (and with it the mixer), emote statistics, appearance tracking | ⏳ unscheduled |
 
-464 tests pass in Debug, Release and under AddressSanitizer, and clang-tidy is
-clean over `src/`. Three libFuzzer targets cover the text that arrives from
-people: the text helpers, the URL scanner and the legacy replacement parser.
+582 tests pass in Debug, Release and under AddressSanitizer, including the
+real DECtalk engine and golden audio, and clang-tidy is clean over `src/` and
+`tests/`. Four libFuzzer targets cover the text that arrives from people: the
+text helpers, the URL scanner, the legacy replacement parser and the DECtalk
+sanitizer.
 
 ---
 
@@ -212,7 +214,8 @@ matters.
 | `[:debug n]` | Sets engine debug flags; prints diagnostics to the bot's stdout |
 | `[:loadv n]` / `[:setv n]` | Stores and replays a command macro. The source itself says `loadv` "will probably crash and burn if a flush happens in the middle", and `/tts stop` flushes |
 | `[:dv save]` | Makes voice edits permanent for the engine handle — we store custom voices ourselves instead (§12.6) |
-| `[:tone]`, `[:dial]`, `[:pause]` | Generate tones and silence of any length; bounded by the duration cap rather than by the sanitizer |
+| `[:tone]`, `[:dial]` | Generate tones of any length; bounded by the duration cap rather than by the sanitizer |
+| `[:pause]` | Pauses the sound card for the time given. A memory engine has none, so it only holds the engine up: stripped for everyone (§21.16) |
 
 **Engine state persists between utterances.** `[:rate]`, `[:dv …]`, `[:mode]`,
 `[:phoneme on]`, `[:punct]` and others stay set on the handle, so one user's
@@ -298,7 +301,7 @@ CMakePresets.json       msvc (default), asan, fuzz, ninja-tidy
 conanfile.py            openssl, zlib, opus, sqlite3, ctre, catch2
 .clang-format .clang-tidy
 .github/workflows/ci.yml
-cmake/                  warnings, sanitizers, shared helpers; dectalk.cmake (phase 4)
+cmake/                  warnings, sanitizers, shared helpers; dectalk.cmake, dectalk_zeroed_heap.h
 tools/                  catalog generator, clang-tidy and clang-format wrappers
 .vscode/                tasks, launch, IntelliSense, the grouped test tree
 docs/
@@ -314,24 +317,30 @@ src/
     config/   bootstrap.*  guild_settings.*
     db/       database.*  statement.*  error.*  migrations.*  backup.*
     discord/  raw_api.*  dpp_gateway.*  dpp_http_client.*  message_flags.*
+              voice_state.*  dpp_voice_output.*
     commands/ registry.*  options.*  message_options.*  preflight.*
               basic.*  trigger.*  bots.*  nickname.*  midnight.*
               urlrepl.*  linkstats.*
-              speak.*  voice.*  llm_admin.*                (phases 4-5)
+              speak.* (and /tts)  voice.*  voice_lab.*  chat.*
+              llm_admin.*                                  (phase 5)
     events/   message_pipeline.*  goodbye.*  triggers.*  bot_allowlist.*
               nicknames.*  nickname_import.*  midnight.*
               url_rules.*  url_replacer.*  embed_watch.*  replacements.*
               reactions.*  legacy_replacements.*  backfill.*
-    ui/       paginator.*
+              voice_sessions.*
+    ui/       paginator.*  interaction.*
               panel.*  modal_forms.*                       (when a third panel exists, §21.5)
-    audio/    voice_mixer.*  resample.*  wav.*
-              dectalk_engine.*  dectalk_sanitizer.*  voice_params.*   (phase 4)
+    audio/    dectalk_engine.*  dectalk_sanitizer.*  voice_params.*  voice_store.*
+              speech_queue.*  pcm.*  wav.*
+              voice_mixer.*                                (with music, §13)
     llm/      provider.hpp  anthropic.*  conversation.*  memory.*
               tools.*  documents.*  responder.*  spend.*   (phase 5)
-    ports/    clock.*  discord_gateway.hpp  http_client.hpp  tts_engine.hpp  result.hpp
+    ports/    clock.*  discord_gateway.hpp  http_client.hpp  tts_engine.hpp
+              voice_output.hpp  result.hpp
     util/     log.*  text.*  env.*  ca_certificates.*  url_scan.*
 tests/
   unit/  db/  mocks/  support/  fuzz/ (with corpus/, its seed inputs)
+  golden/                 DECtalk's audio fingerprints (§17.5)
   live/  fixtures/                                         (planned)
 third_party/  DPP/  dectalk/
 data/                   runtime: bot.db, backups/, ca-bundle.pem, and the Java
@@ -427,6 +436,10 @@ backfill_progress(guild_id, channel_id, since, until NULL, oldest_scanned_id NUL
 -- 9: message_flags
 triggers.message_flags                                   -- added, default 4096 (silent)
 midnight_messages.message_flags                          -- added, default 4096 (silent)
+
+-- 10: tts_voices
+tts_voices(guild_id, name, base_voice, params, created_by, updated_at)
+                                                  -- PK (guild_id, name); params "ap 200 pr 150"
 ```
 
 `replacement_messages` lost the plan's `domain` and `alternate_index` columns
@@ -446,7 +459,6 @@ llm_blacklist(guild_id, kind, target_id)
 llm_memory(id, guild_id, subject_user_id NULL, content, created_at, …)   -- + FTS5
 llm_documents(guild_id, kind, version, content, edited_by, edited_at, note)
 llm_usage(id, guild_id, model, input_tokens, output_tokens, cost_usd, at)
-tts_voices(guild_id, name, base_voice, params, created_by, updated_at)
 ```
 
 **Backups** ✅ use SQLite's online backup API, so a copy can be taken while the
@@ -519,9 +531,10 @@ only `flags`), and any component type DPP lacks (§2.1).
 
 ### 5.6 Ports ✅
 
-Four interfaces wrap the outside world so the core can be tested without it:
-`clock`, `discord_gateway`, `http_client`, `tts_engine`. Each has a
-hand-written mock in `tests/mocks/`. See §17.3.
+Five interfaces wrap the outside world so the core can be tested without it:
+`clock`, `discord_gateway`, `http_client`, `tts_engine`, and `voice_output`,
+added in phase 4 for the speech queue. Each has a hand-written mock in
+`tests/mocks/`. See §17.3.
 
 ---
 
@@ -995,158 +1008,189 @@ remains in phase 5 is the *pacing*, which is genuinely LLM-specific.
 
 ---
 
-## 12. DECtalk ⏳ (phase 4)
+## 12. DECtalk ✅
 
-### 12.1 Build
+What follows is what was built. The spike this section planned (§12.3)
+overturned its design before any of it was written, so §21.16 records what
+the plan said and why it changed, and §21.17 a problem found afterwards.
+
+### 12.1 Build ✅
 
 `cmake/dectalk.cmake` builds from the submodule without modifying it: the
 `dectalk` **DLL** (§2.2 for the source list, defines and exports), the
-`dectalk_dic` host tool, and a custom command that compiles `dtalk_us.dic` next
-to the exe on every clean build, the same way `dpp.dll` is copied. Warnings are
-relaxed for this target only — it is 1990s C.
+`dectalk_dic` host tool, and a custom command that compiles `dtalk_us.dic`
+into the folder `dectalk.dll` lands in, beside every executable that loads
+it. It is built with `/W0` and none of our warning flags.
 
-### 12.2 Startup
+Every DECtalk source is compiled with `cmake/dectalk_zeroed_heap.h`
+force-included, which makes `malloc` `calloc` and `realloc` `_recalloc`.
+DECtalk reads heap memory it never wrote, and without that a Release build
+does not say the same thing twice (§21.17).
+
+### 12.2 Startup ✅
 
 ```cpp
 TextToSpeechStartupExFonix(&handle, WAVE_MAPPER, DO_NOT_USE_AUDIO_DEVICE,
                            &on_dectalk_message, /*instance*/ 0,
-                           dictionary_path.c_str());   // absolute
+                           dictionary.data());   // absolute
 ```
 
-The instance parameter is **not** a pointer (§2.2); with one engine the callback
-reaches it through a static. The absolute dictionary path removes the registry
-and working-directory dependency that broke dictionaries in the Java version.
+Once per utterance rather than once per process (§12.3). The instance
+parameter is **not** a pointer (§2.2); the callback reaches the utterance
+being spoken through a static, since there is only ever one. The dictionary
+is found beside `dectalk.dll` itself, so neither the registry nor the working
+directory matters, and it is checked before DECtalk sees the path: a start
+that fails to load it breaks every later start in the process (§21.16).
 
-### 12.3 Streaming synthesis
+### 12.3 Synthesis ✅
 
-1. `TextToSpeechOpenInMemory(handle, WAVE_FORMAT_1M16)` once, kept open.
-2. A ring of ~4 buffers of ~0.25 s (11025 Hz mono 16-bit ≈ 5.5 KB each), queued
-   with `AddBuffer` and also pushed onto our own deque.
-3. `TextToSpeechSpeak(handle, text, TTS_FORCE)`.
-4. On each buffer message: take the front buffer from the deque (the callback's
-   pointer is truncated, §2.2), hand the PCM to the worker, requeue the buffer.
-5. The worker resamples 11025 Hz mono → 48 kHz stereo and feeds the mixer, so
-   audio starts about a quarter second in.
-6. End of utterance: `TextToSpeechSync`, then `ReturnBuffer` to flush the tail.
+Synthesis runs at about 400 times real time, so an utterance is returned
+whole rather than streamed; a minute of speech is ready in well under a
+second. Each utterance gets an engine of its own, started for it and shut
+down after it (about 45 ms), because that is the only way to start from
+DECtalk's defaults every time (§21.16).
 
-The resampling is about 40 lines: 11025 → 48000 is not an integer ratio
-(4.3537…), so it needs a fractional-position resampler rather than sample
-duplication — linear interpolation is ample for lo-fi robotic speech — and mono
-→ stereo is writing each sample twice. DPP wants 48 kHz stereo 16-bit in frames
-of `dpp::send_audio_raw_max_length` = 11520 bytes, which is exactly 20 ms.
-**ffmpeg is therefore a music-only dependency**, not a TTS one.
+1. Start the engine and `TextToSpeechOpenInMemory(handle, WAVE_FORMAT_1M16)`.
+2. Queue four buffers of 8192 samples with `AddBuffer`, and on our own deque.
+3. `TextToSpeechSpeak(handle, preamble + text, TTS_FORCE)`, the preamble
+   selecting the voice, the rate and a custom voice's `[:dv]` edits.
+4. On each buffer message: take the front buffer from the deque (the
+   callback's pointer is truncated, §2.2, and is only compared), keep its
+   samples and requeue it from inside the callback, which is safe.
+5. `TextToSpeechSync` on a thread of its own, while the worker watches the
+   limits. When it returns, `ReturnBuffer` hands back the part-filled tail.
+6. Close and shut the engine down. Trailing silence is cut to 50 ms and the
+   volume applied in software.
 
-`/chat` voice messages use the same path in collect mode.
+The resampler (`audio::to_discord`) converts 11025 Hz mono to 48 kHz stereo
+by linear interpolation at fractional positions kept exactly as integers,
+and writes each sample twice. **ffmpeg is a music-only dependency.**
 
-*Spike questions:* whether `AddBuffer` may be called from inside the callback,
-buffer size against start-up latency, and whether FIFO order holds across
-`TextToSpeechReset`.
+### 12.4 Threading ✅
 
-### 12.4 Threading
+One worker thread takes requests in order and completes them as DPP
+promises, so commands `co_await` without blocking DPP's threads, and
+completes every one of them itself, so `stop()` never resumes a coroutine on
+its caller's thread. The code after a `co_await` on `synthesize` therefore
+runs on the worker until it next suspends, which is why callers only hand
+the audio on and reply.
 
-One worker thread owns the handle; requests arrive through a queue and complete
-as awaitables, so commands `co_await` without blocking DPP's threads. Synthesis
-is CPU work and must never run on an event thread. Serialising also means no two
-requests share engine state.
+### 12.5 Sanitizer and trust levels ✅
 
-### 12.5 Sanitizer, trust levels and reset
-
-`dectalk_sanitizer::clean(text, trust)`, where `trust` is `trusted`, `user` or
+`audio::sanitize_speech(text, trust)`, where `trust` is `trusted`, `user` or
 `llm`:
 
 | | `user` | `trusted` | `llm` |
 |---|---|---|---|
-| `[:play]`, `[:log]` | stripped silently | kept | stripped |
-| `[:debug]`, `[:loadv]`, `[:setv]` | stripped | kept | stripped |
-| `[:dv save]` | stripped | stripped | stripped |
+| `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` | removed | kept | removed |
+| `[:pause]`, `[:resume]` | removed | removed | removed |
+| `save` in `[:dv … save]` | removed | removed | removed |
 | everything else | kept | kept | kept |
 
-A **denylist**: inline commands are a feature, and stripping is silent — the
-command is removed and the rest is spoken, with no error.
+A **denylist**, and stripping is silent. `[:pause]` joined it after the
+spike: it pauses a sound card a memory engine does not have, so all it does
+is hold the engine (§21.16).
 
 **Who is `trusted`:** a user in `trusted_users`, **or** a user with
 Administrator in a guild listed in `trusted_guilds` (§2.4). **LLM output is
 never trusted**, whoever asked.
 
-Parsing mirrors DECtalk's own matcher (`cm_cmd_match_comm`): `[:name args]`,
-case-insensitive, accepted as soon as the prefix is unique — so `[:pla …]`
-counts — and several commands chain inside one bracket
-(`[:rate 200 :play "x"]`). Heavily tested and fuzzed (§17.5).
+Command names are matched as DECtalk's `cm_cmd_match_comm` matches them:
+case-insensitively, as soon as a prefix is unique, several to a bracket,
+with spaces and extra `[` allowed before the `:`. Rather than editing the
+text, the sanitizer rebuilds it: plain text with no `[`, phoneme brackets
+with no `[` inside, and each command it keeps written out by itself as
+`[:name parameters]` with parameters limited to characters that cannot open
+or close anything. DECtalk only ever sees commands the sanitizer wrote, so a
+bracket read differently from DECtalk can cost text but not let a command
+through. Control characters go before anything is read. It is fuzzed against
+a checker that reads the output the way DECtalk would (§17.5).
 
-**Reset before every request**, because engine settings persist (§2.2): either
-`TextToSpeechReset(handle, FALSE)` or an explicit preamble setting the requested
-voice and resetting rate, mode and punctuation. The spike picks whichever also
-clears `[:dv]` edits.
+**No reset between requests** is needed, since each has a fresh engine.
 
-**Input cap:** 1000 characters for `/speak`, configurable per guild.
+**Input cap:** 1000 characters for `/speak`, per guild (`/tts limits`).
 
-### 12.6 `/speak`, custom voices, voice lab
+### 12.6 `/speak`, custom voices, voice lab ✅
 
-`/speak text [voice] [rate] [volume]`, with `voice` autocompleting the built-in
-voices plus this server's saved ones. Volume goes through
-`TextToSpeechSetVolume`, which is the fix for the Java version's "make dectalk
-louder lol" TODO.
+`/speak text [voice] [rate] [volume]`, with `voice` autocompleting the ten
+built-in voices and then this server's saved ones. Volume is a software gain
+on the samples rather than `TextToSpeechSetVolume`, which only affects a
+sound card; either way it fixes the Java version's "make dectalk louder lol".
 
-Custom voices live in `tts_voices` as a base voice plus ordered `[:dv]` pairs,
-rendered as a preamble at speak time and clamped to each parameter's documented
-range. **Anyone can create one; the creator or an admin can delete it.**
+Custom voices live in `tts_voices` (migration 10) as a base voice plus
+`[:dv]` edits, over the 29 parameters this build's synthesizer reads, clamped
+to DECtalk's own limits from `ph/ph_vdefi.c`. A saved voice's edits are read
+back and written out again when the preamble is built rather than pasted in,
+since the preamble is not sanitized. **Anyone can create one; the creator or
+an admin can replace or delete it.**
 
-**`/voice lab`** opens an ephemeral panel: current parameters grouped as in
-§2.2, a **▶ Test** button that speaks a test phrase in the bot's voice channel,
-per-group **Edit** modals (≤5 inputs each, so the common parameters sit on the
-first two), a **Raw** modal for pasting or copying a whole `[:dv …]` string,
-**Save as…**, and **Reset**. The working draft is kept per user for ~30 minutes,
-so closing the panel by accident does not lose it.
+**`/voice lab`** opens a private panel: the edits grouped (Pitch, Character,
+Breath, Formants, Parallel formants and tilt, Source gains, Formant gains,
+each five parameters at most, a modal's limit), a menu opening each group's
+form, a form for the whole voice as `[:dv]` text, the base voice, **▶ Test**
+in the voice channel, **Save as…**, and **Start over**. The draft is kept per
+person for half an hour after it was last touched. The lab routes its own
+buttons and forms, unlike the older panels, because Test has to speak.
 
-### 12.7 Stopping and limits
+### 12.7 Stopping and limits ✅
 
-- **`/tts stop`** (trusted users, admins, or whoever queued the current
-  utterance): flush the engine, clear the queue, drop queued mixer audio, call
-  `stop_audio`. Music resumes as normal.
-- **`/tts skip`:** the current utterance only.
-- **Duration cap:** 60 s of generated audio per utterance, configurable per
-  guild. This is what contains `[:rate 75]` on long text, long `[:pause]` and
-  `[:tone]`, without having to anticipate each trick.
+- **`/tts stop`** (trusted users, admins, or whoever asked for the utterance
+  playing): drops what is playing and waiting, and anything still being
+  synthesized, since `/speak` takes a ticket from the queue before
+  synthesizing and a stop makes older tickets stale.
+- **`/tts skip`:** the utterance playing now only.
+- **Duration cap:** 60 s per utterance, per guild (`/tts limits`). The
+  engine is kept fed past it and the audio thrown away, since a starved
+  engine cannot be shut down (§21.16).
+- **Wall-time limit:** 10 s to synthesize one utterance, after which it is
+  abandoned. It covers what the cap cannot: commands that wait instead of
+  producing audio, and a `[:tone]` long enough to stall.
 
-### 12.8 `/chat` voice message
+### 12.8 `/chat` voice message ✅
 
 Synthesize, wrap in a 44-byte WAV header, compute the duration and the
-256-bucket peak waveform, and send through `post_rest_multipart` with
-`flags: 8192`. No temp files anywhere in this path.
+256-bucket peak waveform, and answer the interaction through
+`post_rest_multipart` with a hand-built response carrying `flags: 8192`.
+Answered directly rather than deferred, as the Java bot did, so the voice
+message is the reply itself. No temp files anywhere in this path. Phoneme
+input is on, as it was in the Java bot's `/chat`.
 
 **The Java waveform was garbage.** `ChatTestCmd` summed **raw signed bytes of
-the WAV file**, header included, and averaged them into a byte. Since 16-bit PCM
-bytes are roughly symmetric around zero, every bucket averaged to approximately
-zero, so the waveform Discord displayed was noise. The correct version skips the
-RIFF header, reads `int16` samples, takes the peak absolute amplitude per bucket
-across 256 buckets, normalizes to 0–255, and base64s the result.
+the WAV file**, header included, and averaged them into a byte. Since 16-bit
+PCM bytes are roughly symmetric around zero, every bucket averaged to
+approximately zero, so the waveform Discord displayed was noise. This one
+takes the peak absolute sample per bucket across 256 buckets, normalized to
+0–255, and base64s it.
 
 ---
 
-## 13. Mixer and voice sessions ⏳ (phase 4)
+## 13. Mixer and voice sessions ✅
 
-**There is exactly one `discord_voice_client` per guild.** Music and TTS feed
-the same socket, so they cannot be fully independent — something has to
-arbitrate. A `voice_mixer` per guild owns the connection and accepts audio from
-prioritized sources; the music queue and the TTS engine stay separate modules
-that know nothing about each other and both talk to the mixer. TTS pauses music
-and resumes it afterwards, using DPP's `pause_audio` and track markers. Ducking
-and overlay are later options.
+**There is exactly one `discord_voice_client` per guild**, and a speech queue
+per guild is what plays on it (`audio::speech_queue`, behind the new
+`voice_output` port). Each utterance is queued on the connection whole,
+followed by a DPP track marker naming it, so playback reports each one
+finishing and `skip_to_next_marker` drops exactly one. Speech waits for a
+connection still being set up and plays when it is ready.
 
-**Voice sessions** replace an earlier same-voice-channel heuristic, which would
-never have fired because the voice channel's built-in text chat is not used:
+The **mixer** that pauses music for speech arrives with music (§15). Until
+then speech is the only thing that plays, and a mixer would be an abstraction
+with one user (§21.5).
+
+**Voice sessions**, as planned:
 
 - `/voice start` — the bot joins the voice channel **you** are in, moving if it
   is elsewhere in that guild, and records
   `{guild, voice_channel, text_channel, started_by}`.
-- While active: LLM replies in that text channel are **spoken as well as
-  posted**, and `/speak` from anywhere in the guild goes to that channel. The
-  posted text keeps the sanitized inline `[:commands]` **as written**, so what
-  the model was trying to do with the voice is visible.
+- While active: `/speak` from anywhere in the guild goes to that channel, and
+  in phase 5 LLM replies in that text channel are **spoken as well as
+  posted**, the posted text keeping the sanitized inline `[:commands]` **as
+  written**.
 - Ends on `/voice stop` or `/leave`, on disconnect, or when no humans are left
-  after a **30 s grace period** — long enough that a quick rejoin does not kill
-  it — at which point the bot leaves. Auto-leave also applies after a plain
-  `/join`, so the bot never sits alone in a channel forever.
+  after a **30 s grace period**, per guild (`/voice grace`). Auto-leave also
+  applies after `/join` or `/speak`, so the bot never sits alone in a channel.
+  Leaving by any route ends the session and drops the guild's speech: the
+  shell sees the bot's own voice state change, whatever caused it.
 
 ---
 
@@ -1338,6 +1382,7 @@ converts, calls, and carries out. Most logic then needs no mock at all.
 | `discord_gateway` | the handful of `dpp::cluster` calls we use | `mock_discord`: records calls, returns scripted results and history pages |
 | `http_client` | `co_request` | `mock_http`: replays recorded responses |
 | `tts_engine` | the DECtalk worker | `mock_tts`: a tone of the right length |
+| `voice_output` | the guild's DPP voice client | `mock_voice`: records what played, keeps each guild's markers |
 
 There is no mocking framework: a mock that fits on one screen is easier to
 trust. **Always drive coroutines with `sync_wait_for(2s)`**, never `sync_wait` —
@@ -1366,12 +1411,14 @@ backup taken during an open write transaction that then passes
 | Triggers | word vs substring, cooldown 0 and N, per-channel isolation, bot opt-in |
 | Paginator | `custom_id` round-trip, the 100-character limit, bounds |
 | Modals | every label, id and placeholder against Discord's limits (§21.4) |
-| DECtalk sanitizer | the §12.5 table per trust level; prefixes, chaining, mixed case, unterminated brackets; **fuzzed** |
-| DECtalk engine | buffers return in order, reset clears state between requests, duration cap, stop; **golden audio** |
-| Resampler / WAV | sine in → expected length and frequency; header bytes; waveform of silence and tone; `BENCHMARK` |
+| DECtalk sanitizer ✅ | the §12.5 table per trust level; prefixes, chaining, mixed case, spaces and extra brackets before the colon, quotes holding `]`, unterminated brackets, control characters, idempotence; **fuzzed** |
+| DECtalk engine ✅ | the real engine: format, determinism, one request's settings not reaching the next, voice, rate and volume, the duration cap, the wall-time limit, stop mid-utterance and queued, a missing dictionary not breaking later starts; **golden audio** |
+| Resampler / WAV ✅ | sine in → expected length and frequency; interpolation; volume and clipping; trailing silence; header bytes; waveform of silence and of sound; `BENCHMARK` |
+| Speech queue ✅ | markers in order, waiting for a connection, skip, stop including speech still being synthesized, per-guild isolation |
+| Custom voices ✅ | parameter table and groups, clamping, `[:dv]` text both ways, names, the store, the lab's panel and forms against Discord's limits, drafts expiring |
 | LLM | model-aware fields, prompt order, cache placement, budget trimming, tool loop, max rounds, 429/529, malformed JSON |
 | Spend cap | cost maths, daily and monthly rollover, auto-disable |
-| Voice session | grace period, auto-leave, move vs join |
+| Voice session ✅ | the session store, the grace period per guild, being seen alone again not restarting it |
 
 **Golden audio** stores a hash and sample count per phrase and writes the `.wav`
 next to it on a mismatch, so a difference can be listened to rather than guessed
@@ -1438,6 +1485,13 @@ worth naming rather than assuming away:
   the reaction store, and `recompute`'s list of text channels coming from
   DPP's cache. Each thing they call is tested; that they are called is not.
 
+- **The voice wiring.** The speech queue, sessions and auto-leave are tested
+  against mocks and a clock; that DPP's voice-ready, track-marker and
+  voice-state events reach them, that the bot's own voice state ends the
+  session, and that `dpp_voice_output` queues audio DPP will play, are not.
+  Nor is the voice lab's routing, `/chat`'s upload, or who DPP's cache says
+  is a bot.
+
 These are covered by running the bot rather than by CI, which is the honest
 description. `[live]` tests are where they would go.
 
@@ -1484,11 +1538,12 @@ verification; failure and Retry; `UrlReplacements.txt` import; commands and the
 panel; reaction tracking; `/linkstats` views; emoji aliases; the legacy parser
 and backfill.
 
-**Phase 4 — voice** ⏳ next
-DECtalk CMake and dictionary; the streaming spike (FIFO, reset, determinism,
-latency); sanitizer with fuzzing; `/tts stop` and the duration cap; resampler
-and mixer; `/speak`; voice sessions; custom voices and the voice lab; `/chat`
-voice message.
+**Phase 4 — voice** ✅
+DECtalk CMake and dictionary; the spike, which replaced streaming with a fresh
+engine per utterance (§21.16); sanitizer with fuzzing; `/tts stop`, the
+duration cap and the wall-time limit; resampler and speech queue; `/speak`;
+voice sessions and auto-leave; custom voices and the voice lab; `/chat` voice
+message; a zeroed heap for DECtalk (§21.17). The mixer waits for music.
 
 **Phase 5 — LLM**
 Provider and tool framework; text replies; guards, spend cap, prompt caching;
@@ -1510,9 +1565,9 @@ change, not a design decision.
 | 1 | Trusted for `[:play]` / `[:log]` | `trusted_users`, or Administrator in a `trusted_guilds` server | `config.json` |
 | 2 | `[:debug]`, `[:loadv]`, `[:setv]` | trusted only | §12.5 |
 | 3 | Custom voices | anyone creates; creator or admin deletes | §12.6 |
-| 4 | Max utterance | 60 s | per guild |
-| 5 | `/speak` input | 1000 characters | per guild |
-| 6 | Voice-session grace | 30 s | per guild |
+| 4 | Max utterance | 60 s | per guild, `/tts limits` |
+| 5 | `/speak` input | 1000 characters | per guild, `/tts limits` |
+| 6 | Voice-session grace | 30 s, for any stay in voice | per guild, `/voice grace` |
 | 7 | Voice sessions | speak **and** post, inline commands kept visible | per guild |
 | 8 | Simple trigger cooldown | 30 s (0 allowed) | per trigger |
 | 9 | Advanced trigger context | 5 messages | per guild |

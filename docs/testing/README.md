@@ -324,6 +324,13 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     the last run left unfinished, is not.
     Whether a given mirror actually produces a preview is a question only
     real Discord answers, which is what `[live]` tests are for.
+  - The voice wiring. The speech queue, voice sessions and auto-leave are
+    tested against `mock_voice` and `mock_clock`, and DECtalk itself runs in
+    the suite; that DPP's voice-ready, track-marker and voice-state events
+    reach them, that `dpp_voice_output` queues audio DPP will actually play,
+    the voice lab's routing, and `/chat`'s upload being accepted as a voice
+    message, are not. Nor is how the cache tells a bot from a person when
+    counting who is left in a channel.
 - **No command's `execute()` is tested.** Replying needs `event.co_reply`,
   and that needs a `dpp::cluster`, so which branch of a handler answers with
   what, and whether as a result or a refusal, is unchecked; so is that

@@ -19,6 +19,10 @@ the design and the order of work behind it are in
 | 💬 | [`/say`](#say) | Post as the bot, optionally as a reply |
 | 💬 | [`/status`](#status) | Set the bot's presence |
 | 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel |
+| 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice |
+| 🔊 | [`/tts`](#tts) | Stop or skip speech, and set its limits |
+| 🔊 | [`/voice`](#voice) | Voice sessions, and custom voices from the [voice lab](#voice-lab) |
+| 🔊 | [`/chat`](#chat) | Say something as a voice message |
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot |
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot |
 | 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases |
@@ -35,14 +39,17 @@ the design and the order of work behind it are in
 | 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways |
 | 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
+| 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
 answer. The exceptions are called out below: `/say` posts a separate public
 message; [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats) views
-answer publicly, because those are things a room reads together; and
-[`/join`, `/leave`](#join--leave) and [`/shutdown`](#shutdown) answer publicly,
-because the room sees the bot come and go and should see why.
+answer publicly, because those are things a room reads together;
+[`/join`, `/leave`](#join--leave), [`/voice start` and `stop`](#voice) and
+[`/shutdown`](#shutdown) answer publicly, because the room sees the bot come
+and go and should see why; and [`/chat`](#chat) answers with its voice
+message, which is the point of it.
 
 Each command decides this for three kinds of message, per subcommand where
 they differ: its **result** (the answer it exists to give), a **refusal**
@@ -161,8 +168,188 @@ moves rather than refusing.
 bot: the room sees the bot arrive and leave. The name is a mention sent with
 mentions off, so it shows without pinging anyone. The refusals are private.
 
-Nothing plays yet — these exist because text-to-speech in phase 4 needs them,
-and because they are useful on their own.
+Once the bot has been alone in its channel for a while it leaves on its own;
+see [Leaving empty voice channels](#leaving-empty-voice-channels).
+
+### `/speak`
+
+Says something in the voice channel, in DECtalk's voice.
+
+| | |
+|---|---|
+| **Options** | `text` (required) · `voice` · `rate` (75–600 words a minute, 200 by default) · `volume` (0–200 %, 100 by default) |
+| **Who** | Speak, by default |
+| **Where** | servers only |
+| **Bot needs** | Connect, Speak |
+
+It speaks where the bot already is: a [voice session](#voice)'s channel, or
+wherever `/join` put it, so `/speak` works from any text channel in the
+server. If the bot is not in voice it joins **your** channel first, as the
+Java bot did.
+
+`voice` autocompletes DECtalk's ten built-in voices — Paul, Betty, Harry,
+Frank, Dennis, Kit, Ursula, Rita, Wendy and Val — then this server's
+[custom voices](#voice-lab).
+
+**DECtalk's inline commands work**: `[:rate 120]`, `[:dv ap 200]`, `[:tone
+440 500]`, `[:dial 555]`, `[:phoneme on]` and the rest. A few are removed
+silently, depending on who is asking, and the rest of the text is spoken:
+
+| Command | Anyone | Trusted |
+|---|---|---|
+| `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` | removed | kept |
+| `[:pause]`, `[:resume]`, and `save` in `[:dv … save]` | removed | removed |
+| everything else | kept | kept |
+
+The first row reads or writes files on the machine the bot runs on, so it is
+for **trusted** users only: those listed in `trusted_users` in the bot's
+config, or an administrator of a server listed in `trusted_guilds`. Being an
+administrator somewhere the bot was added is not enough on its own. `[:pause]`
+only pauses a sound card the bot does not use, so all it would do is hold
+everyone else's speech up. Anything the LLM writes will never be trusted,
+whoever asked.
+
+Commands are recognised the way DECtalk recognises them, in any case and by
+any unique prefix, so `[:PLA "x"]` counts as `[:play]`.
+
+| Situation | Reply |
+|---|---|
+| Spoken | `ok` |
+| Longer than this server's time limit | `ok, but it's cut off at 60s (this server's limit)` |
+| Nothing but spaces | `there's nothing to say` |
+| Longer than this server's character limit | `that's 1200 characters; this server's limit is 1000` |
+| Nothing left once the commands you can't use are removed | `there's nothing left to say without the commands you can't use` |
+| `voice` is neither a built-in nor a saved voice | `i don't know a voice called "robot"` |
+| Neither the bot nor you are in voice | `i'm not in a voice channel, and neither are you` |
+| `/tts stop` arrived while it was being made | `stopped before i got to it` |
+| The speech engine failed | `couldn't say that: …` |
+
+All of these are private. The limits are 1000 characters and 60 seconds by
+default, per server; see [`/tts limits`](#tts). One person's `[:rate 75]` never
+carries into the next person's speech: every utterance starts from DECtalk's
+defaults.
+
+### `/tts`
+
+Stops or skips speech, and sets the limits on it.
+
+| | |
+|---|---|
+| **Subcommands** | `stop` · `skip` · `limits` (`characters`, `seconds`) |
+| **Who** | Speak, by default; changing the limits needs Manage Server |
+| **Where** | servers only |
+| **Bot needs** | Connect, Speak |
+
+`stop` silences the bot and drops everything waiting to be said, including
+speech still being made. `skip` drops only what is being said now. Either is
+open to whoever asked for what is playing, an administrator, or a trusted
+user.
+
+`limits` with no options shows the server's limits; with `characters` (up to
+4000) or `seconds` (up to 600) it changes them.
+
+| Situation | Reply |
+|---|---|
+| `stop` | `stopped` |
+| `skip` | `skipped` |
+| Nothing is being said | `i'm not saying anything` |
+| Somebody else's speech, and you are neither an admin nor trusted | `only whoever asked for this, or an admin, can stop it` |
+| `limits`, shown | `/speak takes up to 1000 characters, and stops after 60s` |
+| `limits`, changed | `/speak now takes up to 500 characters, and stops after 30s` |
+| `limits` changed without Manage Server | `changing the limits needs Manage Server` |
+
+All private.
+
+### `/voice`
+
+Voice sessions, and this server's custom voices.
+
+| | |
+|---|---|
+| **Subcommands** | `start` · `stop` · `grace` (`seconds`) · `lab` (`voice`) · `list` · `delete` (`voice`) |
+| **Who** | Speak, by default; changing `grace` needs Manage Server |
+| **Where** | servers only |
+| **Bot needs** | Connect, Speak |
+
+`start` brings the bot into **your** voice channel, moving it if it is
+elsewhere in the server, and ties the session to the text channel you ran it
+in. While it lasts, `/speak` from anywhere in the server goes to that voice
+channel; in phase 5 the LLM's replies in that text channel will be spoken as
+well as posted. `stop` ends the session and leaves. So does `/leave`, being
+disconnected, or everyone leaving (see below).
+
+| Situation | Reply |
+|---|---|
+| `start` | `ok, voice session started in #channel; /speak goes there from anywhere in the server` |
+| `start` when you are not in voice | `you're not in a voice channel` |
+| `stop` | `ok bye` |
+| `stop` with no session and the bot not in voice | `there's no voice session to stop` |
+| `grace`, shown | `once everyone has left, i stay 30s before leaving` |
+
+`start` and `stop` answer publicly and silently, as `/join` and `/leave` do.
+The rest answer privately.
+
+#### Voice lab
+
+`/voice lab` opens a private panel for building a custom voice: one of the
+ten built-in voices plus DECtalk's `[:dv]` voice parameters. With `voice` it
+starts from one of this server's saved voices; without, from where you left
+off.
+
+The panel shows what has been changed, grouped (Pitch, Character, Breath,
+Formants, Parallel formants and tilt, Source gains, Formant gains), and the
+whole voice as inline commands, such as `[:nh][:dv ap 200 pr 150]`, which can
+be pasted into any `/speak`. From it:
+
+- **Change a group of settings** opens a form for up to five of them, each
+  with its range. An empty box goes back to the built-in voice's own value; a
+  value out of range is brought into range, and the panel says so.
+- **As [:dv] text** opens the whole voice as text, to copy, or to paste one in.
+- **Built on** picks the built-in voice underneath.
+- **▶ Test** says a test phrase in the voice channel, joining yours if the bot
+  is not in one.
+- **Save as…** keeps it under a name: lowercase letters, digits, `-` and `_`,
+  up to 32 characters, and never a built-in voice's name. `/speak voice:` then
+  offers it.
+- **Start over** goes back to Paul.
+
+Your draft is kept for half an hour after you last touched it, so closing the
+panel by accident loses nothing. Anyone may save a voice; replacing or
+deleting one is for whoever made it, or an administrator. A server keeps up to
+100.
+
+`list` shows the server's voices, what each is built on and who made it, and
+`delete` removes one:
+
+| Situation | Reply |
+|---|---|
+| Deleted | ``deleted `robo` `` |
+| No such voice | `this server has no voice called "robo"` |
+| Somebody else's, and you are not an admin | ``only whoever made `robo`, or an admin, can change it`` |
+| `list` with none saved | `this server has no custom voices yet; make one with /voice lab` |
+
+### `/chat`
+
+Says something as a Discord **voice message**, the kind with a play button and
+a waveform. No voice channel is involved.
+
+| | |
+|---|---|
+| **Options** | `text` (required) · `voice` · `rate` |
+| **Who** | Speak, by default |
+| **Where** | servers only |
+| **Bot needs** | nothing |
+
+The voice message is the answer to the command, public and silent, as it was
+in the Java bot. Inline commands work as they do in `/speak`, with the same
+limits and the same rules on who may use which, and phoneme input is on, so
+`[hxeh'low]` is spoken as phonemes. Refusals are those of `/speak` and
+private; one more, `couldn't send the voice message; it's in the log`, covers
+Discord refusing the upload.
+
+The waveform is the audio's own. The Java version averaged the raw bytes of
+the whole file, header included, which comes out close to zero everywhere, so
+the shape it showed meant nothing.
 
 ### `/shutdown`
 
@@ -884,6 +1071,18 @@ late it already is.
 A restart *inside* those five minutes still posts, which covers the ordinary
 case of the bot being bounced a moment after midnight.
 
+### Leaving empty voice channels
+
+When everyone else has left the bot's voice channel, it waits, then leaves. The
+wait is 30 seconds by default: long enough that someone dropping out and
+rejoining does not lose a voice session. It applies however the bot got
+there, by `/join`, `/speak` or `/voice start`, and `/voice grace` shows or
+changes it per server (0 leaves at once). Other bots do not count as company,
+as far as Discord has told the bot who is a bot.
+
+Leaving by any route, a moderator disconnecting the bot included, ends the
+server's voice session and drops whatever it was about to say.
+
 ### Permission warnings
 
 When the bot joins a server — and for every server it is already in, each time
@@ -908,8 +1107,16 @@ Nothing is posted to Discord — this goes to the bot's own log.
 Not user-facing, but worth knowing when something looks wrong.
 
 **Settings are per server.** The goodbye phrase, triggers, the bot allowlist,
-URL rules, opt-outs and emoji aliases are all stored per server, in a SQLite
-database at `data/bot.db`. Two servers never see each other's anything.
+URL rules, opt-outs, emoji aliases, speech limits and custom voices are all
+stored per server, in a SQLite database at `data/bot.db`. Two servers never
+see each other's anything.
+
+**Speech is DECtalk**, built from source alongside the bot, and it needs
+`dtalk_us.dic` beside `dectalk.dll`, where the build puts it; without it the
+bot starts, logs a warning, and every attempt to speak says why it failed.
+Each utterance gets an engine of its own, so it always starts from DECtalk's
+defaults, and one that takes more than ten seconds to make is abandoned. No
+audio file is ever written to disk.
 
 **The database upgrades itself** on startup, in a transaction. A failed upgrade
 rolls back and keeps the previous version rather than leaving a half-migrated
@@ -962,6 +1169,5 @@ In order, with the detail in [Planned.md](Planned.md):
 
 | Phase | Features |
 |---|---|
-| 4 | DECtalk speech · `/speak` · custom voices · voice sessions |
 | 5 | The LLM: replies, memory, personality, advanced triggers |
 | Later | Music · emote statistics · appearance tracking |

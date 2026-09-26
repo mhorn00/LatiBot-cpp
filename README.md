@@ -195,8 +195,8 @@ message naming it, so a typo is never silently ignored.
 | `backups_to_keep` | whole number | `7` | how many backups to keep, oldest removed first; `0` turns backups off |
 | `backup_interval_minutes` | whole number | `360` | how often a backup is taken; must be positive |
 | `track_nicknames` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above) |
-| `trusted_guilds` | list of IDs, as text | none | read but **not used yet**: servers whose administrators will be allowed DECtalk's host commands (phase 4) |
-| `trusted_users` | list of IDs, as text | none | read but **not used yet**: users allowed those commands in any server |
+| `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands: `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` |
+| `trusted_users` | list of IDs, as text | none | users who may use those commands in any server |
 | `llm_provider` | text | `anthropic` | read but **not used yet** (phase 5) |
 | `llm_model` | text | `claude-haiku-4-5` | read but **not used yet** (phase 5) |
 | `spend_cap_daily_usd` | number | `2.0` | read but **not used yet** (phase 5) |
@@ -282,8 +282,8 @@ type is one specialisation of `log_style`.
 
 ### What it does so far
 
-Phases 1 to 3 are done: the framework, the features that keep records, and URL
-replacement with its reaction statistics.
+Phases 1 to 4 are done: the framework, the features that keep records, URL
+replacement with its reaction statistics, and DECtalk speech.
 [docs/features/](docs/features/README.md) documents all of this properly —
 options, replies and edge cases.
 
@@ -293,6 +293,10 @@ options, replies and edge cases.
 | `/say` | post as the bot, optionally as a reply |
 | `/status` | set the bot's presence |
 | `/join`, `/leave` | voice channel, following you or a named user |
+| `/speak` | say something in the voice channel, in any of DECtalk's voices or a custom one |
+| `/tts` | `stop`, `skip`, `limits` — speech, and how long it may run |
+| `/voice` | `start`, `stop`, `grace`, `lab`, `list`, `delete` — voice sessions and custom voices |
+| `/chat` | say something as a voice message |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
 | `/trigger` | `add`, `edit`, `remove`, `list`, `panel` — automatic replies |
@@ -309,7 +313,8 @@ trigger patterns get weighted replies with a per-channel cooldown, links to
 sites with poor previews are posted again on a mirror that previews properly,
 reactions on those are counted, every nickname change is recorded with
 whoever made it, each midnight message posts once per local day, the database
-backs itself up on a schedule, and anything the bot lacks permission to do is
+backs itself up on a schedule, the bot leaves a voice channel once everyone
+else has, and anything the bot lacks permission to do is
 reported per server at startup as a warning rather than an error.
 
 URL replacement is off in every server until someone with Manage Server runs
@@ -338,7 +343,6 @@ into the reaction statistics.
 
 | Phase | Features |
 |---|---|
-| 4 | DECtalk speech, `/speak`, custom voices, voice sessions |
 | 5 | the LLM: replies, memory, personality, advanced triggers |
 
 ## Testing
@@ -421,7 +425,7 @@ the same commands as above; nothing is exclusive to the editor.
 CMakeLists.txt      top-level build definition (also configures the DPP submodule)
 CMakePresets.json   msvc / asan / fuzz / ninja-tidy presets
 conanfile.py        Conan recipe: openssl, zlib, opus, sqlite3, ctre, catch2
-cmake/              warnings, sanitizers and shared helpers
+cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
 tools/              catalog generator, clang-tidy and clang-format wrappers
 .vscode/            tasks, IntelliSense and the grouped test tree
 src/main.cpp        entry point
@@ -431,7 +435,7 @@ docs/features/      what the bot does, and what it will do
 docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
 docs/ideas/         parked ideas
 third_party/DPP     submodule: DPP v10.1.6, built from source
-third_party/dectalk submodule: DECtalk (develop branch); not wired into the build yet
+third_party/dectalk submodule: DECtalk (develop branch), built by cmake/dectalk.cmake
 build/              build output (git-ignored)
 data/               runtime database, backups and import files (git-ignored)
 ```
@@ -452,6 +456,13 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
 - **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`). DPP only
   auto-detects opus on Windows when it uses its bundled binaries. Configure
   output should include `VOICE support will be enabled`.
+- **DECtalk is built from the untouched submodule** by `cmake/dectalk.cmake`,
+  as `dectalk.dll` plus the `dtalk_us.dic` dictionary it compiles beside it.
+  Every DECtalk source is compiled with `cmake/dectalk_zeroed_heap.h`
+  force-included, which zeroes its allocations: DECtalk reads heap memory it
+  never wrote, and without that a Release build does not say the same thing
+  twice. Each utterance runs on a fresh engine, since DECtalk's own reset
+  leaves a memory engine silent. The plan's §21.16 and §21.17 have the detail.
 - **Conan's OpenSSL ships no CA bundle.** Its `OPENSSLDIR` is an empty
   directory in the package cache, so every TLS handshake fails verification,
   which DPP reports as `Malformed HTTP response` — the request never gets far

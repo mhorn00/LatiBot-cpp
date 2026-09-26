@@ -14,88 +14,6 @@ Command names, option names and reply wording are all proposals.
 
 ---
 
-## Phase 4 — speech
-
-DECtalk is the 1980s text-to-speech engine the Java bot used. It is the reason
-`/join` and `/leave` exist already.
-
-### `/speak` — say something in voice
-
-| | |
-|---|---|
-| **Options** | `text` (required) · `voice` · `rate` · `volume` |
-| **Who** | everyone |
-| **Bot needs** | Connect, Speak |
-
-Speaks `text` in the voice channel the bot is in. `voice` autocompletes the
-built-in voices plus this server's saved custom ones.
-
-Speech **starts about a quarter of a second in** rather than after the whole
-utterance is synthesized, and no `.wav` file is ever written — the Java version
-wrote files and then had nothing to clean them up.
-
-**Inline commands work.** DECtalk's own `[:rate 120]`, `[:pause]`, `[:dv …]` and
-so on are part of the fun and pass through by default. A few are stripped
-silently, because they read and write files on the machine the bot runs on:
-`[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]`. Those are available to
-**trusted** users — listed by id in the bot's config, or an administrator of a
-server listed as trusted — which keeps host access tied to servers the owner
-controls rather than to whoever happens to be an admin somewhere the bot was
-added. **Anything the LLM writes is never trusted**, whoever asked for it.
-
-Input is capped at 1000 characters, and any single utterance stops after 60
-seconds of audio. The cap is what contains `[:rate 75]` on a long message, or a
-very long `[:pause]`, without having to anticipate each trick.
-
-### `/tts stop` and `/tts skip`
-
-`stop` clears everything queued and silences the bot immediately; `skip` drops
-only what is speaking now. Available to trusted users, admins, and whoever
-queued the utterance in question. Music resumes normally afterwards.
-
-### `/voice` — voice sessions
-
-| | |
-|---|---|
-| **Who** | everyone |
-
-`/voice start` brings the bot into **your** voice channel and ties it to the
-text channel you ran the command in. While a session is active, LLM replies in
-that text channel are **spoken as well as posted**, and `/speak` from anywhere
-in the server goes to that channel.
-
-The posted copy keeps the inline `[:commands]` visible, so what the model was
-trying to do with the voice can be read as well as heard.
-
-The session ends on `/voice stop` or `/leave`, if the bot is disconnected, or
-**30 seconds after the last human leaves** — long enough that a quick rejoin
-does not kill it. The bot leaves at that point. The same auto-leave applies
-after a plain `/join`, so it never sits alone in a channel indefinitely.
-
-### `/voice lab` — build a custom voice
-
-DECtalk exposes about 35 voice parameters. The lab is a panel for tuning them
-without memorising any of it: the current parameters grouped by what they do,
-per-group **Edit** forms, a **Raw** box for pasting a whole `[:dv …]` string,
-and a **▶ Test** button that speaks a phrase in the bot's voice channel so the
-loop is edit → listen → edit.
-
-**Save as…** stores it for the server under a name that `/speak` then
-autocompletes. Anyone can create a voice; the person who made it, or an admin,
-can delete it. Your draft survives closing the panel by accident for about half
-an hour.
-
-### `/chat` — a voice message
-
-Sends the spoken text as a Discord **voice message** — the kind with a waveform
-and a play button — with no voice channel involved at all.
-
-In the Java version the waveform was noise: it averaged raw bytes of the file,
-header included, which for 16-bit audio averages to roughly zero everywhere.
-This one is computed properly.
-
----
-
 ## Phase 5 — the LLM
 
 The Java bot had an OpenAI integration that was written but never switched on.
@@ -105,7 +23,7 @@ This is designed fresh.
 
 The bot replies when **addressed**: @mentioned, replied to, or a message
 starting with its name. It answers in text by default, and **speaks as well**
-when a voice session is active in that channel.
+when a [voice session](README.md#voice) is active in that channel.
 
 Default model is Claude Haiku 4.5, chosen for cost. The model and provider are
 per server; Sonnet 5 and Opus 5 are selectable, and OpenAI is supported.
