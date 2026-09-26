@@ -264,7 +264,7 @@ join_command::join_command()
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             // The room sees the bot come and go, so it sees why (plan §6).
-            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
 auto join_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
@@ -321,7 +321,7 @@ leave_command::leave_command()
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             // The room sees the bot come and go, so it sees why (plan §6).
-            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
 auto leave_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -348,7 +348,7 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .default_member_permissions = dpp::permission(dpp::p_administrator),
             .guild_only = true,
             // Everyone is about to lose the bot; they hear it go (plan §6).
-            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}
 

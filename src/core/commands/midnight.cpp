@@ -69,7 +69,7 @@ midnight_command::midnight_command(events::midnight_store& store, ports::clock& 
             .required_bot_permissions = dpp::p_send_messages,
             .default_member_permissions = dpp::permission(dpp::p_manage_guild),
             .guild_only = true,
-            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = dpp::m_suppress_notifications},
             .subcommand_responses = {}},
       store_(&store),
       clock_(&clock) {}

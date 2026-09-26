@@ -417,7 +417,7 @@ linkstats_command::linkstats_command(events::reaction_store& store, recompute_su
             // The boards are for the room. Changing aliases and running a
             // recompute are answered privately, and the recompute reports its
             // progress in the channel, as a post.
-            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = dpp::m_suppress_notifications},
             .subcommand_responses = {{"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"alias remove", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"recompute start", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},

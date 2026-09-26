@@ -178,7 +178,7 @@ nicknames_command::nicknames_command(events::nickname_store& store)
             // Public, unlike almost every other list this bot posts: a nickname
             // history is something a room reads together, and half its point is
             // being shown to the person it is about.
-            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
+            .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       store_(&store) {}
 
