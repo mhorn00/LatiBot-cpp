@@ -1,6 +1,7 @@
 #include "core/commands/midnight.hpp"
 
 #include "core/commands/message_options.hpp"
+#include "core/commands/options.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 
@@ -17,29 +18,6 @@
 
 namespace latibot::commands {
 namespace {
-
-std::string subcommand_of(const dpp::slashcommand_t& event) {
-    const dpp::command_interaction interaction = event.command.get_command_interaction();
-    return interaction.options.empty() ? std::string{} : interaction.options.front().name;
-}
-
-std::string string_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* text = std::get_if<std::string>(&value);
-    return text == nullptr ? std::string{} : *text;
-}
-
-std::optional<std::int64_t> int_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* number = std::get_if<std::int64_t>(&value);
-    return number == nullptr ? std::nullopt : std::optional<std::int64_t>(*number);
-}
-
-std::optional<dpp::snowflake> channel_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* id = std::get_if<dpp::snowflake>(&value);
-    return id == nullptr || id->empty() ? std::nullopt : std::optional(*id);
-}
 
 /// The entry `id` names in this guild, or a complaint to send back.
 struct lookup {
@@ -160,7 +138,7 @@ void midnight_command::autocomplete(const dpp::autocomplete_t& event) const {
 }
 
 dpp::task<void> midnight_command::execute(const dpp::slashcommand_t& event) {
-    const std::string action = subcommand_of(event);
+    const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "add") {
         co_await this->add(event);
@@ -185,7 +163,7 @@ dpp::task<void> midnight_command::add(const dpp::slashcommand_t& event) {
         co_return;
     }
 
-    const auto channel = channel_option(event, "channel");
+    const auto channel = snowflake_option(event, "channel");
     if (!channel) {
         co_await event.co_reply(refusal(event, "which channel?"));
         co_return;
@@ -223,7 +201,7 @@ dpp::task<void> midnight_command::edit(const dpp::slashcommand_t& event) {
         }
         found->timezone = timezone;
     }
-    if (const auto channel = channel_option(event, "channel")) {
+    if (const auto channel = snowflake_option(event, "channel")) {
         found->channel_id = *channel;
     }
     if (const std::string message = string_option(event, "message"); !message.empty()) {

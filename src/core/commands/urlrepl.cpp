@@ -1,5 +1,6 @@
 #include "core/commands/urlrepl.hpp"
 
+#include "core/commands/options.hpp"
 #include "core/events/embed_watch.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
@@ -22,17 +23,6 @@ constexpr std::size_t reply_budget = 1900;
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t domain_choices = 25;
 
-std::string string_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* text = std::get_if<std::string>(&value);
-    return text == nullptr ? std::string{} : *text;
-}
-
-std::string subcommand_of(const dpp::slashcommand_t& event) {
-    const dpp::command_interaction interaction = event.command.get_command_interaction();
-    return interaction.options.empty() ? std::string{} : interaction.options.front().name;
-}
-
 dpp::component button(dpp::component_style style, std::string_view label, const std::string& id) {
     return dpp::component().set_type(dpp::cot_button).set_style(style).set_label(std::string(label)).set_id(id);
 }
@@ -52,14 +42,6 @@ std::vector<std::string_view> mirror_words(std::string_view text) {
         at = end;
     }
     return words;
-}
-
-/// What the invoker is allowed to do in this channel, from the interaction
-/// itself. Empty when Discord did not say, which only happens in a DM.
-dpp::permission invoker_permissions(const dpp::slashcommand_t& event) {
-    const auto& resolved = event.command.resolved.member_permissions;
-    const auto found = resolved.find(event.command.get_issuing_user().id);
-    return found == resolved.end() ? dpp::permission{} : found->second;
 }
 
 /// Keeps a reply under Discord's limit, line by line, saying what was cut.
@@ -475,7 +457,7 @@ void urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const {
 }
 
 dpp::task<void> urlrepl_command::execute(const dpp::slashcommand_t& event) {
-    const std::string action = subcommand_of(event);
+    const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "enable" || action == "disable") {
         co_await this->turn(event, action == "enable");
@@ -570,9 +552,7 @@ dpp::task<void> urltoggle_command::execute(const dpp::slashcommand_t& event) {
     const dpp::snowflake guild = event.command.guild_id;
     const dpp::user& invoker = event.command.get_issuing_user();
 
-    const dpp::command_value chosen = event.get_parameter("user");
-    const auto* other = std::get_if<dpp::snowflake>(&chosen);
-    const dpp::snowflake target = other == nullptr ? invoker.id : *other;
+    const dpp::snowflake target = snowflake_option(event, "user").value_or(invoker.id);
     const bool self = target == invoker.id;
 
     if (const auto refused = urltoggle_refusal(invoker.id, target, invoker_permissions(event))) {

@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-491 test cases across 9 components, including 113 sections.
+495 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 108 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 117 | 27 |
+| [commands](#commands) | 121 | 27 |
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -194,28 +194,32 @@ Command framework (`src/core/commands`)
 | the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:148](../../tests/unit/command_log_test.cpp#L148) |
 | nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:164](../../tests/unit/command_log_test.cpp#L164) |
 | a user's id keeps its colour inside name (id) |  |  | [tests/unit/command_log_test.cpp:171](../../tests/unit/command_log_test.cpp#L171) |
+| each option is read as the type it was declared with |  |  | [tests/unit/command_options_test.cpp:15](../../tests/unit/command_options_test.cpp#L15) |
+| an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
+| an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
+| an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
 | every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:52](../../tests/unit/command_responses_test.cpp#L52) |
 | the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:74](../../tests/unit/command_responses_test.cpp#L74) |
 | the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:98](../../tests/unit/command_responses_test.cpp#L98) |
 | the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
 | only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:131](../../tests/unit/command_responses_test.cpp#L131) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:58](../../tests/unit/linkstats_command_test.cpp#L58) |
-| custom emojis that share a name are listed as likely duplicates |  |  | [tests/unit/linkstats_command_test.cpp:87](../../tests/unit/linkstats_command_test.cpp#L87) |
-| aliases are listed as what counts as what, within Discord's limit |  |  | [tests/unit/linkstats_command_test.cpp:99](../../tests/unit/linkstats_command_test.cpp#L99) |
-| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:120](../../tests/unit/linkstats_command_test.cpp#L120) |
-| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:129](../../tests/unit/linkstats_command_test.cpp#L129) |
-| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:139](../../tests/unit/linkstats_command_test.cpp#L139) |
-| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:148](../../tests/unit/linkstats_command_test.cpp#L148) |
-| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:155](../../tests/unit/linkstats_command_test.cpp#L155) |
-| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:164](../../tests/unit/linkstats_command_test.cpp#L164) |
-| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:173](../../tests/unit/linkstats_command_test.cpp#L173) |
-| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:189](../../tests/unit/linkstats_command_test.cpp#L189) |
-| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:202](../../tests/unit/linkstats_command_test.cpp#L202) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:244](../../tests/unit/linkstats_command_test.cpp#L244) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:263](../../tests/unit/linkstats_command_test.cpp#L263) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:304](../../tests/unit/linkstats_command_test.cpp#L304) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:329](../../tests/unit/linkstats_command_test.cpp#L329) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:352](../../tests/unit/linkstats_command_test.cpp#L352) |
+| custom emojis that share a name are listed as likely duplicates |  |  | [tests/unit/linkstats_command_test.cpp:86](../../tests/unit/linkstats_command_test.cpp#L86) |
+| aliases are listed as what counts as what, within Discord's limit |  |  | [tests/unit/linkstats_command_test.cpp:98](../../tests/unit/linkstats_command_test.cpp#L98) |
+| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:119](../../tests/unit/linkstats_command_test.cpp#L119) |
+| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:128](../../tests/unit/linkstats_command_test.cpp#L128) |
+| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:138](../../tests/unit/linkstats_command_test.cpp#L138) |
+| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:147](../../tests/unit/linkstats_command_test.cpp#L147) |
+| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:154](../../tests/unit/linkstats_command_test.cpp#L154) |
+| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:163](../../tests/unit/linkstats_command_test.cpp#L163) |
+| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:172](../../tests/unit/linkstats_command_test.cpp#L172) |
+| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:188](../../tests/unit/linkstats_command_test.cpp#L188) |
+| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:201](../../tests/unit/linkstats_command_test.cpp#L201) |
+| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:243](../../tests/unit/linkstats_command_test.cpp#L243) |
+| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:262](../../tests/unit/linkstats_command_test.cpp#L262) |
+| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:303](../../tests/unit/linkstats_command_test.cpp#L303) |
+| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:328](../../tests/unit/linkstats_command_test.cpp#L328) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:351](../../tests/unit/linkstats_command_test.cpp#L351) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |

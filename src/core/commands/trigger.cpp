@@ -1,6 +1,7 @@
 #include "core/commands/trigger.hpp"
 
 #include "core/commands/message_options.hpp"
+#include "core/commands/options.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -26,23 +27,6 @@ constexpr std::uint32_t responses_length_limit = 2000;
 
 /// Discord's limit on a select option's label.
 constexpr std::size_t select_option_limit = 100;
-
-std::string string_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* text = std::get_if<std::string>(&value);
-    return text == nullptr ? std::string{} : *text;
-}
-
-std::optional<std::int64_t> int_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* number = std::get_if<std::int64_t>(&value);
-    return number == nullptr ? std::nullopt : std::optional<std::int64_t>(*number);
-}
-
-std::string subcommand_of(const dpp::slashcommand_t& event) {
-    const dpp::command_interaction interaction = event.command.get_command_interaction();
-    return interaction.options.empty() ? std::string{} : interaction.options.front().name;
-}
 
 /// Splits a leading "<weight> |" off a response line.
 std::optional<int> leading_weight(std::string_view& line) {
@@ -206,7 +190,7 @@ dpp::slashcommand trigger_command::build(const std::string& name, dpp::snowflake
 }
 
 dpp::task<void> trigger_command::execute(const dpp::slashcommand_t& event) {
-    const std::string action = subcommand_of(event);
+    const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "add") {
         co_await this->add(event);
@@ -240,8 +224,7 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
     const events::match_mode mode = events::match_mode_from_string(mode_text).value_or(events::match_mode::whole_word);
     const auto cooldown = int_option(event, "cooldown");
 
-    const dpp::command_value bots = event.get_parameter("bots");
-    const auto* answer_bots = std::get_if<bool>(&bots);
+    const bool answer_bots = bool_option(event, "bots").value_or(false);
 
     discord::message_flags flags = events::trigger{}.message_flags;
     apply_message_options(event, flags);
@@ -251,14 +234,14 @@ dpp::task<void> trigger_command::add(const dpp::slashcommand_t& event) {
                                          .mode = mode,
                                          .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
                                          .enabled = true,
-                                         .respond_to_bots = answer_bots != nullptr && *answer_bots,
+                                         .respond_to_bots = answer_bots,
                                          .message_flags = flags,
                                          .responses = responses});
 
     util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={} bots={} flags={} responses={}", id,
                      event.command.guild_id, describe_user(event.command.get_issuing_user()), pattern, events::to_string(mode),
-                     std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
-                     answer_bots != nullptr && *answer_bots, discord::describe_flags(flags), responses.size());
+                     std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())), answer_bots,
+                     discord::describe_flags(flags), responses.size());
 
     co_await event.co_reply(result(event, std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(),
                                                       responses.size() == 1 ? "" : "s")));
@@ -301,15 +284,9 @@ dpp::task<void> trigger_command::edit(const dpp::slashcommand_t& event) {
         entry->cooldown = std::chrono::seconds(*cooldown);
     }
 
-    const dpp::command_value enabled = event.get_parameter("enabled");
-    if (const auto* flag = std::get_if<bool>(&enabled)) {
-        entry->enabled = *flag;
-    }
+    entry->enabled = bool_option(event, "enabled").value_or(entry->enabled);
 
-    const dpp::command_value bots = event.get_parameter("bots");
-    if (const auto* flag = std::get_if<bool>(&bots)) {
-        entry->respond_to_bots = *flag;
-    }
+    entry->respond_to_bots = bool_option(event, "bots").value_or(entry->respond_to_bots);
     apply_message_options(event, entry->message_flags);
 
     if (!store_->update(*entry)) {

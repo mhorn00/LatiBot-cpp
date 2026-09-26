@@ -78,13 +78,13 @@ inline constexpr std::string_view board_view = "linkboard";
 /// report (plan §9.7).
 [[nodiscard]] std::string render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished);
 
-/// Why the invoker may not run `/linkstats <group> <action>`, or nothing when
-/// they may.
+/// Why the invoker may not run the `/linkstats` subcommand at `subcommand`, as
+/// `subcommand_path` spells it ("alias add"), or nothing when they may.
 ///
 /// Reading is open to everyone; changing aliases and recomputing need Manage
 /// Server. Discord's default permissions are per command, not per
 /// subcommand, so this is the only check these get (plan §21.13).
-[[nodiscard]] std::optional<std::string> linkstats_refusal(std::string_view group, std::string_view action, dpp::permission invoker);
+[[nodiscard]] std::optional<std::string> linkstats_refusal(std::string_view subcommand, dpp::permission invoker);
 
 /// What `/linkstats recompute` needs from outside the statistics.
 struct recompute_support {
@@ -120,8 +120,8 @@ public:
 private:
     dpp::task<void> top(const dpp::slashcommand_t& event);
     dpp::task<void> user(const dpp::slashcommand_t& event);
-    dpp::task<void> alias(const dpp::slashcommand_t& event, const std::string& action);
-    dpp::task<void> recompute(const dpp::slashcommand_t& event, const std::string& action);
+    dpp::task<void> alias(const dpp::slashcommand_t& event, std::string_view subcommand);
+    dpp::task<void> recompute(const dpp::slashcommand_t& event, std::string_view subcommand);
     dpp::task<void> recompute_start(const dpp::slashcommand_t& event);
 
     command_info info_;

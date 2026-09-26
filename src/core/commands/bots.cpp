@@ -1,5 +1,6 @@
 #include "core/commands/bots.hpp"
 
+#include "core/commands/options.hpp"
 #include "core/util/log.hpp"
 
 #include <dpp/cluster.h>
@@ -14,11 +15,6 @@
 namespace latibot::commands {
 namespace {
 
-std::string subcommand_of(const dpp::slashcommand_t& event) {
-    const dpp::command_interaction interaction = event.command.get_command_interaction();
-    return interaction.options.empty() ? std::string{} : interaction.options.front().name;
-}
-
 /// The bot the command names, and whether Discord agrees it is a bot.
 struct named_bot {
     dpp::snowflake id;
@@ -27,9 +23,8 @@ struct named_bot {
 };
 
 std::optional<named_bot> bot_option(const dpp::slashcommand_t& event) {
-    const dpp::command_value value = event.get_parameter("bot");
-    const auto* id = std::get_if<dpp::snowflake>(&value);
-    if (id == nullptr || *id == 0) {
+    const auto id = snowflake_option(event, "bot");
+    if (!id || id->empty()) {
         return std::nullopt;
     }
 
@@ -85,7 +80,7 @@ dpp::slashcommand bots_command::build(const std::string& name, dpp::snowflake ap
 }
 
 dpp::task<void> bots_command::execute(const dpp::slashcommand_t& event) {
-    const std::string action = subcommand_of(event);
+    const std::string action = subcommand_path(event.command.get_command_interaction());
 
     if (action == "allow") {
         co_await this->allow(event);

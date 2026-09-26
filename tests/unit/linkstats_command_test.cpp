@@ -60,28 +60,27 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     // is open to everyone, so this is the only thing standing between anybody
     // and a recompute of years of history (plan §21.13).
     using latibot::commands::linkstats_refusal;
-    using call = std::pair<std::string_view, std::string_view>;
 
     const dpp::permission nobody{};
     const dpp::permission manager(dpp::p_manage_guild);
     const dpp::permission administrator(dpp::p_administrator);
     const dpp::permission moderator(dpp::p_manage_messages);
 
-    for (const call& open : {call{"", "top"}, call{"", "user"}, call{"", "emojis"}, call{"alias", "list"}}) {
-        INFO(open.first << " " << open.second);
-        CHECK_FALSE(linkstats_refusal(open.first, open.second, nobody).has_value());
+    for (const std::string_view open : {"top", "user", "emojis", "alias list"}) {
+        INFO(open);
+        CHECK_FALSE(linkstats_refusal(open, nobody).has_value());
     }
 
-    for (const call& gated : {call{"alias", "add"}, call{"alias", "remove"}, call{"recompute", "start"}, call{"recompute", "cancel"}}) {
-        INFO(gated.first << " " << gated.second);
-        CHECK(linkstats_refusal(gated.first, gated.second, nobody).has_value());
-        CHECK(linkstats_refusal(gated.first, gated.second, moderator).has_value());
-        CHECK_FALSE(linkstats_refusal(gated.first, gated.second, manager).has_value());
-        CHECK_FALSE(linkstats_refusal(gated.first, gated.second, administrator).has_value());
+    for (const std::string_view gated : {"alias add", "alias remove", "recompute start", "recompute cancel"}) {
+        INFO(gated);
+        CHECK(linkstats_refusal(gated, nobody).has_value());
+        CHECK(linkstats_refusal(gated, moderator).has_value());
+        CHECK_FALSE(linkstats_refusal(gated, manager).has_value());
+        CHECK_FALSE(linkstats_refusal(gated, administrator).has_value());
     }
 
-    CHECK(linkstats_refusal("alias", "add", nobody) == "changing emoji aliases needs Manage Server");
-    CHECK(linkstats_refusal("recompute", "start", nobody) == "recomputing link stats needs Manage Server");
+    CHECK(linkstats_refusal("alias add", nobody) == "changing emoji aliases needs Manage Server");
+    CHECK(linkstats_refusal("recompute start", nobody) == "recomputing link stats needs Manage Server");
 }
 
 TEST_CASE("custom emojis that share a name are listed as likely duplicates", "[commands]") {

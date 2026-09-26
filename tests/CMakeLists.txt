@@ -20,6 +20,7 @@ add_executable(latibot_tests
     unit/bots_command_test.cpp
     unit/ca_certificates_test.cpp
     unit/command_log_test.cpp
+    unit/command_options_test.cpp
     unit/command_responses_test.cpp
     unit/embed_watch_test.cpp
     unit/env_test.cpp

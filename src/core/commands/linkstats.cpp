@@ -1,5 +1,6 @@
 #include "core/commands/linkstats.hpp"
 
+#include "core/commands/options.hpp"
 #include "core/ports/discord_gateway.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
@@ -21,31 +22,6 @@ namespace {
 
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t emoji_choices = 25;
-
-std::string string_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* text = std::get_if<std::string>(&value);
-    return text == nullptr ? std::string{} : *text;
-}
-
-/// "group action" for a subcommand in a group, "action" otherwise.
-std::pair<std::string, std::string> group_and_action(const dpp::slashcommand_t& event) {
-    const dpp::command_interaction interaction = event.command.get_command_interaction();
-    if (interaction.options.empty()) {
-        return {};
-    }
-    const dpp::command_data_option& first = interaction.options.front();
-    if (first.type == dpp::co_sub_command_group && !first.options.empty()) {
-        return {first.name, first.options.front().name};
-    }
-    return {std::string{}, first.name};
-}
-
-dpp::permission invoker_permissions(const dpp::slashcommand_t& event) {
-    const auto& resolved = event.command.resolved.member_permissions;
-    const auto found = resolved.find(event.command.get_issuing_user().id);
-    return found == resolved.end() ? dpp::permission{} : found->second;
-}
 
 bool is_word(std::string_view text) {
     return !text.empty() && std::ranges::all_of(text, [](unsigned char letter) { return std::isalnum(letter) != 0 || letter == '_'; });
@@ -611,38 +587,38 @@ void linkstats_command::autocomplete(const dpp::autocomplete_t& event) const {
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
-std::optional<std::string> linkstats_refusal(std::string_view group, std::string_view action, dpp::permission invoker) {
+std::optional<std::string> linkstats_refusal(std::string_view subcommand, dpp::permission invoker) {
     if (invoker.can(dpp::p_manage_guild)) {
         return std::nullopt;
     }
-    if (group == "alias" && action != "list") {
+    if (subcommand.starts_with("alias ") && subcommand != "alias list") {
         return "changing emoji aliases needs Manage Server";
     }
     // Reading years of history is a lot of API calls; this one is for the
     // people who run the server (plan §9.7).
-    if (group == "recompute") {
+    if (subcommand.starts_with("recompute ")) {
         return "recomputing link stats needs Manage Server";
     }
     return std::nullopt;
 }
 
 dpp::task<void> linkstats_command::execute(const dpp::slashcommand_t& event) {
-    const auto [group, action] = group_and_action(event);
+    const std::string subcommand = subcommand_path(event.command.get_command_interaction());
 
-    if (const auto refused = linkstats_refusal(group, action, invoker_permissions(event))) {
+    if (const auto refused = linkstats_refusal(subcommand, invoker_permissions(event))) {
         co_await event.co_reply(refusal(event, *refused));
         co_return;
     }
 
-    if (group == "alias") {
-        co_await this->alias(event, action);
-    } else if (group == "recompute") {
-        co_await this->recompute(event, action);
-    } else if (action == "top") {
+    if (subcommand.starts_with("alias ")) {
+        co_await this->alias(event, subcommand);
+    } else if (subcommand.starts_with("recompute ")) {
+        co_await this->recompute(event, subcommand);
+    } else if (subcommand == "top") {
         co_await this->top(event);
-    } else if (action == "user") {
+    } else if (subcommand == "user") {
         co_await this->user(event);
-    } else if (action == "emojis") {
+    } else if (subcommand == "emojis") {
         co_await event.co_reply(result(event, render_duplicates(*store_, event.command.guild_id)));
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
@@ -681,17 +657,15 @@ dpp::task<void> linkstats_command::user(const dpp::slashcommand_t& event) {
         co_return;
     }
 
-    const dpp::command_value chosen = event.get_parameter("user");
-    const auto* other = std::get_if<dpp::snowflake>(&chosen);
-    const dpp::snowflake subject = other == nullptr ? event.command.get_issuing_user().id : *other;
+    const dpp::snowflake subject = snowflake_option(event, "user").value_or(event.command.get_issuing_user().id);
 
     co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
 }
 
-dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const std::string& action) {
+dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view subcommand) {
     const dpp::snowflake guild = event.command.guild_id;
 
-    if (action == "list") {
+    if (subcommand == "alias list") {
         co_await event.co_reply(result(event, render_aliases(*store_, guild)));
         co_return;
     }
@@ -705,7 +679,7 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
 
     const user_label who = describe_user(event.command.get_issuing_user());
 
-    if (action == "remove") {
+    if (subcommand == "alias remove") {
         if (!store_->remove_alias(guild, emoji->key)) {
             co_await event.co_reply(refusal(event, std::format("{} isn't an alias", events::display_emoji(*emoji))));
             co_return;
@@ -737,21 +711,21 @@ dpp::task<void> linkstats_command::alias(const dpp::slashcommand_t& event, const
                                   events::display_emoji(store_->describe(store_->canonical(guild, emoji->key))))));
 }
 
-dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, const std::string& action) {
+dpp::task<void> linkstats_command::recompute(const dpp::slashcommand_t& event, std::string_view subcommand) {
     // Manage Server has been checked by execute.
     if (recompute_.service == nullptr || recompute_.discord == nullptr) {
         co_await event.co_reply(refusal(event, "recomputing isn't available in this build"));
         co_return;
     }
 
-    if (action == "cancel") {
+    if (subcommand == "recompute cancel") {
         const bool stopping = recompute_.service->cancel(event.command.guild_id);
         if (stopping) {
             util::log().info("link stats recompute in guild {} cancelled by {}", event.command.guild_id,
                              describe_user(event.command.get_issuing_user()));
         }
         co_await event.co_reply(result(event, stopping ? "Stopping at the next page of history." : "Nothing is being recomputed here."));
-    } else if (action == "start") {
+    } else if (subcommand == "recompute start") {
         co_await recompute_start(event);
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
@@ -774,13 +748,9 @@ dpp::task<void> linkstats_command::recompute_start(const dpp::slashcommand_t& ev
                                      .bot_id = recompute_.bot_id ? recompute_.bot_id() : dpp::snowflake{},
                                      .fresh = false};
 
-    const dpp::command_value fresh = event.get_parameter("fresh");
-    if (const auto* flag = std::get_if<bool>(&fresh)) {
-        request.fresh = *flag;
-    }
+    request.fresh = bool_option(event, "fresh").value_or(false);
 
-    const dpp::command_value named = event.get_parameter("channel");
-    if (const auto* channel = std::get_if<dpp::snowflake>(&named)) {
+    if (const auto channel = snowflake_option(event, "channel")) {
         request.channel_ids.push_back(*channel);
     } else if (recompute_.channels_of) {
         request.channel_ids = recompute_.channels_of(guild);

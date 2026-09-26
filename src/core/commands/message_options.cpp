@@ -1,6 +1,8 @@
 #include "core/commands/message_options.hpp"
 
-#include <variant>
+#include "core/commands/options.hpp"
+
+#include <optional>
 
 namespace latibot::commands {
 namespace {
@@ -10,9 +12,8 @@ namespace {
 /// clears one.
 void apply_option(const dpp::slashcommand_t& event, const char* name, discord::message_flags bit, bool on_means_set,
                   discord::message_flags& flags) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* chosen = std::get_if<bool>(&value);
-    if (chosen == nullptr) {
+    const std::optional<bool> chosen = bool_option(event, name);
+    if (!chosen) {
         return;
     }
 

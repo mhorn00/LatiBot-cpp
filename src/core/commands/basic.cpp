@@ -1,5 +1,6 @@
 #include "core/commands/basic.hpp"
 
+#include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/ports/clock.hpp"
@@ -22,20 +23,6 @@
 
 namespace latibot::commands {
 namespace {
-
-/// A string option, or an empty string when it was not supplied.
-std::string string_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* text = std::get_if<std::string>(&value);
-    return text == nullptr ? std::string{} : *text;
-}
-
-/// A user option, or 0 when it was not supplied.
-dpp::snowflake user_option(const dpp::slashcommand_t& event, const char* name) {
-    const dpp::command_value value = event.get_parameter(name);
-    const auto* id = std::get_if<dpp::snowflake>(&value);
-    return id == nullptr ? dpp::snowflake{} : *id;
-}
 
 /// The voice channel a member is in, or 0.
 dpp::snowflake voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) {
@@ -283,9 +270,8 @@ dpp::slashcommand join_command::build(const std::string& name, dpp::snowflake ap
 }
 
 dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
-    const dpp::snowflake requested = user_option(event, "user");
     const dpp::snowflake caller = event.command.get_issuing_user().id;
-    const dpp::snowflake target = requested.empty() ? caller : requested;
+    const dpp::snowflake target = snowflake_option(event, "user").value_or(caller);
     const bool following_someone_else = target != caller;
 
     const join_decision decision = plan_join(voice_channel_of(event.command.guild_id, target), bot_voice_channel(event));
@@ -394,8 +380,7 @@ dpp::slashcommand goodbye_command::build(const std::string& name, dpp::snowflake
 dpp::task<void> goodbye_command::execute(const dpp::slashcommand_t& event) {
     const dpp::snowflake guild = event.command.guild_id;
 
-    const dpp::command_value off = event.get_parameter("off");
-    if (const auto* disable = std::get_if<bool>(&off); disable != nullptr && *disable) {
+    if (bool_option(event, "off").value_or(false)) {
         // Stored empty rather than erased, so the guild keeps saying "off"
         // instead of falling back to the default on the next restart.
         settings_->set(guild, events::goodbye_phrase_key, "");

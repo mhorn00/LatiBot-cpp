@@ -11,6 +11,7 @@ add_library(latibot_core STATIC
     core/commands/basic.cpp
     core/commands/linkstats.cpp
     core/commands/message_options.cpp
+    core/commands/options.cpp
     core/commands/bots.cpp
     core/commands/midnight.cpp
     core/commands/nickname.cpp
