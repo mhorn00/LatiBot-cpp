@@ -2,6 +2,8 @@
 
 #include "core/db/error.hpp"
 
+#include "support/capture_log.hpp"
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstddef>
@@ -141,6 +143,19 @@ TEST_CASE("a transaction commits or rolls back", "[db]") {
         REQUIRE(count.step());
         CHECK(count.get<int>(0) == 0);
     }
+}
+
+TEST_CASE("a rollback that fails is logged rather than thrown", "[db]") {
+    // Otherwise the first sign of it is every later write failing to start a
+    // transaction, with nothing saying why.
+    test_database fixture;
+    const latibot::testing::capture_log log;
+    {
+        transaction tx(fixture.db);
+        // Ended behind the transaction's back, so its own rollback fails.
+        fixture.db.execute("COMMIT");
+    }
+    CHECK(log.contains(latibot::util::log_level::error, "could not roll back a transaction"));
 }
 
 TEST_CASE("last_insert_rowid and changes report the previous statement", "[db]") {

@@ -1,14 +1,25 @@
 #include "core/db/database.hpp"
 
 #include "core/db/error.hpp"
+#include "core/util/log.hpp"
 
 #include <sqlite3.h>
 
+#include <exception>
 #include <string>
 #include <utility>
 
 namespace latibot::db {
 namespace {
+
+/// For the transaction destructor, which must not throw even while logging.
+void log_failed_rollback(const char* why) noexcept {
+    try {
+        util::log().error("could not roll back a transaction, so later writes will fail: {}", why);
+    } catch (...) { // NOLINT(bugprone-empty-catch)
+        // Nothing is left to report it with.
+    }
+}
 
 std::string describe(sqlite3* handle, int result_code, const char* context) {
     std::string message = context;
@@ -123,12 +134,17 @@ transaction::~transaction() {
     if (finished_) {
         return;
     }
+    // A destructor must not throw, so a failure is logged rather than passed
+    // on. It is worth an error line: a rollback that fails leaves the
+    // connection inside the transaction, and every later write then fails
+    // with "cannot start a transaction within a transaction", which names
+    // only the symptom.
     try {
         db_->execute("ROLLBACK");
-    } catch (...) { // NOLINT(bugprone-empty-catch)
-        // A destructor must not throw. This should log the failure, and does
-        // not yet: a rollback that fails leaves the connection inside the
-        // transaction, and every later write then fails for that reason.
+    } catch (const std::exception& error) {
+        log_failed_rollback(error.what());
+    } catch (...) {
+        log_failed_rollback("an unknown exception");
     }
 }
 

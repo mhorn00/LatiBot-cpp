@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-496 test cases across 9 components, including 113 sections.
+497 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 109 | 11 |
+| [db](#db) | 110 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 121 | 27 |
 | [events](#events) | 150 | 37 |
@@ -37,14 +37,15 @@ Database (`src/core/db`)
 | allowing and denying report whether anything changed |  |  | [tests/db/bot_allowlist_test.cpp:45](../../tests/db/bot_allowlist_test.cpp#L45) |
 | guilds keep their own allowlists |  |  | [tests/db/bot_allowlist_test.cpp:57](../../tests/db/bot_allowlist_test.cpp#L57) |
 | for_guild lists everything allowed there |  |  | [tests/db/bot_allowlist_test.cpp:68](../../tests/db/bot_allowlist_test.cpp#L68) |
-| opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:41](../../tests/db/database_test.cpp#L41) |
-| values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
-| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:73](../../tests/db/database_test.cpp#L73) |
-| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:86](../../tests/db/database_test.cpp#L86) |
-| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:102](../../tests/db/database_test.cpp#L102) |
-| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:109](../../tests/db/database_test.cpp#L109) |
-| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:146](../../tests/db/database_test.cpp#L146) |
-| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:160](../../tests/db/database_test.cpp#L160) |
+| opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:43](../../tests/db/database_test.cpp#L43) |
+| values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:48](../../tests/db/database_test.cpp#L48) |
+| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:75](../../tests/db/database_test.cpp#L75) |
+| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:88](../../tests/db/database_test.cpp#L88) |
+| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:104](../../tests/db/database_test.cpp#L104) |
+| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:111](../../tests/db/database_test.cpp#L111) |
+| a rollback that fails is logged rather than thrown |  |  | [tests/db/database_test.cpp:148](../../tests/db/database_test.cpp#L148) |
+| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:161](../../tests/db/database_test.cpp#L161) |
+| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:175](../../tests/db/database_test.cpp#L175) |
 | an added entry comes back as it went in |  |  | [tests/db/midnight_store_test.cpp:51](../../tests/db/midnight_store_test.cpp#L51) |
 | entries belong to one guild |  |  | [tests/db/midnight_store_test.cpp:66](../../tests/db/midnight_store_test.cpp#L66) |
 | only enabled entries are looked at on a tick |  |  | [tests/db/midnight_store_test.cpp:78](../../tests/db/midnight_store_test.cpp#L78) |
