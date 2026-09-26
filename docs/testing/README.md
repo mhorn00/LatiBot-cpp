@@ -69,6 +69,7 @@ grouped by; the traits are for filtering.
 | `[events]` | `src/core/events`: the message pipeline and its stages (goodbye, triggers, URL replacement), the embed tracker, reactions, nicknames, midnight and the backfill |
 | `[ui]` | `src/core/ui`: paging and panel primitives |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
+| `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
 | `[log]` | `src/core/util/log` |
 | `[util]` | the remaining small helpers in `src/core/util`, version |
@@ -133,19 +134,34 @@ listener that silences the logger for the run; a test that wants to assert on
 log output uses `testing::capture_log`, which sets its own level and restores
 this one afterwards.
 
-**Golden tests** (from Phase 4) will compare DECtalk output against a stored
-hash and sample count, and write the `.wav` next to it so a difference can be
-listened to rather than guessed at.
+**Golden tests** compare DECtalk's output for a few fixed phrases against a
+sample count and hash in `tests/golden/dectalk.txt`. Every utterance runs on
+a fresh engine, so the samples are the same on every run and in Debug and
+Release alike (plan §21.16). On a mismatch the test writes the audio it got
+to `tests/golden/<name>.wav` (gitignored), so the difference can be listened
+to rather than guessed at. After a deliberate change, such as a DECtalk
+update, rewrite the file and listen to the `.wav` files before committing it:
+
+```powershell
+$env:LATIBOT_UPDATE_GOLDEN = '1'; .\build\bin\Debug\latibot_tests.exe "[golden]"; Remove-Item Env:LATIBOT_UPDATE_GOLDEN
+```
+
+**DECtalk itself runs in the suite.** The `[audio]` engine tests start the
+real engine rather than a mock: what they check is how DECtalk behaves, which
+the design rests on. It needs no audio device, so they run in CI too.
 
 **Fuzz targets** live in `tests/fuzz/` and are built by the `fuzz` preset.
 They exist for the parsers that read untrusted text: `fuzz_text` for the text
-helpers, `fuzz_url_scan` for the link scanner and replacement planning, and
-`fuzz_legacy_parser` for recognising the bot's old replacements; the DECtalk
-sanitizer joins them in phase 4. Each checks invariants rather than just
+helpers, `fuzz_url_scan` for the link scanner and replacement planning,
+`fuzz_legacy_parser` for recognising the bot's old replacements, and
+`fuzz_dectalk_sanitizer` for what reaches the speech engine. Each checks
+invariants rather than just
 "did not crash" — the scanner's links are in order, inside the text and
 exactly what their offsets say, and spoilered exactly when an odd number of
 markers outside code precede them; trimmed text has whitespace only on either side, and
-text cut to a limit stays within it without splitting a character.
+text cut to a limit stays within it without splitting a character; and the
+sanitizer's output, read the way DECtalk reads it, runs no command the
+speaker may not, and sanitizing it again changes nothing.
 
 libFuzzer steers by coverage, so the targets link `latibot_fuzz_core`: the
 code they exercise, built again with coverage instrumentation, since

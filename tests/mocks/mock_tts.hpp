@@ -2,12 +2,11 @@
 
 #include "core/ports/tts_engine.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <numbers>
 #include <optional>
-#include <string>
-#include <utility>
 #include <vector>
 
 namespace latibot::testing {
@@ -22,11 +21,11 @@ public:
     /// Scripted failure for the next call, if set.
     std::optional<ports::api_error> next_error;
 
-    std::vector<std::pair<std::string, ports::voice_settings>> requests;
+    std::vector<ports::speech_request> requests;
     int stop_count = 0;
 
-    auto synthesize(std::string text, ports::voice_settings settings) -> dpp::task<ports::result<ports::pcm_audio>> override {
-        requests.emplace_back(text, settings);
+    auto synthesize(ports::speech_request request) -> dpp::task<ports::result<ports::pcm_audio>> override {
+        requests.push_back(request);
 
         if (next_error) {
             auto scripted = *next_error;
@@ -35,7 +34,9 @@ public:
         }
 
         ports::pcm_audio audio;
-        const auto milliseconds = per_character * static_cast<std::int64_t>(text.size());
+        const auto wanted = per_character * static_cast<std::int64_t>(request.text.size());
+        const auto milliseconds = std::min(wanted, request.max_duration);
+        audio.truncated = wanted > request.max_duration;
         const auto sample_count = static_cast<std::size_t>(audio.sample_rate * milliseconds.count() / 1000);
 
         audio.samples.reserve(sample_count);

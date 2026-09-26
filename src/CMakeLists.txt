@@ -1,5 +1,10 @@
 add_library(latibot_core STATIC
     core/version.cpp
+    core/audio/dectalk_engine.cpp
+    core/audio/dectalk_sanitizer.cpp
+    core/audio/pcm.cpp
+    core/audio/voice_params.cpp
+    core/audio/wav.cpp
     core/bot.cpp
     core/config/bootstrap.cpp
     core/config/guild_settings.cpp
@@ -49,6 +54,9 @@ add_library(latibot_core STATIC
 # Headers are included as "core/<area>/<file>.hpp".
 target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(latibot_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
+# DECtalk (cmake/dectalk.cmake). Its header stays out of ours: only
+# core/audio/dectalk_engine.cpp includes it.
+target_link_libraries(latibot_core PRIVATE dectalk)
 
 # crypt32 is the Windows certificate store, read at startup to give OpenSSL
 # the roots it does not ship with (core/util/ca_certificates.cpp).

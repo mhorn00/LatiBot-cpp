@@ -1,0 +1,1 @@
+hi [:mode "spell" on] [:rate 2[0] [hello

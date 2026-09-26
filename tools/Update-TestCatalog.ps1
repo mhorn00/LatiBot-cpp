@@ -29,6 +29,7 @@ $components = [ordered]@{
     'events'   = 'Messages, replacements, reactions, nicknames and midnight (`src/core/events`)'
     'ui'       = 'Panels and paging (`src/core/ui`)'
     'discord'  = 'Discord plumbing (`src/core/discord`)'
+    'audio'    = 'Speech and voice (`src/core/audio`)'
     'ports'    = 'Ports and mocks (`src/core/ports`, `tests/mocks`)'
     'log'      = 'Logging (`src/core/util/log`)'
     'util'     = 'Utilities (`src/core/util`, `src/core/version`)'

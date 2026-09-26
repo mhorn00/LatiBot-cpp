@@ -22,6 +22,9 @@ add_executable(latibot_tests
     unit/command_log_test.cpp
     unit/command_options_test.cpp
     unit/command_responses_test.cpp
+    unit/dectalk_engine_test.cpp
+    unit/dectalk_golden_test.cpp
+    unit/dectalk_sanitizer_test.cpp
     unit/embed_watch_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp
@@ -33,6 +36,7 @@ add_executable(latibot_tests
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp
     unit/paginator_test.cpp
+    unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
     unit/log_color_test.cpp
     unit/log_test.cpp
@@ -45,6 +49,8 @@ add_executable(latibot_tests
     unit/trigger_command_test.cpp
     unit/triggers_test.cpp
     unit/version_test.cpp
+    unit/voice_params_test.cpp
+    unit/wav_test.cpp
     unit/text_test.cpp
     unit/url_rules_test.cpp
     unit/urlrepl_command_test.cpp
@@ -53,6 +59,8 @@ add_executable(latibot_tests
 
 # Test helpers are included as "support/<file>.hpp".
 target_include_directories(latibot_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+# Where the golden files are (tests/golden), for tests that compare against them.
+target_compile_definitions(latibot_tests PRIVATE LATIBOT_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(latibot_tests PRIVATE latibot_core Catch2::Catch2WithMain)
 
 latibot_target_warnings(latibot_tests)

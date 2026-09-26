@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-501 test cases across 9 components, including 114 sections.
+541 test cases across 10 components, including 118 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -15,6 +15,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
+| [audio](#audio) | 40 | 4 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
 | [util](#util) | 39 | 19 |
@@ -487,6 +488,53 @@ Discord plumbing (`src/core/discord`)
 | a path that already names the API version is left alone |  |  | [tests/unit/raw_api_test.cpp:17](../../tests/unit/raw_api_test.cpp#L17) |
 | trailing slashes are trimmed |  |  | [tests/unit/raw_api_test.cpp:21](../../tests/unit/raw_api_test.cpp#L21) |
 | an empty path becomes the API root |  |  | [tests/unit/raw_api_test.cpp:28](../../tests/unit/raw_api_test.cpp#L28) |
+
+## audio
+
+Speech and voice (`src/core/audio`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:45](../../tests/unit/dectalk_engine_test.cpp#L45) |
+| the same request gives the same audio every time | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:58](../../tests/unit/dectalk_engine_test.cpp#L58) |
+| one request's inline settings do not reach the next | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:69](../../tests/unit/dectalk_engine_test.cpp#L69) |
+| the voice and rate settings change the audio | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:82](../../tests/unit/dectalk_engine_test.cpp#L82) |
+| volume scales the samples | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:93](../../tests/unit/dectalk_engine_test.cpp#L93) |
+| an utterance stops at its maximum duration | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:103](../../tests/unit/dectalk_engine_test.cpp#L103) |
+| an utterance that takes too long is abandoned | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:116](../../tests/unit/dectalk_engine_test.cpp#L116) |
+| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:133](../../tests/unit/dectalk_engine_test.cpp#L133) |
+| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:154](../../tests/unit/dectalk_engine_test.cpp#L154) |
+| DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [tests/unit/dectalk_golden_test.cpp:91](../../tests/unit/dectalk_golden_test.cpp#L91) |
+| plain text passes through untouched |  |  | [tests/unit/dectalk_sanitizer_test.cpp:29](../../tests/unit/dectalk_sanitizer_test.cpp#L29) |
+| everyday commands are kept for everyone |  |  | [tests/unit/dectalk_sanitizer_test.cpp:35](../../tests/unit/dectalk_sanitizer_test.cpp#L35) |
+| play, log, debug, loadv and setv are for trusted users only |  |  | [tests/unit/dectalk_sanitizer_test.cpp:46](../../tests/unit/dectalk_sanitizer_test.cpp#L46) |
+| pause, resume and dv save are for nobody |  |  | [tests/unit/dectalk_sanitizer_test.cpp:61](../../tests/unit/dectalk_sanitizer_test.cpp#L61) |
+| removed commands are reported by their full names |  |  | [tests/unit/dectalk_sanitizer_test.cpp:70](../../tests/unit/dectalk_sanitizer_test.cpp#L70) |
+| a command is recognised by any unique prefix, in any case |  |  | [tests/unit/dectalk_sanitizer_test.cpp:77](../../tests/unit/dectalk_sanitizer_test.cpp#L77) |
+| an ambiguous or unknown command is dropped |  |  | [tests/unit/dectalk_sanitizer_test.cpp:89](../../tests/unit/dectalk_sanitizer_test.cpp#L89) |
+| chained commands are judged one by one |  |  | [tests/unit/dectalk_sanitizer_test.cpp:95](../../tests/unit/dectalk_sanitizer_test.cpp#L95) |
+| spaces and extra brackets before the colon do not hide a command |  |  | [tests/unit/dectalk_sanitizer_test.cpp:101](../../tests/unit/dectalk_sanitizer_test.cpp#L101) |
+| a quoted parameter can hold a closing bracket |  |  | [tests/unit/dectalk_sanitizer_test.cpp:108](../../tests/unit/dectalk_sanitizer_test.cpp#L108) |
+| an unterminated command swallows the rest, as it does in DECtalk |  |  | [tests/unit/dectalk_sanitizer_test.cpp:118](../../tests/unit/dectalk_sanitizer_test.cpp#L118) |
+| phoneme brackets are kept, and cannot hide a command |  |  | [tests/unit/dectalk_sanitizer_test.cpp:123](../../tests/unit/dectalk_sanitizer_test.cpp#L123) |
+| control characters are removed before anything else is read |  |  | [tests/unit/dectalk_sanitizer_test.cpp:132](../../tests/unit/dectalk_sanitizer_test.cpp#L132) |
+| parameters that could open or close anything are dropped |  |  | [tests/unit/dectalk_sanitizer_test.cpp:139](../../tests/unit/dectalk_sanitizer_test.cpp#L139) |
+| sanitizing twice changes nothing more |  |  | [tests/unit/dectalk_sanitizer_test.cpp:147](../../tests/unit/dectalk_sanitizer_test.cpp#L147) |
+| volume scales, clips and leaves 100 alone |  | 4 | [tests/unit/pcm_test.cpp:40](../../tests/unit/pcm_test.cpp#L40) |
+| resampling keeps the length and doubles every sample into stereo |  |  | [tests/unit/pcm_test.cpp:61](../../tests/unit/pcm_test.cpp#L61) |
+| resampling keeps the frequency |  |  | [tests/unit/pcm_test.cpp:71](../../tests/unit/pcm_test.cpp#L71) |
+| resampling interpolates between the source samples |  |  | [tests/unit/pcm_test.cpp:81](../../tests/unit/pcm_test.cpp#L81) |
+| resampling nothing gives nothing |  |  | [tests/unit/pcm_test.cpp:95](../../tests/unit/pcm_test.cpp#L95) |
+| resampling a minute of speech |  |  | [tests/unit/pcm_test.cpp:100](../../tests/unit/pcm_test.cpp#L100) |
+| the built-in voices are found by name, in any case |  |  | [tests/unit/voice_params_test.cpp:10](../../tests/unit/voice_params_test.cpp#L10) |
+| the preamble selects the voice and says only what differs |  |  | [tests/unit/voice_params_test.cpp:18](../../tests/unit/voice_params_test.cpp#L18) |
+| the preamble falls back to Paul and clamps the rate |  |  | [tests/unit/voice_params_test.cpp:25](../../tests/unit/voice_params_test.cpp#L25) |
+| a WAV file has the RIFF header, then the samples little-endian |  |  | [tests/unit/wav_test.cpp:15](../../tests/unit/wav_test.cpp#L15) |
+| a stereo WAV file counts both channels in its rates |  |  | [tests/unit/wav_test.cpp:40](../../tests/unit/wav_test.cpp#L40) |
+| the waveform of silence is flat |  |  | [tests/unit/wav_test.cpp:49](../../tests/unit/wav_test.cpp#L49) |
+| the waveform follows where the sound is |  |  | [tests/unit/wav_test.cpp:56](../../tests/unit/wav_test.cpp#L56) |
+| a waveform of fewer samples than bars has one bar per sample |  |  | [tests/unit/wav_test.cpp:78](../../tests/unit/wav_test.cpp#L78) |
+| the waveform is sent as base64 of its 256 bytes |  |  | [tests/unit/wav_test.cpp:83](../../tests/unit/wav_test.cpp#L83) |
 
 ## ports
 

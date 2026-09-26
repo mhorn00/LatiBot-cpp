@@ -15,3 +15,6 @@ data/
 
 # original Java bot, kept locally for reference only (contains personal data)
 java-reference/
+
+# golden-test output: what a mismatching phrase actually sounded like
+tests/golden/*.wav

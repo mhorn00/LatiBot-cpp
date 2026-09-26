@@ -1759,3 +1759,48 @@ Messages that are not command replies carry their own flags on
 theirs (migration 9), set with `silent` and `previews`, and default to silent
 as they always were. URL replacements keep fixed flags, since showing or
 hiding a preview is their whole job.
+
+### 21.16 DECtalk wants a fresh engine for every utterance
+
+§12.3 planned one engine kept open, streaming into a ring of buffers, reset
+before each request. A spike against the real engine, before any of it was
+written, overturned most of that:
+
+- **Synthesis runs at about 400 times real time.** Four seconds of speech
+  takes about 11 ms, a one-minute tone 17 ms. Streaming would start the
+  audio a few milliseconds sooner, so the engine returns whole utterances,
+  and the port's `synthesize` already had that shape.
+- **Reset is not usable in memory mode.** After `TextToSpeechReset` the
+  engine produced no audio at all, for every later request. Without it,
+  state leaks between requests exactly as §2.2 warned: one request's
+  `[:rate 75]` slowed every one after it, and even the same text twice gave
+  different audio, since the intonation carries on from the last clause.
+- **So each utterance gets its own engine.** Starting one takes about 15 ms
+  and shutting it down about 30 ms, it always starts from DECtalk's
+  defaults, and the same request gives the same samples every time. That
+  determinism is what makes the golden audio tests possible, and Debug and
+  Release builds produce identical samples.
+- **Requeuing a buffer from inside the callback is safe**, and buffers came
+  back in the order they were queued (no mismatch over 97 of them), which is
+  what §2.2's workaround for the truncated pointer relies on.
+- **An engine starved of buffers cannot be shut down.** Reset and shutdown
+  wait for a buffer that never comes. The duration cap therefore keeps
+  feeding the engine and throws the audio away, then tears it down.
+- **`[:pause]` waits on the clock and makes no sound.** It pauses the audio
+  device, which a memory engine does not have, so `[:pause 60000]` holds the
+  engine's thread for a minute and adds nothing to the audio. §12.5 and
+  §20 assumed the duration cap would bound it; it cannot, since no audio is
+  produced. `[:pause]` and `[:resume]` are stripped for everyone, and a
+  wall-time limit per utterance backs that up.
+- **A huge `[:tone]` stalls.** `[:tone 440 2000000000]` produced 38 seconds
+  and then stopped producing anything, without finishing. The wall-time
+  limit covers it too.
+- **A failed dictionary load poisons the process.** Starting with a
+  dictionary path that does not exist fails, as it should, but every later
+  start fails as well, even with the right path: the failed start leaves its
+  objects behind. The engine checks the file exists and never lets DECtalk
+  try.
+
+None of this needed a change to DECtalk, which stays an untouched
+submodule. What the engine does with these findings is in
+`core/audio/dectalk_engine.hpp`.

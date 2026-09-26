@@ -20,6 +20,7 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/url_scan.cpp
     ${core}/events/url_rules.cpp
     ${core}/events/legacy_replacements.cpp
+    ${core}/audio/dectalk_sanitizer.cpp
     # What those need to link.
     ${core}/config/guild_settings.cpp
     ${core}/db/database.cpp
@@ -61,6 +62,5 @@ endfunction()
 latibot_add_fuzzer(fuzz_text fuzz_text.cpp)
 latibot_add_fuzzer(fuzz_url_scan fuzz_url_scan.cpp)
 latibot_add_fuzzer(fuzz_legacy_parser fuzz_legacy_parser.cpp)
+latibot_add_fuzzer(fuzz_dectalk_sanitizer fuzz_dectalk_sanitizer.cpp)
 
-# As the parsers land, add:
-#   latibot_add_fuzzer(fuzz_dectalk_sanitizer fuzz_sanitizer.cpp) (plan v4 §12.5)

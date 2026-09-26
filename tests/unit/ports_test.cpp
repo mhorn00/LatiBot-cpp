@@ -128,7 +128,7 @@ TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro
     latibot::testing::mock_tts tts;
     tts.per_character = 10ms;
 
-    const auto outcome = tts.synthesize("abcde", {}).sync_wait_for(2s);
+    const auto outcome = tts.synthesize({.text = "abcde"}).sync_wait_for(2s);
 
     REQUIRE(outcome.has_value());
     REQUIRE(outcome->ok());
@@ -139,19 +139,19 @@ TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro
     CHECK(outcome->value().duration() <= 50ms);
     CHECK_FALSE(outcome->value().samples.empty());
     REQUIRE(tts.requests.size() == 1);
-    CHECK(tts.requests.front().first == "abcde");
+    CHECK(tts.requests.front().text == "abcde");
 }
 
 TEST_CASE("the TTS mock can fail once and records stops", "[ports][coro]") {
     latibot::testing::mock_tts tts;
     tts.next_error = api_error{.http_status = 0, .message = "engine busy"};
 
-    const auto failed = tts.synthesize("hello", {}).sync_wait_for(2s);
+    const auto failed = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
     REQUIRE(failed.has_value());
     CHECK_FALSE(failed->ok());
 
     // The scripted failure applies to one call only.
-    const auto recovered = tts.synthesize("hello", {}).sync_wait_for(2s);
+    const auto recovered = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
     REQUIRE(recovered.has_value());
     CHECK(recovered->ok());
 
