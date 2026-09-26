@@ -5,17 +5,17 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-564 test cases across 10 components, including 118 sections.
+581 test cases across 10 components, including 118 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 111 | 12 |
+| [db](#db) | 115 | 12 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 129 | 27 |
+| [commands](#commands) | 136 | 27 |
 | [events](#events) | 157 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 51 | 4 |
+| [audio](#audio) | 57 | 4 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
 | [util](#util) | 39 | 19 |
@@ -137,6 +137,10 @@ Database (`src/core/db`)
 | turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:152](../../tests/db/url_rule_store_test.cpp#L152) |
 | the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:169](../../tests/db/url_rule_store_test.cpp#L169) |
 | a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:188](../../tests/db/url_rule_store_test.cpp#L188) |
+| a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:38](../../tests/db/voice_store_test.cpp#L38) |
+| voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:50](../../tests/db/voice_store_test.cpp#L50) |
+| saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:61](../../tests/db/voice_store_test.cpp#L61) |
+| voices are listed by name and removed one at a time |  |  | [tests/db/voice_store_test.cpp:77](../../tests/db/voice_store_test.cpp#L77) |
 
 ## config
 
@@ -303,6 +307,13 @@ Command framework (`src/core/commands`)
 | the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:284](../../tests/unit/urlrepl_command_test.cpp#L284) |
 | anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [tests/unit/urlrepl_command_test.cpp:300](../../tests/unit/urlrepl_command_test.cpp#L300) |
 | the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:314](../../tests/unit/urlrepl_command_test.cpp#L314) |
+| the voice lab shows the voice as groups and as inline commands |  |  | [tests/unit/voice_lab_test.cpp:36](../../tests/unit/voice_lab_test.cpp#L36) |
+| an untouched voice says so, and a note shows once under it |  |  | [tests/unit/voice_lab_test.cpp:47](../../tests/unit/voice_lab_test.cpp#L47) |
+| every voice lab form fits in a modal |  |  | [tests/unit/voice_lab_test.cpp:58](../../tests/unit/voice_lab_test.cpp#L58) |
+| a group's form sets, clears and clamps its parameters |  |  | [tests/unit/voice_lab_test.cpp:76](../../tests/unit/voice_lab_test.cpp#L76) |
+| the raw form replaces the whole voice |  |  | [tests/unit/voice_lab_test.cpp:85](../../tests/unit/voice_lab_test.cpp#L85) |
+| only whoever made a voice, or an admin, may change it |  |  | [tests/unit/voice_lab_test.cpp:95](../../tests/unit/voice_lab_test.cpp#L95) |
+| a draft is kept per person for half an hour after it was last touched |  |  | [tests/unit/voice_lab_test.cpp:102](../../tests/unit/voice_lab_test.cpp#L102) |
 
 ## events
 
@@ -507,6 +518,12 @@ Speech and voice (`src/core/audio`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| every parameter is in exactly one group of at most five |  |  | [tests/unit/custom_voice_test.cpp:17](../../tests/unit/custom_voice_test.cpp#L17) |
+| edits are clamped to DECtalk's limits and written in table order |  |  | [tests/unit/custom_voice_test.cpp:37](../../tests/unit/custom_voice_test.cpp#L37) |
+| a voice reads back from [:dv] text, with or without brackets |  |  | [tests/unit/custom_voice_test.cpp:49](../../tests/unit/custom_voice_test.cpp#L49) |
+| what cannot be read is reported and skipped |  |  | [tests/unit/custom_voice_test.cpp:68](../../tests/unit/custom_voice_test.cpp#L68) |
+| a custom voice's preamble is rebuilt, not pasted |  |  | [tests/unit/custom_voice_test.cpp:84](../../tests/unit/custom_voice_test.cpp#L84) |
+| custom voice names are short, plain and never a built-in's |  |  | [tests/unit/custom_voice_test.cpp:91](../../tests/unit/custom_voice_test.cpp#L91) |
 | DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:45](../../tests/unit/dectalk_engine_test.cpp#L45) |
 | the same request gives the same audio every time | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:58](../../tests/unit/dectalk_engine_test.cpp#L58) |
 | one request's inline settings do not reach the next | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:69](../../tests/unit/dectalk_engine_test.cpp#L69) |

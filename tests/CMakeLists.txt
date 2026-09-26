@@ -10,6 +10,7 @@ add_executable(latibot_tests
     db/reaction_store_test.cpp
     db/replacement_store_test.cpp
     db/url_rule_store_test.cpp
+    db/voice_store_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
     db/midnight_store_test.cpp
@@ -22,6 +23,7 @@ add_executable(latibot_tests
     unit/command_log_test.cpp
     unit/command_options_test.cpp
     unit/command_responses_test.cpp
+    unit/custom_voice_test.cpp
     unit/dectalk_engine_test.cpp
     unit/dectalk_golden_test.cpp
     unit/dectalk_sanitizer_test.cpp
@@ -51,6 +53,7 @@ add_executable(latibot_tests
     unit/trigger_command_test.cpp
     unit/triggers_test.cpp
     unit/version_test.cpp
+    unit/voice_lab_test.cpp
     unit/voice_params_test.cpp
     unit/voice_sessions_test.cpp
     unit/wav_test.cpp

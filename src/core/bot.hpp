@@ -2,7 +2,9 @@
 
 #include "core/audio/dectalk_engine.hpp"
 #include "core/audio/speech_queue.hpp"
+#include "core/audio/voice_store.hpp"
 #include "core/commands/registry.hpp"
+#include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
@@ -188,6 +190,9 @@ private:
     audio::speech_queue speech_;
     events::voice_sessions voice_sessions_;
     events::auto_leave auto_leave_;
+    audio::voice_store voices_;
+    commands::voice_drafts voice_drafts_;
+    commands::voice_lab voice_lab_;
 
     /// Replacements the last run left `pending` or `retrying`, by guild. Read
     /// in the constructor, before anything can be posted, so none of them is

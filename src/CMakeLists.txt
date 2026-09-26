@@ -5,6 +5,7 @@ add_library(latibot_core STATIC
     core/audio/pcm.cpp
     core/audio/speech_queue.cpp
     core/audio/voice_params.cpp
+    core/audio/voice_store.cpp
     core/audio/wav.cpp
     core/bot.cpp
     core/config/bootstrap.cpp
@@ -27,6 +28,7 @@ add_library(latibot_core STATIC
     core/commands/registry.cpp
     core/commands/speak.cpp
     core/commands/voice.cpp
+    core/commands/voice_lab.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
     core/discord/dpp_voice_output.cpp
@@ -49,6 +51,7 @@ add_library(latibot_core STATIC
     core/events/url_rules.cpp
     core/events/voice_sessions.cpp
     core/ports/clock.cpp
+    core/ui/interaction.cpp
     core/ui/paginator.cpp
     core/util/ca_certificates.cpp
     core/util/env.cpp

@@ -4,6 +4,7 @@
 #include "core/audio/pcm.hpp"
 #include "core/audio/speech_queue.hpp"
 #include "core/audio/voice_params.hpp"
+#include "core/audio/voice_store.hpp"
 #include "core/commands/options.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
@@ -108,6 +109,14 @@ auto speak_command::autocomplete(const dpp::autocomplete_t& event) const -> void
             dpp::command_option_choice(std::format("{} ({})", voice.name, voice.description), std::string(voice.name)));
         ++offered;
     }
+    if (services_.voices != nullptr) {
+        for (const audio::saved_voice& saved : services_.voices->list(event.command.guild_id)) {
+            if (offered == voice_choices || !saved.name.starts_with(filter)) continue;
+            reply.add_autocomplete_choice(
+                dpp::command_option_choice(std::format("{} (built on {})", saved.name, saved.voice.base), saved.name));
+            ++offered;
+        }
+    }
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
@@ -124,12 +133,16 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
 
     ports::voice_settings voice;
     if (const std::string wanted = string_option(event, "voice"); !wanted.empty()) {
-        const audio::builtin_voice* found = audio::find_builtin_voice(wanted);
-        if (found == nullptr) {
+        // Built-in names come first; a custom voice can never take one.
+        if (const audio::builtin_voice* builtin = audio::find_builtin_voice(wanted)) {
+            voice.voice = std::string(builtin->name);
+        } else if (const auto saved = services_.voices == nullptr ? std::nullopt : services_.voices->find(guild, wanted)) {
+            voice.voice = saved->voice.base;
+            voice.custom_params = saved->voice.dv_parameters();
+        } else {
             co_await event.co_reply(refusal(event, std::format("i don't know a voice called \"{}\"", wanted)));
             co_return;
         }
-        voice.voice = std::string(found->name);
     }
     voice.rate = static_cast<int>(int_option(event, "rate").value_or(audio::default_rate));
     voice.volume = static_cast<int>(int_option(event, "volume").value_or(100));

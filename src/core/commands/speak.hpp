@@ -17,7 +17,8 @@ class tts_engine;
 
 namespace latibot::audio {
 class speech_queue;
-}
+class voice_store;
+} // namespace latibot::audio
 
 namespace latibot::config {
 class guild_settings;
@@ -84,6 +85,9 @@ struct speech_services {
     audio::speech_queue* queue = nullptr;
     config::guild_settings* settings = nullptr;
     const config::bootstrap* bootstrap = nullptr;
+
+    /// The guild's custom voices, which /speak voice: also accepts.
+    audio::voice_store* voices = nullptr;
 };
 
 /// Says something in the voice channel (plan §12.6).

@@ -31,7 +31,7 @@ auto snowflake_option(const dpp::slashcommand_t& event, const char* name) -> std
     return option_as<dpp::snowflake>(event, name);
 }
 
-auto invoker_permissions(const dpp::slashcommand_t& event) -> dpp::permission {
+auto invoker_permissions(const dpp::interaction_create_t& event) -> dpp::permission {
     const auto& resolved = event.command.resolved.member_permissions;
     const auto found = resolved.find(event.command.get_issuing_user().id);
     return found == resolved.end() ? dpp::permission{} : found->second;

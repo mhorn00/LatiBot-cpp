@@ -16,6 +16,7 @@
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
+#include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
@@ -96,39 +97,9 @@ auto nickname_change_in(const dpp::audit_entry& entry) -> std::optional<dpp::aud
     return std::nullopt;
 }
 
-/// Runs a coroutine to the end with nobody waiting on it.
-///
-/// `dpp::job` is DPP's fire-and-forget coroutine. The catch is the point of
-/// this function: an exception leaving a job is rethrown on whichever DPP
-/// thread resumed it, which would end the process.
-auto detach(dpp::task<void> work, std::string what) -> dpp::job {
-    try {
-        co_await std::move(work);
-    } catch (const std::exception& error) {
-        util::log().error("{} threw: {}", what, error.what());
-    } catch (...) {
-        util::log().error("{} threw an unknown exception", what);
-    }
-}
-
-/// Replaces the message a panel's button or form belongs to.
-///
-/// The message keeps the flags it was sent with, which its command chose:
-/// whether it is ephemeral cannot change after it is sent, but whether it
-/// shows previews can, so an update without them would bring back previews
-/// the command hid.
-auto update_panel(const dpp::interaction_create_t& event, dpp::message message) -> void {
-    const auto kept = static_cast<discord::message_flags>(event.command.msg.flags);
-    event.reply(dpp::ir_update_message, discord::apply_flags(message, kept, discord::channel_message_flags));
-}
-
-/// Answers a button, menu or form with a note only the person who used it
-/// sees.
-auto answer_privately(const dpp::interaction_create_t& event, std::string_view text) -> void {
-    dpp::message note{std::string(text)};
-    note.set_flags(dpp::m_ephemeral);
-    event.reply(note);
-}
+using ui::answer_privately;
+using ui::detach;
+using ui::update_panel;
 
 /// What a button, menu or form no panel claims hears back. It is one of ours,
 /// since Discord only sends the bot its own, so it is from a build whose
@@ -202,7 +173,11 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       embed_tracker_(replacements_, clock_),
       voice_output_(cluster_),
       speech_(voice_output_),
-      auto_leave_(clock_) {
+      auto_leave_(clock_),
+      voices_(database_),
+      voice_drafts_(clock_),
+      voice_lab_(voice_drafts_, voices_, clock_,
+                 {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -275,10 +250,11 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
 
-    const commands::speech_services speech{.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_};
+    const commands::speech_services speech{
+        .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
     commands_.add(std::make_unique<commands::speak_command>(speech));
     commands_.add(std::make_unique<commands::tts_command>(speech));
-    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_));
+    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_, voices_, voice_lab_));
     commands_.add(std::make_unique<commands::linkstats_command>(
         reactions_, commands::recompute_support{.service = &backfill_,
                                                 .discord = &gateway_,
@@ -825,7 +801,8 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state.page));
     } else {
         // Each panel's router says whether the view was one of its own.
-        return on_trigger_component(event, state, chosen, who) || on_url_component(event, state, chosen, who);
+        return on_trigger_component(event, state, chosen, who) || on_url_component(event, state, chosen, who) ||
+               voice_lab_.on_component(event, state, chosen);
     }
     return true;
 }
@@ -955,6 +932,8 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
             on_url_form(event, *state);
         } else if (state && state->view == commands::trigger_form_view) {
             on_trigger_form(event, *state);
+        } else if (state && voice_lab_.on_form(event, *state)) {
+            // The voice lab answers its own forms.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
             answer_privately(event, stale_component_reply);

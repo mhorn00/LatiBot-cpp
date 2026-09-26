@@ -29,8 +29,9 @@ namespace latibot::commands {
 /// A user, channel or role option: its id.
 [[nodiscard]] auto snowflake_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<dpp::snowflake>;
 
-/// What the person running the command may do in this channel, as Discord
-/// worked it out for the interaction. Empty in a DM, where it sends none.
-[[nodiscard]] auto invoker_permissions(const dpp::slashcommand_t& event) -> dpp::permission;
+/// What whoever used a command, button or form may do in this channel, as
+/// Discord worked it out for the interaction. Empty in a DM, where it sends
+/// none.
+[[nodiscard]] auto invoker_permissions(const dpp::interaction_create_t& event) -> dpp::permission;
 
 } // namespace latibot::commands

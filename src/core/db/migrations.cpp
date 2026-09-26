@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 9> all_migrations{{
+constexpr std::array<migration, 10> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -259,6 +259,20 @@ constexpr std::array<migration, 9> all_migrations{{
         -- silent until now, so that is where existing rows start.
         ALTER TABLE triggers ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
         ALTER TABLE midnight_messages ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
+     )sql"},
+    {.version = 10, .name = "tts_voices", .sql = R"sql(
+        -- Custom voices, per guild (plan 12.6): a built-in voice and the
+        -- [:dv] edits made to it, as "ap 200 pr 150". Names are stored in
+        -- lowercase and never match a built-in voice's.
+        CREATE TABLE tts_voices (
+            guild_id   INTEGER NOT NULL,
+            name       TEXT    NOT NULL,
+            base_voice TEXT    NOT NULL,
+            params     TEXT    NOT NULL,
+            created_by INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, name)
+        ) WITHOUT ROWID;
      )sql"},
 }};
 
