@@ -97,7 +97,7 @@ dpp::command_option date_option(const char* name, const char* description) {
 dpp::command_option domain_option() {
     return dpp::command_option(dpp::co_string, "domain", "Only links to this site, like x.com.", false)
         .set_auto_complete(true)
-        .set_max_length(100);
+        .set_max_length(domain_length_limit);
 }
 
 dpp::command_option emoji_option(const char* name, const char* description, bool required) {

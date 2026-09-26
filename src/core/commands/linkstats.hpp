@@ -51,6 +51,15 @@ enum class board : std::uint8_t { received, given, self, emoji };
 /// The view name on a leaderboard's ◀ / ▶ buttons.
 inline constexpr std::string_view board_view = "linkboard";
 
+/// The longest `domain` filter the command takes.
+///
+/// A board's filters ride in its buttons' custom_id, which holds 100
+/// characters, and a longer site left too little room: paging then quietly
+/// dropped out. At 40, any custom emoji and any ordinary Unicode one fit
+/// beside it; only the longest joined emoji sequences can still crowd it.
+/// Real sites are far shorter.
+inline constexpr std::uint32_t domain_length_limit = 40;
+
 /// A leaderboard's filters, packed into its buttons' custom_id so a page
 /// reached by paging is the same board: `r;<emoji>;<site>;<since>;<until>`,
 /// with the dates as days since 1970.

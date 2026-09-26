@@ -198,6 +198,32 @@ TEST_CASE("link stats are open to everyone, with aliases in a group", "[commands
     CHECK(alias->options.size() == 3);
 }
 
+TEST_CASE("the longest site filter still leaves room for a board's paging", "[commands]") {
+    // The filters ride in the ◀ / ▶ buttons' custom_id; a site too long for it
+    // used to drop the paging without a word.
+    fixture test;
+    const latibot::commands::linkstats_command command(test.reactions);
+    const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
+    const auto top = std::ranges::find(payload.options, std::string("top"), &dpp::command_option::name);
+    REQUIRE(top != payload.options.end());
+    const auto domain = std::ranges::find(top->options, std::string("domain"), &dpp::command_option::name);
+    REQUIRE(domain != top->options.end());
+    // DPP keeps a text option's longest length in max_value.
+    CHECK(std::cmp_equal(std::get<std::int64_t>(domain->max_value), latibot::commands::domain_length_limit));
+
+    // At that length, with a custom emoji and both dates, on page 999.
+    const latibot::events::stat_query widest{.kind = stat_kind::given,
+                                             .emoji_key = "c:1234567890123456789",
+                                             .user_id = {},
+                                             .since = std::chrono::sys_days{std::chrono::year{2025} / 1 / 1},
+                                             .until = std::chrono::sys_days{std::chrono::year{2025} / 7 / 1},
+                                             .domain = std::string(latibot::commands::domain_length_limit, 'x')};
+    CHECK(latibot::ui::encode({.view = std::string(latibot::commands::board_view),
+                               .page = 999,
+                               .argument = latibot::commands::encode_board(board::given, widest)})
+              .has_value());
+}
+
 TEST_CASE("a recompute's report says what it found and what it could not read", "[commands]") {
     const latibot::events::backfill_request request{.guild_id = guild,
                                                     .channel_ids = {dpp::snowflake{1}, dpp::snowflake{2}},

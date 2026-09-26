@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-497 test cases across 9 components, including 113 sections.
+498 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 110 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 121 | 27 |
+| [commands](#commands) | 122 | 27 |
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -216,12 +216,13 @@ Command framework (`src/core/commands`)
 | a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:163](../../tests/unit/linkstats_command_test.cpp#L163) |
 | an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:172](../../tests/unit/linkstats_command_test.cpp#L172) |
 | link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:188](../../tests/unit/linkstats_command_test.cpp#L188) |
-| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:201](../../tests/unit/linkstats_command_test.cpp#L201) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:243](../../tests/unit/linkstats_command_test.cpp#L243) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:262](../../tests/unit/linkstats_command_test.cpp#L262) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:303](../../tests/unit/linkstats_command_test.cpp#L303) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:328](../../tests/unit/linkstats_command_test.cpp#L328) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:351](../../tests/unit/linkstats_command_test.cpp#L351) |
+| the longest site filter still leaves room for a board's paging |  |  | [tests/unit/linkstats_command_test.cpp:201](../../tests/unit/linkstats_command_test.cpp#L201) |
+| a recompute's report says what it found and what it could not read |  | 2 | [tests/unit/linkstats_command_test.cpp:227](../../tests/unit/linkstats_command_test.cpp#L227) |
+| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:269](../../tests/unit/linkstats_command_test.cpp#L269) |
+| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:288](../../tests/unit/linkstats_command_test.cpp#L288) |
+| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:329](../../tests/unit/linkstats_command_test.cpp#L329) |
+| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:354](../../tests/unit/linkstats_command_test.cpp#L354) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:377](../../tests/unit/linkstats_command_test.cpp#L377) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
