@@ -329,9 +329,11 @@ auto dectalk_engine::speak(const ports::speech_request& request, std::uint64_t i
     // Checked here rather than left to DECtalk: a start that fails to load
     // the dictionary leaves objects behind that make every later start in
     // the process fail too, including ones given the right path.
+    // The path goes to the log only: the message is shown in Discord.
     std::error_code error;
     if (!std::filesystem::is_regular_file(dictionary_, error)) {
-        return engine_error(std::format("the DECtalk dictionary is missing ({})", dictionary_.string()));
+        util::log().error("the DECtalk dictionary is missing: {}", dictionary_.string());
+        return engine_error("the DECtalk dictionary is missing");
     }
 
     std::string dictionary = dictionary_.string();

@@ -159,7 +159,8 @@ TEST_CASE("a missing dictionary fails the request instead of the process", "[aud
 
         REQUIRE(outcome.has_value());
         REQUIRE_FALSE(outcome->ok());
-        CHECK(outcome->error().message.starts_with("the DECtalk dictionary is missing"));
+        // Shown in Discord, so it names no path on the host.
+        CHECK(outcome->error().message == "the DECtalk dictionary is missing");
     }
 
     // DECtalk failing to load a dictionary breaks every later start in the
