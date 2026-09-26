@@ -47,6 +47,12 @@ TEST_CASE("joining follows the target and moves only when it has to", "[commands
     }
 }
 
+TEST_CASE("joining says whom it followed, as the Java bot did", "[commands]") {
+    using latibot::commands::describe_join;
+    CHECK(describe_join(join_action::connect, dpp::snowflake{42}) == "ok joining <@42>");
+    CHECK(describe_join(join_action::move, dpp::snowflake{42}) == "ok moving to <@42>");
+}
+
 TEST_CASE("a target who left voice is not followed to their old channel", "[commands]") {
     // The bot staying put matters more than the wording: the previous
     // implementation read the stale channel id and moved to an empty channel.

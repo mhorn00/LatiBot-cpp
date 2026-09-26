@@ -54,6 +54,12 @@ struct join_decision {
 
 [[nodiscard]] join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept;
 
+/// What `/join` says in the channel once it goes: "ok joining <@id>" or "ok
+/// moving to <@id>", naming whom it followed, as the Java bot did. The reply
+/// is public, since the room sees the bot arrive anyway, and is sent with
+/// mentions off, so the name shows without pinging anyone.
+[[nodiscard]] std::string describe_join(join_action action, dpp::snowflake followed);
+
 /// What `/say` should do with the options it was given.
 enum class say_action : std::uint8_t {
     /// Post the message in the channel the command came from.

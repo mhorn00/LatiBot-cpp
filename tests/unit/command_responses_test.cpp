@@ -93,6 +93,21 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
 
     const latibot::commands::trigger_command trigger(all.triggers);
     CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
+
+    // The room sees the bot come, go or stop, so it sees why; a refusal is
+    // still only for whoever asked (plan §6).
+    const latibot::commands::join_command join;
+    const latibot::commands::leave_command leave;
+    const latibot::commands::shutdown_command shutdown([] {});
+    for (const command_info* voice : {&join.info(), &leave.info(), &shutdown.info()}) {
+        INFO(voice->name);
+        CHECK(voice->responses_for("").result == 0);
+        CHECK(voice->responses_for("").refusal == dpp::m_ephemeral);
+    }
+
+    // The URL commands stay private, as they have been since the port.
+    const latibot::commands::urltoggle_command urltoggle(all.url_rules);
+    CHECK(urltoggle.info().responses_for("").result == dpp::m_ephemeral);
 }
 
 TEST_CASE("the URL dry run hides the previews of the links it shows", "[commands]") {

@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-498 test cases across 9 components, including 113 sections.
+499 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 110 | 11 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 122 | 27 |
+| [commands](#commands) | 123 | 27 |
 | [events](#events) | 150 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -173,11 +173,12 @@ Command framework (`src/core/commands`)
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
 | joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:25](../../tests/unit/basic_commands_test.cpp#L25) |
-| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
-| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:58](../../tests/unit/basic_commands_test.cpp#L58) |
-| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:65](../../tests/unit/basic_commands_test.cpp#L65) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:100](../../tests/unit/basic_commands_test.cpp#L100) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:116](../../tests/unit/basic_commands_test.cpp#L116) |
+| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
+| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:56](../../tests/unit/basic_commands_test.cpp#L56) |
+| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:64](../../tests/unit/basic_commands_test.cpp#L64) |
+| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:71](../../tests/unit/basic_commands_test.cpp#L71) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:106](../../tests/unit/basic_commands_test.cpp#L106) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:122](../../tests/unit/basic_commands_test.cpp#L122) |
 | an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
@@ -202,9 +203,9 @@ Command framework (`src/core/commands`)
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
 | every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:52](../../tests/unit/command_responses_test.cpp#L52) |
 | the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:74](../../tests/unit/command_responses_test.cpp#L74) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:98](../../tests/unit/command_responses_test.cpp#L98) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:131](../../tests/unit/command_responses_test.cpp#L131) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:113](../../tests/unit/command_responses_test.cpp#L113) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:125](../../tests/unit/command_responses_test.cpp#L125) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:146](../../tests/unit/command_responses_test.cpp#L146) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:58](../../tests/unit/linkstats_command_test.cpp#L58) |
 | custom emojis that share a name are listed as likely duplicates |  |  | [tests/unit/linkstats_command_test.cpp:86](../../tests/unit/linkstats_command_test.cpp#L86) |
 | aliases are listed as what counts as what, within Discord's limit |  |  | [tests/unit/linkstats_command_test.cpp:98](../../tests/unit/linkstats_command_test.cpp#L98) |

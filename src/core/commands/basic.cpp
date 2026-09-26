@@ -65,6 +65,10 @@ join_decision plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channe
     return {.action = join_action::move, .channel_id = target_channel};
 }
 
+std::string describe_join(join_action action, dpp::snowflake followed) {
+    return std::format("{} <@{}>", action == join_action::move ? "ok moving to" : "ok joining", followed.str());
+}
+
 say_decision plan_say(std::string_view message, std::string_view reply_to) {
     if (util::is_blank(message)) {
         return {.action = say_action::blank_message, .reply_to = {}};
@@ -260,7 +264,8 @@ join_command::join_command()
             .required_bot_permissions = dpp::p_connect | dpp::p_speak,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
-            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            // The room sees the bot come and go, so it sees why (plan §6).
+            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
 dpp::slashcommand join_command::build(const std::string& name, dpp::snowflake application_id) const {
@@ -298,7 +303,9 @@ dpp::task<void> join_command::execute(const dpp::slashcommand_t& event) {
         shard->connect_voice(event.command.guild_id, decision.channel_id);
         util::log().info("{} voice channel {} in guild {} for {}", decision.action == join_action::move ? "moved to" : "joined",
                          decision.channel_id, event.command.guild_id, describe_user(event.command.get_issuing_user()));
-        co_await event.co_reply(result(event, decision.action == join_action::move ? "ok moving" : "ok joining"));
+        dpp::message said(describe_join(decision.action, target));
+        said.set_allowed_mentions();
+        co_await event.co_reply(result(event, std::move(said)));
         co_return;
     }
 }
@@ -314,7 +321,8 @@ leave_command::leave_command()
             .required_bot_permissions = dpp::p_connect,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
-            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            // The room sees the bot come and go, so it sees why (plan §6).
+            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
 dpp::task<void> leave_command::execute(const dpp::slashcommand_t& event) {
@@ -340,7 +348,8 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .required_bot_permissions = 0,
             .default_member_permissions = dpp::permission(dpp::p_administrator),
             .guild_only = true,
-            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            // Everyone is about to lose the bot; they hear it go (plan §6).
+            .responses = {.result = 0, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}
 

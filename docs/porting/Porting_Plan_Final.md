@@ -531,6 +531,19 @@ hand-written mock in `tests/mocks/`. See §17.3.
 configure the phrase. Exact options and replies are in
 [docs/features/](../features/README.md).
 
+**Where they differ from the Java bot, on purpose** (decided in the cleanup
+analysis, after the port had drifted without a record):
+
+- **Who sees the reply.** Replies are private by default. `/join`, `/leave` and
+  `/shutdown` answer publicly, as they did in Java, because the room sees the
+  bot come, go or stop and should see why; `/join` names whom it followed
+  again ("ok joining @name"), with mentions off. `/urlrepl set` and `remove`
+  and `/urltoggle`, public in Java, stay private: a rule change or an opt-out
+  is the business of whoever made it.
+- **`/say` needs Manage Messages**, where Java asked for Manage Roles.
+  Speaking as the bot is about messages, and admins can change it per role in
+  the server's Integrations settings either way.
+
 **The goodbye phrase** is the one that needs care. The author must have
 Administrator **in that guild** — checked on the member, not the user globally —
 and the phrase must be essentially the whole message, so quoting it in

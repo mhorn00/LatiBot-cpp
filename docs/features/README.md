@@ -39,8 +39,10 @@ the design and the order of work behind it are in
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
 answer. The exceptions are called out below: `/say` posts a separate public
-message, and [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats)
-views answer publicly, because those are things a room reads together.
+message; [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats) views
+answer publicly, because those are things a room reads together; and
+[`/join`, `/leave`](#join--leave) and [`/shutdown`](#shutdown) answer publicly,
+because the room sees the bot come and go and should see why.
 
 Each command decides this for three kinds of message, per subcommand where
 they differ: its **result** (the answer it exists to give), a **refusal**
@@ -90,7 +92,7 @@ Posts a message as the bot.
 | | |
 |---|---|
 | **Options** | `message` (required, 1–2000 characters) · `reply` (optional, a message id) |
-| **Who** | Manage Messages, by default |
+| **Who** | Manage Messages, by default (the Java bot asked for Manage Roles) |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, Read Message History |
 
@@ -146,13 +148,17 @@ moves rather than refusing.
 
 | Situation | Reply |
 |---|---|
-| Joining | `ok joining` |
-| Already connected elsewhere in this server | `ok moving` |
+| Joining | `ok joining @name`, naming whoever it followed |
+| Already connected elsewhere in this server | `ok moving to @name` |
 | Already in the right channel | `i'm already in your voice channel` / `i'm already in their voice channel` |
 | The target is not in a voice channel | `you're not in a voice channel` / `they're not in a voice channel` |
 | The gateway connection is unavailable | `i can't reach the gateway right now` |
 | `/leave` when not connected | `i'm not in a voice channel` |
 | `/leave` when connected | `ok bye` |
+
+`ok joining`, `ok moving to` and `ok bye` are **public**, as they were in the Java
+bot: the room sees the bot arrive and leave. The name is a mention sent with
+mentions off, so it shows without pinging anyone. The refusals are private.
 
 Nothing plays yet — these exist because text-to-speech in phase 4 needs them,
 and because they are useful on their own.
@@ -168,7 +174,7 @@ Stops the bot.
 | **Where** | servers only |
 | **Bot needs** | nothing |
 
-Replies `ok bye bye!` and then shuts down. The reply is **awaited** rather than
+Replies `ok bye bye!`, publicly, and then shuts down. The reply is **awaited** rather than
 queued, because the process is about to stop and an unanswered interaction shows
 the caller an error instead of a goodbye. The shutdown is logged with the name
 of whoever asked.
