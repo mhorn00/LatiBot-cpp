@@ -94,6 +94,12 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
     const latibot::commands::trigger_command trigger(all.triggers);
     CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
 
+    // /midnight answers privately. The messages it sets up carry flags of
+    // their own, silent by default, and its posts are kept silent to match.
+    const latibot::commands::midnight_command midnight(all.midnight, all.clock);
+    CHECK(midnight.info().responses_for("add").result == dpp::m_ephemeral);
+    CHECK(midnight.info().responses_for("add").post == dpp::m_suppress_notifications);
+
     // The room sees the bot come, go or stop, so it sees why; a refusal is
     // still only for whoever asked (plan §6).
     const latibot::commands::join_command join;
