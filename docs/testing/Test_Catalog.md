@@ -296,7 +296,7 @@ Command framework (`src/core/commands`)
 
 ## events
 
-Message pipeline and triggers (`src/core/events`)
+Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|

@@ -426,7 +426,7 @@ tools/              catalog generator, clang-tidy and clang-format wrappers
 .vscode/            tasks, IntelliSense and the grouped test tree
 src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
-tests/              Catch2 tests, mocks, fixtures and fuzz targets
+tests/              Catch2 tests, mocks, support and fuzz targets
 docs/features/      what the bot does, and what it will do
 docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
 docs/ideas/         parked ideas
@@ -435,6 +435,10 @@ third_party/dectalk submodule: DECtalk (develop branch); not wired into the buil
 build/              build output (git-ignored)
 data/               runtime database, backups and import files (git-ignored)
 ```
+
+Comments in the code cite the plan as "plan §9.4": that always means
+[Porting_Plan_Final.md](docs/porting/Porting_Plan_Final.md). The drafts before
+it are kept for history and numbered differently in places.
 
 The original Java bot lives in `java-reference/` locally. It is deliberately
 **not** tracked in git: it is large and contains personal data.

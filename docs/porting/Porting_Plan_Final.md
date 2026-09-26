@@ -312,27 +312,31 @@ src/
     bot.*               the shell: wires DPP events to the core
     version.*
     config/   bootstrap.*  guild_settings.*
-    db/       database.*  statement.*  migrations.*  backup.*
-    discord/  raw_api.*  dpp_gateway.*  dpp_http_client.*
-    commands/ registry.*  basic.*  trigger.*  bots.*  preflight.*
-              nickname.*  midnight.*  urlrepl.*  linkstats.*
+    db/       database.*  statement.*  error.*  migrations.*  backup.*
+    discord/  raw_api.*  dpp_gateway.*  dpp_http_client.*  message_flags.*
+    commands/ registry.*  options.*  message_options.*  preflight.*
+              basic.*  trigger.*  bots.*  nickname.*  midnight.*
+              urlrepl.*  linkstats.*
               speak.*  voice.*  llm_admin.*                (phases 4-5)
     events/   message_pipeline.*  goodbye.*  triggers.*  bot_allowlist.*
               nicknames.*  nickname_import.*  midnight.*
               url_rules.*  url_replacer.*  embed_watch.*  replacements.*
               reactions.*  legacy_replacements.*  backfill.*
     ui/       paginator.*
-              panel.*  modal_forms.*                       (when a second panel exists)
+              panel.*  modal_forms.*                       (when a third panel exists, §21.5)
     audio/    voice_mixer.*  resample.*  wav.*
               dectalk_engine.*  dectalk_sanitizer.*  voice_params.*   (phase 4)
     llm/      provider.hpp  anthropic.*  conversation.*  memory.*
               tools.*  documents.*  responder.*  spend.*   (phase 5)
-    ports/    clock.hpp  discord_gateway.hpp  http_client.hpp  tts_engine.hpp
+    ports/    clock.*  discord_gateway.hpp  http_client.hpp  tts_engine.hpp  result.hpp
     util/     log.*  text.*  env.*  ca_certificates.*  url_scan.*
 tests/
-  unit/  db/  mocks/  support/  fuzz/  live/  fixtures/
+  unit/  db/  mocks/  support/  fuzz/ (with corpus/, its seed inputs)
+  live/  fixtures/                                         (planned)
 third_party/  DPP/  dectalk/
-data/                   runtime: bot.db, backups/, import/, ca-bundle.pem (gitignored)
+data/                   runtime: bot.db, backups/, ca-bundle.pem, and the Java
+                        bot's nicknames.json and UrlReplacements.txt when left
+                        beside bot.db to import (gitignored)
 ```
 
 ---

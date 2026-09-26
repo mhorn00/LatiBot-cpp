@@ -39,11 +39,13 @@ tests/
   unit/        pure logic: no database, no network, no files
   db/          anything that opens a database
   mocks/       hand-written stand-ins for the ports
-  support/     test helpers (temp directories, log capture)
-  fuzz/        libFuzzer targets, built only by the fuzz preset
-  live/        opt-in, needs a real Discord connection
-  fixtures/    synthetic data files
+  support/     test helpers (temp directories, log capture, Discord's limits)
+  fuzz/        libFuzzer targets, built only by the fuzz preset; corpus/ holds
+               their seed inputs
 ```
+
+Two more are planned and do not exist yet: `live/`, for tests that need a real
+Discord connection, and `fixtures/`, for synthetic data files.
 
 The bot's code lives in a static library, `latibot_core`, which both
 `LatiBot.exe` and `latibot_tests.exe` link. Tests exercise exactly the code
@@ -64,7 +66,7 @@ grouped by; the traits are for filtering.
 | `[db]` | `src/core/db`: connection, statements, migrations, backups |
 | `[config]` | `src/core/config`: `config.json`, per-guild settings |
 | `[commands]` | `src/core/commands`: the registry, dispatch and the commands |
-| `[events]` | `src/core/events`: the message pipeline, goodbye, triggers |
+| `[events]` | `src/core/events`: the message pipeline and its stages (goodbye, triggers, URL replacement), the embed tracker, reactions, nicknames, midnight and the backfill |
 | `[ui]` | `src/core/ui`: paging and panel primitives |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
@@ -164,9 +166,10 @@ CTest nor a plain run of the binary includes them. Run one by name or tag:
 .\build\bin\Release\latibot_tests.exe "[!benchmark]"
 ```
 
-**Live tests** are tagged `[live]`, excluded by every test preset, and need
-`LATIBOT_TEST_TOKEN` plus a test server. They cover only what real Discord can
-answer: modal behaviour, audit-log timing, whether embeds actually appear.
+**Live tests** do not exist yet. When they do, they will be tagged `[live]`,
+excluded by every test preset, and need `LATIBOT_TEST_TOKEN` plus a test
+server. They will cover only what real Discord can answer: modal behaviour,
+audit-log timing, whether embeds actually appear.
 
 ---
 
