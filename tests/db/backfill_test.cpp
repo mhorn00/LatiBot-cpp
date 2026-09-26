@@ -252,7 +252,7 @@ TEST_CASE("a replacement with nobody to credit still counts its reactions", "[ev
 
 TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[events][coro]") {
     fixture test;
-    test.discord.message_pages.emplace_back(latibot::api_error{.http_status = 403, .message = "Missing Access"});
+    test.discord.message_pages.emplace_back(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"});
     test.script_history();
 
     backfill_request wanted = request();
@@ -270,7 +270,7 @@ TEST_CASE("a failed reaction lookup keeps the counts that were there", "[events]
     test.run(request());
 
     test.discord.message_pages.emplace_back(history());
-    test.discord.reaction_pages.emplace_back(latibot::api_error{.http_status = 500, .message = "oops"});
+    test.discord.reaction_pages.emplace_back(latibot::ports::api_error{.http_status = 500, .message = "oops"});
 
     const backfill_report again = test.run(request(/*fresh=*/true));
     CHECK_FALSE(again.problems.empty());

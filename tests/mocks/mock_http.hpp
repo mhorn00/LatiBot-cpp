@@ -18,19 +18,19 @@ public:
     std::vector<ports::http_request> requests;
 
     /// Handed out in order, one per call.
-    std::deque<result<ports::http_response>> responses;
+    std::deque<ports::result<ports::http_response>> responses;
 
     void queue(int status, std::string body) { responses.emplace_back(ports::http_response{.status = status, .body = std::move(body)}); }
 
-    void queue_error(std::string message) { responses.emplace_back(api_error{.http_status = 0, .message = std::move(message)}); }
+    void queue_error(std::string message) { responses.emplace_back(ports::api_error{.http_status = 0, .message = std::move(message)}); }
 
-    dpp::task<result<ports::http_response>> send(ports::http_request request) override {
+    dpp::task<ports::result<ports::http_response>> send(ports::http_request request) override {
         requests.push_back(std::move(request));
 
         if (responses.empty()) {
             // Failing loudly beats returning an empty 200 that a test then
             // misreads as a real answer.
-            co_return api_error{.http_status = 0, .message = "mock_http: no response queued for this request"};
+            co_return ports::api_error{.http_status = 0, .message = "mock_http: no response queued for this request"};
         }
 
         auto next = std::move(responses.front());

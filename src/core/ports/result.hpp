@@ -4,7 +4,7 @@
 #include <utility>
 #include <variant>
 
-namespace latibot {
+namespace latibot::ports {
 
 /// A failed call to something outside the bot: Discord, an LLM provider, the
 /// speech engine.
@@ -65,4 +65,4 @@ private:
     bool ok_ = true;
 };
 
-} // namespace latibot
+} // namespace latibot::ports

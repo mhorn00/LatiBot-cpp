@@ -22,6 +22,11 @@ inline constexpr std::size_t custom_id_limit = 100;
 /// (plan §8.2).
 struct page_state {
     /// Which view this button belongs to, e.g. "nicks" or "triggers".
+    ///
+    /// A new panel names its views with a short prefix of its own, then the
+    /// action: "urlpanel", "urledit", "urlyes". The older names that do not
+    /// follow it ("triggers", "linkboard", "nicks") stay as they are: they are
+    /// in buttons already sent, and renaming one breaks those.
     std::string view;
 
     /// Zero-based.

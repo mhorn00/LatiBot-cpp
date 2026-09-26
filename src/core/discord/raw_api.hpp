@@ -44,12 +44,12 @@ public:
     /// from a cluster-wide slot which another thread's request can consume,
     /// so it cannot be attached reliably. Attribution lives in the database
     /// instead (plan §8.1).
-    dpp::task<result<nlohmann::json>> request(ports::http_method method, std::string path, std::string body = {});
+    dpp::task<ports::result<nlohmann::json>> request(ports::http_method method, std::string path, std::string body = {});
 
     /// Multipart form upload, for endpoints that take `payload_json` plus
     /// files: voice messages, attachments (plan §12.8).
-    dpp::task<result<nlohmann::json>> multipart(ports::http_method method, std::string path, std::string payload_json,
-                                                std::vector<dpp::message_file_data> files);
+    dpp::task<ports::result<nlohmann::json>> multipart(ports::http_method method, std::string path, std::string payload_json,
+                                                       std::vector<dpp::message_file_data> files);
 
 private:
     dpp::cluster* cluster_;

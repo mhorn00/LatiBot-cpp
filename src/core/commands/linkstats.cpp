@@ -52,14 +52,14 @@ std::optional<std::string> read_window(const dpp::slashcommand_t& event, events:
     if (!since.empty()) {
         const auto day = parse_day(since);
         if (!day) {
-            return std::format("\"{}\" isn't a date I can read; use YYYY-MM-DD", since);
+            return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", since);
         }
         query.since = std::chrono::sys_seconds(*day);
     }
     if (!until.empty()) {
         const auto day = parse_day(until);
         if (!day) {
-            return std::format("\"{}\" isn't a date I can read; use YYYY-MM-DD", until);
+            return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", until);
         }
         // Inclusive as typed, so the whole of that day counts.
         query.until = std::chrono::sys_seconds(*day + std::chrono::days{1});

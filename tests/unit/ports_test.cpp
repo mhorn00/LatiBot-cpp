@@ -13,7 +13,7 @@
 #include <vector>
 
 using namespace std::chrono_literals;
-using latibot::api_error;
+using latibot::ports::api_error;
 
 namespace {
 

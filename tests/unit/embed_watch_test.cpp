@@ -490,7 +490,7 @@ TEST_CASE("posting sends the replacement, records it, and turns the original's p
 TEST_CASE("a replacement that cannot be posted leaves the original alone", "[events][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
-    discord.send_results.emplace_back(latibot::api_error{.http_status = 403, .message = "Missing Permissions"});
+    discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 403, .message = "Missing Permissions"});
 
     latibot::events::post_replacement(
         discord, test.replacements, test.tracker, test.clock,
@@ -615,7 +615,7 @@ TEST_CASE("a stranded replacement that is gone is marked failed, and one Discord
     }
 
     SECTION("a server error: left for the next start") {
-        discord.message_errors[ours] = latibot::api_error{.http_status = 503, .message = "Service Unavailable"};
+        discord.message_errors[ours] = latibot::ports::api_error{.http_status = 503, .message = "Service Unavailable"};
         settle(test, discord);
         CHECK(test.state() == replacement_state::pending);
         CHECK(discord.edited.empty());

@@ -20,12 +20,12 @@ public:
     std::chrono::milliseconds per_character{50};
 
     /// Scripted failure for the next call, if set.
-    std::optional<api_error> next_error;
+    std::optional<ports::api_error> next_error;
 
     std::vector<std::pair<std::string, ports::voice_settings>> requests;
     int stop_count = 0;
 
-    dpp::task<result<ports::pcm_audio>> synthesize(std::string text, ports::voice_settings settings) override {
+    dpp::task<ports::result<ports::pcm_audio>> synthesize(std::string text, ports::voice_settings settings) override {
         requests.emplace_back(text, settings);
 
         if (next_error) {

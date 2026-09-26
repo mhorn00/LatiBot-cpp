@@ -28,11 +28,12 @@ dpp::http_method to_dpp(ports::http_method method) {
 /// What DPP hands back: the parsed body plus the transport result.
 using rest_reply = std::pair<nlohmann::json, dpp::http_request_completion_t>;
 
-result<nlohmann::json> to_result(const rest_reply& reply) {
+ports::result<nlohmann::json> to_result(const rest_reply& reply) {
     const auto& [body, http] = reply;
 
     if (http.error != dpp::h_success) {
-        return api_error{.http_status = http.status, .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))};
+        return ports::api_error{.http_status = http.status,
+                                .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))};
     }
 
     if (http.status >= 400) {
@@ -42,7 +43,7 @@ result<nlohmann::json> to_result(const rest_reply& reply) {
         if (body.contains("message") && body["message"].is_string()) {
             message += ": " + body["message"].get<std::string>();
         }
-        return api_error{.http_status = http.status, .message = message};
+        return ports::api_error{.http_status = http.status, .message = message};
     }
 
     return body;
@@ -68,7 +69,7 @@ std::string build_endpoint(std::string_view path) {
     return endpoint;
 }
 
-dpp::task<result<nlohmann::json>> raw_api::request(ports::http_method method, std::string path, std::string body) {
+dpp::task<ports::result<nlohmann::json>> raw_api::request(ports::http_method method, std::string path, std::string body) {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
@@ -80,8 +81,8 @@ dpp::task<result<nlohmann::json>> raw_api::request(ports::http_method method, st
     co_return to_result(reply);
 }
 
-dpp::task<result<nlohmann::json>> raw_api::multipart(ports::http_method method, std::string path, std::string payload_json,
-                                                     std::vector<dpp::message_file_data> files) {
+dpp::task<ports::result<nlohmann::json>> raw_api::multipart(ports::http_method method, std::string path, std::string payload_json,
+                                                            std::vector<dpp::message_file_data> files) {
     const std::string endpoint = build_endpoint(path);
 
     const auto reply = co_await dpp::async<rest_reply>{[&](auto&& complete) {
