@@ -1,11 +1,14 @@
 #pragma once
 
+#include "core/audio/dectalk_engine.hpp"
+#include "core/audio/speech_queue.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/discord/dpp_gateway.hpp"
 #include "core/discord/dpp_http_client.hpp"
+#include "core/discord/dpp_voice_output.hpp"
 #include "core/discord/raw_api.hpp"
 #include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
@@ -16,6 +19,7 @@
 #include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
+#include "core/events/voice_sessions.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
 
@@ -120,6 +124,11 @@ private:
     /// still unattributed when it runs, which is normally none of them.
     auto attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void;
 
+    /// Someone's voice state changed, the bot's included. Tidies up after the
+    /// bot leaves a channel, however that happened, and tells the auto-leave
+    /// check whether it is on its own (plan §13).
+    auto on_voice_state(const dpp::voicestate& state) -> void;
+
     /// Writes down nicknames that changed while the bot was not running.
     auto reconcile_nicknames(const dpp::guild& guild) -> void;
 
@@ -171,6 +180,14 @@ private:
     events::backfill_service backfill_;
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
+
+    // Speech (plan §12, §13). The engine starts its worker thread at
+    // construction, and is gone before the cluster is.
+    audio::dectalk_engine tts_;
+    discord::dpp_voice_output voice_output_;
+    audio::speech_queue speech_;
+    events::voice_sessions voice_sessions_;
+    events::auto_leave auto_leave_;
 
     /// Replacements the last run left `pending` or `retrying`, by guild. Read
     /// in the constructor, before anything can be posted, so none of them is

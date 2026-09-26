@@ -6,11 +6,14 @@
 #include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
+#include "core/commands/speak.hpp"
 #include "core/commands/trigger.hpp"
 #include "core/commands/urlrepl.hpp"
+#include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/migrations.hpp"
 #include "core/discord/message_flags.hpp"
+#include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
 #include "core/ui/paginator.hpp"
@@ -196,7 +199,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       reactions_(database_),
       backfill_progress_(database_),
       backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
-      embed_tracker_(replacements_, clock_) {
+      embed_tracker_(replacements_, clock_),
+      voice_output_(cluster_),
+      speech_(voice_output_),
+      auto_leave_(clock_) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -268,6 +274,11 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
+
+    const commands::speech_services speech{.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_};
+    commands_.add(std::make_unique<commands::speak_command>(speech));
+    commands_.add(std::make_unique<commands::tts_command>(speech));
+    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_));
     commands_.add(std::make_unique<commands::linkstats_command>(
         reactions_, commands::recompute_support{.service = &backfill_,
                                                 .discord = &gateway_,
@@ -396,6 +407,16 @@ auto bot::register_events() -> void {
         on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
     });
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
+
+    // Speech waits for the connection to be ready, and is told when each
+    // utterance finishes playing (plan §13).
+    cluster_.on_voice_ready([this](const dpp::voice_ready_t& event) {
+        if (event.voice_client != nullptr) speech_.on_ready(event.voice_client->server_id);
+    });
+    cluster_.on_voice_track_marker([this](const dpp::voice_track_marker_t& event) {
+        if (event.voice_client != nullptr) speech_.on_marker(event.voice_client->server_id, event.track_meta);
+    });
+    cluster_.on_voice_state_update([this](const dpp::voice_state_update_t& event) { on_voice_state(event.state); });
 }
 
 auto bot::on_ready(const dpp::ready_t& event) -> void {
@@ -467,6 +488,23 @@ auto bot::register_timers() -> void {
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
     cluster_.start_timer(guarded("the preview tracker's tick", [this](dpp::timer) { carry_out(embed_tracker_.tick()); }), 1);
+
+    // Leaving a voice channel nobody else is in, once its guild's grace has
+    // passed (plan §13). Leaving is the bot's own voice state changing, which
+    // on_voice_state tidies up after.
+    cluster_.start_timer(guarded("the voice auto-leave check",
+                                 [this](dpp::timer) {
+                                     const auto grace = [this](dpp::snowflake guild) {
+                                         return commands::voice_grace_for(guild_settings_, guild);
+                                     };
+                                     for (const dpp::snowflake guild : auto_leave_.due(grace)) {
+                                         dpp::discord_client* shard = discord::shard_for(cluster_, guild);
+                                         if (shard == nullptr) continue;
+                                         shard->disconnect_voice(guild);
+                                         util::log().info("left voice in guild {}: nobody else was there for {}", guild, grace(guild));
+                                     }
+                                 }),
+                         static_cast<std::uint64_t>(events::auto_leave_tick.count()));
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -623,6 +661,26 @@ auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id)
     if (nicknames_.attribute(row->id, entry.user_id, events::nickname_source::audit_log)) {
         util::log().info("{}'s nickname change in guild {} was made by {}", row->user_id, guild_id, entry.user_id);
     }
+}
+
+auto bot::on_voice_state(const dpp::voicestate& state) -> void {
+    const dpp::snowflake guild = state.guild_id;
+    const bool about_the_bot = state.user_id == cluster_.me.id;
+
+    if (about_the_bot && state.channel_id.empty()) {
+        // Left, whichever way: /leave, /voice stop, the auto-leave, being
+        // disconnected by a moderator, or the connection dropping.
+        if (voice_sessions_.end(guild)) util::log().info("voice session in guild {} ended", guild);
+        speech_.forget(guild);
+        auto_leave_.forget(guild);
+        return;
+    }
+    if (about_the_bot) voice_sessions_.moved(guild, state.channel_id);
+
+    // DPP has already updated its cache for this change, so counting from it
+    // sees the channel as it is now.
+    const dpp::snowflake channel = about_the_bot ? state.channel_id : discord::bot_voice_channel(cluster_, guild);
+    auto_leave_.observe(guild, !channel.empty(), discord::humans_in(guild, channel, cluster_.me.id));
 }
 
 auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {

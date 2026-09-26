@@ -46,10 +46,13 @@ add_executable(latibot_tests
     unit/raw_api_test.cpp
     unit/reactions_test.cpp
     unit/registry_test.cpp
+    unit/speak_command_test.cpp
+    unit/speech_queue_test.cpp
     unit/trigger_command_test.cpp
     unit/triggers_test.cpp
     unit/version_test.cpp
     unit/voice_params_test.cpp
+    unit/voice_sessions_test.cpp
     unit/wav_test.cpp
     unit/text_test.cpp
     unit/url_rules_test.cpp

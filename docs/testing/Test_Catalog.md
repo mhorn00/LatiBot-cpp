@@ -5,17 +5,17 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-541 test cases across 10 components, including 118 sections.
+564 test cases across 10 components, including 118 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 111 | 12 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 124 | 27 |
-| [events](#events) | 150 | 37 |
+| [commands](#commands) | 129 | 27 |
+| [events](#events) | 157 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 40 | 4 |
+| [audio](#audio) | 51 | 4 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
 | [util](#util) | 39 | 19 |
@@ -257,6 +257,11 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
+| speech goes where the bot is, or joins whoever asked |  |  | [tests/unit/speak_command_test.cpp:39](../../tests/unit/speak_command_test.cpp#L39) |
+| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:53](../../tests/unit/speak_command_test.cpp#L53) |
+| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:65](../../tests/unit/speak_command_test.cpp#L65) |
+| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:81](../../tests/unit/speak_command_test.cpp#L81) |
+| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:92](../../tests/unit/speak_command_test.cpp#L92) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
@@ -455,6 +460,13 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:114](../../tests/unit/url_rules_test.cpp#L114) |
 | a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:122](../../tests/unit/url_rules_test.cpp#L122) |
 | the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:128](../../tests/unit/url_rules_test.cpp#L128) |
+| a voice session is kept until it ends, one per guild |  |  | [tests/unit/voice_sessions_test.cpp:27](../../tests/unit/voice_sessions_test.cpp#L27) |
+| a session follows the bot when it is moved |  |  | [tests/unit/voice_sessions_test.cpp:48](../../tests/unit/voice_sessions_test.cpp#L48) |
+| the bot leaves once it has been alone for the grace period |  |  | [tests/unit/voice_sessions_test.cpp:60](../../tests/unit/voice_sessions_test.cpp#L60) |
+| someone coming back within the grace period keeps the bot |  |  | [tests/unit/voice_sessions_test.cpp:75](../../tests/unit/voice_sessions_test.cpp#L75) |
+| being seen alone again does not restart the wait |  |  | [tests/unit/voice_sessions_test.cpp:92](../../tests/unit/voice_sessions_test.cpp#L92) |
+| a bot that is not in voice, or has left, is not waited on |  |  | [tests/unit/voice_sessions_test.cpp:104](../../tests/unit/voice_sessions_test.cpp#L104) |
+| each guild waits its own grace period |  |  | [tests/unit/voice_sessions_test.cpp:116](../../tests/unit/voice_sessions_test.cpp#L116) |
 
 ## ui
 
@@ -526,6 +538,17 @@ Speech and voice (`src/core/audio`)
 | resampling interpolates between the source samples |  |  | [tests/unit/pcm_test.cpp:81](../../tests/unit/pcm_test.cpp#L81) |
 | resampling nothing gives nothing |  |  | [tests/unit/pcm_test.cpp:95](../../tests/unit/pcm_test.cpp#L95) |
 | resampling a minute of speech |  |  | [tests/unit/pcm_test.cpp:100](../../tests/unit/pcm_test.cpp#L100) |
+| speech plays at once on a ready connection, each followed by its marker |  |  | [tests/unit/speech_queue_test.cpp:40](../../tests/unit/speech_queue_test.cpp#L40) |
+| a finished utterance's marker moves the queue on |  |  | [tests/unit/speech_queue_test.cpp:54](../../tests/unit/speech_queue_test.cpp#L54) |
+| markers that are not the queue's, or for another guild, change nothing |  |  | [tests/unit/speech_queue_test.cpp:71](../../tests/unit/speech_queue_test.cpp#L71) |
+| speech waits for a connection still being set up, then plays in order |  |  | [tests/unit/speech_queue_test.cpp:82](../../tests/unit/speech_queue_test.cpp#L82) |
+| new speech queues behind speech still waiting, even once connected |  |  | [tests/unit/speech_queue_test.cpp:101](../../tests/unit/speech_queue_test.cpp#L101) |
+| skip drops only the utterance playing now |  |  | [tests/unit/speech_queue_test.cpp:116](../../tests/unit/speech_queue_test.cpp#L116) |
+| skip with nothing playing does nothing |  |  | [tests/unit/speech_queue_test.cpp:131](../../tests/unit/speech_queue_test.cpp#L131) |
+| stop drops everything, playing and waiting |  |  | [tests/unit/speech_queue_test.cpp:137](../../tests/unit/speech_queue_test.cpp#L137) |
+| stop also stops speech still being synthesized |  |  | [tests/unit/speech_queue_test.cpp:154](../../tests/unit/speech_queue_test.cpp#L154) |
+| stopping one guild leaves another alone |  |  | [tests/unit/speech_queue_test.cpp:168](../../tests/unit/speech_queue_test.cpp#L168) |
+| forgetting a guild drops its speech without touching the connection |  |  | [tests/unit/speech_queue_test.cpp:179](../../tests/unit/speech_queue_test.cpp#L179) |
 | the built-in voices are found by name, in any case |  |  | [tests/unit/voice_params_test.cpp:10](../../tests/unit/voice_params_test.cpp#L10) |
 | the preamble selects the voice and says only what differs |  |  | [tests/unit/voice_params_test.cpp:18](../../tests/unit/voice_params_test.cpp#L18) |
 | the preamble falls back to Paul and clamps the rate |  |  | [tests/unit/voice_params_test.cpp:25](../../tests/unit/voice_params_test.cpp#L25) |

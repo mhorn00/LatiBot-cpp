@@ -2,6 +2,7 @@
 
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
+#include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
@@ -24,22 +25,9 @@
 namespace latibot::commands {
 namespace {
 
-/// The voice channel a member is in, or 0.
-auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::snowflake {
-    const dpp::guild* guild = dpp::find_guild(guild_id);
-    if (guild == nullptr) return {};
-
-    const auto found = guild->voice_members.find(user_id);
-    return found == guild->voice_members.end() ? dpp::snowflake{} : found->second.channel_id;
-}
-
 /// The voice channel the bot is connected to in this guild, or 0.
 auto bot_voice_channel(const dpp::slashcommand_t& event) -> dpp::snowflake {
-    dpp::discord_client* shard = event.from();
-    if (shard == nullptr) return {};
-
-    const dpp::voiceconn* connection = shard->get_voice(event.command.guild_id);
-    return connection == nullptr ? dpp::snowflake{} : connection->channel_id;
+    return discord::bot_voice_channel(event.from(), event.command.guild_id);
 }
 
 } // namespace
@@ -278,7 +266,7 @@ auto join_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> 
     const dpp::snowflake target = snowflake_option(event, "user").value_or(caller);
     const bool following_someone_else = target != caller;
 
-    const join_decision decision = plan_join(voice_channel_of(event.command.guild_id, target), bot_voice_channel(event));
+    const join_decision decision = plan_join(discord::voice_channel_of(event.command.guild_id, target), bot_voice_channel(event));
 
     dpp::discord_client* shard = event.from();
     switch (decision.action) {

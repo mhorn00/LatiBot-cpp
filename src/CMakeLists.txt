@@ -3,6 +3,7 @@ add_library(latibot_core STATIC
     core/audio/dectalk_engine.cpp
     core/audio/dectalk_sanitizer.cpp
     core/audio/pcm.cpp
+    core/audio/speech_queue.cpp
     core/audio/voice_params.cpp
     core/audio/wav.cpp
     core/bot.cpp
@@ -24,10 +25,14 @@ add_library(latibot_core STATIC
     core/commands/urlrepl.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
+    core/commands/speak.cpp
+    core/commands/voice.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
+    core/discord/dpp_voice_output.cpp
     core/discord/message_flags.cpp
     core/discord/raw_api.cpp
+    core/discord/voice_state.cpp
     core/events/backfill.cpp
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
@@ -42,6 +47,7 @@ add_library(latibot_core STATIC
     core/events/replacements.cpp
     core/events/url_replacer.cpp
     core/events/url_rules.cpp
+    core/events/voice_sessions.cpp
     core/ports/clock.cpp
     core/ui/paginator.cpp
     core/util/ca_certificates.cpp
