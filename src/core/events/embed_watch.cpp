@@ -32,15 +32,11 @@ auto at_least_one(std::size_t per_mirror) -> std::size_t {
 auto same_target(std::string_view embed_url, const planned_link& link) -> bool {
     const auto embed = util::split_url(embed_url);
     const auto original = util::split_url(link.original_url);
-    if (!embed || !original) {
-        return false;
-    }
+    if (!embed || !original) return false;
 
     const std::string_view wanted = util::comparable_path(original->path);
     std::string_view seen = util::comparable_path(embed->path);
-    if (seen == wanted) {
-        return true;
-    }
+    if (seen == wanted) return true;
 
     for (const mirror& candidate : link.mirrors) {
         if (!candidate.translate_suffix.empty() && seen.ends_with(candidate.translate_suffix)) {
@@ -85,9 +81,7 @@ auto current_url(const watched_link& link, std::size_t per_mirror) -> std::strin
 auto render_replacement(std::span<const watched_link> links, std::size_t per_mirror) -> std::string {
     std::string content;
     for (const watched_link& link : links) {
-        if (!content.empty()) {
-            content.push_back('\n');
-        }
+        if (!content.empty()) content.push_back('\n');
 
         const std::string target = std::format("[_]({})", current_url(link, per_mirror));
         content += link.link.spoilered ? std::format("🔗 ||{}||", target) : std::format("🔗 {}", target);
@@ -101,18 +95,14 @@ auto render_failure(std::span<const planned_link> links) -> std::string {
     std::vector<std::string_view> hosts;
     for (const planned_link& link : links) {
         for (const mirror& candidate : link.mirrors) {
-            if (std::ranges::find(hosts, candidate.host) == hosts.end()) {
-                hosts.push_back(candidate.host);
-            }
+            if (std::ranges::find(hosts, candidate.host) == hosts.end()) hosts.push_back(candidate.host);
         }
     }
 
     // "a", "a or b", "a, b or c".
     std::string tried;
     for (std::size_t index = 0; index < hosts.size(); ++index) {
-        if (index > 0) {
-            tried += index + 1 == hosts.size() ? " or " : ", ";
-        }
+        if (index > 0) tried += index + 1 == hosts.size() ? " or " : ", ";
         tried += hosts[index];
     }
 
@@ -158,9 +148,7 @@ embed_tracker::embed_tracker(replacement_store& store, ports::clock& clock, std:
 auto embed_tracker::absorb(watch_state& state, std::span<const std::string> embed_urls) -> bool {
     const std::vector<bool> covered = embedded_links(state.links, embed_urls);
     for (std::size_t index = 0; index < covered.size(); ++index) {
-        if (covered[index]) {
-            state.links[index].progress = link_progress::embedded;
-        }
+        if (covered[index]) state.links[index].progress = link_progress::embedded;
     }
 
     return std::ranges::none_of(state.links, [](const watched_link& link) { return link.progress == link_progress::waiting; });
@@ -187,9 +175,7 @@ auto embed_tracker::watch(watch_request request, std::span<const std::string> em
         early_.erase(early);
     }
 
-    if (settled) {
-        return finish(state);
-    }
+    if (settled) return finish(state);
 
     util::log().debug("watching message {} for {} preview(s)", id, state.links.size());
     watches_.insert_or_assign(id, std::move(state));
@@ -207,17 +193,13 @@ auto embed_tracker::on_embeds(dpp::snowflake message_id, std::span<const std::st
         if (!embed_urls.empty()) {
             const auto now = clock_->steady_now();
             prune_early(now);
-            if (early_.size() >= early_update_limit) {
-                early_.erase(early_.begin());
-            }
+            if (early_.size() >= early_update_limit) early_.erase(early_.begin());
             early_.insert_or_assign(message_id, early_update{.embed_urls = urls_of(embed_urls), .seen = now});
         }
         return {};
     }
 
-    if (!absorb(found->second, embed_urls)) {
-        return {};
-    }
+    if (!absorb(found->second, embed_urls)) return {};
 
     std::vector<embed_action> actions = finish(found->second);
     watches_.erase(found);
@@ -246,9 +228,7 @@ auto embed_tracker::tick() -> std::vector<embed_action> {
         const std::size_t per_mirror = at_least_one(state.request.per_mirror);
         bool any_waiting = false;
         for (watched_link& link : state.links) {
-            if (link.progress != link_progress::waiting) {
-                continue;
-            }
+            if (link.progress != link_progress::waiting) continue;
             ++link.attempt;
             if (link.attempt >= link.link.mirrors.size() * per_mirror) {
                 link.progress = link_progress::failed;
@@ -356,9 +336,7 @@ auto embed_tracker::finish(const watch_state& state) -> std::vector<embed_action
 
 auto embed_tracker::forget(dpp::snowflake message_id) -> void {
     const std::scoped_lock guard(mutex_);
-    if (watches_.erase(message_id) > 0) {
-        util::log().debug("message {} was deleted while its previews were being checked", message_id);
-    }
+    if (watches_.erase(message_id) > 0) util::log().debug("message {} was deleted while its previews were being checked", message_id);
     early_.erase(message_id);
 }
 

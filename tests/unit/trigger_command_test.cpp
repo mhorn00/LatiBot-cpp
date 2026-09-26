@@ -282,9 +282,7 @@ TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps 
         const dpp::component* cancel_button = nullptr;
         for (const dpp::component& row : confirming.components) {
             for (const dpp::component& part : row.components) {
-                if (part.label == "Cancel") {
-                    cancel_button = &part;
-                }
+                if (part.label == "Cancel") cancel_button = &part;
             }
         }
         REQUIRE(cancel_button != nullptr);
@@ -325,9 +323,7 @@ TEST_CASE("the trigger modal takes no more than the command does", "[commands]")
     const auto max_length_of = [&](std::string_view id) -> std::optional<std::int32_t> {
         for (const auto& row : form.components) {
             for (const dpp::component& input : row) {
-                if (input.custom_id == id) {
-                    return input.max_length;
-                }
+                if (input.custom_id == id) return input.max_length;
             }
         }
         return std::nullopt;

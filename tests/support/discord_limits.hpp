@@ -61,9 +61,7 @@ inline auto check_message_fits(const dpp::message& message) -> void {
                 CHECK(ids.insert(part.custom_id).second);
             }
 
-            if (part.type == dpp::cot_button) {
-                CHECK(util::character_count(part.label) <= discord_limit::button_label);
-            }
+            if (part.type == dpp::cot_button) CHECK(util::character_count(part.label) <= discord_limit::button_label);
 
             if (part.type == dpp::cot_selectmenu) {
                 // A select menu fills its row on its own.

@@ -27,14 +27,10 @@ struct lookup {
 
 auto entry_named(const events::midnight_store& store, const dpp::slashcommand_t& event) -> lookup {
     const auto id = int_option(event, "id");
-    if (!id) {
-        return {.entry = std::nullopt, .problem = "which one? `/midnight list` has the numbers"};
-    }
+    if (!id) return {.entry = std::nullopt, .problem = "which one? `/midnight list` has the numbers"};
 
     auto found = store.find(*id, event.command.guild_id);
-    if (!found) {
-        return {.entry = std::nullopt, .problem = std::format("there is no midnight message {} here", *id)};
-    }
+    if (!found) return {.entry = std::nullopt, .problem = std::format("there is no midnight message {} here", *id)};
     return {.entry = std::move(found), .problem = {}};
 }
 
@@ -46,21 +42,15 @@ auto describe(const events::midnight_entry& entry) -> std::string {
     if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) {
         notes += notes.empty() ? options : ", " + options;
     }
-    if (!notes.empty()) {
-        line += std::format(" ({})", notes);
-    }
+    if (!notes.empty()) line += std::format(" ({})", notes);
     line += std::format("\n> {}", entry.message);
 
-    if (!entry.last_fired_date.empty()) {
-        line += std::format("\n_last posted {}_", entry.last_fired_date);
-    }
+    if (!entry.last_fired_date.empty()) line += std::format("\n_last posted {}_", entry.last_fired_date);
     return line;
 }
 
 auto render_midnight_list(std::span<const events::midnight_entry> entries) -> std::string {
-    if (entries.empty()) {
-        return "Nothing posts at midnight here. Add one with `/midnight add`.";
-    }
+    if (entries.empty()) return "Nothing posts at midnight here. Add one with `/midnight add`.";
 
     std::string body = "**Midnight messages**\n";
     for (const events::midnight_entry& entry : entries) {
@@ -124,9 +114,7 @@ auto midnight_command::build(const std::string& name, dpp::snowflake application
 
 auto midnight_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
-    if (focused == nullptr || focused->name != "timezone" || event.owner == nullptr) {
-        return;
-    }
+    if (focused == nullptr || focused->name != "timezone" || event.owner == nullptr) return;
 
     const auto* typed = std::get_if<std::string>(&focused->value);
     dpp::interaction_response reply(dpp::ir_autocomplete_reply);
@@ -201,12 +189,8 @@ auto midnight_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void>
         }
         found->timezone = timezone;
     }
-    if (const auto channel = snowflake_option(event, "channel")) {
-        found->channel_id = *channel;
-    }
-    if (const std::string message = string_option(event, "message"); !message.empty()) {
-        found->message = message;
-    }
+    if (const auto channel = snowflake_option(event, "channel")) found->channel_id = *channel;
+    if (const std::string message = string_option(event, "message"); !message.empty()) found->message = message;
     apply_message_options(event, found->message_flags);
 
     store_->update(*found);

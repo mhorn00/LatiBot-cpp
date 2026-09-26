@@ -89,14 +89,10 @@ auto code_spans(std::string_view text) -> std::vector<text_span> {
         // Find the next run of backticks. A run that ends the text opens
         // nothing, since there is nothing left for it to close over.
         at = text.find('`', at);
-        if (at == std::string_view::npos) {
-            break;
-        }
+        if (at == std::string_view::npos) break;
 
         const std::size_t opening_end = text.find_first_not_of('`', at);
-        if (opening_end == std::string_view::npos) {
-            break;
-        }
+        if (opening_end == std::string_view::npos) break;
         const std::size_t width = opening_end - at;
 
         // Look for a later run of exactly the same width. Runs of any other
@@ -115,9 +111,7 @@ auto code_spans(std::string_view text) -> std::vector<text_span> {
 
         // Unclosed: the run was literal text, so carry on from just after
         // it, and a later run can still open a span of its own.
-        if (!closed) {
-            at = opening_end;
-        }
+        if (!closed) at = opening_end;
     }
 
     return spans;
@@ -143,9 +137,7 @@ auto find_links(std::string_view text) -> std::vector<found_link> {
         const auto begin = static_cast<std::size_t>(raw.data() - text.data());
 
         // "foohttps://…" is not a link to Discord, and not one here either.
-        if (begin > 0 && std::isalnum(static_cast<unsigned char>(text[begin - 1])) != 0) {
-            continue;
-        }
+        if (begin > 0 && std::isalnum(static_cast<unsigned char>(text[begin - 1])) != 0) continue;
 
         // Written as <link>, which is how somebody asks Discord for no
         // preview. Discord takes everything between the brackets as the link,
@@ -158,9 +150,7 @@ auto find_links(std::string_view text) -> std::vector<found_link> {
         // sure what is left has a host: "https://" on its own is not a link.
         const std::string_view url = suppressed ? raw : trim_link(raw);
         const std::size_t end = begin + url.size();
-        if (!split_url(url)) {
-            continue;
-        }
+        if (!split_url(url)) continue;
 
         // Count the markers between the previous link and this one only.
         markers += count_markers(text, counted_to, begin, code, marker_code);
@@ -186,33 +176,23 @@ auto find_links(std::string_view text) -> std::vector<found_link> {
 
 auto split_url(std::string_view url) -> std::optional<url_parts> {
     const std::size_t separator = url.find("://");
-    if (separator == std::string_view::npos) {
-        return std::nullopt;
-    }
+    if (separator == std::string_view::npos) return std::nullopt;
 
     const std::string_view scheme = url.substr(0, separator);
-    if (!equals_ignoring_case(scheme, "https") && !equals_ignoring_case(scheme, "http")) {
-        return std::nullopt;
-    }
+    if (!equals_ignoring_case(scheme, "https") && !equals_ignoring_case(scheme, "http")) return std::nullopt;
 
     const std::string_view rest = url.substr(separator + 3);
     const std::size_t authority_end = rest.find_first_of("/?#");
     const std::string_view authority = rest.substr(0, authority_end);
-    if (authority.empty()) {
-        return std::nullopt;
-    }
+    if (authority.empty()) return std::nullopt;
 
     url_parts parts{.scheme = scheme, .authority = authority, .path = {}, .query = {}, .fragment = {}};
-    if (authority_end == std::string_view::npos) {
-        return parts;
-    }
+    if (authority_end == std::string_view::npos) return parts;
 
     const std::string_view remainder = rest.substr(authority_end);
     const std::size_t path_end = remainder.find_first_of("?#");
     parts.path = remainder.substr(0, path_end);
-    if (path_end == std::string_view::npos) {
-        return parts;
-    }
+    if (path_end == std::string_view::npos) return parts;
 
     const std::string_view after = remainder.substr(path_end);
     if (after.front() == '?') {
@@ -227,9 +207,7 @@ auto split_url(std::string_view url) -> std::optional<url_parts> {
 
 auto rule_host(std::string_view authority) -> std::string {
     // Credentials first, since they may contain ':' themselves.
-    if (const std::size_t at = authority.rfind('@'); at != std::string_view::npos) {
-        authority.remove_prefix(at + 1);
-    }
+    if (const std::size_t at = authority.rfind('@'); at != std::string_view::npos) authority.remove_prefix(at + 1);
 
     // A port is ':' then digits at the end; an IPv6 literal has colons of its
     // own inside the brackets, which this leaves alone.
@@ -243,9 +221,7 @@ auto rule_host(std::string_view authority) -> std::string {
     while (host.ends_with('.')) {
         host.pop_back();
     }
-    if (host.starts_with("www.")) {
-        host.erase(0, 4);
-    }
+    if (host.starts_with("www.")) host.erase(0, 4);
     return host;
 }
 
@@ -262,12 +238,8 @@ auto rehost(const url_parts& parts, std::string_view host, std::string_view path
         }
 
         std::string suffix(path_suffix);
-        if (!suffix.starts_with('/')) {
-            suffix.insert(suffix.begin(), '/');
-        }
-        if (!path.ends_with(suffix)) {
-            path += suffix;
-        }
+        if (!suffix.starts_with('/')) suffix.insert(suffix.begin(), '/');
+        if (!path.ends_with(suffix)) path += suffix;
         rebuilt += path;
     }
 

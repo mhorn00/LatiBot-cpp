@@ -42,9 +42,7 @@ auto append_text(std::string& out, const std::string& text) -> void {
     }
 
     out.push_back('"');
-    if (truncated) {
-        out += std::format("…({} chars)", text.size());
-    }
+    if (truncated) out += std::format("…({} chars)", text.size());
 }
 
 auto append_value(std::string& out, const dpp::command_value& value) -> void {
@@ -104,9 +102,7 @@ auto describe_user(const dpp::user& who) -> user_label {
 auto command_info::responses_for(std::string_view subcommand) const -> response_flags {
     response_flags flags = responses;
     const auto found = subcommand_responses.find(subcommand);
-    if (found == subcommand_responses.end()) {
-        return flags;
-    }
+    if (found == subcommand_responses.end()) return flags;
 
     const response_overrides& differs = found->second;
     flags.result = differs.result.value_or(flags.result);
@@ -121,12 +117,8 @@ auto subcommand_path(const dpp::command_interaction& interaction) -> std::string
     const std::vector<dpp::command_data_option>* level = &interaction.options;
     while (!level->empty()) {
         const dpp::command_data_option& first = level->front();
-        if (first.type != dpp::co_sub_command && first.type != dpp::co_sub_command_group) {
-            break;
-        }
-        if (!path.empty()) {
-            path.push_back(' ');
-        }
+        if (first.type != dpp::co_sub_command && first.type != dpp::co_sub_command_group) break;
+        if (!path.empty()) path.push_back(' ');
         path += first.name;
         level = &first.options;
     }
@@ -174,18 +166,14 @@ auto command::post(const dpp::slashcommand_t& event, dpp::message message) const
 auto command::defer(const dpp::slashcommand_t& event) const -> dpp::task<void> {
     const bool ephemeral = (responses_for(event).result & dpp::m_ephemeral) != 0;
     const auto deferred = co_await event.co_thinking(ephemeral);
-    if (deferred.is_error()) {
-        util::log().warn("could not tell Discord /{} is thinking: {}", info().name, deferred.get_error().message);
-    }
+    if (deferred.is_error()) util::log().warn("could not tell Discord /{} is thinking: {}", info().name, deferred.get_error().message);
 }
 
 auto command::answer_deferred(const dpp::slashcommand_t& event, dpp::message message) const -> dpp::task<void> {
     // Only what an edit can change goes along; ephemeral was settled by defer.
     message.flags &= discord::edit_flags;
     const auto edited = co_await event.co_edit_original_response(message);
-    if (edited.is_error()) {
-        util::log().warn("could not answer /{}: {}", info().name, edited.get_error().message);
-    }
+    if (edited.is_error()) util::log().warn("could not answer /{}: {}", info().name, edited.get_error().message);
 }
 
 // Recursive for the same reason `append_options` is, and bounded the same way:
@@ -193,12 +181,8 @@ auto command::answer_deferred(const dpp::slashcommand_t& event, dpp::message mes
 // NOLINTNEXTLINE(misc-no-recursion)
 auto focused_option(const std::vector<dpp::command_option>& options) -> const dpp::command_option* {
     for (const dpp::command_option& option : options) {
-        if (option.focused) {
-            return &option;
-        }
-        if (const dpp::command_option* nested = focused_option(option.options); nested != nullptr) {
-            return nested;
-        }
+        if (option.focused) return &option;
+        if (const dpp::command_option* nested = focused_option(option.options); nested != nullptr) return nested;
     }
     return nullptr;
 }
@@ -214,9 +198,7 @@ auto command::build(const std::string& name, dpp::snowflake application_id) cons
 
     dpp::slashcommand payload(name, details.description, application_id);
     payload.set_dm_permission(!details.guild_only);
-    if (details.default_member_permissions) {
-        payload.set_default_permissions(*details.default_member_permissions);
-    }
+    if (details.default_member_permissions) payload.set_default_permissions(*details.default_member_permissions);
     return payload;
 }
 
@@ -242,9 +224,7 @@ auto registry::check_responses(const command& candidate) -> void {
     // The command's own flags first, which every subcommand starts from.
     const command_info& details = candidate.info();
     check_all(details, "", details.responses);
-    if (details.subcommand_responses.empty()) {
-        return;
-    }
+    if (details.subcommand_responses.empty()) return;
 
     // Each override has to name a subcommand the command really registers,
     // which only its payload knows, and the flags it ends up with, the
@@ -264,14 +244,10 @@ auto registry::check_responses(const command& candidate) -> void {
 }
 
 auto registry::add(std::unique_ptr<command> new_command) -> void {
-    if (new_command == nullptr) {
-        throw registry_error("cannot register a null command");
-    }
+    if (new_command == nullptr) throw registry_error("cannot register a null command");
 
     const command_info& details = new_command->info();
-    if (details.name.empty()) {
-        throw registry_error("cannot register a command with an empty name");
-    }
+    if (details.name.empty()) throw registry_error("cannot register a command with an empty name");
 
     // Collect every name this command answers to, so a clash leaves the
     // registry untouched rather than half-registered.
@@ -279,9 +255,7 @@ auto registry::add(std::unique_ptr<command> new_command) -> void {
     names.insert(names.end(), details.aliases.begin(), details.aliases.end());
 
     for (const std::string& name : names) {
-        if (by_name_.contains(name)) {
-            throw registry_error("command name or alias \"" + name + "\" is already registered");
-        }
+        if (by_name_.contains(name)) throw registry_error("command name or alias \"" + name + "\" is already registered");
     }
 
     check_responses(*new_command);
@@ -323,14 +297,10 @@ namespace {
 auto answer_anyway(const dpp::slashcommand_t& event, dpp::message message) -> dpp::task<void> {
     // An event with no cluster behind it cannot be answered. Only tests build
     // those.
-    if (event.owner == nullptr) {
-        co_return;
-    }
+    if (event.owner == nullptr) co_return;
 
     const auto replied = co_await event.co_reply(message);
-    if (!replied.is_error()) {
-        co_return;
-    }
+    if (!replied.is_error()) co_return;
 
     // A follow-up under a deferred response would leave it thinking for ever.
     const auto original = co_await event.co_get_original_response();
@@ -338,9 +308,7 @@ auto answer_anyway(const dpp::slashcommand_t& event, dpp::message message) -> dp
     if (shown != nullptr && (shown->flags & dpp::m_loading) != 0) {
         dpp::message edit = message;
         edit.flags &= discord::edit_flags;
-        if (!(co_await event.co_edit_original_response(edit)).is_error()) {
-            co_return;
-        }
+        if (!(co_await event.co_edit_original_response(edit)).is_error()) co_return;
     }
 
     const auto followed = co_await event.co_follow_up(message);

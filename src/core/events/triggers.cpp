@@ -39,36 +39,26 @@ auto to_string(match_mode mode) noexcept -> std::string_view {
 
 auto match_mode_from_string(std::string_view name) -> std::optional<match_mode> {
     const std::string key = util::to_lower(name);
-    if (key == "whole_word" || key == "word") {
-        return match_mode::whole_word;
-    }
-    if (key == "substring" || key == "anywhere") {
-        return match_mode::substring;
-    }
+    if (key == "whole_word" || key == "word") return match_mode::whole_word;
+    if (key == "substring" || key == "anywhere") return match_mode::substring;
     return std::nullopt;
 }
 
 auto matches(std::string_view content, std::string_view pattern, match_mode mode) -> bool {
-    if (pattern.empty()) {
-        return false;
-    }
+    if (pattern.empty()) return false;
 
     const std::string haystack = util::to_lower(content);
     const std::string needle = util::to_lower(pattern);
 
     for (std::size_t at = haystack.find(needle); at != std::string::npos; at = haystack.find(needle, at + 1)) {
-        if (mode == match_mode::substring) {
-            return true;
-        }
+        if (mode == match_mode::substring) return true;
 
         // Every occurrence is checked, not just the first: "4200 and 420"
         // should fire even though the first hit is inside a longer word.
         const bool open_left = at == 0 || !is_word_character(haystack[at - 1]);
         const std::size_t after = at + needle.size();
         const bool open_right = after >= haystack.size() || !is_word_character(haystack[after]);
-        if (open_left && open_right) {
-            return true;
-        }
+        if (open_left && open_right) return true;
     }
 
     return false;
@@ -77,23 +67,15 @@ auto matches(std::string_view content, std::string_view pattern, match_mode mode
 auto choose(std::span<const weighted_response> responses, std::uint64_t roll) -> const weighted_response* {
     std::uint64_t total = 0;
     for (const weighted_response& option : responses) {
-        if (option.weight > 0) {
-            total += static_cast<std::uint64_t>(option.weight);
-        }
+        if (option.weight > 0) total += static_cast<std::uint64_t>(option.weight);
     }
-    if (total == 0) {
-        return nullptr;
-    }
+    if (total == 0) return nullptr;
 
     std::uint64_t remaining = roll % total;
     for (const weighted_response& option : responses) {
-        if (option.weight <= 0) {
-            continue;
-        }
+        if (option.weight <= 0) continue;
         const auto weight = static_cast<std::uint64_t>(option.weight);
-        if (remaining < weight) {
-            return &option;
-        }
+        if (remaining < weight) return &option;
         remaining -= weight;
     }
 
@@ -104,9 +86,7 @@ auto choose(std::span<const weighted_response> responses, std::uint64_t roll) ->
 
 auto off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
                   std::chrono::seconds cooldown) -> bool {
-    if (cooldown <= std::chrono::seconds::zero() || !last_fired) {
-        return true;
-    }
+    if (cooldown <= std::chrono::seconds::zero() || !last_fired) return true;
     return now - *last_fired >= cooldown;
 }
 
@@ -155,9 +135,7 @@ auto trigger_store::for_guild(dpp::snowflake guild_id) const -> std::vector<trig
 
 auto trigger_store::find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<trigger> {
     for (trigger& entry : for_guild(guild_id)) {
-        if (entry.id == id) {
-            return std::move(entry);
-        }
+        if (entry.id == id) return std::move(entry);
     }
     return std::nullopt;
 }
@@ -200,9 +178,7 @@ auto trigger_store::update(const trigger& entry) -> bool {
            std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, entry.guild_id)
         .run();
 
-    if (db_->changes() == 0) {
-        return false;
-    }
+    if (db_->changes() == 0) return false;
 
     replace_responses(entry.id, entry.responses);
     tx.commit();
@@ -214,9 +190,7 @@ auto trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) -> bool {
     db::transaction tx(*db_);
 
     db_->prepare("DELETE FROM triggers WHERE id = ? AND guild_id = ?", id, guild_id).run();
-    if (db_->changes() == 0) {
-        return false;
-    }
+    if (db_->changes() == 0) return false;
 
     // The foreign key cascades, but only with foreign_keys=ON; deleting here
     // as well keeps this correct if that pragma ever changes.
@@ -230,9 +204,7 @@ auto trigger_store::seed_defaults(dpp::snowflake guild_id) -> int {
     const auto guard = db_->lock();
 
     auto count = db_->prepare("SELECT COUNT(*) FROM triggers WHERE guild_id = ?", guild_id);
-    if (!count.step() || count.get<std::int64_t>(0) > 0) {
-        return 0;
-    }
+    if (!count.step() || count.get<std::int64_t>(0) > 0) return 0;
 
     // The Java bot's three, which were a regular expression there and are
     // three literal patterns here (plan §11).
@@ -260,9 +232,7 @@ auto trigger_responder::operator()(const incoming_message& message) -> stage_res
     // holding up another's cooldown check.
     const std::vector<trigger> triggers = store_->for_guild(message.guild_id);
     for (const trigger& entry : triggers) {
-        if (!matches(message.content, entry.pattern, entry.mode)) {
-            continue;
-        }
+        if (!matches(message.content, entry.pattern, entry.mode)) continue;
 
         // Past this point the pattern matched, so every way out is a reason
         // the bot stayed quiet — which is the question being asked whenever

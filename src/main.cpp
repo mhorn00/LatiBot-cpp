@@ -27,9 +27,7 @@ auto main(int argc, char** argv) -> int {
 
         // Before the configuration is read, so that reading it is itself
         // logged at the level asked for.
-        if (const auto wanted = latibot::config::log_level_from_environment()) {
-            latibot::util::log().set_level(*wanted);
-        }
+        if (const auto wanted = latibot::config::log_level_from_environment()) latibot::util::log().set_level(*wanted);
 
         const auto settings = latibot::config::bootstrap::load(config_path);
 

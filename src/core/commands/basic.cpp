@@ -27,9 +27,7 @@ namespace {
 /// The voice channel a member is in, or 0.
 auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::snowflake {
     const dpp::guild* guild = dpp::find_guild(guild_id);
-    if (guild == nullptr) {
-        return {};
-    }
+    if (guild == nullptr) return {};
 
     const auto found = guild->voice_members.find(user_id);
     return found == guild->voice_members.end() ? dpp::snowflake{} : found->second.channel_id;
@@ -38,9 +36,7 @@ auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::s
 /// The voice channel the bot is connected to in this guild, or 0.
 auto bot_voice_channel(const dpp::slashcommand_t& event) -> dpp::snowflake {
     dpp::discord_client* shard = event.from();
-    if (shard == nullptr) {
-        return {};
-    }
+    if (shard == nullptr) return {};
 
     const dpp::voiceconn* connection = shard->get_voice(event.command.guild_id);
     return connection == nullptr ? dpp::snowflake{} : connection->channel_id;
@@ -53,15 +49,9 @@ auto bot_voice_channel(const dpp::slashcommand_t& event) -> dpp::snowflake {
 // --------------------------------------------------------------------------
 
 auto plan_join(dpp::snowflake target_channel, dpp::snowflake bot_channel) noexcept -> join_decision {
-    if (target_channel.empty()) {
-        return {.action = join_action::target_not_in_voice, .channel_id = {}};
-    }
-    if (bot_channel.empty()) {
-        return {.action = join_action::connect, .channel_id = target_channel};
-    }
-    if (bot_channel == target_channel) {
-        return {.action = join_action::already_there, .channel_id = target_channel};
-    }
+    if (target_channel.empty()) return {.action = join_action::target_not_in_voice, .channel_id = {}};
+    if (bot_channel.empty()) return {.action = join_action::connect, .channel_id = target_channel};
+    if (bot_channel == target_channel) return {.action = join_action::already_there, .channel_id = target_channel};
     return {.action = join_action::move, .channel_id = target_channel};
 }
 
@@ -70,22 +60,16 @@ auto describe_join(join_action action, dpp::snowflake followed) -> std::string {
 }
 
 auto plan_say(std::string_view message, std::string_view reply_to) -> say_decision {
-    if (util::is_blank(message)) {
-        return {.action = say_action::blank_message, .reply_to = {}};
-    }
+    if (util::is_blank(message)) return {.action = say_action::blank_message, .reply_to = {}};
 
     const std::string_view id = util::trim(reply_to);
-    if (id.empty()) {
-        return {.action = say_action::send, .reply_to = {}};
-    }
+    if (id.empty()) return {.action = say_action::send, .reply_to = {}};
 
     // Snowflakes are decimal, so anything else is a paste of the wrong thing:
     // a message link, a mention, a channel name. Saying so beats letting the
     // API reject it with a less helpful message.
     const auto parsed = util::parse_snowflake(id);
-    if (!parsed) {
-        return {.action = say_action::bad_reply_id, .reply_to = {}};
-    }
+    if (!parsed) return {.action = say_action::bad_reply_id, .reply_to = {}};
 
     return {.action = say_action::reply, .reply_to = *parsed};
 }
@@ -93,25 +77,15 @@ auto plan_say(std::string_view message, std::string_view reply_to) -> say_decisi
 auto parse_activity_type(std::string_view name) -> dpp::activity_type {
     const std::string key = util::to_lower(util::trim(name));
 
-    if (key == "watching") {
-        return dpp::at_watching;
-    }
-    if (key == "listening") {
-        return dpp::at_listening;
-    }
-    if (key == "competing") {
-        return dpp::at_competing;
-    }
-    if (key == "custom" || key == "custom_status") {
-        return dpp::at_custom;
-    }
+    if (key == "watching") return dpp::at_watching;
+    if (key == "listening") return dpp::at_listening;
+    if (key == "competing") return dpp::at_competing;
+    if (key == "custom" || key == "custom_status") return dpp::at_custom;
     return dpp::at_game;
 }
 
 auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::activity {
-    if (type == dpp::at_custom) {
-        return {type, "Custom Status", text, ""};
-    }
+    if (type == dpp::at_custom) return {type, "Custom Status", text, ""};
     return {type, text, "", ""};
 }
 
@@ -129,9 +103,7 @@ auto save_status(config::guild_settings& settings, const saved_status& status) -
 
 auto load_status(const config::guild_settings& settings) -> std::optional<saved_status> {
     auto text = settings.find(config::bot_wide, status_text_key);
-    if (!text || text->empty()) {
-        return std::nullopt;
-    }
+    if (!text || text->empty()) return std::nullopt;
     return saved_status{.text = std::move(*text), .type = settings.get(config::bot_wide, status_type_key, "")};
 }
 

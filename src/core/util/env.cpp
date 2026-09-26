@@ -33,9 +33,7 @@ auto env_var(const char* name) -> std::optional<std::string> {
     return std::string(owned.get());
 #else
     const char* value = std::getenv(name);
-    if (value == nullptr) {
-        return std::nullopt;
-    }
+    if (value == nullptr) return std::nullopt;
     return std::string(value);
 #endif
 }

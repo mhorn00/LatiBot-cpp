@@ -46,9 +46,7 @@ auto read_local(std::string_view timezone, std::chrono::system_clock::time_point
 }
 
 auto verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> midnight_verdict {
-    if (!entry.enabled) {
-        return midnight_verdict::wait;
-    }
+    if (!entry.enabled) return midnight_verdict::wait;
 
     const auto local = read_local(entry.timezone, now);
     if (!local) {
@@ -59,9 +57,7 @@ auto verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_po
 
     // Comparing the local date against the one saved is what survives a
     // suspend, a clock jump and a restart alike (plan §10).
-    if (local->date == entry.last_fired_date || local->since_midnight < midnight_grace) {
-        return midnight_verdict::wait;
-    }
+    if (local->date == entry.last_fired_date || local->since_midnight < midnight_grace) return midnight_verdict::wait;
 
     // A new day, but how new? Far enough past midnight and the bot cannot have
     // been running for it, and yesterday's midnight message over breakfast is
@@ -88,23 +84,17 @@ auto is_known_timezone(std::string_view name) -> bool {
 
 auto matching_timezones(std::string_view typed, std::size_t limit) -> std::vector<std::string> {
     std::vector<std::string> found;
-    if (limit == 0) {
-        return found;
-    }
+    if (limit == 0) return found;
 
     const std::string wanted = util::to_lower(typed);
 
     try {
         for (const std::chrono::time_zone& zone : std::chrono::get_tzdb().zones) {
             const std::string name(zone.name());
-            if (!wanted.empty() && util::to_lower(name).find(wanted) == std::string::npos) {
-                continue;
-            }
+            if (!wanted.empty() && util::to_lower(name).find(wanted) == std::string::npos) continue;
 
             found.push_back(name);
-            if (found.size() == limit) {
-                break;
-            }
+            if (found.size() == limit) break;
         }
     } catch (const std::exception&) {
         // No timezone database. An empty list reads as "no matches", which is
@@ -201,14 +191,10 @@ auto midnight_store::mark_fired(std::int64_t id, std::string_view date) -> bool 
 
 auto midnight_scheduler::note_missed(const midnight_entry& entry, std::chrono::system_clock::time_point now) -> void {
     const auto local = read_local(entry.timezone, now);
-    if (!local) {
-        return;
-    }
+    if (!local) return;
 
     std::string& reported = reported_misses_[entry.id];
-    if (reported == local->date) {
-        return;
-    }
+    if (reported == local->date) return;
     reported = local->date;
 
     // Info rather than debug: a message that was meant to go out and did not
@@ -236,9 +222,7 @@ auto midnight_scheduler::tick() -> std::vector<action> {
         }
 
         const auto local = read_local(entry.timezone, now);
-        if (!local) {
-            continue;
-        }
+        if (!local) continue;
 
         // Claimed before it is posted: a crash in between costs one message,
         // where the other order would repeat it every thirty seconds.

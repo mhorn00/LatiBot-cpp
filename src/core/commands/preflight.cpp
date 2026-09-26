@@ -55,15 +55,11 @@ auto unmet(std::span<const requirement> required, std::uint64_t granted) -> std:
 
     // Administrator overrides every other permission on Discord's side, so a
     // guild that granted it is fully satisfied whatever the bits say.
-    if ((granted & dpp::p_administrator) != 0) {
-        return gaps;
-    }
+    if ((granted & dpp::p_administrator) != 0) return gaps;
 
     for (const requirement& entry : required) {
         const std::uint64_t missing = entry.permissions & ~granted;
-        if (missing != 0) {
-            gaps.push_back({.permissions = missing, .purpose = entry.purpose});
-        }
+        if (missing != 0) gaps.push_back({.permissions = missing, .purpose = entry.purpose});
     }
     return gaps;
 }
@@ -73,20 +69,14 @@ auto describe_permissions(std::uint64_t permissions) -> std::string {
     std::uint64_t remaining = permissions;
 
     for (const auto& [bit, name] : permission_names) {
-        if ((remaining & bit) == 0) {
-            continue;
-        }
-        if (!description.empty()) {
-            description += ", ";
-        }
+        if ((remaining & bit) == 0) continue;
+        if (!description.empty()) description += ", ";
         description += name;
         remaining &= ~bit;
     }
 
     if (remaining != 0) {
-        if (!description.empty()) {
-            description += ", ";
-        }
+        if (!description.empty()) description += ", ";
         description += std::format("0x{:x}", remaining);
     }
     return description;

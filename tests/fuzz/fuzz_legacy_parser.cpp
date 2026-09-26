@@ -38,17 +38,13 @@ extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t siz
     const auto match = latibot::events::classify(ours, bot, mirrors);
     for (const std::string& url : match.mirror_urls) {
         // Every mirror link is a piece of the message itself.
-        if (ours.content.find(url) == std::string::npos) {
-            std::abort();
-        }
+        if (ours.content.find(url) == std::string::npos) std::abort();
     }
 
     if (match.what == latibot::events::legacy_match::kind::recognised) {
         const auto found = latibot::events::attribute(ours, match, older, bot);
         // Only the one earlier message can be credited.
-        if (found.author_id && *found.author_id != dpp::snowflake{11}) {
-            std::abort();
-        }
+        if (found.author_id && *found.author_id != dpp::snowflake{11}) std::abort();
     }
     return 0;
 }

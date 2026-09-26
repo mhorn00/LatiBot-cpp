@@ -25,26 +25,16 @@ struct masked_link {
 /// well as `(link)`.
 auto masked_around(std::string_view content, const util::found_link& link) -> std::optional<masked_link> {
     std::size_t open = link.begin;
-    if (open > 0 && content[open - 1] == '<') {
-        --open;
-    }
-    if (open < 2 || content.substr(open - 2, 2) != "](") {
-        return std::nullopt;
-    }
+    if (open > 0 && content[open - 1] == '<') --open;
+    if (open < 2 || content.substr(open - 2, 2) != "](") return std::nullopt;
 
     const std::size_t label_end = open - 2;
     const std::size_t label_begin = content.rfind('[', label_end);
-    if (label_begin == std::string_view::npos) {
-        return std::nullopt;
-    }
+    if (label_begin == std::string_view::npos) return std::nullopt;
 
     std::size_t close = link.end;
-    if (close < content.size() && content[close] == '>') {
-        ++close;
-    }
-    if (close >= content.size() || content[close] != ')') {
-        return std::nullopt;
-    }
+    if (close < content.size() && content[close] == '>') ++close;
+    if (close >= content.size() || content[close] != ')') return std::nullopt;
 
     return masked_link{.begin = label_begin, .end = close + 1, .label = content.substr(label_begin + 1, label_end - label_begin - 1)};
 }
@@ -90,9 +80,7 @@ auto created_at(dpp::snowflake id) noexcept -> std::chrono::sys_seconds {
 
 auto first_id_at(std::chrono::sys_seconds when) noexcept -> dpp::snowflake {
     const auto seconds = when.time_since_epoch().count();
-    if (seconds <= 0) {
-        return {};
-    }
+    if (seconds <= 0) return {};
     const auto ms = static_cast<std::uint64_t>(seconds) * 1000;
     return ms <= discord_epoch_ms ? dpp::snowflake{} : dpp::snowflake((ms - discord_epoch_ms) << 22);
 }
@@ -111,9 +99,7 @@ auto classify(const history_message& message, dpp::snowflake bot_id, const mirro
         }
     }
 
-    if (mirror_links.empty()) {
-        return {};
-    }
+    if (mirror_links.empty()) return {};
 
     // Webhook mode posted as the member and deleted the original, so there
     // is nothing to attribute from and nothing of the bot's to count.
@@ -125,9 +111,7 @@ auto classify(const history_message& message, dpp::snowflake bot_id, const mirro
 
     // Step 2: from here on it must be the bot's own ordinary message.
     // Somebody else posting a mirror link is just a link.
-    if (message.author_id != bot_id || message.is_system) {
-        return {};
-    }
+    if (message.author_id != bot_id || message.is_system) return {};
 
     // Step 3: the formats, from the easiest to tell apart. A reply is always
     // format 1, whatever its text looks like.
@@ -139,9 +123,7 @@ auto classify(const history_message& message, dpp::snowflake bot_id, const mirro
 
     std::vector<masked_link> masked;
     for (const util::found_link& link : mirror_links) {
-        if (const auto around = masked_around(message.content, link)) {
-            masked.push_back(*around);
-        }
+        if (const auto around = masked_around(message.content, link)) masked.push_back(*around);
     }
 
     // Bare links in the text: the full copy of the original.
@@ -154,9 +136,7 @@ auto classify(const history_message& message, dpp::snowflake bot_id, const mirro
     // Some links masked and some bare is no format the bot ever wrote, so
     // from here every way out that is not a known format says so.
     match.what = legacy_match::kind::unrecognised;
-    if (masked.size() != mirror_links.size()) {
-        return match;
-    }
+    if (masked.size() != mirror_links.size()) return match;
 
     // Everything outside the masked links has to be decoration; anything
     // else is a shape nobody wrote down.
@@ -169,9 +149,7 @@ auto classify(const history_message& message, dpp::snowflake bot_id, const mirro
     rest += message.content.substr(last);
 
     const bool marked = rest.find("🔗") != std::string::npos || rest.find(":link:") != std::string::npos;
-    if (!only_decoration(rest)) {
-        return match;
-    }
+    if (!only_decoration(rest)) return match;
 
     // The label inside the brackets tells the remaining formats apart: "."
     // with or without the 🔗, and "_", which only ever came with it.
@@ -212,30 +190,20 @@ auto attribute(const history_message& message, const legacy_match& match, std::s
     for (const std::string& url : match.mirror_urls) {
         // A link to a site's front page matches every other one; it proves
         // nothing about which message was answered.
-        if (const std::string_view path = path_of(url); !path.empty()) {
-            ours.push_back(path);
-        }
+        if (const std::string_view path = path_of(url); !path.empty()) ours.push_back(path);
     }
-    if (ours.empty()) {
-        return found;
-    }
+    if (ours.empty()) return found;
 
     // Walk back through older messages, newest first. Only a person's message
     // with links counts as a candidate, and only the first few candidates are
     // tried: a match further back than that is more likely a coincidence.
     std::size_t candidates = 0;
     for (const history_message& earlier : older) {
-        if (earlier.author_is_bot || earlier.author_id == bot_id || !earlier.webhook_id.empty()) {
-            continue;
-        }
+        if (earlier.author_is_bot || earlier.author_id == bot_id || !earlier.webhook_id.empty()) continue;
 
         const std::vector<util::found_link> links = util::find_links(earlier.content);
-        if (links.empty()) {
-            continue;
-        }
-        if (candidates++ == attribution_candidates) {
-            break;
-        }
+        if (links.empty()) continue;
+        if (candidates++ == attribution_candidates) break;
 
         const bool matches = std::ranges::any_of(
             links, [&](const util::found_link& link) { return std::ranges::find(ours, path_of(link.url)) != ours.end(); });

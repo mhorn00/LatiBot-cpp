@@ -18,9 +18,7 @@ namespace {
 
 /// Removes a scheme a person pasted along with a host.
 auto without_scheme(std::string_view text) -> std::string_view {
-    if (const std::size_t separator = text.find("://"); separator != std::string_view::npos) {
-        text.remove_prefix(separator + 3);
-    }
+    if (const std::size_t separator = text.find("://"); separator != std::string_view::npos) text.remove_prefix(separator + 3);
     return text;
 }
 
@@ -31,9 +29,7 @@ auto parse_mirror(std::string_view text) -> std::optional<mirror> {
 
     const std::size_t slash = text.find('/');
     const std::string host = util::rule_host(text.substr(0, slash));
-    if (host.empty()) {
-        return std::nullopt;
-    }
+    if (host.empty()) return std::nullopt;
 
     // Whatever follows the host is the suffix, minus a trailing slash: "/en/"
     // and "/en" ask for the same thing.
@@ -48,9 +44,7 @@ auto format_mirror(const mirror& entry) -> std::string {
 auto normalise_domain(std::string_view text) -> std::optional<std::string> {
     text = without_scheme(util::trim(text));
     std::string domain = util::rule_host(text.substr(0, text.find_first_of("/?#")));
-    if (domain.empty()) {
-        return std::nullopt;
-    }
+    if (domain.empty()) return std::nullopt;
     return domain;
 }
 
@@ -78,9 +72,7 @@ auto explain_links(std::string_view content, std::span<const url_rule> rules) ->
 
     for (const util::found_link& found : util::find_links(content)) {
         const auto parts = util::split_url(found.url);
-        if (!parts) {
-            continue;
-        }
+        if (!parts) continue;
 
         link_verdict verdict{.decision = link_decision::replaced,
                              .link = {.original_url = std::string(found.url),
@@ -119,23 +111,17 @@ auto explain_links(std::string_view content, std::span<const url_rule> rules) ->
 
 auto plan_replacements(std::string_view content, std::span<const url_rule> rules) -> std::vector<planned_link> {
     std::vector<planned_link> planned;
-    if (rules.empty()) {
-        return planned;
-    }
+    if (rules.empty()) return planned;
 
     for (link_verdict& verdict : explain_links(content, rules)) {
-        if (verdict.decision == link_decision::replaced) {
-            planned.push_back(std::move(verdict.link));
-        }
+        if (verdict.decision == link_decision::replaced) planned.push_back(std::move(verdict.link));
     }
     return planned;
 }
 
 auto mirror_url(const planned_link& link, std::size_t index) -> std::string {
     const auto parts = util::split_url(link.original_url);
-    if (!parts || link.mirrors.empty()) {
-        return link.original_url;
-    }
+    if (!parts || link.mirrors.empty()) return link.original_url;
 
     const mirror& chosen = link.mirrors[std::min(index, link.mirrors.size() - 1)];
     return util::rehost(*parts, chosen.host, chosen.translate_suffix);
@@ -150,9 +136,7 @@ auto url_rule_store::for_guild(dpp::snowflake guild_id) const -> std::vector<url
         db_->prepare("SELECT domain, host, translate_suffix FROM url_rules WHERE guild_id = ? ORDER BY domain, position", guild_id);
     while (query.step()) {
         auto domain = query.get<std::string>(0);
-        if (rules.empty() || rules.back().domain != domain) {
-            rules.push_back({.domain = std::move(domain), .mirrors = {}});
-        }
+        if (rules.empty() || rules.back().domain != domain) rules.push_back({.domain = std::move(domain), .mirrors = {}});
         rules.back().mirrors.push_back(
             {.host = query.get<std::string>(1), .translate_suffix = query.get<std::optional<std::string>>(2).value_or(std::string{})});
     }
@@ -170,9 +154,7 @@ auto url_rule_store::find(dpp::snowflake guild_id, std::string_view domain) cons
             {.host = query.get<std::string>(0), .translate_suffix = query.get<std::optional<std::string>>(1).value_or(std::string{})});
     }
 
-    if (rule.mirrors.empty()) {
-        return std::nullopt;
-    }
+    if (rule.mirrors.empty()) return std::nullopt;
     return rule;
 }
 
@@ -228,9 +210,7 @@ auto url_rule_store::toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user
     const auto guard = db_->lock();
 
     db_->prepare("DELETE FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", guild_id, user_id).run();
-    if (db_->changes() > 0) {
-        return false;
-    }
+    if (db_->changes() > 0) return false;
 
     db_->prepare("INSERT INTO url_opt_outs (guild_id, user_id) VALUES (?, ?)", guild_id, user_id).run();
     return true;
@@ -267,9 +247,7 @@ auto parse_legacy_rules(std::string_view text) -> legacy_rules {
         const std::string_view line = util::trim(raw);
         ++line_number;
 
-        if (line.empty()) {
-            continue;
-        }
+        if (line.empty()) continue;
 
         const std::size_t bar = line.find('|');
         if (bar == std::string_view::npos) {
@@ -289,9 +267,7 @@ auto parse_legacy_rules(std::string_view text) -> legacy_rules {
         std::string_view rest = line.substr(bar + 1);
         while (!rest.empty()) {
             const std::size_t caret = rest.find('^');
-            if (const auto entry = parse_mirror(rest.substr(0, caret))) {
-                rule.mirrors.push_back(*entry);
-            }
+            if (const auto entry = parse_mirror(rest.substr(0, caret))) rule.mirrors.push_back(*entry);
             rest = caret == std::string_view::npos ? std::string_view{} : rest.substr(caret + 1);
         }
 
@@ -311,9 +287,7 @@ auto parse_legacy_rules(std::string_view text) -> legacy_rules {
 
 auto import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const std::filesystem::path& file) -> std::optional<int> {
     const std::ifstream input(file);
-    if (!input) {
-        return std::nullopt;
-    }
+    if (!input) return std::nullopt;
 
     std::ostringstream contents;
     contents << input.rdbuf();
@@ -325,9 +299,7 @@ auto import_url_rules_file(url_rule_store& store, dpp::snowflake guild_id, const
 
     int added = 0;
     for (const url_rule& rule : parsed.rules) {
-        if (store.find(guild_id, rule.domain)) {
-            continue;
-        }
+        if (store.find(guild_id, rule.domain)) continue;
         store.set(guild_id, rule);
         ++added;
     }

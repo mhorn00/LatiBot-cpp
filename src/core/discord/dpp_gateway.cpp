@@ -15,9 +15,7 @@ auto to_error(const dpp::confirmation_callback_t& confirmation) -> ports::api_er
 /// Pulls the payload out of a DPP confirmation, or reports the failure.
 template <typename T>
 auto unwrap(const dpp::confirmation_callback_t& confirmation) -> ports::result<T> {
-    if (confirmation.is_error()) {
-        return to_error(confirmation);
-    }
+    if (confirmation.is_error()) return to_error(confirmation);
     return std::get<T>(confirmation.value);
 }
 
@@ -35,9 +33,7 @@ auto dpp_gateway::edit_message(dpp::message message) -> dpp::task<ports::result<
 
 auto dpp_gateway::delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) -> dpp::task<ports::result<void>> {
     const auto confirmation = co_await cluster_->co_message_delete(message_id, channel_id);
-    if (confirmation.is_error()) {
-        co_return to_error(confirmation);
-    }
+    if (confirmation.is_error()) co_return to_error(confirmation);
     co_return ports::result<void>{};
 }
 
@@ -51,9 +47,7 @@ auto dpp_gateway::set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflak
     target.flags = suppressed ? dpp::m_suppress_embeds : 0;
 
     const auto confirmation = co_await cluster_->co_message_edit_flags(target);
-    if (confirmation.is_error()) {
-        co_return to_error(confirmation);
-    }
+    if (confirmation.is_error()) co_return to_error(confirmation);
     co_return ports::result<void>{};
 }
 
@@ -65,9 +59,7 @@ auto dpp_gateway::get_message(dpp::snowflake channel_id, dpp::snowflake message_
 auto dpp_gateway::get_messages(dpp::snowflake channel_id, dpp::snowflake before, std::uint64_t limit)
     -> dpp::task<ports::result<std::vector<dpp::message>>> {
     const auto confirmation = co_await cluster_->co_messages_get(channel_id, /*around=*/0, before, /*after=*/0, limit);
-    if (confirmation.is_error()) {
-        co_return to_error(confirmation);
-    }
+    if (confirmation.is_error()) co_return to_error(confirmation);
 
     // DPP hands back a map keyed by id; callers want them newest first, which
     // is the order Discord sends and the order the backfill walks.
@@ -84,9 +76,7 @@ auto dpp_gateway::get_messages(dpp::snowflake channel_id, dpp::snowflake before,
 auto dpp_gateway::get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                                      std::uint64_t limit) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> {
     const auto confirmation = co_await cluster_->co_message_get_reactions(message_id, channel_id, emoji, /*before=*/0, after, limit);
-    if (confirmation.is_error()) {
-        co_return to_error(confirmation);
-    }
+    if (confirmation.is_error()) co_return to_error(confirmation);
 
     const auto& users = std::get<dpp::user_map>(confirmation.value);
     std::vector<dpp::snowflake> ids;

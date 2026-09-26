@@ -27,9 +27,7 @@ auto without_variation_selectors(std::string_view text) -> std::string {
     while (at < text.size()) {
         const std::size_t found = text.find(variation_selector, at);
         cleaned += text.substr(at, found == std::string_view::npos ? std::string_view::npos : found - at);
-        if (found == std::string_view::npos) {
-            break;
-        }
+        if (found == std::string_view::npos) break;
         at = found + variation_selector.size();
     }
     return cleaned;
@@ -42,14 +40,10 @@ auto all_digits(std::string_view text) -> bool {
 /// What an emoji looks like, from its row in `emojis` when it has one. One
 /// never seen by name still shows: a Unicode emoji is its own name.
 auto emoji_from(std::string_view key, std::optional<std::string> name, bool animated) -> emoji_ref {
-    if (name) {
-        return {.key = std::string(key), .name = std::move(*name), .animated = animated};
-    }
+    if (name) return {.key = std::string(key), .name = std::move(*name), .animated = animated};
 
     emoji_ref unknown{.key = std::string(key), .name = {}, .animated = false};
-    if (key.starts_with(unicode_prefix)) {
-        unknown.name = std::string(key.substr(unicode_prefix.size()));
-    }
+    if (key.starts_with(unicode_prefix)) unknown.name = std::string(key.substr(unicode_prefix.size()));
     return unknown;
 }
 
@@ -104,18 +98,14 @@ auto from_where(stat_kind kind) -> std::string {
 // --------------------------------------------------------------------------
 
 auto reaction_emoji(dpp::snowflake custom_id, std::string_view name, bool animated) -> emoji_ref {
-    if (!custom_id.empty()) {
-        return {.key = std::string(custom_prefix) + custom_id.str(), .name = std::string(name), .animated = animated};
-    }
+    if (!custom_id.empty()) return {.key = std::string(custom_prefix) + custom_id.str(), .name = std::string(name), .animated = animated};
     const std::string cleaned = without_variation_selectors(name);
     return {.key = std::string(unicode_prefix) + cleaned, .name = cleaned, .animated = false};
 }
 
 auto parse_emoji(std::string_view text) -> std::optional<emoji_ref> {
     text = util::trim(text);
-    if (text.empty()) {
-        return std::nullopt;
-    }
+    if (text.empty()) return std::nullopt;
 
     // A key, which is what an autocomplete choice carries.
     if (text.starts_with(custom_prefix) && all_digits(text.substr(custom_prefix.size()))) {
@@ -131,9 +121,7 @@ auto parse_emoji(std::string_view text) -> std::optional<emoji_ref> {
         // the last colon, since the id is always last.
         std::string_view inner = text.substr(1, text.size() - 2);
         const bool animated = inner.starts_with("a:");
-        if (animated) {
-            inner.remove_prefix(1);
-        }
+        if (animated) inner.remove_prefix(1);
         if (inner.starts_with(':')) {
             inner.remove_prefix(1);
             const std::size_t colon = inner.rfind(':');
@@ -175,9 +163,7 @@ auto to_string(stat_kind kind) noexcept -> std::string_view {
 
 auto stat_kind_from_string(std::string_view name) -> std::optional<stat_kind> {
     for (const stat_kind kind : {stat_kind::received, stat_kind::given, stat_kind::self}) {
-        if (to_string(kind) == name) {
-            return kind;
-        }
+        if (to_string(kind) == name) return kind;
     }
     return std::nullopt;
 }
@@ -204,9 +190,7 @@ auto reaction_store::add(dpp::snowflake message_id, dpp::snowflake user_id, cons
            "SELECT ?1, ?2, ?3, ?4 WHERE EXISTS (SELECT 1 FROM replacement_messages WHERE message_id = ?1)",
            message_id, user_id, emoji.key, at)
         .run();
-    if (db_->changes() == 0) {
-        return false;
-    }
+    if (db_->changes() == 0) return false;
 
     remember(emoji);
     log_change(message_id, user_id, emoji.key, "add", at);
@@ -220,9 +204,7 @@ auto reaction_store::remove(dpp::snowflake message_id, dpp::snowflake user_id, s
     db::transaction tx(*db_);
 
     db_->prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", message_id, user_id, emoji_key).run();
-    if (db_->changes() == 0) {
-        return false;
-    }
+    if (db_->changes() == 0) return false;
 
     log_change(message_id, user_id, emoji_key, "remove", at);
     tx.commit();
@@ -285,9 +267,7 @@ auto reaction_store::replace_for_message(dpp::snowflake message_id, std::span<co
         auto query = db_->prepare("SELECT user_id, emoji_key FROM reactions WHERE message_id = ?", message_id);
         while (query.step()) {
             std::pair<std::uint64_t, std::string> existing{query.get<std::uint64_t>(0), query.get<std::string>(1)};
-            if (!wanted.contains(existing)) {
-                stale.push_back(std::move(existing));
-            }
+            if (!wanted.contains(existing)) stale.push_back(std::move(existing));
         }
     }
 
@@ -308,9 +288,7 @@ auto reaction_store::replace_for_message(dpp::snowflake message_id, std::span<co
 }
 
 auto reaction_store::remember(const emoji_ref& emoji) -> void {
-    if (emoji.key.empty()) {
-        return;
-    }
+    if (emoji.key.empty()) return;
     const std::string name = emoji.name.empty() ? display_emoji(emoji) : emoji.name;
     db_->prepare(
            "INSERT INTO emojis (emoji_key, name, animated) VALUES (?, ?, ?) "
@@ -321,9 +299,7 @@ auto reaction_store::remember(const emoji_ref& emoji) -> void {
 
 auto reaction_store::describe(std::string_view emoji_key) const -> emoji_ref {
     auto query = db_->prepare("SELECT name, animated FROM emojis WHERE emoji_key = ?", emoji_key);
-    if (query.step()) {
-        return emoji_from(emoji_key, query.get<std::string>(0), query.get<bool>(1));
-    }
+    if (query.step()) return emoji_from(emoji_key, query.get<std::string>(0), query.get<bool>(1));
     return emoji_from(emoji_key, std::nullopt, false);
 }
 
@@ -340,14 +316,10 @@ auto reaction_store::set_alias(dpp::snowflake guild_id, std::string_view emoji_k
     -> std::optional<std::string> {
     const auto guard = db_->lock();
 
-    if (emoji_key == canonical_key) {
-        return std::string("that's the same emoji");
-    }
+    if (emoji_key == canonical_key) return std::string("that's the same emoji");
 
     const std::string target = canonical(guild_id, canonical_key);
-    if (target == emoji_key) {
-        return std::string("that one already counts as this one; remove that alias first");
-    }
+    if (target == emoji_key) return std::string("that one already counts as this one; remove that alias first");
 
     db::transaction tx(*db_);
     db_->prepare(
@@ -502,9 +474,7 @@ auto reaction_store::likely_duplicates(dpp::snowflake guild_id) const -> std::ve
 
     std::vector<std::vector<emoji_tally>> groups;
     for (auto& [name, group] : by_name) {
-        if (group.size() > 1) {
-            groups.push_back(std::move(group));
-        }
+        if (group.size() > 1) groups.push_back(std::move(group));
     }
     return groups;
 }

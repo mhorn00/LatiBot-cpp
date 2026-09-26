@@ -53,9 +53,7 @@ auto require_snowflakes(const json& object, std::string_view key) -> std::vector
 
         const std::string text = entry.get<std::string>();
         const auto id = util::parse_snowflake(text);
-        if (!id) {
-            throw config_error("config key \"" + std::string(key) + "\" has \"" + text + "\", which is not a Discord ID");
-        }
+        if (!id) throw config_error("config key \"" + std::string(key) + "\" has \"" + text + "\", which is not a Discord ID");
         ids.push_back(*id);
     }
     return ids;
@@ -77,9 +75,7 @@ auto reject_unknown_keys(const json& parsed) -> void {
     };
 
     for (const auto& [key, unused] : parsed.items()) {
-        if (std::ranges::find(known_keys, key) == known_keys.end()) {
-            throw config_error("unknown config key \"" + key + "\"");
-        }
+        if (std::ranges::find(known_keys, key) == known_keys.end()) throw config_error("unknown config key \"" + key + "\"");
     }
 }
 
@@ -161,9 +157,7 @@ auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
 
     // Last word goes to the environment, so the level can be raised for one
     // run without editing a file the bot is about to read again.
-    if (const auto wanted = log_level_from_environment()) {
-        config.log_level = *wanted;
-    }
+    if (const auto wanted = log_level_from_environment()) config.log_level = *wanted;
 
     config.recompute_bot_id = recompute_bot_id_from_environment();
 
@@ -172,23 +166,17 @@ auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
 
 auto log_level_from_environment() -> std::optional<util::log_level> {
     const auto wanted = util::env_var("LATIBOT_LOG_LEVEL");
-    if (!wanted || wanted->empty()) {
-        return std::nullopt;
-    }
+    if (!wanted || wanted->empty()) return std::nullopt;
 
     const auto level = util::log_level_from_string(*wanted);
-    if (!level) {
-        throw config_error("LATIBOT_LOG_LEVEL is \"" + *wanted + "\", expected: trace, debug, info, warn, error, off");
-    }
+    if (!level) throw config_error("LATIBOT_LOG_LEVEL is \"" + *wanted + "\", expected: trace, debug, info, warn, error, off");
     return level;
 }
 
 auto recompute_bot_id_from_environment(bool debug_build) -> std::optional<dpp::snowflake> {
     constexpr const char* name = "LATIBOT_DEBUG_RECOMPUTE_BOT_ID";
     const auto wanted = util::env_var(name);
-    if (!wanted || wanted->empty()) {
-        return std::nullopt;
-    }
+    if (!wanted || wanted->empty()) return std::nullopt;
 
     if (!debug_build) {
         util::log().warn("{} is set and ignored: it only applies to debug builds", name);
@@ -196,16 +184,12 @@ auto recompute_bot_id_from_environment(bool debug_build) -> std::optional<dpp::s
     }
 
     const auto id = util::parse_snowflake(*wanted);
-    if (!id) {
-        throw config_error(std::string(name) + " is \"" + *wanted + "\", expected a Discord user ID");
-    }
+    if (!id) throw config_error(std::string(name) + " is \"" + *wanted + "\", expected a Discord user ID");
     return id;
 }
 
 auto bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool {
-    if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) {
-        return true;
-    }
+    if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) return true;
     // Administrator is per server, so it only counts in a server we trust
     // (plan §2.4).
     return administrator && std::ranges::find(trusted_guilds, guild_id) != trusted_guilds.end();
@@ -222,12 +206,8 @@ auto secrets::from_environment() -> secrets {
     }
     loaded.discord_token = *token;
 
-    if (const auto key = util::env_var("ANTHROPIC_API_KEY"); key && !key->empty()) {
-        loaded.anthropic_key = *key;
-    }
-    if (const auto key = util::env_var("OPENAI_API_KEY"); key && !key->empty()) {
-        loaded.openai_key = *key;
-    }
+    if (const auto key = util::env_var("ANTHROPIC_API_KEY"); key && !key->empty()) loaded.anthropic_key = *key;
+    if (const auto key = util::env_var("OPENAI_API_KEY"); key && !key->empty()) loaded.openai_key = *key;
 
     return loaded;
 }

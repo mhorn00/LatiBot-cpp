@@ -22,20 +22,14 @@ auto describe_flags(message_flags flags) -> std::string {
     std::string text;
     message_flags remaining = flags;
     for (const auto& [bit, name] : names) {
-        if ((remaining & bit) == 0) {
-            continue;
-        }
-        if (!text.empty()) {
-            text += ", ";
-        }
+        if ((remaining & bit) == 0) continue;
+        if (!text.empty()) text += ", ";
         text += name;
         remaining = static_cast<message_flags>(remaining & ~bit);
     }
 
     if (remaining != 0) {
-        if (!text.empty()) {
-            text += ", ";
-        }
+        if (!text.empty()) text += ", ";
         text += std::format("0x{:x}", remaining);
     }
     return text.empty() ? std::string("none") : text;

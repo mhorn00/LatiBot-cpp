@@ -24,24 +24,18 @@ struct named_bot {
 
 auto bot_option(const dpp::slashcommand_t& event) -> std::optional<named_bot> {
     const auto id = snowflake_option(event, "bot");
-    if (!id || id->empty()) {
-        return std::nullopt;
-    }
+    if (!id || id->empty()) return std::nullopt;
 
     // The interaction carries the user it resolved, so this needs no lookup.
     const auto found = event.command.resolved.users.find(*id);
-    if (found == event.command.resolved.users.end()) {
-        return named_bot{.id = *id, .name = id->str(), .is_bot = false};
-    }
+    if (found == event.command.resolved.users.end()) return named_bot{.id = *id, .name = id->str(), .is_bot = false};
     return named_bot{.id = *id, .name = found->second.username, .is_bot = found->second.is_bot()};
 }
 
 } // namespace
 
 auto render_allowed_bots(std::span<const std::pair<dpp::snowflake, std::string>> known) -> std::string {
-    if (known.empty()) {
-        return "No bots are allowed here. Every bot is ignored until you add one with `/bots allow`.";
-    }
+    if (known.empty()) return "No bots are allowed here. Every bot is ignored until you add one with `/bots allow`.";
 
     std::string body = "**Bots this server lets me hear**\n";
     for (const auto& [id, name] : known) {

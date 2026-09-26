@@ -70,9 +70,7 @@ auto database::configure() -> void {
 }
 
 auto database::check(int result_code, const char* context) const -> void {
-    if (result_code != SQLITE_OK) {
-        throw db_error(result_code, describe(handle_, result_code, context));
-    }
+    if (result_code != SQLITE_OK) throw db_error(result_code, describe(handle_, result_code, context));
 }
 
 auto database::execute(std::string_view sql) -> void {
@@ -95,9 +93,7 @@ auto database::prepare(std::string_view sql) -> statement {
 
     sqlite3_stmt* stmt = nullptr;
     const int result = sqlite3_prepare_v2(handle_, sql.data(), static_cast<int>(sql.size()), &stmt, nullptr);
-    if (result != SQLITE_OK) {
-        throw db_error(result, describe(handle_, result, "cannot prepare statement"));
-    }
+    if (result != SQLITE_OK) throw db_error(result, describe(handle_, result, "cannot prepare statement"));
 
     return statement(*this, stmt, std::move(guard));
 }
@@ -114,9 +110,7 @@ auto database::changes() -> int {
 
 auto database::user_version() -> int {
     statement stmt = prepare("PRAGMA user_version");
-    if (!stmt.step()) {
-        throw db_error(SQLITE_ERROR, "PRAGMA user_version returned no row");
-    }
+    if (!stmt.step()) throw db_error(SQLITE_ERROR, "PRAGMA user_version returned no row");
     return stmt.get<int>(0);
 }
 
@@ -131,9 +125,7 @@ transaction::transaction(database& db) : db_(&db), lock_(db.lock()) {
 }
 
 transaction::~transaction() {
-    if (finished_) {
-        return;
-    }
+    if (finished_) return;
     // A destructor must not throw, so a failure is logged rather than passed
     // on. It is worth an error line: a rollback that fails leaves the
     // connection inside the transaction, and every later write then fails

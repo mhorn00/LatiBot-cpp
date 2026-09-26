@@ -74,12 +74,8 @@ auto statement::bind(int index, std::span<const std::byte> value) -> statement& 
 
 auto statement::step() -> bool {
     const int result = sqlite3_step(handle_);
-    if (result == SQLITE_ROW) {
-        return true;
-    }
-    if (result == SQLITE_DONE) {
-        return false;
-    }
+    if (result == SQLITE_ROW) return true;
+    if (result == SQLITE_DONE) return false;
     throw db_error(result, std::string("cannot step statement: ") + sqlite3_errmsg(sqlite3_db_handle(handle_)));
 }
 
@@ -112,9 +108,7 @@ auto statement::column_double(int column) const -> double {
 
 auto statement::column_text(int column) const -> std::string {
     const auto* text = sqlite3_column_text(handle_, column);
-    if (text == nullptr) {
-        return {};
-    }
+    if (text == nullptr) return {};
     const int size = sqlite3_column_bytes(handle_, column);
     return std::string(reinterpret_cast<const char*>(text), static_cast<std::size_t>(size));
 }
@@ -122,9 +116,7 @@ auto statement::column_text(int column) const -> std::string {
 auto statement::column_blob(int column) const -> std::vector<std::byte> {
     const void* data = sqlite3_column_blob(handle_, column);
     const int size = sqlite3_column_bytes(handle_, column);
-    if (data == nullptr || size <= 0) {
-        return {};
-    }
+    if (data == nullptr || size <= 0) return {};
     const auto* bytes = static_cast<const std::byte*>(data);
     return std::vector<std::byte>(bytes, bytes + size);
 }

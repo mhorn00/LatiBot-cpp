@@ -43,18 +43,14 @@ auto words_of(std::string_view text) -> std::string {
 
 auto is_goodbye(std::string_view content, std::string_view phrase) -> bool {
     const std::string wanted = words_of(phrase);
-    if (wanted.empty()) {
-        return false;
-    }
+    if (wanted.empty()) return false;
     return words_of(content) == wanted;
 }
 
 auto goodbye_stage(const config::guild_settings& settings) -> pipeline::stage_fn {
     return [&settings](const incoming_message& message) -> stage_result {
         const std::string phrase = settings.get(message.guild_id, goodbye_phrase_key, default_goodbye_phrase);
-        if (!is_goodbye(message.content, phrase)) {
-            return {};
-        }
+        if (!is_goodbye(message.content, phrase)) return {};
 
         // The phrase matched, so whatever happens next is worth a line: either
         // the bot is about to stop, or somebody just found out they cannot

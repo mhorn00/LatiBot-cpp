@@ -7,10 +7,6 @@
 # Why the disabled checks are disabled:
 #   misc-include-cleaner            unusable against the MSVC standard headers
 #   modernize-return-braced-...     "return {a, b};" hides the returned type
-#   readability-braces-around-...   .clang-format allows a short if on one
-#                                    line (AllowShortIfStatementsOnASingleLine:
-#                                    WithoutElse); this is the matching tidy
-#                                    check, not a gap in coverage
 #   readability-identifier-length   short names are fine in short scopes
 #   readability-magic-numbers       too noisy against SQLite and Discord codes
 ---
@@ -27,15 +23,20 @@ Checks: >
   -misc-include-cleaner,
   -misc-non-private-member-variables-in-classes,
   -modernize-return-braced-init-list,
-  -readability-braces-around-statements,
   -readability-identifier-length,
   -readability-magic-numbers
 
 # Functions are written "auto name(...) -> type", void ones included, though
 # this check does not flag a void return, so those are kept by hand. A
 # lambda's return type is left to deduction unless it needs saying.
+#
+# A short if with no else goes on one line without braces, as .clang-format
+# allows (AllowShortIfStatementsOnASingleLine: WithoutElse). Any body on a
+# line of its own is braced; that catches a one-line if clang-format had to
+# wrap because it grew past the column limit.
 CheckOptions:
   modernize-use-trailing-return-type.TransformLambdas: none
+  readability-braces-around-statements.ShortStatementLines: 1
 
 HeaderFilterRegex: '.*[\\/](src|tests)[\\/].*'
 WarningsAsErrors: ''

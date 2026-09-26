@@ -100,13 +100,9 @@ public:
     }
 
     auto get_message(dpp::snowflake /*channel_id*/, dpp::snowflake message_id) -> dpp::task<ports::result<dpp::message>> override {
-        if (const auto failing = message_errors.find(message_id); failing != message_errors.end()) {
-            co_return failing->second;
-        }
+        if (const auto failing = message_errors.find(message_id); failing != message_errors.end()) co_return failing->second;
         const auto found = stored_messages.find(message_id);
-        if (found == stored_messages.end()) {
-            co_return ports::api_error{.http_status = 404, .message = "Unknown Message"};
-        }
+        if (found == stored_messages.end()) co_return ports::api_error{.http_status = 404, .message = "Unknown Message"};
         co_return found->second;
     }
 

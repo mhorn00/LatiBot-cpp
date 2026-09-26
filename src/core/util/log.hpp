@@ -240,9 +240,7 @@ template <typename OutputIt, typename T>
 auto paint_to(OutputIt out, const T& value) -> OutputIt {
     if constexpr (styled<T>) {
         const text_style style = log_style<T>::of(value);
-        if (detail::painting && !style.plain()) {
-            return std::format_to(out, "\x1b[{}m{}\x1b[0m", style.sgr, value);
-        }
+        if (detail::painting && !style.plain()) return std::format_to(out, "\x1b[{}m{}\x1b[0m", style.sgr, value);
     }
     return std::format_to(out, "{}", value);
 }
@@ -269,9 +267,7 @@ private:
 /// the call site; colouring then only changes what those arguments write.
 template <typename... Args>
 [[nodiscard]] auto format_message(bool colored, std::format_string<Args...> fmt, Args&&... args) -> std::string {
-    if (!colored) {
-        return std::format(fmt, std::forward<Args>(args)...);
-    }
+    if (!colored) return std::format(fmt, std::forward<Args>(args)...);
 
     try {
         const painting_scope scope;
@@ -371,9 +367,7 @@ public:
 
     template <typename... Args>
     auto log(log_level level, std::format_string<Args...> fmt, Args&&... args) -> void {
-        if (!enabled(level)) {
-            return;
-        }
+        if (!enabled(level)) return;
         write(level, detail::format_message(colors(), fmt, std::forward<Args>(args)...));
     }
 
@@ -437,9 +431,7 @@ struct std::formatter<latibot::util::detail::painted<T>, char> : std::formatter<
     template <typename FormatContext>
     auto format(const latibot::util::detail::painted<T>& arg, FormatContext& ctx) const {
         const latibot::util::text_style style = latibot::util::log_style<T>::of(arg.value);
-        if (style.plain()) {
-            return std::formatter<T, char>::format(arg.value, ctx);
-        }
+        if (style.plain()) return std::formatter<T, char>::format(arg.value, ctx);
 
         ctx.advance_to(std::format_to(ctx.out(), "\x1b[{}m", style.sgr));
         auto out = std::formatter<T, char>::format(arg.value, ctx);

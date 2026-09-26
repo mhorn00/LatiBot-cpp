@@ -180,9 +180,7 @@ TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]
         for (const dpp::component& row : panel.components) {
             for (const dpp::component& part : row.components) {
                 const auto state = latibot::ui::decode(part.custom_id);
-                if (state && state->view == latibot::commands::url_switch_view) {
-                    return label_and_argument{part.label, state->argument};
-                }
+                if (state && state->view == latibot::commands::url_switch_view) return label_and_argument{part.label, state->argument};
             }
         }
         return std::nullopt;

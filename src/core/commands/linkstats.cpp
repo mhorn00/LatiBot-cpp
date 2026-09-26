@@ -34,9 +34,7 @@ auto format_day(std::chrono::sys_seconds when) -> std::string {
 /// "since 2024-01-01", "until 2024-06-30", both, or nothing for all time.
 auto describe_window(const events::stat_query& query) -> std::string {
     std::string text;
-    if (query.since) {
-        text += " since " + format_day(*query.since);
-    }
+    if (query.since) text += " since " + format_day(*query.since);
     if (query.until) {
         // The bound is exclusive, and the day before it is the one typed.
         text += " until " + format_day(*query.until - std::chrono::days{1});
@@ -51,30 +49,22 @@ auto read_window(const dpp::slashcommand_t& event, events::stat_query& query) ->
 
     if (!since.empty()) {
         const auto day = parse_day(since);
-        if (!day) {
-            return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", since);
-        }
+        if (!day) return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", since);
         query.since = std::chrono::sys_seconds(*day);
     }
     if (!until.empty()) {
         const auto day = parse_day(until);
-        if (!day) {
-            return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", until);
-        }
+        if (!day) return std::format("\"{}\" isn't a date i can read; use YYYY-MM-DD", until);
         // Inclusive as typed, so the whole of that day counts.
         query.until = std::chrono::sys_seconds(*day + std::chrono::days{1});
     }
-    if (query.since && query.until && *query.since >= *query.until) {
-        return std::string("that range ends before it starts");
-    }
+    if (query.since && query.until && *query.since >= *query.until) return std::string("that range ends before it starts");
 
     // The site, reduced the way rules are, so "https://www.X.com" and
     // "x.com" ask for the same thing.
     if (const std::string site = string_option(event, "domain"); !site.empty()) {
         query.domain = events::normalise_domain(site);
-        if (!query.domain) {
-            return std::format("\"{}\" doesn't look like a site; try something like x.com", site);
-        }
+        if (!query.domain) return std::format("\"{}\" doesn't look like a site; try something like x.com", site);
     }
     return std::nullopt;
 }
@@ -82,9 +72,7 @@ auto read_window(const dpp::slashcommand_t& event, events::stat_query& query) ->
 auto emoji_list(std::span<const events::emoji_tally> tallies) -> std::string {
     std::string text;
     for (const events::emoji_tally& tally : tallies) {
-        if (!text.empty()) {
-            text += ", ";
-        }
+        if (!text.empty()) text += ", ";
         text += std::format("{} {}", events::display_emoji(tally.emoji), tally.count);
     }
     return text;
@@ -108,77 +96,53 @@ auto emoji_option(const char* name, const char* description, bool required) -> d
 
 auto parse_day(std::string_view text) -> std::optional<std::chrono::sys_days> {
     text = util::trim(text);
-    if (text.size() != 10 || text[4] != '-' || text[7] != '-') {
-        return std::nullopt;
-    }
+    if (text.size() != 10 || text[4] != '-' || text[7] != '-') return std::nullopt;
 
     const auto number = [&](std::size_t at, std::size_t length) -> std::optional<int> {
         int value = 0;
         const char* begin = text.data() + at;
         const auto [stop, error] = std::from_chars(begin, begin + length, value);
-        if (error != std::errc{} || stop != begin + length) {
-            return std::nullopt;
-        }
+        if (error != std::errc{} || stop != begin + length) return std::nullopt;
         return value;
     };
 
     const auto year = number(0, 4);
     const auto month = number(5, 2);
     const auto day = number(8, 2);
-    if (!year || !month || !day) {
-        return std::nullopt;
-    }
+    if (!year || !month || !day) return std::nullopt;
 
     const std::chrono::year_month_day date{std::chrono::year{*year}, std::chrono::month{static_cast<unsigned>(*month)},
                                            std::chrono::day{static_cast<unsigned>(*day)}};
-    if (!date.ok()) {
-        return std::nullopt;
-    }
+    if (!date.ok()) return std::nullopt;
     return std::chrono::sys_days(date);
 }
 
 auto board_from_string(std::string_view name) -> std::optional<board> {
-    if (name.empty() || name == "received") {
-        return board::received;
-    }
-    if (name == "given") {
-        return board::given;
-    }
-    if (name == "self") {
-        return board::self;
-    }
-    if (name == "emoji") {
-        return board::emoji;
-    }
+    if (name.empty() || name == "received") return board::received;
+    if (name == "given") return board::given;
+    if (name == "self") return board::self;
+    if (name == "emoji") return board::emoji;
     return std::nullopt;
 }
 
 auto resolve_emoji(const events::reaction_store& store, dpp::snowflake guild_id, std::string_view typed)
     -> std::optional<events::emoji_ref> {
     std::string_view text = util::trim(typed);
-    if (text.size() > 2 && text.starts_with(':') && text.ends_with(':')) {
-        text = text.substr(1, text.size() - 2);
-    }
+    if (text.size() > 2 && text.starts_with(':') && text.ends_with(':')) text = text.substr(1, text.size() - 2);
 
     auto parsed = events::parse_emoji(text);
-    if (!parsed) {
-        return std::nullopt;
-    }
+    if (!parsed) return std::nullopt;
 
     // A name rather than an emoji: find the one this guild has used.
     if (parsed->key.starts_with("u:") && is_word(parsed->name)) {
         for (const events::emoji_tally& known : store.known_emojis(guild_id, parsed->name, emoji_choices)) {
-            if (util::equals_ignoring_case(known.emoji.name, parsed->name)) {
-                return known.emoji;
-            }
+            if (util::equals_ignoring_case(known.emoji.name, parsed->name)) return known.emoji;
         }
         return std::nullopt;
     }
 
     // A key from autocomplete carries no name; fill it in for showing.
-    if (parsed->name.empty()) {
-        return store.describe(parsed->key);
-    }
+    if (parsed->name.empty()) return store.describe(parsed->key);
     return parsed;
 }
 
@@ -218,9 +182,7 @@ auto kind_for(board which) -> events::stat_kind {
 auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
     std::int64_t value = 0;
     const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-    if (error != std::errc{} || stop != text.data() + text.size()) {
-        return std::nullopt;
-    }
+    if (error != std::errc{} || stop != text.data() + text.size()) return std::nullopt;
     return value;
 }
 
@@ -260,14 +222,10 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
     while (true) {
         const std::size_t cut = argument.find(board_separator);
         fields.push_back(argument.substr(0, cut));
-        if (cut == std::string_view::npos) {
-            break;
-        }
+        if (cut == std::string_view::npos) break;
         argument.remove_prefix(cut + 1);
     }
-    if (fields.size() != 5 || fields[0].size() != 1) {
-        return std::nullopt;
-    }
+    if (fields.size() != 5 || fields[0].size() != 1) return std::nullopt;
 
     board which = board::received;
     switch (fields[0].front()) {
@@ -288,20 +246,12 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
 
     events::stat_query query;
     query.kind = kind_for(which);
-    if (!fields[1].empty()) {
-        query.emoji_key = std::string(fields[1]);
-    }
-    if (!fields[2].empty()) {
-        query.domain = std::string(fields[2]);
-    }
+    if (!fields[1].empty()) query.emoji_key = std::string(fields[1]);
+    if (!fields[2].empty()) query.domain = std::string(fields[2]);
     for (const auto& [text, bound] : {std::pair{fields[3], &query.since}, std::pair{fields[4], &query.until}}) {
-        if (text.empty()) {
-            continue;
-        }
+        if (text.empty()) continue;
         const auto days = whole_number(text);
-        if (!days) {
-            return std::nullopt;
-        }
+        if (!days) return std::nullopt;
         *bound = std::chrono::sys_seconds(std::chrono::sys_days(std::chrono::days(*days)));
     }
     return std::pair{which, query};
@@ -370,9 +320,7 @@ auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id
 
 auto render_duplicates(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
     const auto groups = store.likely_duplicates(guild_id);
-    if (groups.empty()) {
-        return "No two custom emojis here share a name, so nothing looks duplicated.";
-    }
+    if (groups.empty()) return "No two custom emojis here share a name, so nothing looks duplicated.";
 
     std::string text = "**Custom emojis that share a name**\nMerge one into another with `/linkstats alias add`.\n";
     for (const auto& group : groups) {
@@ -387,9 +335,7 @@ auto render_duplicates(const events::reaction_store& store, dpp::snowflake guild
 
 auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
     const auto aliases = store.aliases(guild_id);
-    if (aliases.empty()) {
-        return "No emoji aliases here. `/linkstats emojis` lists likely candidates.";
-    }
+    if (aliases.empty()) return "No emoji aliases here. `/linkstats emojis` lists likely candidates.";
 
     std::string text = "**Emoji aliases**\n";
     for (const events::emoji_alias& alias : aliases) {
@@ -406,9 +352,7 @@ auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id
 
 auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) -> std::string {
     std::string range = std::format("since {}", format_day(request.since));
-    if (request.until) {
-        range += std::format(" until {}", format_day(*request.until - std::chrono::days{1}));
-    }
+    if (request.until) range += std::format(" until {}", format_day(*request.until - std::chrono::days{1}));
 
     if (!finished) {
         return std::format(
@@ -427,9 +371,7 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
         // Reported rather than accepted (plan §9.7); the log has each id.
         text += std::format("Of those not credited, {} followed a link that wasn't the one replaced\n", report.mismatched);
     }
-    if (report.webhooks_skipped > 0) {
-        text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
-    }
+    if (report.webhooks_skipped > 0) text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
     text += std::format("Reactions recorded: {}\n", report.reactions);
 
     // Listed by id rather than guessed at (plan §9.7). The log has all of
@@ -448,9 +390,7 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
         text += std::format("- {}\n", report.problems[index]);
     }
 
-    if (report.cancelled) {
-        text += "Running it again with the same dates carries on from where it stopped.";
-    }
+    if (report.cancelled) text += "Running it again with the same dates carries on from where it stopped.";
     return text;
 }
 
@@ -460,9 +400,7 @@ namespace {
 /// lambda, since a coroutine lambda's captures die with the lambda.
 auto show_progress(ports::discord_gateway& discord, dpp::message message) -> dpp::task<void> {
     const auto edited = co_await discord.edit_message(std::move(message));
-    if (!edited.ok()) {
-        util::log().debug("could not update the recompute progress message: {}", edited.error().message);
-    }
+    if (!edited.ok()) util::log().debug("could not update the recompute progress message: {}", edited.error().message);
 }
 
 } // namespace
@@ -549,9 +487,7 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
 
 auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
-    if (focused == nullptr || event.owner == nullptr) {
-        return;
-    }
+    if (focused == nullptr || event.owner == nullptr) return;
 
     // What has been typed so far into whichever option is focused. The same
     // handler serves `domain` in two subcommands and `emoji` / `as` in three.
@@ -572,9 +508,7 @@ auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> 
         // Emojis: the ones used on replacements here, most used first. The
         // value sent back is the key, so the command never has to guess
         // which of two same-named emojis was meant.
-        if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) {
-            filter = filter.substr(1, filter.size() - 2);
-        }
+        if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) filter = filter.substr(1, filter.size() - 2);
         for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices)) {
             // A custom emoji cannot be drawn in a choice, so it shows by name.
             const std::string label = known.emoji.key.starts_with("c:") ? std::format(":{}: ({})", known.emoji.name, known.count)
@@ -589,17 +523,11 @@ auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> 
 }
 
 auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> std::optional<std::string> {
-    if (invoker.can(dpp::p_manage_guild)) {
-        return std::nullopt;
-    }
-    if (subcommand.starts_with("alias ") && subcommand != "alias list") {
-        return "changing emoji aliases needs Manage Server";
-    }
+    if (invoker.can(dpp::p_manage_guild)) return std::nullopt;
+    if (subcommand.starts_with("alias ") && subcommand != "alias list") return "changing emoji aliases needs Manage Server";
     // Reading years of history is a lot of API calls; this one is for the
     // people who run the server (plan §9.7).
-    if (subcommand.starts_with("recompute ")) {
-        return "recomputing link stats needs Manage Server";
-    }
+    if (subcommand.starts_with("recompute ")) return "recomputing link stats needs Manage Server";
     return std::nullopt;
 }
 

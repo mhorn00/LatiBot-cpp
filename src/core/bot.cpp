@@ -60,9 +60,7 @@ auto from_dpp(dpp::loglevel level) -> util::log_level {
 /// intent it was not granted is refused the gateway outright.
 auto intents_for(const config::bootstrap& settings) -> std::uint32_t {
     std::uint32_t intents = dpp::i_default_intents | dpp::i_message_content;
-    if (settings.track_nicknames) {
-        intents |= dpp::i_guild_members;
-    }
+    if (settings.track_nicknames) intents |= dpp::i_guild_members;
     return intents;
 }
 
@@ -78,15 +76,11 @@ constexpr std::uint32_t audit_fallback_entries = 25;
 /// only place it appears, so this reaches past DPP into the raw frame.
 auto guild_of(const dpp::guild_audit_log_entry_create_t& event) -> dpp::snowflake {
     const auto frame = nlohmann::json::parse(event.raw_event, nullptr, /*allow_exceptions=*/false);
-    if (frame.is_discarded() || !frame.contains("d")) {
-        return {};
-    }
+    if (frame.is_discarded() || !frame.contains("d")) return {};
 
     const auto& payload = frame.at("d");
     const auto found = payload.find("guild_id");
-    if (found == payload.end() || !found->is_string()) {
-        return {};
-    }
+    if (found == payload.end() || !found->is_string()) return {};
     return dpp::snowflake(found->get<std::string>());
 }
 
@@ -94,9 +88,7 @@ auto guild_of(const dpp::guild_audit_log_entry_create_t& event) -> dpp::snowflak
 /// the entry is not about a nickname at all.
 auto nickname_change_in(const dpp::audit_entry& entry) -> std::optional<dpp::audit_change> {
     for (const dpp::audit_change& change : entry.changes) {
-        if (change.key == "nick") {
-            return change;
-        }
+        if (change.key == "nick") return change;
     }
     return std::nullopt;
 }
@@ -156,15 +148,11 @@ auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
 auto text_channels(dpp::snowflake guild_id) -> std::vector<dpp::snowflake> {
     std::vector<dpp::snowflake> found;
     const dpp::guild* guild = dpp::find_guild(guild_id);
-    if (guild == nullptr) {
-        return found;
-    }
+    if (guild == nullptr) return found;
 
     for (const dpp::snowflake id : guild->channels) {
         const dpp::channel* channel = dpp::find_channel(id);
-        if (channel != nullptr && (channel->is_text_channel() || channel->is_news_channel())) {
-            found.push_back(id);
-        }
+        if (channel != nullptr && (channel->is_text_channel() || channel->is_news_channel())) found.push_back(id);
     }
     return found;
 }
@@ -265,9 +253,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
 
     std::string stages;
     for (const std::string_view name : pipeline_.stage_names()) {
-        if (!stages.empty()) {
-            stages += " -> ";
-        }
+        if (!stages.empty()) stages += " -> ";
         stages += name;
     }
     util::log().debug("{} commands registered; message stages: {}", commands_.size(), stages);
@@ -337,9 +323,7 @@ auto bot::register_events() -> void {
         settle_stranded_replacements(guild.id);
 
         const int seeded = triggers_.seed_defaults(guild.id);
-        if (seeded > 0) {
-            util::log().info("{}: seeded {} default triggers", guild.name, seeded);
-        }
+        if (seeded > 0) util::log().info("{}: seeded {} default triggers", guild.name, seeded);
 
         util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
                           triggers_.for_guild(guild.id).size(), bot_allowlist_.for_guild(guild.id).size(),
@@ -524,9 +508,7 @@ auto field_of(const dpp::form_submit_t& event, std::string_view name) -> std::st
     for (const dpp::component& row : event.components) {
         for (const dpp::component& input : row.components) {
             if (input.custom_id == name) {
-                if (const auto* text = std::get_if<std::string>(&input.value)) {
-                    return *text;
-                }
+                if (const auto* text = std::get_if<std::string>(&input.value)) return *text;
             }
         }
     }
@@ -538,9 +520,7 @@ auto field_of(const dpp::form_submit_t& event, std::string_view name) -> std::st
 auto bot::record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
                           events::nickname_source source) -> std::optional<std::int64_t> {
     const auto latest = nicknames_.latest(guild_id, user_id);
-    if (!events::is_new_nickname(latest, nickname)) {
-        return std::nullopt;
-    }
+    if (!events::is_new_nickname(latest, nickname)) return std::nullopt;
 
     const std::int64_t row = nicknames_.record({.guild_id = guild_id,
                                                 .user_id = user_id,
@@ -607,17 +587,13 @@ auto bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::
                                                                      }
 
                                                                      const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
-                                                                     if (entries == nullptr) {
-                                                                         return;
-                                                                     }
+                                                                     if (entries == nullptr) return;
 
                                                                      // Every recent entry about this member goes through
                                                                      // the same path as a live one, which decides which
                                                                      // row, if any, it attributes.
                                                                      for (const dpp::audit_entry& entry : entries->entries) {
-                                                                         if (entry.target_id == user_id) {
-                                                                             on_audit_entry(entry, guild_id);
-                                                                         }
+                                                                         if (entry.target_id == user_id) on_audit_entry(entry, guild_id);
                                                                      }
                                                                  });
                                  }),
@@ -625,14 +601,10 @@ auto bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::
 }
 
 auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void {
-    if (entry.type != dpp::aut_member_update || guild_id.empty()) {
-        return;
-    }
+    if (entry.type != dpp::aut_member_update || guild_id.empty()) return;
 
     const auto change = nickname_change_in(entry);
-    if (!change) {
-        return;
-    }
+    if (!change) return;
 
     const std::optional<std::string> nickname = events::audit_nickname(change->new_value);
     const auto row = nicknames_.unattributed(guild_id, entry.target_id, nickname, clock_.now(), events::pending_nickname_ttl);
@@ -654,9 +626,7 @@ auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id)
 }
 
 auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
-    if (!settings_.track_nicknames) {
-        return;
-    }
+    if (!settings_.track_nicknames) return;
 
     // Changes made while the bot was not running have nobody to attribute
     // them to, which is why they are marked as their own source rather than
@@ -674,17 +644,13 @@ auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
 }
 
 auto bot::import_url_rules(const dpp::guild& guild) -> void {
-    if (guild_settings_.get_bool(guild.id, url_rules_imported_key, false)) {
-        return;
-    }
+    if (guild_settings_.get_bool(guild.id, url_rules_imported_key, false)) return;
 
     // Marked only once a file was actually read, so dropping the file in
     // after a first run still works.
     const std::filesystem::path legacy = settings_.database_path.parent_path() / legacy_url_rules_file;
     const auto imported = events::import_url_rules_file(url_rules_, guild.id, legacy);
-    if (!imported) {
-        return;
-    }
+    if (!imported) return;
 
     guild_settings_.set_bool(guild.id, url_rules_imported_key, true);
     util::log().info("{}: imported {} URL rule(s) from {}{}", guild.name, *imported, legacy.generic_string(),
@@ -715,9 +681,7 @@ auto bot::settle_stranded_replacements(dpp::snowflake guild_id) -> void {
     {
         const std::scoped_lock guard(stranded_mutex_);
         const auto found = stranded_.find(guild_id);
-        if (found == stranded_.end()) {
-            return;
-        }
+        if (found == stranded_.end()) return;
         mine = std::move(found->second);
         stranded_.erase(found);
     }
@@ -731,9 +695,7 @@ auto bot::now_seconds() const -> std::chrono::sys_seconds {
 }
 
 auto bot::carry_out(std::vector<events::embed_action> actions) -> void {
-    if (!actions.empty()) {
-        detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
-    }
+    if (!actions.empty()) detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
 }
 
 auto bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
@@ -801,9 +763,7 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         // same board as the first. Filters this build cannot read are as
         // stale as a view it does not know.
         const auto board = commands::decode_board(state.argument);
-        if (!board) {
-            return false;
-        }
+        if (!board) return false;
         update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state.page));
     } else {
         // Each panel's router says whether the view was one of its own.
@@ -829,18 +789,14 @@ auto bot::on_trigger_component(const dpp::interaction_create_t& event, const ui:
     } else if (state.view == commands::trigger_pick_view) {
         std::int64_t picked = 0;
         const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
-        if (error != std::errc{} || stop != chosen.data() + chosen.size()) {
-            picked = 0;
-        }
+        if (error != std::errc{} || stop != chosen.data() + chosen.size()) picked = 0;
         update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, picked));
     } else if (state.view == commands::trigger_delete_view) {
         update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
     } else if (state.view == commands::trigger_confirm_view) {
         // Logged only when something went: a second press, or one from another
         // client, finds it already gone.
-        if (triggers_.remove(id, guild)) {
-            util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
-        }
+        if (triggers_.remove(id, guild)) util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
         update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
     } else if (const commands::trigger_toggle change = commands::toggle_for(state.view)) {
         toggle_trigger(id, guild, who, change);
@@ -1062,9 +1018,7 @@ auto bot::carry_out(const std::vector<events::action>& actions) -> void {
                         std::condition_variable_any wake;
                         std::unique_lock lock(pause);
                         wake.wait_for(lock, stopping, delay, [] { return false; });
-                        if (!stopping.stop_requested()) {
-                            cluster_.shutdown();
-                        }
+                        if (!stopping.stop_requested()) cluster_.shutdown();
                     });
                 }
             },
@@ -1093,9 +1047,7 @@ auto bot::check_permissions(const dpp::guild& guild) const -> void {
                          missing.purpose);
     }
 
-    if (gaps.empty()) {
-        util::log().debug("{}: every permission the bot needs is granted", guild.name);
-    }
+    if (gaps.empty()) util::log().debug("{}: every permission the bot needs is granted", guild.name);
 }
 
 auto bot::run() -> void {

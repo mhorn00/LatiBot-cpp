@@ -25,9 +25,7 @@ auto is_continuation(char byte) -> bool {
 }
 
 auto require(bool holds) -> void {
-    if (!holds) {
-        std::abort();
-    }
+    if (!holds) std::abort();
 }
 
 } // namespace

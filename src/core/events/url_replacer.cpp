@@ -34,34 +34,24 @@ auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
 auto url_replacer::operator()(const incoming_message& message) const -> stage_result {
     // Bots are heard only when a guild allows them, and even then their links
     // are theirs to post as they like. A DM has no rules to apply.
-    if (message.from_bot || message.guild_id.empty()) {
-        return {};
-    }
+    if (message.from_bot || message.guild_id.empty()) return {};
 
     // Almost every message has no link at all, and this keeps them away from
     // the database. "://" rather than "http", because the scheme can be
     // written in any case.
-    if (message.content.find("://") == std::string::npos) {
-        return {};
-    }
+    if (message.content.find("://") == std::string::npos) return {};
 
     // The author turned previews off themselves.
-    if (message.embeds_suppressed) {
-        return {};
-    }
+    if (message.embeds_suppressed) return {};
 
     // Off until somebody turns it on for this server.
-    if (!rules_->enabled(message.guild_id)) {
-        return {};
-    }
+    if (!rules_->enabled(message.guild_id)) return {};
 
     // Which links have a rule, after the ones the author suppressed, put in
     // code, repeated or wrote past the limit are taken out.
     const std::vector<url_rule> rules = rules_->for_guild(message.guild_id);
     std::vector<planned_link> links = plan_replacements(message.content, rules);
-    if (links.empty()) {
-        return {};
-    }
+    if (links.empty()) return {};
 
     if (rules_->opted_out(message.guild_id, message.author_id)) {
         util::log().debug("{} opted out of URL replacement in guild {}; leaving {} link(s) alone", message.author_id, message.guild_id,
@@ -140,9 +130,7 @@ auto carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_
     for (const embed_action& wanted : actions) {
         if (const auto* edit = std::get_if<edit_replacement>(&wanted)) {
             const auto edited = co_await discord.edit_message(build_edit(*edit));
-            if (!edited.ok()) {
-                util::log().warn("could not edit replacement {}: {}", edit->message_id, edited.error().message);
-            }
+            if (!edited.ok()) util::log().warn("could not edit replacement {}: {}", edit->message_id, edited.error().message);
         } else if (const auto* original = std::get_if<set_original_embeds>(&wanted)) {
             const auto changed = co_await discord.set_embeds_suppressed(original->channel_id, original->message_id, original->suppressed);
             if (!changed.ok()) {
@@ -183,9 +171,7 @@ auto settle_stranded(ports::discord_gateway& discord, replacement_store& replace
         // The mirrors are only for the failure note to name. They come from
         // the rules as they are now, which is also what Retry would use.
         for (planned_link& link : record.links) {
-            if (const auto rule = rules.find(record.guild_id, link.domain)) {
-                link.mirrors = rule->mirrors;
-            }
+            if (const auto rule = rules.find(record.guild_id, link.domain)) link.mirrors = rule->mirrors;
         }
 
         const bool retry = record.state == replacement_state::retrying;
@@ -217,15 +203,11 @@ auto settle_stranded(ports::discord_gateway& discord, replacement_store& replace
 auto plan_retry(const replacement_store& replacements, const url_rule_store& rules, dpp::snowflake message_id, dpp::snowflake guild_id)
     -> std::variant<retry_plan, std::string> {
     const auto found = replacements.find(message_id);
-    if (!found || found->guild_id != guild_id) {
-        return std::string("that replacement isn't one i know about any more");
-    }
+    if (!found || found->guild_id != guild_id) return std::string("that replacement isn't one i know about any more");
 
     // A Retry is a replacement like any other, and turning the feature off
     // should not leave old buttons around that still post.
-    if (!rules.enabled(guild_id)) {
-        return std::string("link replacement has been turned off in this server");
-    }
+    if (!rules.enabled(guild_id)) return std::string("link replacement has been turned off in this server");
 
     switch (found->state) {
     case replacement_state::retrying:
@@ -244,9 +226,7 @@ auto plan_retry(const replacement_store& replacements, const url_rule_store& rul
             links.push_back(std::move(link));
         }
     }
-    if (links.empty()) {
-        return std::string("there's no URL rule for that site any more, so there's nothing to retry with");
-    }
+    if (links.empty()) return std::string("there's no URL rule for that site any more, so there's nothing to retry with");
 
     retry_plan plan{.request = {.guild_id = guild_id,
                                 .channel_id = found->channel_id,

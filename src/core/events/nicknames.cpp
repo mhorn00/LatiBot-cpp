@@ -80,21 +80,15 @@ auto describes(const nickname_change& change, dpp::snowflake target, const std::
 }
 
 auto audit_nickname(std::string_view dumped_json) -> std::optional<std::string> {
-    if (dumped_json.empty() || dumped_json == "null") {
-        return std::nullopt;
-    }
+    if (dumped_json.empty() || dumped_json == "null") return std::nullopt;
 
     const auto parsed = nlohmann::json::parse(dumped_json, nullptr, /*allow_exceptions=*/false);
-    if (!parsed.is_string()) {
-        return std::nullopt;
-    }
+    if (!parsed.is_string()) return std::nullopt;
     return parsed.get<std::string>();
 }
 
 auto may_attribute(const nickname_change& change, dpp::snowflake actor, dpp::snowflake self) -> bool {
-    if (actor.empty() || actor == self) {
-        return false;
-    }
+    if (actor.empty() || actor == self) return false;
     return !change.changed_by.has_value();
 }
 
@@ -105,9 +99,7 @@ auto show_nickname(const std::optional<std::string>& nickname) -> std::string {
 }
 
 auto show_author(const nickname_change& change) -> std::string {
-    if (change.changed_by) {
-        return std::format("<@{}>", change.changed_by->str());
-    }
+    if (change.changed_by) return std::format("<@{}>", change.changed_by->str());
     // An imported row's author was a guess, so there is nothing honest to
     // show. A row the bot watched happen and could not attribute is genuinely
     // unknown, which is worth saying (plan §8.1).
@@ -120,9 +112,7 @@ auto describe_change(const nickname_change& change) -> std::string {
     std::string line = std::format("**{}** — <t:{}:f>", show_nickname(change.nickname), to_unix(change.changed_at));
 
     const std::string author = show_author(change);
-    if (!author.empty()) {
-        line += std::format(" by {}", author);
-    }
+    if (!author.empty()) line += std::format(" by {}", author);
     return line;
 }
 
@@ -164,9 +154,7 @@ auto pending_nicknames::claim(dpp::snowflake guild_id, dpp::snowflake user_id, c
     const auto found = std::ranges::find_if(expected_, [&](const expectation& waiting) {
         return waiting.guild_id == guild_id && waiting.user_id == user_id && waiting.nickname == nickname && waiting.expires_at > now;
     });
-    if (found == expected_.end()) {
-        return false;
-    }
+    if (found == expected_.end()) return false;
 
     // Consumed, so two identical changes in a row are recorded as two changes.
     expected_.erase(found);
@@ -179,9 +167,7 @@ auto pending_nicknames::forget(dpp::snowflake guild_id, dpp::snowflake user_id, 
     const auto found = std::ranges::find_if(expected_, [&](const expectation& waiting) {
         return waiting.guild_id == guild_id && waiting.user_id == user_id && waiting.nickname == nickname;
     });
-    if (found != expected_.end()) {
-        expected_.erase(found);
-    }
+    if (found != expected_.end()) expected_.erase(found);
 }
 
 auto pending_nicknames::size() const -> std::size_t {
@@ -250,9 +236,7 @@ auto nickname_store::unattributed(dpp::snowflake guild_id, dpp::snowflake user_i
 
     while (query.step()) {
         nickname_change candidate = read_row(query);
-        if (describes(candidate, user_id, nickname)) {
-            return candidate;
-        }
+        if (describes(candidate, user_id, nickname)) return candidate;
     }
     return std::nullopt;
 }

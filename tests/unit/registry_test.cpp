@@ -29,9 +29,7 @@ public:
 
     auto execute(const dpp::slashcommand_t& /*event*/) -> dpp::task<void> override {
         ++runs;
-        if (should_throw) {
-            throw std::runtime_error("command blew up");
-        }
+        if (should_throw) throw std::runtime_error("command blew up");
         co_return;
     }
 

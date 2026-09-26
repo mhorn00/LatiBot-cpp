@@ -43,12 +43,8 @@ auto stderr_can_show_color() -> bool {
 #ifdef _WIN32
     auto* const handle = GetStdHandle(STD_ERROR_HANDLE);
     DWORD mode = 0;
-    if (handle == INVALID_HANDLE_VALUE || handle == nullptr || GetConsoleMode(handle, &mode) == 0) {
-        return false;
-    }
-    if ((mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0) {
-        return true;
-    }
+    if (handle == INVALID_HANDLE_VALUE || handle == nullptr || GetConsoleMode(handle, &mode) == 0) return false;
+    if ((mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0) return true;
     return SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
 #else
     return isatty(fileno(stderr)) != 0;
@@ -66,9 +62,7 @@ auto log_level_from_string(std::string_view name) -> std::optional<log_level> {
     const std::string lowered = to_lower(name);
 
     const auto found = std::ranges::find(level_names, lowered);
-    if (found == level_names.end()) {
-        return std::nullopt;
-    }
+    if (found == level_names.end()) return std::nullopt;
     return static_cast<log_level>(std::distance(level_names.begin(), found));
 }
 
@@ -77,9 +71,7 @@ auto log_level_from_string(std::string_view name) -> std::optional<log_level> {
 auto color_mode_from_string(std::string_view text) -> std::optional<color_mode> {
     const std::string wanted = to_lower(text);
 
-    if (wanted.empty() || wanted == "auto" || wanted == "automatic") {
-        return color_mode::automatic;
-    }
+    if (wanted.empty() || wanted == "auto" || wanted == "automatic") return color_mode::automatic;
     if (wanted == "always" || wanted == "on" || wanted == "true" || wanted == "1" || wanted == "yes" || wanted == "force") {
         return color_mode::always;
     }
@@ -125,17 +117,13 @@ auto apply_log_colors_from_environment() -> void {
 
     // After the decision, so the warning is itself shown the way the rest of
     // the log will be.
-    if (unrecognised) {
-        log().warn("LATIBOT_LOG_COLOR is \"{}\", expected auto, always or never; using auto", *unrecognised);
-    }
+    if (unrecognised) log().warn("LATIBOT_LOG_COLOR is \"{}\", expected auto, always or never; using auto", *unrecognised);
 }
 
 auto render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored) -> std::string {
     // One line per message, timestamp first, so logs stay greppable and sort
     // chronologically.
-    if (!colored) {
-        return std::format("{:%Y-%m-%dT%H:%M:%SZ} [{}] {}\n", stamp, to_string(level), message);
-    }
+    if (!colored) return std::format("{:%Y-%m-%dT%H:%M:%SZ} [{}] {}\n", stamp, to_string(level), message);
 
     const text_style when = palette.timestamp;
     const text_style tag = style_of(level);
@@ -181,9 +169,7 @@ auto logger::write(log_level level, std::string_view message) -> void {
     // The lock covers the sink call as well, so lines from different threads
     // do not interleave mid-message.
     const std::scoped_lock guard(mutex_);
-    if (level == log_level::off || level < level_) {
-        return;
-    }
+    if (level == log_level::off || level < level_) return;
 
     if (sink_) {
         sink_(level, message);

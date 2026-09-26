@@ -275,9 +275,7 @@ auto migrate(database& db, std::span<const migration> migrations) -> int {
     int version = db.user_version();
 
     for (const migration& step : migrations) {
-        if (step.version <= version) {
-            continue;
-        }
+        if (step.version <= version) continue;
         if (step.version != version + 1) {
             throw db_error(SQLITE_ERROR, "migration " + std::to_string(step.version) + " (" + std::string(step.name) +
                                              ") does not follow version " + std::to_string(version));

@@ -243,19 +243,19 @@ Command framework (`src/core/commands`)
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
 | a requirement of nothing is always met |  |  | [tests/unit/preflight_test.cpp:49](../../tests/unit/preflight_test.cpp#L49) |
 | permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
-| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:56](../../tests/unit/registry_test.cpp#L56) |
-| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:67](../../tests/unit/registry_test.cpp#L67) |
-| an empty name is refused |  |  | [tests/unit/registry_test.cpp:91](../../tests/unit/registry_test.cpp#L91) |
-| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:96](../../tests/unit/registry_test.cpp#L96) |
-| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:110](../../tests/unit/registry_test.cpp#L110) |
-| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:122](../../tests/unit/registry_test.cpp#L122) |
-| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:138](../../tests/unit/registry_test.cpp#L138) |
-| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:149](../../tests/unit/registry_test.cpp#L149) |
-| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:204](../../tests/unit/registry_test.cpp#L204) |
-| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:216](../../tests/unit/registry_test.cpp#L216) |
-| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:229](../../tests/unit/registry_test.cpp#L229) |
-| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:234](../../tests/unit/registry_test.cpp#L234) |
-| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:249](../../tests/unit/registry_test.cpp#L249) |
+| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:54](../../tests/unit/registry_test.cpp#L54) |
+| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:65](../../tests/unit/registry_test.cpp#L65) |
+| an empty name is refused |  |  | [tests/unit/registry_test.cpp:89](../../tests/unit/registry_test.cpp#L89) |
+| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:94](../../tests/unit/registry_test.cpp#L94) |
+| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:108](../../tests/unit/registry_test.cpp#L108) |
+| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:120](../../tests/unit/registry_test.cpp#L120) |
+| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:136](../../tests/unit/registry_test.cpp#L136) |
+| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:147](../../tests/unit/registry_test.cpp#L147) |
+| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:202](../../tests/unit/registry_test.cpp#L202) |
+| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:214](../../tests/unit/registry_test.cpp#L214) |
+| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
+| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
+| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
@@ -272,9 +272,9 @@ Command framework (`src/core/commands`)
 | a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:210](../../tests/unit/trigger_command_test.cpp#L210) |
 | the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:220](../../tests/unit/trigger_command_test.cpp#L220) |
 | confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:260](../../tests/unit/trigger_command_test.cpp#L260) |
-| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:298](../../tests/unit/trigger_command_test.cpp#L298) |
-| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:321](../../tests/unit/trigger_command_test.cpp#L321) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:340](../../tests/unit/trigger_command_test.cpp#L340) |
+| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:296](../../tests/unit/trigger_command_test.cpp#L296) |
+| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:319](../../tests/unit/trigger_command_test.cpp#L319) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:336](../../tests/unit/trigger_command_test.cpp#L336) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |
@@ -289,14 +289,14 @@ Command framework (`src/core/commands`)
 | a long list pages |  |  | [tests/unit/urlrepl_command_test.cpp:147](../../tests/unit/urlrepl_command_test.cpp#L147) |
 | the list and the panel say whether replacement is on |  |  | [tests/unit/urlrepl_command_test.cpp:161](../../tests/unit/urlrepl_command_test.cpp#L161) |
 | the panel's switch asks for the opposite of what is set |  |  | [tests/unit/urlrepl_command_test.cpp:173](../../tests/unit/urlrepl_command_test.cpp#L173) |
-| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:198](../../tests/unit/urlrepl_command_test.cpp#L198) |
-| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:217](../../tests/unit/urlrepl_command_test.cpp#L217) |
-| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:233](../../tests/unit/urlrepl_command_test.cpp#L233) |
-| confirming a delete on the first or last page fits, and Cancel keeps the rule picked |  |  | [tests/unit/urlrepl_command_test.cpp:251](../../tests/unit/urlrepl_command_test.cpp#L251) |
-| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:275](../../tests/unit/urlrepl_command_test.cpp#L275) |
-| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:286](../../tests/unit/urlrepl_command_test.cpp#L286) |
-| anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [tests/unit/urlrepl_command_test.cpp:302](../../tests/unit/urlrepl_command_test.cpp#L302) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:316](../../tests/unit/urlrepl_command_test.cpp#L316) |
+| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:196](../../tests/unit/urlrepl_command_test.cpp#L196) |
+| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:215](../../tests/unit/urlrepl_command_test.cpp#L215) |
+| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:231](../../tests/unit/urlrepl_command_test.cpp#L231) |
+| confirming a delete on the first or last page fits, and Cancel keeps the rule picked |  |  | [tests/unit/urlrepl_command_test.cpp:249](../../tests/unit/urlrepl_command_test.cpp#L249) |
+| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:273](../../tests/unit/urlrepl_command_test.cpp#L273) |
+| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:284](../../tests/unit/urlrepl_command_test.cpp#L284) |
+| anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [tests/unit/urlrepl_command_test.cpp:300](../../tests/unit/urlrepl_command_test.cpp#L300) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:314](../../tests/unit/urlrepl_command_test.cpp#L314) |
 
 ## events
 
@@ -304,20 +304,20 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a recompute credits an old replacement to whoever posted the link | `coro` |  | [tests/db/backfill_test.cpp:107](../../tests/db/backfill_test.cpp#L107) |
-| an old replacement is filed under the site its mirror stood in for | `coro` |  | [tests/db/backfill_test.cpp:136](../../tests/db/backfill_test.cpp#L136) |
-| a replacement after somebody else's link is reported, not credited to them | `coro` |  | [tests/db/backfill_test.cpp:152](../../tests/db/backfill_test.cpp#L152) |
-| a recompute is safe to run twice | `coro` |  | [tests/db/backfill_test.cpp:165](../../tests/db/backfill_test.cpp#L165) |
-| a finished channel is not scanned again unless asked | `coro` |  | [tests/db/backfill_test.cpp:177](../../tests/db/backfill_test.cpp#L177) |
-| the walk stops at the start of the range | `coro` |  | [tests/db/backfill_test.cpp:188](../../tests/db/backfill_test.cpp#L188) |
-| the end of the range is where paging starts | `coro` |  | [tests/db/backfill_test.cpp:202](../../tests/db/backfill_test.cpp#L202) |
-| a replacement the bot recorded itself is not re-attributed | `coro` |  | [tests/db/backfill_test.cpp:212](../../tests/db/backfill_test.cpp#L212) |
-| messages in no known format are listed by id | `coro` |  | [tests/db/backfill_test.cpp:229](../../tests/db/backfill_test.cpp#L229) |
-| a replacement with nobody to credit still counts its reactions | `coro` |  | [tests/db/backfill_test.cpp:240](../../tests/db/backfill_test.cpp#L240) |
-| a channel the bot cannot read is reported and the rest carry on | `coro` |  | [tests/db/backfill_test.cpp:253](../../tests/db/backfill_test.cpp#L253) |
-| a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:267](../../tests/db/backfill_test.cpp#L267) |
-| one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:280](../../tests/db/backfill_test.cpp#L280) |
-| without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:298](../../tests/db/backfill_test.cpp#L298) |
+| a recompute credits an old replacement to whoever posted the link | `coro` |  | [tests/db/backfill_test.cpp:105](../../tests/db/backfill_test.cpp#L105) |
+| an old replacement is filed under the site its mirror stood in for | `coro` |  | [tests/db/backfill_test.cpp:134](../../tests/db/backfill_test.cpp#L134) |
+| a replacement after somebody else's link is reported, not credited to them | `coro` |  | [tests/db/backfill_test.cpp:150](../../tests/db/backfill_test.cpp#L150) |
+| a recompute is safe to run twice | `coro` |  | [tests/db/backfill_test.cpp:163](../../tests/db/backfill_test.cpp#L163) |
+| a finished channel is not scanned again unless asked | `coro` |  | [tests/db/backfill_test.cpp:175](../../tests/db/backfill_test.cpp#L175) |
+| the walk stops at the start of the range | `coro` |  | [tests/db/backfill_test.cpp:186](../../tests/db/backfill_test.cpp#L186) |
+| the end of the range is where paging starts | `coro` |  | [tests/db/backfill_test.cpp:200](../../tests/db/backfill_test.cpp#L200) |
+| a replacement the bot recorded itself is not re-attributed | `coro` |  | [tests/db/backfill_test.cpp:210](../../tests/db/backfill_test.cpp#L210) |
+| messages in no known format are listed by id | `coro` |  | [tests/db/backfill_test.cpp:227](../../tests/db/backfill_test.cpp#L227) |
+| a replacement with nobody to credit still counts its reactions | `coro` |  | [tests/db/backfill_test.cpp:238](../../tests/db/backfill_test.cpp#L238) |
+| a channel the bot cannot read is reported and the rest carry on | `coro` |  | [tests/db/backfill_test.cpp:251](../../tests/db/backfill_test.cpp#L251) |
+| a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:265](../../tests/db/backfill_test.cpp#L265) |
+| one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:278](../../tests/db/backfill_test.cpp#L278) |
+| without any known mirror there is nothing to recognise | `coro` |  | [tests/db/backfill_test.cpp:296](../../tests/db/backfill_test.cpp#L296) |
 | a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:120](../../tests/unit/embed_watch_test.cpp#L120) |
 | the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:130](../../tests/unit/embed_watch_test.cpp#L130) |
 | a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:138](../../tests/unit/embed_watch_test.cpp#L138) |
@@ -369,12 +369,12 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | other bots' links are never the original |  |  | [tests/unit/legacy_replacements_test.cpp:219](../../tests/unit/legacy_replacements_test.cpp#L219) |
 | a front-page link proves nothing about which message was answered |  |  | [tests/unit/legacy_replacements_test.cpp:228](../../tests/unit/legacy_replacements_test.cpp#L228) |
 | a message's time comes from its id |  |  | [tests/unit/legacy_replacements_test.cpp:238](../../tests/unit/legacy_replacements_test.cpp#L238) |
-| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:55](../../tests/unit/message_pipeline_test.cpp#L55) |
-| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:68](../../tests/unit/message_pipeline_test.cpp#L68) |
-| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
-| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:115](../../tests/unit/message_pipeline_test.cpp#L115) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:130](../../tests/unit/message_pipeline_test.cpp#L130) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:147](../../tests/unit/message_pipeline_test.cpp#L147) |
+| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:51](../../tests/unit/message_pipeline_test.cpp#L51) |
+| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:64](../../tests/unit/message_pipeline_test.cpp#L64) |
+| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:79](../../tests/unit/message_pipeline_test.cpp#L79) |
+| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:111](../../tests/unit/message_pipeline_test.cpp#L111) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:126](../../tests/unit/message_pipeline_test.cpp#L126) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:143](../../tests/unit/message_pipeline_test.cpp#L143) |
 | the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:41](../../tests/unit/midnight_test.cpp#L41) |
 | a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:51](../../tests/unit/midnight_test.cpp#L51) |
 | an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:62](../../tests/unit/midnight_test.cpp#L62) |
@@ -494,13 +494,13 @@ Ports and mocks (`src/core/ports`, `tests/mocks`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:40](../../tests/unit/ports_test.cpp#L40) |
-| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:52](../../tests/unit/ports_test.cpp#L52) |
-| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:68](../../tests/unit/ports_test.cpp#L68) |
-| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:79](../../tests/unit/ports_test.cpp#L79) |
-| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:102](../../tests/unit/ports_test.cpp#L102) |
-| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:131](../../tests/unit/ports_test.cpp#L131) |
-| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:149](../../tests/unit/ports_test.cpp#L149) |
+| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:36](../../tests/unit/ports_test.cpp#L36) |
+| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:48](../../tests/unit/ports_test.cpp#L48) |
+| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:64](../../tests/unit/ports_test.cpp#L64) |
+| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:75](../../tests/unit/ports_test.cpp#L75) |
+| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:98](../../tests/unit/ports_test.cpp#L98) |
+| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:127](../../tests/unit/ports_test.cpp#L127) |
+| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:145](../../tests/unit/ports_test.cpp#L145) |
 
 ## log
 

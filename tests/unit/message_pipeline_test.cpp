@@ -33,9 +33,7 @@ auto recorder(std::vector<std::string>& ran, std::string name, bool consumes = f
         ran.push_back(name);
         stage_result result;
         result.consumed = consumes;
-        if (answers) {
-            result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = name});
-        }
+        if (answers) result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = name});
         return result;
     };
 }
@@ -43,9 +41,7 @@ auto recorder(std::vector<std::string>& ran, std::string name, bool consumes = f
 auto sent(const std::vector<action>& actions) -> std::vector<std::string> {
     std::vector<std::string> contents;
     for (const action& one : actions) {
-        if (const auto* post = std::get_if<send_message>(&one)) {
-            contents.push_back(post->content);
-        }
+        if (const auto* post = std::get_if<send_message>(&one)) contents.push_back(post->content);
     }
     return contents;
 }

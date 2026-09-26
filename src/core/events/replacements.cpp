@@ -20,9 +20,7 @@ auto to_string(replacement_state state) noexcept -> std::string_view {
 
 auto replacement_state_from_string(std::string_view name) -> std::optional<replacement_state> {
     for (std::size_t index = 0; index < state_names.size(); ++index) {
-        if (state_names[index] == name) {
-            return static_cast<replacement_state>(index);
-        }
+        if (state_names[index] == name) return static_cast<replacement_state>(index);
     }
     return std::nullopt;
 }
@@ -63,9 +61,7 @@ auto replacement_store::find(dpp::snowflake message_id) const -> std::optional<r
             "SELECT guild_id, channel_id, original_message_id, original_author_id, state, created_at, retried_at "
             "FROM replacement_messages WHERE message_id = ?",
             message_id);
-        if (!query.step()) {
-            return std::nullopt;
-        }
+        if (!query.step()) return std::nullopt;
 
         entry.message_id = message_id;
         entry.guild_id = query.get<dpp::snowflake>(0);
@@ -121,9 +117,7 @@ auto replacement_store::unsettled() const -> std::vector<replacement_record> {
     std::vector<replacement_record> found;
     found.reserve(ids.size());
     for (const dpp::snowflake id : ids) {
-        if (auto entry = find(id)) {
-            found.push_back(std::move(*entry));
-        }
+        if (auto entry = find(id)) found.push_back(std::move(*entry));
     }
     return found;
 }

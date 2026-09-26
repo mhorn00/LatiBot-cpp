@@ -112,9 +112,7 @@ public:
     [[nodiscard]] auto get(int column) const -> T {
         if constexpr (detail::is_optional<T>::value) {
             using value_type = detail::is_optional<T>::value_type;
-            if (is_null(column)) {
-                return std::nullopt;
-            }
+            if (is_null(column)) return std::nullopt;
             return get<value_type>(column);
         } else if constexpr (std::same_as<T, dpp::snowflake>) {
             return dpp::snowflake(static_cast<std::uint64_t>(column_int64(column)));

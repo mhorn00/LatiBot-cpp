@@ -40,9 +40,7 @@ auto to_result(const rest_reply& reply) -> ports::result<nlohmann::json> {
         // Discord explains itself in the body; a bare status is rarely enough
         // to tell what went wrong with a hand-built request.
         std::string message = "Discord returned " + std::to_string(http.status);
-        if (body.contains("message") && body["message"].is_string()) {
-            message += ": " + body["message"].get<std::string>();
-        }
+        if (body.contains("message") && body["message"].is_string()) message += ": " + body["message"].get<std::string>();
         return ports::api_error{.http_status = http.status, .message = message};
     }
 
@@ -55,9 +53,7 @@ auto build_endpoint(std::string_view path) -> std::string {
     std::string endpoint(path);
 
     if (!endpoint.starts_with("/api/")) {
-        if (!endpoint.starts_with('/')) {
-            endpoint.insert(endpoint.begin(), '/');
-        }
+        if (!endpoint.starts_with('/')) endpoint.insert(endpoint.begin(), '/');
         endpoint.insert(0, API_PATH);
     }
 

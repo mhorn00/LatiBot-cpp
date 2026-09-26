@@ -27,9 +27,7 @@ struct named_user {
 auto user_option(const dpp::slashcommand_t& event, const char* name) -> std::optional<named_user> {
     const dpp::command_value value = event.get_parameter(name);
     const auto* id = std::get_if<dpp::snowflake>(&value);
-    if (id == nullptr || id->empty()) {
-        return std::nullopt;
-    }
+    if (id == nullptr || id->empty()) return std::nullopt;
 
     // The interaction carries the user it resolved, so this needs no lookup.
     const auto found = event.command.resolved.users.find(*id);
@@ -40,9 +38,7 @@ auto user_option(const dpp::slashcommand_t& event, const char* name) -> std::opt
 auto nickname_option(const dpp::slashcommand_t& event) -> std::optional<std::string> {
     const dpp::command_value value = event.get_parameter("nickname");
     const auto* text = std::get_if<std::string>(&value);
-    if (text == nullptr || text->empty()) {
-        return std::nullopt;
-    }
+    if (text == nullptr || text->empty()) return std::nullopt;
     return *text;
 }
 
@@ -51,9 +47,7 @@ auto nickname_option(const dpp::slashcommand_t& event) -> std::optional<std::str
 auto explain(const dpp::error_info& error) -> std::string {
     // 50013 is Missing Permissions, which for a nickname almost always means
     // the target sits above the bot in the role list.
-    if (error.code == 50013) {
-        return "Discord says no: they are probably above me in the role list, or i am missing Manage Nicknames.";
-    }
+    if (error.code == 50013) return "Discord says no: they are probably above me in the role list, or i am missing Manage Nicknames.";
     return error.human_readable.empty() ? std::string("Discord refused that one, and did not say why.") : error.human_readable;
 }
 
@@ -84,9 +78,7 @@ auto render_nickname_history(std::span<const events::nickname_change> history, d
 
     const auto row = ui::controls({.view = std::string(nickname_history_view), .page = current, .argument = user_id.str()}, history.size(),
                                   nicknames_per_page);
-    if (row) {
-        reply.add_component(*row);
-    }
+    if (row) reply.add_component(*row);
     return reply;
 }
 

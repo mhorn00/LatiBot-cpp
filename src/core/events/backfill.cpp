@@ -20,9 +20,7 @@ constexpr std::size_t problem_limit = 20;
 
 auto note(backfill_report& report, std::string problem) -> void {
     util::log().warn("link stats recompute: {}", problem);
-    if (report.problems.size() < problem_limit) {
-        report.problems.push_back(std::move(problem));
-    }
+    if (report.problems.size() < problem_limit) report.problems.push_back(std::move(problem));
 }
 
 /// The links an old replacement carried, with the site each mirror stood in
@@ -35,22 +33,16 @@ auto links_of(const legacy_match& match, const mirror_map& mirrors) -> std::vect
     std::vector<planned_link> links;
     for (const std::string& url : match.mirror_urls) {
         const auto parts = util::split_url(url);
-        if (!parts) {
-            continue;
-        }
+        if (!parts) continue;
         const auto site = mirrors.find(util::rule_host(parts->authority));
-        if (site != mirrors.end()) {
-            links.push_back({.original_url = url, .domain = site->second, .spoilered = false, .mirrors = {}});
-        }
+        if (site != mirrors.end()) links.push_back({.original_url = url, .domain = site->second, .spoilered = false, .mirrors = {}});
     }
     return links;
 }
 
 /// How the reactions endpoint wants an emoji: itself, or `name:id`.
 auto emoji_for_api(const history_message::reaction_count& reaction) -> std::string {
-    if (reaction.emoji_id.empty()) {
-        return reaction.emoji_name;
-    }
+    if (reaction.emoji_id.empty()) return reaction.emoji_name;
     return std::format("{}:{}", reaction.emoji_name.empty() ? "_" : reaction.emoji_name, reaction.emoji_id);
 }
 
@@ -64,9 +56,7 @@ auto backfill_progress_store::find(dpp::snowflake guild_id, dpp::snowflake chann
         "SELECT oldest_scanned_id, complete FROM backfill_progress "
         "WHERE guild_id = ? AND channel_id = ? AND since = ? AND until IS ?",
         guild_id, channel_id, since, until);
-    if (!query.step()) {
-        return std::nullopt;
-    }
+    if (!query.step()) return std::nullopt;
 
     channel_progress found;
     found.oldest_scanned = query.get<std::optional<dpp::snowflake>>(0);
@@ -105,9 +95,7 @@ auto backfill_service::end(dpp::snowflake guild_id) -> void {
 auto backfill_service::cancel(dpp::snowflake guild_id) -> bool {
     const std::scoped_lock guard(mutex_);
     const auto found = jobs_.find(guild_id);
-    if (found == jobs_.end()) {
-        return false;
-    }
+    if (found == jobs_.end()) return false;
     found->second->store(true);
     return true;
 }
@@ -150,9 +138,7 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
 
         co_await scan_channel({.request = &request, .channel_id = channel, .mirrors = &mirrors, .cancelled = cancelled}, report, progress,
                               next_progress);
-        if (report.cancelled) {
-            break;
-        }
+        if (report.cancelled) break;
         ++report.channels_done;
     }
 
@@ -183,15 +169,11 @@ auto backfill_service::page_before(dpp::snowflake channel_id, dpp::snowflake bef
 auto backfill_service::starting_point(const channel_scan& scan) const -> std::optional<dpp::snowflake> {
     const backfill_request& request = *scan.request;
     const auto saved = request.fresh ? std::nullopt : progress_->find(request.guild_id, scan.channel_id, request.since, request.until);
-    if (saved && saved->complete) {
-        return std::nullopt;
-    }
+    if (saved && saved->complete) return std::nullopt;
 
     // Newest first from the end of the range, or from where an earlier run
     // stopped.
-    if (saved && saved->oldest_scanned) {
-        return *saved->oldest_scanned;
-    }
+    if (saved && saved->oldest_scanned) return *saved->oldest_scanned;
     return request.until ? first_id_at(*request.until) : dpp::snowflake{};
 }
 
@@ -207,9 +189,7 @@ auto backfill_service::scan_page(const channel_scan& scan, std::vector<history_m
     std::vector<history_message> next;
     if (page.size() == history_page_size) {
         auto fetched = co_await page_before(scan.channel_id, page.back().id, report);
-        if (!fetched) {
-            co_return std::nullopt;
-        }
+        if (!fetched) co_return std::nullopt;
         next = std::move(*fetched);
     }
 
@@ -238,9 +218,7 @@ auto backfill_service::scan_page(const channel_scan& scan, std::vector<history_m
     // page. An empty result tells the caller this channel is finished.
     const bool done = reached_since || next.empty();
     save_progress(scan, {.oldest_scanned = oldest, .complete = done});
-    if (done) {
-        next.clear();
-    }
+    if (done) next.clear();
     co_return std::move(next);
 }
 
@@ -253,9 +231,7 @@ auto backfill_service::scan_channel(channel_scan scan, backfill_report& report, 
     }
 
     auto first = co_await page_before(scan.channel_id, *start, report);
-    if (!first) {
-        co_return;
-    }
+    if (!first) co_return;
     if (first->empty()) {
         save_progress(scan, {.oldest_scanned = std::nullopt, .complete = true});
         co_return;
@@ -270,9 +246,7 @@ auto backfill_service::scan_channel(channel_scan scan, backfill_report& report, 
 
         // Empty once the range or the channel runs out.
         auto next = co_await scan_page(scan, std::move(page), report);
-        if (!next) {
-            co_return;
-        }
+        if (!next) co_return;
 
         if (progress && report.scanned >= next_progress) {
             co_await progress(report);
@@ -315,9 +289,7 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
         attribution found = attribute(message, match, older, request.bot_id);
         if (found.needs_fetch && found.original_message_id) {
             const auto original = co_await discord_->get_message(scan.channel_id, *found.original_message_id);
-            if (original.ok()) {
-                found.author_id = original.value().author.id;
-            }
+            if (original.ok()) found.author_id = original.value().author.id;
         }
         if (found.skipped_a_link) {
             util::log().debug("link stats recompute: message {} answered a link further back than the nearest one", message.id);
@@ -368,9 +340,7 @@ auto backfill_service::reactors(dpp::snowflake channel_id, const history_message
     std::vector<reaction_store::observed> seen;
 
     for (const history_message::reaction_count& reaction : message.reactions) {
-        if (reaction.count == 0) {
-            continue;
-        }
+        if (reaction.count == 0) continue;
 
         const emoji_ref emoji = reaction_emoji(reaction.emoji_id, reaction.emoji_name);
         reactions_->remember(emoji);
@@ -381,16 +351,12 @@ auto backfill_service::reactors(dpp::snowflake channel_id, const history_message
         while (true) {
             const auto page =
                 co_await discord_->get_reaction_users(channel_id, message.id, emoji_for_api(reaction), after, reactor_page_size);
-            if (!page.ok()) {
-                co_return std::nullopt;
-            }
+            if (!page.ok()) co_return std::nullopt;
             for (const dpp::snowflake user_id : page.value()) {
                 seen.push_back({.user_id = user_id, .emoji_key = emoji.key});
                 after = std::max(after, user_id);
             }
-            if (page.value().size() < reactor_page_size) {
-                break;
-            }
+            if (page.value().size() < reactor_page_size) break;
         }
     }
 

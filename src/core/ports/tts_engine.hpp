@@ -27,9 +27,7 @@ struct pcm_audio {
     std::uint8_t channels = 1;
 
     [[nodiscard]] auto duration() const -> std::chrono::milliseconds {
-        if (sample_rate == 0 || channels == 0) {
-            return std::chrono::milliseconds{0};
-        }
+        if (sample_rate == 0 || channels == 0) return std::chrono::milliseconds{0};
         const auto frames = samples.size() / channels;
         return std::chrono::milliseconds{(frames * 1000) / sample_rate};
     }

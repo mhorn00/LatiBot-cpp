@@ -31,22 +31,16 @@ constexpr std::size_t select_option_limit = 100;
 /// Splits a leading "<weight> |" off a response line.
 auto leading_weight(std::string_view& line) -> std::optional<int> {
     const std::size_t bar = line.find('|');
-    if (bar == std::string_view::npos) {
-        return std::nullopt;
-    }
+    if (bar == std::string_view::npos) return std::nullopt;
 
     const std::string_view head = util::trim(line.substr(0, bar));
-    if (head.empty()) {
-        return std::nullopt;
-    }
+    if (head.empty()) return std::nullopt;
 
     int weight = 0;
     const char* begin = head.data();
     const char* end = begin + head.size();
     const auto [stop, error] = std::from_chars(begin, end, weight);
-    if (error != std::errc{} || stop != end || weight < 0) {
-        return std::nullopt;
-    }
+    if (error != std::errc{} || stop != end || weight < 0) return std::nullopt;
 
     line = line.substr(bar + 1);
     return weight;
@@ -60,9 +54,7 @@ auto parse_responses(std::string_view text) -> std::vector<events::weighted_resp
     for (std::string_view line : util::lines(text)) {
         const std::optional<int> weight = leading_weight(line);
         const std::string_view body = util::trim(line);
-        if (body.empty()) {
-            continue;
-        }
+        if (body.empty()) continue;
 
         responses.push_back({.text = std::string(body), .weight = weight.value_or(1)});
     }
@@ -73,9 +65,7 @@ auto parse_responses(std::string_view text) -> std::vector<events::weighted_resp
 auto format_responses(std::span<const events::weighted_response> responses) -> std::string {
     std::string text;
     for (const events::weighted_response& option : responses) {
-        if (!text.empty()) {
-            text.push_back('\n');
-        }
+        if (!text.empty()) text.push_back('\n');
         // The weight is only written back when it is not the default, so a
         // trigger nobody weighted round-trips as plain lines.
         if (option.weight == 1) {
@@ -92,15 +82,9 @@ auto describe(const events::trigger& entry) -> std::string {
     const std::string cooldown = entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s", entry.cooldown.count());
 
     std::string line = std::format("`{}` **{}** ({}, {}", entry.id, entry.pattern, mode, cooldown);
-    if (!entry.enabled) {
-        line += ", disabled";
-    }
-    if (entry.respond_to_bots) {
-        line += ", answers bots";
-    }
-    if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) {
-        line += ", " + options;
-    }
+    if (!entry.enabled) line += ", disabled";
+    if (entry.respond_to_bots) line += ", answers bots";
+    if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) line += ", " + options;
     line += std::format(") -> {} response{}", entry.responses.size(), entry.responses.size() == 1 ? "" : "s");
     return line;
 }
@@ -124,9 +108,7 @@ auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guil
     dpp::message reply(body);
 
     const auto row = ui::controls({.view = std::string(trigger_list_view), .page = current, .argument = {}}, all.size(), triggers_per_page);
-    if (row) {
-        reply.add_component(*row);
-    }
+    if (row) reply.add_component(*row);
     return reply;
 }
 
@@ -263,9 +245,7 @@ auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> 
     // Every option is optional: an edit changes what was given and leaves the
     // rest alone, so fixing a cooldown does not mean retyping the responses.
     const std::string pattern = std::string(util::trim(string_option(event, "pattern")));
-    if (!pattern.empty()) {
-        entry->pattern = pattern;
-    }
+    if (!pattern.empty()) entry->pattern = pattern;
 
     const std::string responses_text = string_option(event, "responses");
     if (!responses_text.empty()) {
@@ -277,12 +257,8 @@ auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> 
         entry->responses = responses;
     }
 
-    if (const auto mode = events::match_mode_from_string(string_option(event, "mode"))) {
-        entry->mode = *mode;
-    }
-    if (const auto cooldown = int_option(event, "cooldown")) {
-        entry->cooldown = std::chrono::seconds(*cooldown);
-    }
+    if (const auto mode = events::match_mode_from_string(string_option(event, "mode"))) entry->mode = *mode;
+    if (const auto cooldown = int_option(event, "cooldown")) entry->cooldown = std::chrono::seconds(*cooldown);
 
     entry->enabled = bool_option(event, "enabled").value_or(entry->enabled);
 
@@ -330,14 +306,10 @@ auto trigger_command::panel(const dpp::slashcommand_t& event) -> dpp::task<void>
 
 auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optional<std::string> {
     const std::string_view pattern = util::trim(fields.pattern);
-    if (pattern.empty()) {
-        return "a pattern of only whitespace would match everything";
-    }
+    if (pattern.empty()) return "a pattern of only whitespace would match everything";
 
     const auto responses = parse_responses(fields.responses);
-    if (responses.empty()) {
-        return "that leaves no responses to pick from";
-    }
+    if (responses.empty()) return "that leaves no responses to pick from";
 
     entry.pattern = std::string(pattern);
     entry.responses = responses;
@@ -345,9 +317,7 @@ auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optio
     // The optional fields are left as they were when they cannot be read,
     // rather than reset: someone typing "thirty" into the cooldown box should
     // not silently lose the cooldown they had.
-    if (const auto mode = events::match_mode_from_string(fields.mode)) {
-        entry.mode = *mode;
-    }
+    if (const auto mode = events::match_mode_from_string(fields.mode)) entry.mode = *mode;
 
     const std::string_view cooldown = util::trim(fields.cooldown);
     if (!cooldown.empty()) {
@@ -355,9 +325,7 @@ auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optio
         const char* begin = cooldown.data();
         const char* end = begin + cooldown.size();
         const auto [stop, error] = std::from_chars(begin, end, seconds);
-        if (error == std::errc{} && stop == end && seconds >= 0) {
-            entry.cooldown = std::chrono::seconds(seconds);
-        }
+        if (error == std::errc{} && stop == end && seconds >= 0) entry.cooldown = std::chrono::seconds(seconds);
     }
 
     return std::nullopt;
@@ -373,9 +341,7 @@ auto button(dpp::component_style style, std::string_view label, const std::strin
 /// lines above it.
 auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t selected) -> std::optional<dpp::component> {
     const auto id = ui::encode({.view = std::string(trigger_pick_view), .page = page, .argument = {}});
-    if (page_of.empty() || !id) {
-        return std::nullopt;
-    }
+    if (page_of.empty() || !id) return std::nullopt;
 
     dpp::component menu;
     menu.set_type(dpp::cot_selectmenu).set_placeholder("Pick a trigger to edit or delete").set_id(*id);
@@ -399,9 +365,7 @@ auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t 
 /// there is nothing left behind if it is ignored (plan §9.5).
 auto selection_row(std::span<const events::trigger> page_of, int page, std::int64_t selected, bool confirming_delete)
     -> std::optional<dpp::component> {
-    if (selected == 0) {
-        return std::nullopt;
-    }
+    if (selected == 0) return std::nullopt;
 
     const std::string chosen = std::to_string(selected);
     dpp::component row;
@@ -414,9 +378,7 @@ auto selection_row(std::span<const events::trigger> page_of, int page, std::int6
         // custom_id twice.
         const auto yes = ui::encode({.view = std::string(trigger_confirm_view), .page = page, .argument = chosen});
         const auto no = ui::encode({.view = std::string(trigger_panel_view), .page = page, .argument = chosen});
-        if (!yes || !no) {
-            return std::nullopt;
-        }
+        if (!yes || !no) return std::nullopt;
         row.add_component(button(dpp::cos_danger, std::format("Delete {}", chosen), *yes));
         row.add_component(button(dpp::cos_secondary, "Cancel", *no));
         return row;
@@ -426,9 +388,7 @@ auto selection_row(std::span<const events::trigger> page_of, int page, std::int6
     const auto del = ui::encode({.view = std::string(trigger_delete_view), .page = page, .argument = chosen});
     const auto toggle = ui::encode({.view = std::string(trigger_toggle_view), .page = page, .argument = chosen});
     const auto bots = ui::encode({.view = std::string(trigger_bots_view), .page = page, .argument = chosen});
-    if (!edit || !del || !toggle || !bots) {
-        return std::nullopt;
-    }
+    if (!edit || !del || !toggle || !bots) return std::nullopt;
 
     // The labels say what pressing them does, which means reading the
     // trigger's current state rather than showing a fixed word.
@@ -479,16 +439,12 @@ constexpr std::array<std::pair<std::string_view, trigger_toggle>, 4> toggles{{
 auto reply_options_row(std::span<const events::trigger> page_of, int page, std::int64_t selected, bool confirming_delete)
     -> std::optional<dpp::component> {
     const auto found = std::ranges::find(page_of, selected, &events::trigger::id);
-    if (selected == 0 || confirming_delete || found == page_of.end()) {
-        return std::nullopt;
-    }
+    if (selected == 0 || confirming_delete || found == page_of.end()) return std::nullopt;
 
     const std::string chosen = std::to_string(selected);
     const auto silent = ui::encode({.view = std::string(trigger_silent_view), .page = page, .argument = chosen});
     const auto previews = ui::encode({.view = std::string(trigger_previews_view), .page = page, .argument = chosen});
-    if (!silent || !previews) {
-        return std::nullopt;
-    }
+    if (!silent || !previews) return std::nullopt;
 
     const bool is_silent = (found->message_flags & dpp::m_suppress_notifications) != 0;
     const bool hides_previews = (found->message_flags & dpp::m_suppress_embeds) != 0;
@@ -548,18 +504,10 @@ auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake gui
 
     dpp::message reply(body);
 
-    if (const auto menu = pick_menu(page_of, current, selected)) {
-        reply.add_component(*menu);
-    }
-    if (const auto row = selection_row(page_of, current, selected, confirming_delete)) {
-        reply.add_component(*row);
-    }
-    if (const auto row = reply_options_row(page_of, current, selected, confirming_delete)) {
-        reply.add_component(*row);
-    }
-    if (const auto footer = footer_row(current, all.size())) {
-        reply.add_component(*footer);
-    }
+    if (const auto menu = pick_menu(page_of, current, selected)) reply.add_component(*menu);
+    if (const auto row = selection_row(page_of, current, selected, confirming_delete)) reply.add_component(*row);
+    if (const auto row = reply_options_row(page_of, current, selected, confirming_delete)) reply.add_component(*row);
+    if (const auto footer = footer_row(current, all.size())) reply.add_component(*footer);
 
     return reply;
 }

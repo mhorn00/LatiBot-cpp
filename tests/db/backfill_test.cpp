@@ -45,9 +45,7 @@ auto message(dpp::snowflake id, dpp::snowflake author, const std::string& conten
     dpp::message made(channel, content);
     made.id = id;
     made.author.id = author;
-    if (is_bot) {
-        made.author.flags |= dpp::u_bot;
-    }
+    if (is_bot) made.author.flags |= dpp::u_bot;
     return made;
 }
 

@@ -16,9 +16,7 @@ using json = nlohmann::json;
 
 /// An id the Java bot wrote as a string, or nothing when it is not one.
 auto read_id(const json& value) -> std::optional<dpp::snowflake> {
-    if (!value.is_string()) {
-        return std::nullopt;
-    }
+    if (!value.is_string()) return std::nullopt;
     return util::parse_snowflake(value.get<std::string>());
 }
 
@@ -49,9 +47,7 @@ auto read_entry(const json& element, dpp::snowflake guild_id, dpp::snowflake use
 
     std::optional<dpp::snowflake> author;
     if (element.contains("changedById")) {
-        if (const auto claimed = read_id(element.at("changedById"))) {
-            author = imported_author(user_id, *claimed);
-        }
+        if (const auto claimed = read_id(element.at("changedById"))) author = imported_author(user_id, *claimed);
     }
 
     report.entries.push_back({.guild_id = guild_id,
@@ -83,9 +79,7 @@ auto read_member(const json& record, dpp::snowflake guild_id, import_report& rep
     }
 
     std::string username;
-    if (member.contains("username") && member.at("username").is_string()) {
-        username = member.at("username").get<std::string>();
-    }
+    if (member.contains("username") && member.at("username").is_string()) username = member.at("username").get<std::string>();
     report.members.emplace_back(*user_id, std::move(username));
 
     const auto& entries = record.at("nicknames");
@@ -105,9 +99,7 @@ auto central_time_to_utc(std::string_view local_text) -> std::optional<std::chro
     std::istringstream stream{std::string(local_text)};
     std::chrono::local_seconds local{};
     stream >> std::chrono::parse("%Y-%m-%d %H:%M:%S", local);
-    if (stream.fail()) {
-        return std::nullopt;
-    }
+    if (stream.fail()) return std::nullopt;
 
     const std::chrono::time_zone* zone = nullptr;
     try {
@@ -133,9 +125,7 @@ auto central_time_to_utc(std::string_view local_text) -> std::optional<std::chro
 }
 
 auto imported_author(dpp::snowflake user_id, dpp::snowflake changed_by) -> std::optional<dpp::snowflake> {
-    if (changed_by.empty() || changed_by == user_id) {
-        return std::nullopt;
-    }
+    if (changed_by.empty() || changed_by == user_id) return std::nullopt;
     return changed_by;
 }
 
@@ -171,9 +161,7 @@ auto read_nicknames_json(std::string_view text) -> import_report {
 auto import_nicknames(nickname_store& store, const import_report& report) -> int {
     int added = 0;
     for (const nickname_change& entry : report.entries) {
-        if (store.already_recorded(entry.guild_id, entry.user_id, entry.nickname, entry.changed_at)) {
-            continue;
-        }
+        if (store.already_recorded(entry.guild_id, entry.user_id, entry.nickname, entry.changed_at)) continue;
         store.record(entry);
         ++added;
     }
@@ -182,9 +170,7 @@ auto import_nicknames(nickname_store& store, const import_report& report) -> int
 
 auto import_nicknames_file(nickname_store& store, const std::filesystem::path& path) -> std::optional<int> {
     const std::ifstream file(path);
-    if (!file) {
-        return std::nullopt;
-    }
+    if (!file) return std::nullopt;
 
     std::ostringstream contents;
     contents << file.rdbuf();

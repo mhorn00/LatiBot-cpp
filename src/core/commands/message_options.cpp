@@ -13,9 +13,7 @@ namespace {
 auto apply_option(const dpp::slashcommand_t& event, const char* name, discord::message_flags bit, bool on_means_set,
                   discord::message_flags& flags) -> void {
     const std::optional<bool> chosen = bool_option(event, name);
-    if (!chosen) {
-        return;
-    }
+    if (!chosen) return;
 
     const bool set = *chosen == on_means_set;
     flags = static_cast<discord::message_flags>(set ? flags | bit : flags & ~bit);
@@ -35,12 +33,8 @@ auto apply_message_options(const dpp::slashcommand_t& event, discord::message_fl
 
 auto describe_message_options(discord::message_flags flags) -> std::string {
     std::string text;
-    if ((flags & dpp::m_suppress_notifications) == 0) {
-        text = "notifies";
-    }
-    if ((flags & dpp::m_suppress_embeds) != 0) {
-        text += text.empty() ? "no previews" : ", no previews";
-    }
+    if ((flags & dpp::m_suppress_notifications) == 0) text = "notifies";
+    if ((flags & dpp::m_suppress_embeds) != 0) text += text.empty() ? "no previews" : ", no previews";
     return text;
 }
 

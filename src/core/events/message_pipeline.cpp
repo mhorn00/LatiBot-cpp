@@ -16,9 +16,7 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
 
     // Answering ourselves is a loop with no exit. Answering another bot is one
     // too, unless this guild has said it wants that (plan §5.4).
-    if (message.from_self) {
-        return actions;
-    }
+    if (message.from_self) return actions;
     if (message.from_bot && !message.author_is_allowed_bot) {
         // Debug rather than trace: "why did the bot ignore the other bot" is a
         // question worth being able to answer without raising the level twice.
@@ -53,9 +51,7 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
 
         actions.insert(actions.end(), std::make_move_iterator(result.actions.begin()), std::make_move_iterator(result.actions.end()));
 
-        if (result.consumed) {
-            break;
-        }
+        if (result.consumed) break;
     }
 
     return actions;

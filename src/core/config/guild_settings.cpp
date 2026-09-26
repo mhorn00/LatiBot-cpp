@@ -12,9 +12,7 @@ namespace latibot::config {
 
 auto guild_settings::find(dpp::snowflake guild_id, std::string_view key) const -> std::optional<std::string> {
     auto query = db_->prepare("SELECT value FROM guild_settings WHERE guild_id = ? AND key = ?", guild_id, key);
-    if (!query.step()) {
-        return std::nullopt;
-    }
+    if (!query.step()) return std::nullopt;
     return query.get<std::string>(0);
 }
 
@@ -24,44 +22,32 @@ auto guild_settings::get(dpp::snowflake guild_id, std::string_view key, std::str
 
 auto guild_settings::get_int(dpp::snowflake guild_id, std::string_view key, std::int64_t fallback) const -> std::int64_t {
     const auto stored = find(guild_id, key);
-    if (!stored) {
-        return fallback;
-    }
+    if (!stored) return fallback;
 
     std::int64_t parsed = 0;
     const char* begin = stored->data();
     const char* end = begin + stored->size();
     const auto [stop, error] = std::from_chars(begin, end, parsed);
-    if (error != std::errc{} || stop != end) {
-        return fallback;
-    }
+    if (error != std::errc{} || stop != end) return fallback;
     return parsed;
 }
 
 auto guild_settings::get_bool(dpp::snowflake guild_id, std::string_view key, bool fallback) const -> bool {
     const auto stored = find(guild_id, key);
-    if (!stored) {
-        return fallback;
-    }
+    if (!stored) return fallback;
 
     const std::string text = util::to_lower(*stored);
     static constexpr std::array truthy{"1", "true", "yes", "on"};
     static constexpr std::array falsy{"0", "false", "no", "off"};
 
-    if (std::ranges::find(truthy, text) != truthy.end()) {
-        return true;
-    }
-    if (std::ranges::find(falsy, text) != falsy.end()) {
-        return false;
-    }
+    if (std::ranges::find(truthy, text) != truthy.end()) return true;
+    if (std::ranges::find(falsy, text) != falsy.end()) return false;
     return fallback;
 }
 
 auto guild_settings::get_real(dpp::snowflake guild_id, std::string_view key, double fallback) const -> double {
     const auto stored = find(guild_id, key);
-    if (!stored) {
-        return fallback;
-    }
+    if (!stored) return fallback;
 
     try {
         std::size_t consumed = 0;

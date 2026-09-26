@@ -71,19 +71,13 @@ auto list_backups(const std::filesystem::path& directory, std::string_view prefi
     std::vector<std::filesystem::path> backups;
 
     std::error_code error;
-    if (!std::filesystem::is_directory(directory, error)) {
-        return backups;
-    }
+    if (!std::filesystem::is_directory(directory, error)) return backups;
 
     const std::string match = std::string(prefix) + "-";
     for (const auto& entry : std::filesystem::directory_iterator(directory, error)) {
-        if (!entry.is_regular_file()) {
-            continue;
-        }
+        if (!entry.is_regular_file()) continue;
         const std::string name = to_utf8(entry.path().filename());
-        if (name.starts_with(match) && name.ends_with(".db")) {
-            backups.push_back(entry.path());
-        }
+        if (name.starts_with(match) && name.ends_with(".db")) backups.push_back(entry.path());
     }
 
     // The timestamp format sorts chronologically as text, so the names alone
@@ -93,22 +87,16 @@ auto list_backups(const std::filesystem::path& directory, std::string_view prefi
 }
 
 auto rotate_backups(const std::filesystem::path& directory, std::string_view prefix, int keep) -> int {
-    if (keep < 0) {
-        return 0;
-    }
+    if (keep < 0) return 0;
 
     std::vector<std::filesystem::path> backups = list_backups(directory, prefix);
-    if (std::cmp_less_equal(backups.size(), keep)) {
-        return 0;
-    }
+    if (std::cmp_less_equal(backups.size(), keep)) return 0;
 
     const std::size_t excess = backups.size() - static_cast<std::size_t>(keep);
     int removed = 0;
     for (std::size_t i = 0; i < excess; ++i) {
         std::error_code error;
-        if (std::filesystem::remove(backups[i], error)) {
-            ++removed;
-        }
+        if (std::filesystem::remove(backups[i], error)) ++removed;
     }
     return removed;
 }

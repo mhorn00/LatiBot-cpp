@@ -21,16 +21,12 @@ namespace {
 /// reports what happened rather than doing the I/O itself.
 auto post_then_edit(latibot::ports::discord_gateway& gateway) -> dpp::task<std::string> {
     const auto sent = co_await gateway.send_message(dpp::message(dpp::snowflake{42}, "hello"));
-    if (!sent.ok()) {
-        co_return "send failed: " + sent.error().message;
-    }
+    if (!sent.ok()) co_return "send failed: " + sent.error().message;
 
     dpp::message updated = sent.value();
     updated.content = "edited";
     const auto edited = co_await gateway.edit_message(updated);
-    if (!edited.ok()) {
-        co_return "edit failed";
-    }
+    if (!edited.ok()) co_return "edit failed";
 
     co_return "ok:" + std::to_string(static_cast<std::uint64_t>(sent.value().id));
 }
