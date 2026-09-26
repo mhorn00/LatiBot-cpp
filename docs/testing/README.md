@@ -206,6 +206,14 @@ audit-log timing, whether embeds actually appear.
 | OpenCppCoverage | line coverage report | optional, local |
 | GitHub Actions | build and test on every push | `.github/workflows/ci.yml` |
 
+**What CI checks, and what is left to you.** On every push and pull request,
+CI builds Debug and Release and runs both test presets, checks the test
+catalog is current and the formatting is clean, and scans for secrets.
+AddressSanitizer, clang-tidy and fuzzing are local only, as they are slow or
+need components the runner would have to build first. So before calling a
+change done, run `ctest --preset asan` and `tools/Invoke-ClangTidy.ps1`
+yourself; the VS Code tasks do both.
+
 CI has no Discord token and no audio device. That is deliberate: it is the
 reason logic lives behind ports rather than inside event handlers.
 

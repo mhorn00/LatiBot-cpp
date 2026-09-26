@@ -12,8 +12,20 @@ concurrency:
 
 jobs:
   build-test:
-    name: Build and test (Windows, MSVC)
+    name: Build and test (Windows, MSVC, ${{ matrix.configuration }})
     runs-on: windows-latest
+
+    # Release as well as Debug, since NDEBUG changes what is built: the
+    # default log level, and anything under #ifdef NDEBUG. ASan, clang-tidy
+    # and fuzzing stay local (docs/testing/README.md, Tooling).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - configuration: Debug
+            test_preset: debug
+          - configuration: Release
+            test_preset: release
 
     steps:
       - name: Checkout (with submodules)
@@ -30,9 +42,17 @@ jobs:
       # regenerating docs/testing/Test_Catalog.md, and any mistagged test,
       # since the generator refuses those.
       - name: Check the test catalog is up to date
+        if: matrix.configuration == 'Debug'
         run: |
           pwsh -NoProfile -File tools/Update-TestCatalog.ps1
           git diff --exit-code -- docs/testing/Test_Catalog.md
+
+      # Also cheap and independent of the build. It uses Visual Studio's
+      # clang-format, as the local task does; if the image's version ever
+      # formats differently, this is where it shows.
+      - name: Check formatting
+        if: matrix.configuration == 'Debug'
+        run: pwsh -NoProfile -File tools/Invoke-ClangFormat.ps1 -Check
 
       - name: Install Conan
         run: pip install "conan>=2.0"
@@ -52,11 +72,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ hashFiles('conanfile.py') }}
-          restore-keys: conan-${{ runner.os }}-
+          key: conan-${{ runner.os }}-${{ matrix.configuration }}-${{ hashFiles('conanfile.py') }}
+          restore-keys: conan-${{ runner.os }}-${{ matrix.configuration }}-
 
       - name: Install dependencies
-        run: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
+        run: conan install . --build=missing -s build_type=${{ matrix.configuration }} -s compiler.cppstd=20
 
       # The msvc preset expects the multi-config layout Conan produces for a
       # Visual Studio generator. If that ever changes, say so plainly instead
@@ -76,10 +96,10 @@ jobs:
         run: cmake --preset msvc
 
       - name: Build
-        run: cmake --build build --config Debug
+        run: cmake --build build --config ${{ matrix.configuration }}
 
       - name: Test
-        run: ctest --preset debug
+        run: ctest --preset ${{ matrix.test_preset }}
 
   secrets:
     name: Secret scan
