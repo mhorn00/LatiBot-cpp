@@ -58,6 +58,31 @@ TEST_CASE("volume scales, clips and leaves 100 alone", "[audio]") {
     }
 }
 
+TEST_CASE("trailing silence is cut to a fixed tail", "[audio]") {
+    using latibot::audio::trim_trailing_silence;
+
+    SECTION("a long tail is cut down") {
+        std::vector<std::int16_t> samples{0, 5000, -3000, 10, -10, 0, 0, 0, 0, 0};
+        trim_trailing_silence(samples, 2);
+        CHECK(samples == std::vector<std::int16_t>{0, 5000, -3000, 10, -10});
+    }
+    SECTION("a tail shorter than asked is left alone") {
+        std::vector<std::int16_t> samples{5000, 0};
+        trim_trailing_silence(samples, 4);
+        CHECK(samples == std::vector<std::int16_t>{5000, 0});
+    }
+    SECTION("silence before the last sound stays") {
+        std::vector<std::int16_t> samples{0, 0, 0, 200, 0, 0};
+        trim_trailing_silence(samples, 0);
+        CHECK(samples == std::vector<std::int16_t>{0, 0, 0, 200});
+    }
+    SECTION("nothing but silence leaves nothing") {
+        std::vector<std::int16_t> samples(100, 3);
+        trim_trailing_silence(samples, 10);
+        CHECK(samples.empty());
+    }
+}
+
 TEST_CASE("resampling keeps the length and doubles every sample into stereo", "[audio]") {
     // One second in is one second out: 11025 frames become 48000.
     const auto out = to_discord(sine(440.0, 11025, 11025), 11025);

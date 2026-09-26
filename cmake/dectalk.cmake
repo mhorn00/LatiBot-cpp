@@ -81,7 +81,11 @@ target_compile_definitions(dectalk PRIVATE ${DECTALK_DEFINES})
 target_link_libraries(dectalk PRIVATE winmm)
 # /W0: thousands of warnings in code we do not maintain. No /utf-8 either:
 # some of the sources are Latin-1.
-target_compile_options(dectalk PRIVATE /W0)
+#
+# dectalk_zeroed_heap.h makes every allocation zeroed. DECtalk reads heap
+# memory it never wrote, so with the release CRT the same request spoke
+# differently from run to run (plan §21.17).
+target_compile_options(dectalk PRIVATE /W0 "/FI${CMAKE_CURRENT_LIST_DIR}/dectalk_zeroed_heap.h")
 # Only ttsapi.h is meant for callers. It is consumed as a system header so
 # our /W4 /WX does not apply to it.
 target_include_directories(dectalk SYSTEM INTERFACE "${DECTALK_DAPI}/api")

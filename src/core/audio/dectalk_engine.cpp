@@ -38,6 +38,12 @@ constexpr std::size_t buffer_count = 4;
 constexpr std::size_t samples_per_buffer = 8192;
 constexpr std::uint32_t dectalk_sample_rate = 11025;
 
+/// The silence left after the last sound: 50 ms, enough that speech does not
+/// end abruptly. DECtalk ends every utterance with about 400 ms of it, which
+/// would otherwise sit between queued utterances and at the end of every
+/// voice message.
+constexpr std::size_t trailing_silence_kept = dectalk_sample_rate / 20;
+
 struct buffer {
     TTS_BUFFER_T header{};
     std::array<std::int16_t, samples_per_buffer> samples{};
@@ -373,6 +379,8 @@ auto dectalk_engine::speak(const ports::speech_request& request, std::uint64_t i
     audio.sample_rate = dectalk_sample_rate;
     audio.channels = 1;
     audio.truncated = *ended == ending::truncated || speaking->truncated;
+    // Before the volume, so what counts as silence is DECtalk's own level.
+    trim_trailing_silence(audio.samples, trailing_silence_kept);
     apply_volume(audio.samples, request.voice.volume);
     return audio;
 }

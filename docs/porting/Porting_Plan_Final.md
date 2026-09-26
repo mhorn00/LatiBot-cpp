@@ -1804,3 +1804,30 @@ written, overturned most of that:
 None of this needed a change to DECtalk, which stays an untouched
 submodule. What the engine does with these findings is in
 `core/audio/dectalk_engine.hpp`.
+
+### 21.17 DECtalk reads memory it never wrote
+
+The determinism §21.16 found held in Debug and not in Release. Run eight
+at a time, a third of the Release test processes produced different audio
+for the same request: "Hello there." came out 150 ms longer, and a longer
+phrase grew by a fifth. Debug never did, in 40 runs under the same load.
+
+It was not timing, although load made it show. Neither moving `Sync` onto
+the worker thread nor resetting the engine before every shutdown changed
+anything, and neither did building DECtalk without optimisation. Linking
+DECtalk alone against the debug C runtime did: 0 failures in 40. The debug
+heap fills every new block with a fixed pattern, so a read of memory
+nobody wrote gets the same value every time; the release heap hands back
+whatever the last engine in the process freed there.
+
+The fix keeps the submodule untouched. `cmake/dectalk_zeroed_heap.h` is
+force-included into every DECtalk source and turns `malloc` into
+`calloc`, and `realloc` into `_recalloc`, which zeroes what it adds. With
+it the Release build ran 48 stressed runs without a difference, and Debug
+and Release produce the same samples again. Which read it is was not
+pinned down; the engine's audio has sounded right in both builds, so it is
+a value that shapes timing, not one that corrupts the waveform.
+
+The same investigation trimmed each utterance's trailing silence to 50 ms.
+DECtalk ends everything with about 400 ms of it, which would otherwise sit
+between queued utterances and at the end of every voice message.

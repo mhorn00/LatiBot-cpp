@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-583 test cases across 10 components, including 118 sections.
+584 test cases across 10 components, including 122 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -15,7 +15,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [events](#events) | 157 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 57 | 4 |
+| [audio](#audio) | 58 | 8 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 28 | 0 |
 | [util](#util) | 39 | 19 |
@@ -552,11 +552,12 @@ Speech and voice (`src/core/audio`)
 | parameters that could open or close anything are dropped |  |  | [tests/unit/dectalk_sanitizer_test.cpp:139](../../tests/unit/dectalk_sanitizer_test.cpp#L139) |
 | sanitizing twice changes nothing more |  |  | [tests/unit/dectalk_sanitizer_test.cpp:147](../../tests/unit/dectalk_sanitizer_test.cpp#L147) |
 | volume scales, clips and leaves 100 alone |  | 4 | [tests/unit/pcm_test.cpp:40](../../tests/unit/pcm_test.cpp#L40) |
-| resampling keeps the length and doubles every sample into stereo |  |  | [tests/unit/pcm_test.cpp:61](../../tests/unit/pcm_test.cpp#L61) |
-| resampling keeps the frequency |  |  | [tests/unit/pcm_test.cpp:71](../../tests/unit/pcm_test.cpp#L71) |
-| resampling interpolates between the source samples |  |  | [tests/unit/pcm_test.cpp:81](../../tests/unit/pcm_test.cpp#L81) |
-| resampling nothing gives nothing |  |  | [tests/unit/pcm_test.cpp:95](../../tests/unit/pcm_test.cpp#L95) |
-| resampling a minute of speech |  |  | [tests/unit/pcm_test.cpp:100](../../tests/unit/pcm_test.cpp#L100) |
+| trailing silence is cut to a fixed tail |  | 4 | [tests/unit/pcm_test.cpp:61](../../tests/unit/pcm_test.cpp#L61) |
+| resampling keeps the length and doubles every sample into stereo |  |  | [tests/unit/pcm_test.cpp:86](../../tests/unit/pcm_test.cpp#L86) |
+| resampling keeps the frequency |  |  | [tests/unit/pcm_test.cpp:96](../../tests/unit/pcm_test.cpp#L96) |
+| resampling interpolates between the source samples |  |  | [tests/unit/pcm_test.cpp:106](../../tests/unit/pcm_test.cpp#L106) |
+| resampling nothing gives nothing |  |  | [tests/unit/pcm_test.cpp:120](../../tests/unit/pcm_test.cpp#L120) |
+| resampling a minute of speech |  |  | [tests/unit/pcm_test.cpp:125](../../tests/unit/pcm_test.cpp#L125) |
 | speech plays at once on a ready connection, each followed by its marker |  |  | [tests/unit/speech_queue_test.cpp:40](../../tests/unit/speech_queue_test.cpp#L40) |
 | a finished utterance's marker moves the queue on |  |  | [tests/unit/speech_queue_test.cpp:54](../../tests/unit/speech_queue_test.cpp#L54) |
 | markers that are not the queue's, or for another guild, change nothing |  |  | [tests/unit/speech_queue_test.cpp:71](../../tests/unit/speech_queue_test.cpp#L71) |

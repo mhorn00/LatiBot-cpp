@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <limits>
 
 namespace latibot::audio {
@@ -15,6 +16,17 @@ auto apply_volume(std::span<std::int16_t> samples, int percent) -> void {
     for (std::int16_t& sample : samples) {
         sample = static_cast<std::int16_t>(std::clamp(sample * scale / 100, lowest, highest));
     }
+}
+
+auto trim_trailing_silence(std::vector<std::int16_t>& samples, std::size_t keep) -> void {
+    const auto loud = std::ranges::find_if(samples.rbegin(), samples.rend(),
+                                           [](std::int16_t sample) { return std::abs(static_cast<int>(sample)) >= silence_threshold; });
+    if (loud == samples.rend()) {
+        samples.clear();
+        return;
+    }
+    const auto sound_ends = static_cast<std::size_t>(samples.rend() - loud);
+    samples.resize(std::min(samples.size(), sound_ends + keep));
 }
 
 auto to_discord(std::span<const std::int16_t> mono, std::uint32_t source_rate) -> std::vector<std::int16_t> {
