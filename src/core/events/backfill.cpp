@@ -18,13 +18,6 @@ namespace {
 /// bot cannot read fails every page the same way.
 constexpr std::size_t problem_limit = 20;
 
-std::optional<std::int64_t> seconds_or_null(const std::optional<std::chrono::sys_seconds>& when) {
-    if (!when) {
-        return std::nullopt;
-    }
-    return when->time_since_epoch().count();
-}
-
 void note(backfill_report& report, std::string problem) {
     util::log().warn("link stats recompute: {}", problem);
     if (report.problems.size() < problem_limit) {
@@ -71,16 +64,13 @@ std::optional<channel_progress> backfill_progress_store::find(dpp::snowflake gui
     auto query = db_->prepare(
         "SELECT oldest_scanned_id, complete FROM backfill_progress "
         "WHERE guild_id = ? AND channel_id = ? AND since = ? AND until IS ?",
-        static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(channel_id), since.time_since_epoch().count(),
-        seconds_or_null(until));
+        guild_id, channel_id, since, until);
     if (!query.step()) {
         return std::nullopt;
     }
 
     channel_progress found;
-    if (const auto oldest = query.get<std::optional<std::int64_t>>(0)) {
-        found.oldest_scanned = dpp::snowflake(static_cast<std::uint64_t>(*oldest));
-    }
+    found.oldest_scanned = query.get<std::optional<dpp::snowflake>>(0);
     found.complete = query.get<bool>(1);
     return found;
 }
@@ -88,16 +78,12 @@ std::optional<channel_progress> backfill_progress_store::find(dpp::snowflake gui
 void backfill_progress_store::save(dpp::snowflake guild_id, dpp::snowflake channel_id, std::chrono::sys_seconds since,
                                    std::optional<std::chrono::sys_seconds> until, const channel_progress& progress,
                                    std::chrono::sys_seconds now) {
-    const std::optional<std::uint64_t> oldest =
-        progress.oldest_scanned ? std::optional<std::uint64_t>(static_cast<std::uint64_t>(*progress.oldest_scanned)) : std::nullopt;
-
     db_->prepare(
            "INSERT INTO backfill_progress (guild_id, channel_id, since, until, oldest_scanned_id, complete, updated_at) "
            "VALUES (?, ?, ?, ?, ?, ?, ?) "
            "ON CONFLICT (guild_id, channel_id) DO UPDATE SET since = excluded.since, until = excluded.until, "
            "oldest_scanned_id = excluded.oldest_scanned_id, complete = excluded.complete, updated_at = excluded.updated_at",
-           static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(channel_id), since.time_since_epoch().count(),
-           seconds_or_null(until), oldest, progress.complete, now.time_since_epoch().count())
+           guild_id, channel_id, since, until, progress.oldest_scanned, progress.complete, now)
         .run();
 }
 

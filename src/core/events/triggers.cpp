@@ -120,7 +120,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
         auto query = db_->prepare(
             "SELECT id, pattern, match_mode, cooldown_s, enabled, respond_to_bots, message_flags FROM triggers "
             "WHERE guild_id = ? ORDER BY id",
-            static_cast<std::uint64_t>(guild_id));
+            guild_id);
         while (query.step()) {
             trigger entry;
             entry.id = query.get<std::int64_t>(0);
@@ -141,7 +141,7 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
     auto query = db_->prepare(
         "SELECT trigger_id, response, weight FROM trigger_responses "
         "WHERE trigger_id IN (SELECT id FROM triggers WHERE guild_id = ?) ORDER BY trigger_id, rowid",
-        static_cast<std::uint64_t>(guild_id));
+        guild_id);
     while (query.step()) {
         const auto owner = query.get<std::int64_t>(0);
         const auto entry = std::ranges::lower_bound(found, owner, {}, &trigger::id);
@@ -178,8 +178,8 @@ std::int64_t trigger_store::add(const trigger& entry) {
     db_->prepare(
            "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled, respond_to_bots, message_flags) "
            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-           static_cast<std::uint64_t>(entry.guild_id), entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled,
-           entry.respond_to_bots, std::int64_t{discord::channel_flags(entry.message_flags)})
+           entry.guild_id, entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.respond_to_bots,
+           std::int64_t{discord::channel_flags(entry.message_flags)})
         .run();
 
     const std::int64_t id = db_->last_insert_rowid();
@@ -197,7 +197,7 @@ bool trigger_store::update(const trigger& entry) {
            "UPDATE triggers SET pattern = ?, match_mode = ?, cooldown_s = ?, enabled = ?, respond_to_bots = ?, message_flags = ? "
            "WHERE id = ? AND guild_id = ?",
            entry.pattern, to_string(entry.mode), entry.cooldown.count(), entry.enabled, entry.respond_to_bots,
-           std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, static_cast<std::uint64_t>(entry.guild_id))
+           std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, entry.guild_id)
         .run();
 
     if (db_->changes() == 0) {
@@ -213,7 +213,7 @@ bool trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
-    db_->prepare("DELETE FROM triggers WHERE id = ? AND guild_id = ?", id, static_cast<std::uint64_t>(guild_id)).run();
+    db_->prepare("DELETE FROM triggers WHERE id = ? AND guild_id = ?", id, guild_id).run();
     if (db_->changes() == 0) {
         return false;
     }
@@ -229,7 +229,7 @@ bool trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) {
 int trigger_store::seed_defaults(dpp::snowflake guild_id) {
     const auto guard = db_->lock();
 
-    auto count = db_->prepare("SELECT COUNT(*) FROM triggers WHERE guild_id = ?", static_cast<std::uint64_t>(guild_id));
+    auto count = db_->prepare("SELECT COUNT(*) FROM triggers WHERE guild_id = ?", guild_id);
     if (!count.step() || count.get<std::int64_t>(0) > 0) {
         return 0;
     }

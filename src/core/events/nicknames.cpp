@@ -11,12 +11,9 @@
 namespace latibot::events {
 namespace {
 
+/// Unix seconds, for the <t:…> timestamps Discord shows in local time.
 std::int64_t to_unix(std::chrono::system_clock::time_point when) {
     return std::chrono::duration_cast<std::chrono::seconds>(when.time_since_epoch()).count();
-}
-
-std::chrono::system_clock::time_point from_unix(std::int64_t seconds) {
-    return std::chrono::system_clock::time_point(std::chrono::seconds(seconds));
 }
 
 /// Every column of a history row, in the order `read_row` expects.
@@ -25,13 +22,11 @@ constexpr std::string_view row_columns = "id, guild_id, user_id, nickname, chang
 nickname_change read_row(const db::statement& row) {
     nickname_change change;
     change.id = row.get<std::int64_t>(0);
-    change.guild_id = dpp::snowflake(row.get<std::uint64_t>(1));
-    change.user_id = dpp::snowflake(row.get<std::uint64_t>(2));
+    change.guild_id = row.get<dpp::snowflake>(1);
+    change.user_id = row.get<dpp::snowflake>(2);
     change.nickname = row.get<std::optional<std::string>>(3);
-    change.changed_at = from_unix(row.get<std::int64_t>(4));
-    if (const auto author = row.get<std::optional<std::uint64_t>>(5)) {
-        change.changed_by = dpp::snowflake(*author);
-    }
+    change.changed_at = row.get<std::chrono::sys_seconds>(4);
+    change.changed_by = row.get<std::optional<dpp::snowflake>>(5);
     change.source = nickname_source_from_string(row.get<std::string>(6)).value_or(nickname_source::seen);
     change.imported_raw = row.get<std::optional<std::string>>(7).value_or(std::string{});
     return change;
@@ -40,11 +35,6 @@ nickname_change read_row(const db::statement& row) {
 /// Text to store, where an empty string means "no value" rather than "".
 std::optional<std::string> text_or_null(const std::string& text) {
     return text.empty() ? std::optional<std::string>{} : std::optional(text);
-}
-
-/// A snowflake as the plain integer SQLite binds, still optional.
-std::optional<std::uint64_t> id_or_null(const std::optional<dpp::snowflake>& who) {
-    return who ? std::optional(static_cast<std::uint64_t>(*who)) : std::nullopt;
 }
 
 } // namespace
@@ -204,9 +194,9 @@ std::size_t pending_nicknames::size() const {
 std::int64_t nickname_store::record(const nickname_change& change) {
     const auto guard = db_->lock();
 
-    db_->prepare(std::format("INSERT INTO nickname_history ({}) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)", row_columns),
-                 static_cast<std::uint64_t>(change.guild_id), static_cast<std::uint64_t>(change.user_id), change.nickname,
-                 to_unix(change.changed_at), id_or_null(change.changed_by), to_string(change.source), text_or_null(change.imported_raw))
+    db_->prepare(std::format("INSERT INTO nickname_history ({}) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)", row_columns), change.guild_id,
+                 change.user_id, change.nickname, change.changed_at, change.changed_by, to_string(change.source),
+                 text_or_null(change.imported_raw))
         .run();
 
     return db_->last_insert_rowid();
@@ -220,7 +210,7 @@ std::vector<nickname_change> nickname_store::history(dpp::snowflake guild_id, dp
     auto query = db_->prepare(std::format("SELECT {} FROM nickname_history WHERE guild_id = ? AND user_id = ? "
                                           "ORDER BY changed_at DESC, id DESC",
                                           row_columns),
-                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id));
+                              guild_id, user_id);
 
     std::vector<nickname_change> found;
     while (query.step()) {
@@ -235,7 +225,7 @@ std::optional<nickname_change> nickname_store::latest(dpp::snowflake guild_id, d
     auto query = db_->prepare(std::format("SELECT {} FROM nickname_history WHERE guild_id = ? AND user_id = ? "
                                           "ORDER BY changed_at DESC, id DESC LIMIT 1",
                                           row_columns),
-                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id));
+                              guild_id, user_id);
 
     return query.step() ? std::optional(read_row(query)) : std::nullopt;
 }
@@ -256,7 +246,7 @@ std::optional<nickname_change> nickname_store::unattributed(dpp::snowflake guild
                                           "WHERE guild_id = ? AND user_id = ? AND changed_by IS NULL AND changed_at >= ? "
                                           "ORDER BY changed_at DESC, id DESC",
                                           row_columns),
-                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id), to_unix(now - window));
+                              guild_id, user_id, now - window);
 
     while (query.step()) {
         nickname_change candidate = read_row(query);
@@ -272,8 +262,8 @@ bool nickname_store::attribute(std::int64_t id, dpp::snowflake changed_by, nickn
 
     // `changed_by IS NULL` sits in the statement rather than in a read first,
     // so two audit entries racing for the same row cannot both win.
-    db_->prepare("UPDATE nickname_history SET changed_by = ?, source = ? WHERE id = ? AND changed_by IS NULL",
-                 static_cast<std::uint64_t>(changed_by), to_string(source), id)
+    db_->prepare("UPDATE nickname_history SET changed_by = ?, source = ? WHERE id = ? AND changed_by IS NULL", changed_by,
+                 to_string(source), id)
         .run();
 
     return db_->changes() > 0;
@@ -286,7 +276,7 @@ bool nickname_store::already_recorded(dpp::snowflake guild_id, dpp::snowflake us
     // `IS` rather than `=`, so a cleared nickname matches a cleared nickname:
     // NULL = NULL is never true in SQL.
     auto query = db_->prepare("SELECT 1 FROM nickname_history WHERE guild_id = ? AND user_id = ? AND nickname IS ? AND changed_at = ?",
-                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id), nickname, to_unix(at));
+                              guild_id, user_id, nickname, at);
 
     return query.step();
 }
@@ -301,8 +291,7 @@ bool nickname_store::remove(std::int64_t id) {
 std::size_t nickname_store::count(dpp::snowflake guild_id, dpp::snowflake user_id) const {
     const auto guard = db_->lock();
 
-    auto query = db_->prepare("SELECT COUNT(*) FROM nickname_history WHERE guild_id = ? AND user_id = ?",
-                              static_cast<std::uint64_t>(guild_id), static_cast<std::uint64_t>(user_id));
+    auto query = db_->prepare("SELECT COUNT(*) FROM nickname_history WHERE guild_id = ? AND user_id = ?", guild_id, user_id);
 
     return query.step() ? static_cast<std::size_t>(query.get<std::int64_t>(0)) : 0;
 }

@@ -18,8 +18,8 @@ constexpr std::string_view row_columns = "id, guild_id, channel_id, timezone, me
 midnight_entry read_row(const db::statement& row) {
     midnight_entry entry;
     entry.id = row.get<std::int64_t>(0);
-    entry.guild_id = dpp::snowflake(row.get<std::uint64_t>(1));
-    entry.channel_id = dpp::snowflake(row.get<std::uint64_t>(2));
+    entry.guild_id = row.get<dpp::snowflake>(1);
+    entry.channel_id = row.get<dpp::snowflake>(2);
     entry.timezone = row.get<std::string>(3);
     entry.message = row.get<std::string>(4);
     entry.enabled = row.get<bool>(5);
@@ -120,8 +120,7 @@ std::vector<std::string> matching_timezones(std::string_view typed, std::size_t 
 std::vector<midnight_entry> midnight_store::for_guild(dpp::snowflake guild_id) const {
     const auto guard = db_->lock();
 
-    auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE guild_id = ? ORDER BY id", row_columns),
-                              static_cast<std::uint64_t>(guild_id));
+    auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE guild_id = ? ORDER BY id", row_columns), guild_id);
 
     std::vector<midnight_entry> found;
     while (query.step()) {
@@ -145,8 +144,7 @@ std::vector<midnight_entry> midnight_store::enabled() const {
 std::optional<midnight_entry> midnight_store::find(std::int64_t id, dpp::snowflake guild_id) const {
     const auto guard = db_->lock();
 
-    auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE id = ? AND guild_id = ?", row_columns), id,
-                              static_cast<std::uint64_t>(guild_id));
+    auto query = db_->prepare(std::format("SELECT {} FROM midnight_messages WHERE id = ? AND guild_id = ?", row_columns), id, guild_id);
 
     return query.step() ? std::optional(read_row(query)) : std::nullopt;
 }
@@ -157,8 +155,8 @@ std::int64_t midnight_store::add(const midnight_entry& entry) {
     db_->prepare(
            "INSERT INTO midnight_messages (guild_id, channel_id, timezone, message, enabled, last_fired_date, message_flags) "
            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-           static_cast<std::uint64_t>(entry.guild_id), static_cast<std::uint64_t>(entry.channel_id), entry.timezone, entry.message,
-           entry.enabled, entry.last_fired_date.empty() ? std::optional<std::string>{} : std::optional(entry.last_fired_date),
+           entry.guild_id, entry.channel_id, entry.timezone, entry.message, entry.enabled,
+           entry.last_fired_date.empty() ? std::optional<std::string>{} : std::optional(entry.last_fired_date),
            std::int64_t{discord::channel_flags(entry.message_flags)})
         .run();
 
@@ -171,8 +169,8 @@ bool midnight_store::update(const midnight_entry& entry) {
     db_->prepare(
            "UPDATE midnight_messages SET channel_id = ?, timezone = ?, message = ?, enabled = ?, message_flags = ? "
            "WHERE id = ? AND guild_id = ?",
-           static_cast<std::uint64_t>(entry.channel_id), entry.timezone, entry.message, entry.enabled,
-           std::int64_t{discord::channel_flags(entry.message_flags)}, entry.id, static_cast<std::uint64_t>(entry.guild_id))
+           entry.channel_id, entry.timezone, entry.message, entry.enabled, std::int64_t{discord::channel_flags(entry.message_flags)},
+           entry.id, entry.guild_id)
         .run();
 
     return db_->changes() > 0;
@@ -181,7 +179,7 @@ bool midnight_store::update(const midnight_entry& entry) {
 bool midnight_store::remove(std::int64_t id, dpp::snowflake guild_id) {
     const auto guard = db_->lock();
 
-    db_->prepare("DELETE FROM midnight_messages WHERE id = ? AND guild_id = ?", id, static_cast<std::uint64_t>(guild_id)).run();
+    db_->prepare("DELETE FROM midnight_messages WHERE id = ? AND guild_id = ?", id, guild_id).run();
     return db_->changes() > 0;
 }
 

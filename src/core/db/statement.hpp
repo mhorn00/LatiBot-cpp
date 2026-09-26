@@ -1,5 +1,8 @@
 #pragma once
 
+#include <dpp/snowflake.h>
+
+#include <chrono>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -62,6 +65,22 @@ public:
         return bind_int64(index, static_cast<std::int64_t>(value));
     }
 
+    /// A Discord id, as the INTEGER it is stored as. A template taking only a
+    /// snowflake, because dpp::snowflake converts from text, and a plain
+    /// overload would make every std::string argument ambiguous.
+    template <typename T>
+        requires std::same_as<T, dpp::snowflake>
+    statement& bind(int index, T value) {
+        return bind_int64(index, static_cast<std::int64_t>(static_cast<std::uint64_t>(value)));
+    }
+
+    /// A time, as whole Unix seconds, which is how every table stores one.
+    /// Anything finer than a second is dropped.
+    template <typename Duration>
+    statement& bind(int index, std::chrono::sys_time<Duration> value) {
+        return bind_int64(index, std::chrono::floor<std::chrono::seconds>(value).time_since_epoch().count());
+    }
+
     template <typename T>
     statement& bind(int index, const std::optional<T>& value) {
         return value ? bind(index, *value) : bind(index, nullptr);
@@ -97,6 +116,10 @@ public:
                 return std::nullopt;
             }
             return get<value_type>(column);
+        } else if constexpr (std::same_as<T, dpp::snowflake>) {
+            return dpp::snowflake(static_cast<std::uint64_t>(column_int64(column)));
+        } else if constexpr (std::same_as<T, std::chrono::sys_seconds>) {
+            return std::chrono::sys_seconds(std::chrono::seconds(column_int64(column)));
         } else if constexpr (std::same_as<T, std::string>) {
             return column_text(column);
         } else if constexpr (std::same_as<T, bool>) {

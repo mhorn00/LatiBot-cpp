@@ -53,20 +53,6 @@ emoji_ref emoji_from(std::string_view key, std::optional<std::string> name, bool
     return unknown;
 }
 
-std::optional<std::int64_t> seconds_or_null(const std::optional<std::chrono::sys_seconds>& when) {
-    if (!when) {
-        return std::nullopt;
-    }
-    return when->time_since_epoch().count();
-}
-
-std::optional<std::uint64_t> id_or_null(const std::optional<dpp::snowflake>& id) {
-    if (!id) {
-        return std::nullopt;
-    }
-    return static_cast<std::uint64_t>(*id);
-}
-
 /// The parts of a statistics query that depend on which side is counted.
 struct kind_sql {
     /// Who a row is credited to.
@@ -202,9 +188,8 @@ std::optional<stat_kind> stat_kind_from_string(std::string_view name) {
 
 void reaction_store::log_change(dpp::snowflake message_id, dpp::snowflake user_id, std::string_view emoji_key, std::string_view action,
                                 std::chrono::sys_seconds at) {
-    db_->prepare("INSERT INTO reaction_log (message_id, user_id, emoji_key, action, at) VALUES (?, ?, ?, ?, ?)",
-                 static_cast<std::uint64_t>(message_id), static_cast<std::uint64_t>(user_id), emoji_key, action,
-                 at.time_since_epoch().count())
+    db_->prepare("INSERT INTO reaction_log (message_id, user_id, emoji_key, action, at) VALUES (?, ?, ?, ?, ?)", message_id, user_id,
+                 emoji_key, action, at)
         .run();
 }
 
@@ -217,7 +202,7 @@ bool reaction_store::add(dpp::snowflake message_id, dpp::snowflake user_id, cons
     db_->prepare(
            "INSERT OR IGNORE INTO reactions (message_id, user_id, emoji_key, reacted_at) "
            "SELECT ?1, ?2, ?3, ?4 WHERE EXISTS (SELECT 1 FROM replacement_messages WHERE message_id = ?1)",
-           static_cast<std::uint64_t>(message_id), static_cast<std::uint64_t>(user_id), emoji.key, at.time_since_epoch().count())
+           message_id, user_id, emoji.key, at)
         .run();
     if (db_->changes() == 0) {
         return false;
@@ -233,9 +218,7 @@ bool reaction_store::remove(dpp::snowflake message_id, dpp::snowflake user_id, s
     const auto guard = db_->lock();
     db::transaction tx(*db_);
 
-    db_->prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", static_cast<std::uint64_t>(message_id),
-                 static_cast<std::uint64_t>(user_id), emoji_key)
-        .run();
+    db_->prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", message_id, user_id, emoji_key).run();
     if (db_->changes() == 0) {
         return false;
     }
@@ -251,17 +234,16 @@ int reaction_store::remove_emoji(dpp::snowflake message_id, std::string_view emo
 
     std::vector<dpp::snowflake> reactors;
     {
-        auto query = db_->prepare("SELECT user_id FROM reactions WHERE message_id = ? AND emoji_key = ?",
-                                  static_cast<std::uint64_t>(message_id), emoji_key);
+        auto query = db_->prepare("SELECT user_id FROM reactions WHERE message_id = ? AND emoji_key = ?", message_id, emoji_key);
         while (query.step()) {
-            reactors.emplace_back(query.get<std::uint64_t>(0));
+            reactors.push_back(query.get<dpp::snowflake>(0));
         }
     }
 
     for (const dpp::snowflake user_id : reactors) {
         log_change(message_id, user_id, emoji_key, "remove", at);
     }
-    db_->prepare("DELETE FROM reactions WHERE message_id = ? AND emoji_key = ?", static_cast<std::uint64_t>(message_id), emoji_key).run();
+    db_->prepare("DELETE FROM reactions WHERE message_id = ? AND emoji_key = ?", message_id, emoji_key).run();
 
     tx.commit();
     return static_cast<int>(reactors.size());
@@ -273,16 +255,16 @@ int reaction_store::remove_all(dpp::snowflake message_id, std::chrono::sys_secon
 
     std::vector<observed> gone;
     {
-        auto query = db_->prepare("SELECT user_id, emoji_key FROM reactions WHERE message_id = ?", static_cast<std::uint64_t>(message_id));
+        auto query = db_->prepare("SELECT user_id, emoji_key FROM reactions WHERE message_id = ?", message_id);
         while (query.step()) {
-            gone.push_back({.user_id = dpp::snowflake(query.get<std::uint64_t>(0)), .emoji_key = query.get<std::string>(1)});
+            gone.push_back({.user_id = query.get<dpp::snowflake>(0), .emoji_key = query.get<std::string>(1)});
         }
     }
 
     for (const observed& reaction : gone) {
         log_change(message_id, reaction.user_id, reaction.emoji_key, "remove", at);
     }
-    db_->prepare("DELETE FROM reactions WHERE message_id = ?", static_cast<std::uint64_t>(message_id)).run();
+    db_->prepare("DELETE FROM reactions WHERE message_id = ?", message_id).run();
 
     tx.commit();
     return static_cast<int>(gone.size());
@@ -299,7 +281,7 @@ int reaction_store::replace_for_message(dpp::snowflake message_id, std::span<con
 
     std::vector<std::pair<std::uint64_t, std::string>> stale;
     {
-        auto query = db_->prepare("SELECT user_id, emoji_key FROM reactions WHERE message_id = ?", static_cast<std::uint64_t>(message_id));
+        auto query = db_->prepare("SELECT user_id, emoji_key FROM reactions WHERE message_id = ?", message_id);
         while (query.step()) {
             std::pair<std::uint64_t, std::string> existing{query.get<std::uint64_t>(0), query.get<std::string>(1)};
             if (!wanted.contains(existing)) {
@@ -309,16 +291,14 @@ int reaction_store::replace_for_message(dpp::snowflake message_id, std::span<con
     }
 
     for (const auto& [user_id, emoji_key] : stale) {
-        db_->prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", static_cast<std::uint64_t>(message_id),
-                     user_id, emoji_key)
-            .run();
+        db_->prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", message_id, user_id, emoji_key).run();
     }
 
     // INSERT OR IGNORE keeps a row that is already there, and with it the
     // time a live reaction was seen being added.
     for (const auto& [user_id, emoji_key] : wanted) {
-        db_->prepare("INSERT OR IGNORE INTO reactions (message_id, user_id, emoji_key, reacted_at) VALUES (?, ?, ?, NULL)",
-                     static_cast<std::uint64_t>(message_id), user_id, emoji_key)
+        db_->prepare("INSERT OR IGNORE INTO reactions (message_id, user_id, emoji_key, reacted_at) VALUES (?, ?, ?, NULL)", message_id,
+                     user_id, emoji_key)
             .run();
     }
 
@@ -351,8 +331,7 @@ emoji_ref reaction_store::describe(std::string_view emoji_key) const {
 // --------------------------------------------------------------------------
 
 std::string reaction_store::canonical(dpp::snowflake guild_id, std::string_view emoji_key) const {
-    auto query = db_->prepare("SELECT canonical_key FROM emoji_aliases WHERE guild_id = ? AND emoji_key = ?",
-                              static_cast<std::uint64_t>(guild_id), emoji_key);
+    auto query = db_->prepare("SELECT canonical_key FROM emoji_aliases WHERE guild_id = ? AND emoji_key = ?", guild_id, emoji_key);
     return query.step() ? query.get<std::string>(0) : std::string(emoji_key);
 }
 
@@ -372,14 +351,12 @@ std::optional<std::string> reaction_store::set_alias(dpp::snowflake guild_id, st
     db_->prepare(
            "INSERT INTO emoji_aliases (guild_id, emoji_key, canonical_key) VALUES (?, ?, ?) "
            "ON CONFLICT (guild_id, emoji_key) DO UPDATE SET canonical_key = excluded.canonical_key",
-           static_cast<std::uint64_t>(guild_id), emoji_key, target)
+           guild_id, emoji_key, target)
         .run();
 
     // Anything that counted as this emoji now counts as what it counts as, so
     // no chain is ever more than one step.
-    db_->prepare("UPDATE emoji_aliases SET canonical_key = ? WHERE guild_id = ? AND canonical_key = ?", target,
-                 static_cast<std::uint64_t>(guild_id), emoji_key)
-        .run();
+    db_->prepare("UPDATE emoji_aliases SET canonical_key = ? WHERE guild_id = ? AND canonical_key = ?", target, guild_id, emoji_key).run();
 
     tx.commit();
     return std::nullopt;
@@ -387,7 +364,7 @@ std::optional<std::string> reaction_store::set_alias(dpp::snowflake guild_id, st
 
 bool reaction_store::remove_alias(dpp::snowflake guild_id, std::string_view emoji_key) {
     const auto guard = db_->lock();
-    db_->prepare("DELETE FROM emoji_aliases WHERE guild_id = ? AND emoji_key = ?", static_cast<std::uint64_t>(guild_id), emoji_key).run();
+    db_->prepare("DELETE FROM emoji_aliases WHERE guild_id = ? AND emoji_key = ?", guild_id, emoji_key).run();
     return db_->changes() > 0;
 }
 
@@ -395,7 +372,7 @@ std::vector<emoji_alias> reaction_store::aliases(dpp::snowflake guild_id) const 
     std::vector<std::pair<std::string, std::string>> keys;
     {
         auto query = db_->prepare("SELECT emoji_key, canonical_key FROM emoji_aliases WHERE guild_id = ? ORDER BY canonical_key, emoji_key",
-                                  static_cast<std::uint64_t>(guild_id));
+                                  guild_id);
         while (query.step()) {
             keys.emplace_back(query.get<std::string>(0), query.get<std::string>(1));
         }
@@ -419,8 +396,7 @@ db::statement reaction_store::prepare_stat(std::string_view sql, dpp::snowflake 
     const std::optional<std::string> emoji =
         query.emoji_key ? std::optional<std::string>(canonical(guild_id, *query.emoji_key)) : std::nullopt;
 
-    return db_->prepare(sql, static_cast<std::uint64_t>(guild_id), emoji, seconds_or_null(query.since), seconds_or_null(query.until),
-                        id_or_null(query.user_id), query.domain);
+    return db_->prepare(sql, guild_id, emoji, query.since, query.until, query.user_id, query.domain);
 }
 
 std::int64_t reaction_store::total(dpp::snowflake guild_id, const stat_query& query) const {
@@ -450,7 +426,7 @@ std::vector<person_tally> reaction_store::leaderboard(dpp::snowflake guild_id, c
 
     std::vector<person_tally> board;
     while (statement.step()) {
-        board.push_back({.user_id = dpp::snowflake(statement.get<std::uint64_t>(0)), .count = statement.get<std::int64_t>(1)});
+        board.push_back({.user_id = statement.get<dpp::snowflake>(0), .count = statement.get<std::int64_t>(1)});
     }
     return board;
 }
@@ -461,7 +437,7 @@ std::vector<std::string> reaction_store::known_domains(dpp::snowflake guild_id) 
         "SELECT DISTINCT l.domain FROM replacement_links l "
         "JOIN replacement_messages m ON m.message_id = l.message_id "
         "WHERE m.guild_id = ? ORDER BY l.domain",
-        static_cast<std::uint64_t>(guild_id));
+        guild_id);
     while (statement.step()) {
         domains.push_back(statement.get<std::string>(0));
     }
@@ -500,7 +476,7 @@ std::vector<emoji_tally> reaction_store::known_emojis(dpp::snowflake guild_id, s
         "JOIN replacement_messages m ON m.message_id = r.message_id "
         "LEFT JOIN emojis e ON e.emoji_key = r.emoji_key "
         "WHERE m.guild_id = ? GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key",
-        static_cast<std::uint64_t>(guild_id));
+        guild_id);
 
     const std::string wanted = util::to_lower(util::trim(filter));
     std::vector<emoji_tally> found;

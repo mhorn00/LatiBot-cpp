@@ -6,6 +6,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <dpp/snowflake.h>
+
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -142,6 +145,35 @@ TEST_CASE("a transaction commits or rolls back", "[db]") {
         auto count = db.prepare("SELECT COUNT(*) FROM things");
         REQUIRE(count.step());
         CHECK(count.get<int>(0) == 0);
+    }
+}
+
+TEST_CASE("snowflakes and times are stored as the integers they always were", "[db]") {
+    // The stores used to cast by hand at every bind; the same integers must
+    // still reach the table, or every existing database would read wrong.
+    test_database fixture;
+    database& db = fixture.db;
+    db.execute("CREATE TABLE ids (id INTEGER, maybe INTEGER, at INTEGER)");
+
+    const dpp::snowflake id{1234567890123456789ULL};
+    const std::chrono::sys_seconds at{std::chrono::seconds{1'790'000'000}};
+    db.prepare("INSERT INTO ids VALUES (?, ?, ?)", id, std::optional<dpp::snowflake>{}, at).run();
+
+    auto raw = db.prepare("SELECT id, maybe, at FROM ids");
+    REQUIRE(raw.step());
+    CHECK(raw.get<std::int64_t>(0) == 1234567890123456789LL);
+    CHECK(raw.is_null(1));
+    CHECK(raw.get<std::int64_t>(2) == 1'790'000'000);
+    CHECK(raw.get<dpp::snowflake>(0) == id);
+    CHECK_FALSE(raw.get<std::optional<dpp::snowflake>>(1).has_value());
+    CHECK(raw.get<std::chrono::sys_seconds>(2) == at);
+
+    SECTION("a finer time is stored to the second") {
+        db.execute("DELETE FROM ids");
+        db.prepare("INSERT INTO ids (at) VALUES (?)", at + std::chrono::milliseconds{999}).run();
+        auto rounded = db.prepare("SELECT at FROM ids");
+        REQUIRE(rounded.step());
+        CHECK(rounded.get<std::chrono::sys_seconds>(0) == at);
     }
 }
 

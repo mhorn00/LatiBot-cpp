@@ -146,8 +146,8 @@ std::string mirror_url(const planned_link& link, std::size_t index) {
 std::vector<url_rule> url_rule_store::for_guild(dpp::snowflake guild_id) const {
     std::vector<url_rule> rules;
 
-    auto query = db_->prepare("SELECT domain, host, translate_suffix FROM url_rules WHERE guild_id = ? ORDER BY domain, position",
-                              static_cast<std::uint64_t>(guild_id));
+    auto query =
+        db_->prepare("SELECT domain, host, translate_suffix FROM url_rules WHERE guild_id = ? ORDER BY domain, position", guild_id);
     while (query.step()) {
         auto domain = query.get<std::string>(0);
         if (rules.empty() || rules.back().domain != domain) {
@@ -163,8 +163,8 @@ std::vector<url_rule> url_rule_store::for_guild(dpp::snowflake guild_id) const {
 std::optional<url_rule> url_rule_store::find(dpp::snowflake guild_id, std::string_view domain) const {
     url_rule rule{.domain = std::string(domain), .mirrors = {}};
 
-    auto query = db_->prepare("SELECT host, translate_suffix FROM url_rules WHERE guild_id = ? AND domain = ? ORDER BY position",
-                              static_cast<std::uint64_t>(guild_id), domain);
+    auto query =
+        db_->prepare("SELECT host, translate_suffix FROM url_rules WHERE guild_id = ? AND domain = ? ORDER BY position", guild_id, domain);
     while (query.step()) {
         rule.mirrors.push_back(
             {.host = query.get<std::string>(0), .translate_suffix = query.get<std::optional<std::string>>(1).value_or(std::string{})});
@@ -186,20 +186,20 @@ void url_rule_store::set(dpp::snowflake guild_id, const url_rule& rule) {
 void url_rule_store::rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) {
     const auto guard = db_->lock();
     db::transaction tx(*db_);
-    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), previous).run();
+    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, previous).run();
     write(guild_id, rule);
     tx.commit();
 }
 
 void url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) {
-    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), rule.domain).run();
+    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, rule.domain).run();
 
     int position = 0;
     for (const mirror& entry : rule.mirrors) {
         const std::optional<std::string> suffix =
             entry.translate_suffix.empty() ? std::nullopt : std::optional<std::string>(entry.translate_suffix);
-        db_->prepare("INSERT INTO url_rules (guild_id, domain, position, host, translate_suffix) VALUES (?, ?, ?, ?, ?)",
-                     static_cast<std::uint64_t>(guild_id), rule.domain, position++, entry.host, suffix)
+        db_->prepare("INSERT INTO url_rules (guild_id, domain, position, host, translate_suffix) VALUES (?, ?, ?, ?, ?)", guild_id,
+                     rule.domain, position++, entry.host, suffix)
             .run();
         remember_mirror(guild_id, entry.host, rule.domain);
     }
@@ -207,7 +207,7 @@ void url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) {
 
 bool url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) {
     const auto guard = db_->lock();
-    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", static_cast<std::uint64_t>(guild_id), domain).run();
+    db_->prepare("DELETE FROM url_rules WHERE guild_id = ? AND domain = ?", guild_id, domain).run();
     return db_->changes() > 0;
 }
 
@@ -220,30 +220,25 @@ void url_rule_store::set_enabled(dpp::snowflake guild_id, bool enabled) {
 }
 
 bool url_rule_store::opted_out(dpp::snowflake guild_id, dpp::snowflake user_id) const {
-    auto query = db_->prepare("SELECT 1 FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", static_cast<std::uint64_t>(guild_id),
-                              static_cast<std::uint64_t>(user_id));
+    auto query = db_->prepare("SELECT 1 FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", guild_id, user_id);
     return query.step();
 }
 
 bool url_rule_store::toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id) {
     const auto guard = db_->lock();
 
-    db_->prepare("DELETE FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", static_cast<std::uint64_t>(guild_id),
-                 static_cast<std::uint64_t>(user_id))
-        .run();
+    db_->prepare("DELETE FROM url_opt_outs WHERE guild_id = ? AND user_id = ?", guild_id, user_id).run();
     if (db_->changes() > 0) {
         return false;
     }
 
-    db_->prepare("INSERT INTO url_opt_outs (guild_id, user_id) VALUES (?, ?)", static_cast<std::uint64_t>(guild_id),
-                 static_cast<std::uint64_t>(user_id))
-        .run();
+    db_->prepare("INSERT INTO url_opt_outs (guild_id, user_id) VALUES (?, ?)", guild_id, user_id).run();
     return true;
 }
 
 mirror_map url_rule_store::known_mirrors(dpp::snowflake guild_id) const {
     mirror_map known;
-    auto query = db_->prepare("SELECT host, domain FROM known_mirrors WHERE guild_id = ?", static_cast<std::uint64_t>(guild_id));
+    auto query = db_->prepare("SELECT host, domain FROM known_mirrors WHERE guild_id = ?", guild_id);
     while (query.step()) {
         known.emplace(query.get<std::string>(0), query.get<std::string>(1));
     }
@@ -256,7 +251,7 @@ void url_rule_store::remember_mirror(dpp::snowflake guild_id, std::string_view h
     db_->prepare(
            "INSERT INTO known_mirrors (guild_id, host, domain) VALUES (?, ?, ?) "
            "ON CONFLICT (guild_id, host) DO UPDATE SET domain = excluded.domain",
-           static_cast<std::uint64_t>(guild_id), host, domain)
+           guild_id, host, domain)
         .run();
 }
 
