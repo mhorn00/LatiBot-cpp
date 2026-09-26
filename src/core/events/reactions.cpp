@@ -39,6 +39,20 @@ bool all_digits(std::string_view text) {
     return !text.empty() && std::ranges::all_of(text, [](char letter) { return letter >= '0' && letter <= '9'; });
 }
 
+/// What an emoji looks like, from its row in `emojis` when it has one. One
+/// never seen by name still shows: a Unicode emoji is its own name.
+emoji_ref emoji_from(std::string_view key, std::optional<std::string> name, bool animated) {
+    if (name) {
+        return {.key = std::string(key), .name = std::move(*name), .animated = animated};
+    }
+
+    emoji_ref unknown{.key = std::string(key), .name = {}, .animated = false};
+    if (key.starts_with(unicode_prefix)) {
+        unknown.name = std::string(key.substr(unicode_prefix.size()));
+    }
+    return unknown;
+}
+
 std::optional<std::int64_t> seconds_or_null(const std::optional<std::chrono::sys_seconds>& when) {
     if (!when) {
         return std::nullopt;
@@ -327,14 +341,9 @@ void reaction_store::remember(const emoji_ref& emoji) {
 emoji_ref reaction_store::describe(std::string_view emoji_key) const {
     auto query = db_->prepare("SELECT name, animated FROM emojis WHERE emoji_key = ?", emoji_key);
     if (query.step()) {
-        return {.key = std::string(emoji_key), .name = query.get<std::string>(0), .animated = query.get<bool>(1)};
+        return emoji_from(emoji_key, query.get<std::string>(0), query.get<bool>(1));
     }
-
-    emoji_ref unknown{.key = std::string(emoji_key), .name = {}, .animated = false};
-    if (emoji_key.starts_with(unicode_prefix)) {
-        unknown.name = std::string(emoji_key.substr(unicode_prefix.size()));
-    }
-    return unknown;
+    return emoji_from(emoji_key, std::nullopt, false);
 }
 
 // --------------------------------------------------------------------------
@@ -481,27 +490,25 @@ std::vector<emoji_tally> reaction_store::emoji_breakdown(dpp::snowflake guild_id
 }
 
 std::vector<emoji_tally> reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit) const {
-    std::vector<std::pair<std::string, std::int64_t>> counted;
-    {
-        auto statement = db_->prepare(
-            "SELECT r.emoji_key, COUNT(*) AS n FROM reactions r "
-            "JOIN replacement_messages m ON m.message_id = r.message_id "
-            "WHERE m.guild_id = ? GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key",
-            static_cast<std::uint64_t>(guild_id));
-        while (statement.step()) {
-            counted.emplace_back(statement.get<std::string>(0), statement.get<std::int64_t>(1));
-        }
-    }
+    // The names come back with the counts, rather than one lookup per emoji:
+    // this runs on every keystroke of an autocomplete, and a filter that
+    // matched little used to look up every emoji the guild had ever used.
+    // The filter stays here, since a Unicode emoji with no row is named by
+    // its key, which SQL cannot see.
+    auto statement = db_->prepare(
+        "SELECT r.emoji_key, COUNT(*) AS n, e.name, e.animated FROM reactions r "
+        "JOIN replacement_messages m ON m.message_id = r.message_id "
+        "LEFT JOIN emojis e ON e.emoji_key = r.emoji_key "
+        "WHERE m.guild_id = ? GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key",
+        static_cast<std::uint64_t>(guild_id));
 
     const std::string wanted = util::to_lower(util::trim(filter));
     std::vector<emoji_tally> found;
-    for (const auto& [key, count] : counted) {
-        if (found.size() == limit) {
-            break;
-        }
-        emoji_ref emoji = describe(key);
+    while (found.size() < limit && statement.step()) {
+        emoji_ref emoji = emoji_from(statement.get<std::string>(0), statement.get<std::optional<std::string>>(2),
+                                     statement.get<std::optional<std::int64_t>>(3).value_or(0) != 0);
         if (wanted.empty() || util::to_lower(emoji.name).find(wanted) != std::string::npos) {
-            found.push_back({.emoji = std::move(emoji), .count = count});
+            found.push_back({.emoji = std::move(emoji), .count = statement.get<std::int64_t>(1)});
         }
     }
     return found;

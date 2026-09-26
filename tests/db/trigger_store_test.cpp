@@ -78,6 +78,33 @@ TEST_CASE("a trigger survives a round trip with its responses", "[db]") {
     CHECK(loaded->responses[1].text == "very nice");
 }
 
+TEST_CASE("each trigger in a guild gets its own responses, in order", "[db]") {
+    // They are read for the whole guild in one query and sorted out after.
+    store_fixture fixture;
+    trigger first = nice_trigger();
+    first.responses = {{.text = "a", .weight = 1}, {.text = "b", .weight = 2}};
+    trigger second = nice_trigger();
+    second.pattern = "69";
+    second.responses = {{.text = "c", .weight = 3}};
+    trigger silent = nice_trigger();
+    silent.pattern = "1337";
+    silent.responses = {};
+    fixture.store.add(first);
+    fixture.store.add(second);
+    fixture.store.add(silent);
+    fixture.store.add(nice_trigger(other_guild));
+
+    const auto all = fixture.store.for_guild(guild);
+    REQUIRE(all.size() == 3);
+    REQUIRE(all[0].responses.size() == 2);
+    CHECK(all[0].responses[0].text == "a");
+    CHECK(all[0].responses[1].text == "b");
+    CHECK(all[0].responses[1].weight == 2);
+    REQUIRE(all[1].responses.size() == 1);
+    CHECK(all[1].responses[0].text == "c");
+    CHECK(all[2].responses.empty());
+}
+
 TEST_CASE("guilds cannot see or change each other's triggers", "[db]") {
     store_fixture fixture;
     const std::int64_t mine = fixture.store.add(nice_trigger(guild));

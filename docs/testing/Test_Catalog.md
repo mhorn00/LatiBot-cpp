@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-495 test cases across 9 components, including 113 sections.
+496 test cases across 9 components, including 113 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 108 | 11 |
+| [db](#db) | 109 | 11 |
 | [config](#config) | 23 | 19 |
 | [commands](#commands) | 121 | 27 |
 | [events](#events) | 150 | 37 |
@@ -104,23 +104,24 @@ Database (`src/core/db`)
 | unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:102](../../tests/db/replacement_store_test.cpp#L102) |
 | replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:123](../../tests/db/replacement_store_test.cpp#L123) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:62](../../tests/db/trigger_store_test.cpp#L62) |
-| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:81](../../tests/db/trigger_store_test.cpp#L81) |
-| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:98](../../tests/db/trigger_store_test.cpp#L98) |
-| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:114](../../tests/db/trigger_store_test.cpp#L114) |
-| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:126](../../tests/db/trigger_store_test.cpp#L126) |
-| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:137](../../tests/db/trigger_store_test.cpp#L137) |
-| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:159](../../tests/db/trigger_store_test.cpp#L159) |
-| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:176](../../tests/db/trigger_store_test.cpp#L176) |
-| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:189](../../tests/db/trigger_store_test.cpp#L189) |
-| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:228](../../tests/db/trigger_store_test.cpp#L228) |
-| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:240](../../tests/db/trigger_store_test.cpp#L240) |
-| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:255](../../tests/db/trigger_store_test.cpp#L255) |
-| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:274](../../tests/db/trigger_store_test.cpp#L274) |
-| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:292](../../tests/db/trigger_store_test.cpp#L292) |
-| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:305](../../tests/db/trigger_store_test.cpp#L305) |
-| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:328](../../tests/db/trigger_store_test.cpp#L328) |
-| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:345](../../tests/db/trigger_store_test.cpp#L345) |
-| a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:359](../../tests/db/trigger_store_test.cpp#L359) |
+| each trigger in a guild gets its own responses, in order |  |  | [tests/db/trigger_store_test.cpp:81](../../tests/db/trigger_store_test.cpp#L81) |
+| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:108](../../tests/db/trigger_store_test.cpp#L108) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:125](../../tests/db/trigger_store_test.cpp#L125) |
+| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:141](../../tests/db/trigger_store_test.cpp#L141) |
+| the defaults are seeded once per guild |  |  | [tests/db/trigger_store_test.cpp:153](../../tests/db/trigger_store_test.cpp#L153) |
+| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:164](../../tests/db/trigger_store_test.cpp#L164) |
+| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:186](../../tests/db/trigger_store_test.cpp#L186) |
+| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:203](../../tests/db/trigger_store_test.cpp#L203) |
+| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:216](../../tests/db/trigger_store_test.cpp#L216) |
+| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:255](../../tests/db/trigger_store_test.cpp#L255) |
+| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:267](../../tests/db/trigger_store_test.cpp#L267) |
+| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:282](../../tests/db/trigger_store_test.cpp#L282) |
+| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:301](../../tests/db/trigger_store_test.cpp#L301) |
+| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:319](../../tests/db/trigger_store_test.cpp#L319) |
+| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:332](../../tests/db/trigger_store_test.cpp#L332) |
+| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:355](../../tests/db/trigger_store_test.cpp#L355) |
+| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:372](../../tests/db/trigger_store_test.cpp#L372) |
+| a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:386](../../tests/db/trigger_store_test.cpp#L386) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
 | renaming a rule moves it to the new site |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |

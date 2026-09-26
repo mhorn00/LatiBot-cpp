@@ -135,10 +135,18 @@ std::vector<trigger> trigger_store::for_guild(dpp::snowflake guild_id) const {
         }
     }
 
-    for (trigger& entry : found) {
-        auto query = db_->prepare("SELECT response, weight FROM trigger_responses WHERE trigger_id = ? ORDER BY rowid", entry.id);
-        while (query.step()) {
-            entry.responses.push_back({.text = query.get<std::string>(0), .weight = query.get<int>(1)});
+    // Every response in the guild in one query, rather than one per trigger:
+    // this runs for every message. `found` is ordered by id, so each
+    // response's trigger is found by binary search.
+    auto query = db_->prepare(
+        "SELECT trigger_id, response, weight FROM trigger_responses "
+        "WHERE trigger_id IN (SELECT id FROM triggers WHERE guild_id = ?) ORDER BY trigger_id, rowid",
+        static_cast<std::uint64_t>(guild_id));
+    while (query.step()) {
+        const auto owner = query.get<std::int64_t>(0);
+        const auto entry = std::ranges::lower_bound(found, owner, {}, &trigger::id);
+        if (entry != found.end() && entry->id == owner) {
+            entry->responses.push_back({.text = query.get<std::string>(1), .weight = query.get<int>(2)});
         }
     }
 
