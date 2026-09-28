@@ -325,6 +325,10 @@ auto apply_log_colors_from_environment() -> void;
 /// Uncoloured, it is byte-for-byte what the log has always looked like.
 [[nodiscard]] auto render_line(std::chrono::sys_seconds stamp, log_level level, std::string_view message, bool colored) -> std::string;
 
+/// The text without its colour: every escape sequence of the kind the
+/// logger writes (ESC, '[', parameters, one final letter) is removed.
+[[nodiscard]] auto strip_colors(std::string_view text) -> std::string;
+
 // --------------------------------------------------------------------------
 // The logger
 // --------------------------------------------------------------------------
@@ -359,6 +363,14 @@ public:
     /// Whether the next line will be coloured: colours on, and the stderr
     /// sink in use.
     [[nodiscard]] auto colors() const -> bool;
+
+    /// Sends a copy of every line at `minimum` or above to `tap`, whatever
+    /// the logger's own level, so the log channel can take debug lines that
+    /// a console at info never shows. An empty function removes it.
+    ///
+    /// The tap receives plain text, and is called with the logger's lock
+    /// held, as the sink is: it has to be quick, and it must never log.
+    auto set_tap(sink_fn tap, log_level minimum) -> void;
 
     [[nodiscard]] auto enabled(log_level level) const -> bool;
 
@@ -403,6 +415,9 @@ private:
 
     /// Empty `sink_` means the stderr sink; these only apply to it.
     bool colors_ = false;
+
+    sink_fn tap_;
+    log_level tap_level_ = log_level::off;
 };
 
 /// The bot's logger. One instance, because logging is called from everywhere

@@ -131,6 +131,27 @@ auto render_line(std::chrono::sys_seconds stamp, log_level level, std::string_vi
                        message);
 }
 
+auto strip_colors(std::string_view text) -> std::string {
+    std::string plain;
+    plain.reserve(text.size());
+
+    std::size_t at = 0;
+    while (at < text.size()) {
+        if (text[at] != '\x1b' || at + 1 == text.size() || text[at + 1] != '[') {
+            plain += text[at++];
+            continue;
+        }
+        // Parameters and intermediates run up to the final byte, '@' to '~';
+        // a sequence the text cuts off is dropped to its end.
+        at += 2;
+        while (at < text.size() && (text[at] < '@' || text[at] > '~')) {
+            ++at;
+        }
+        if (at < text.size()) ++at;
+    }
+    return plain;
+}
+
 // --------------------------------------------------------------------------
 
 logger::logger(log_level minimum) : level_(minimum) {}
@@ -160,21 +181,46 @@ auto logger::colors() const -> bool {
     return colors_ && !sink_;
 }
 
+auto logger::set_tap(sink_fn tap, log_level minimum) -> void {
+    const std::scoped_lock guard(mutex_);
+    tap_ = std::move(tap);
+    tap_level_ = minimum;
+}
+
 auto logger::enabled(log_level level) const -> bool {
     const std::scoped_lock guard(mutex_);
-    return level != log_level::off && level >= level_;
+    if (level == log_level::off) return false;
+    return level >= level_ || (tap_ && level >= tap_level_);
 }
 
 auto logger::write(log_level level, std::string_view message) -> void {
     // The lock covers the sink call as well, so lines from different threads
     // do not interleave mid-message.
     const std::scoped_lock guard(mutex_);
-    if (level == log_level::off || level < level_) return;
+    if (level == log_level::off) return;
 
-    if (sink_) {
-        sink_(level, message);
-    } else {
-        write_to_stderr(level, message, colors_);
+    if (level >= level_) {
+        if (sink_) {
+            sink_(level, message);
+        } else {
+            write_to_stderr(level, message, colors_);
+        }
+    }
+
+    if (tap_ && level >= tap_level_) {
+        // The line was coloured for the terminal if the terminal is where it
+        // went; the tap is not a terminal.
+        const bool colored = colors_ && !sink_ && message.find('\x1b') != std::string_view::npos;
+        try {
+            if (colored) {
+                tap_(level, strip_colors(message));
+            } else {
+                tap_(level, message);
+            }
+        } catch (...) { // NOLINT(bugprone-empty-catch)
+            // A copy of the log failing to arrive is not worth a failed call
+            // to log, which is somewhere nothing expects one.
+        }
     }
 }
 

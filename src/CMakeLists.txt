@@ -17,6 +17,7 @@ add_library(latibot_core STATIC
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/linkstats.cpp
+    core/commands/logs.cpp
     core/commands/message_options.cpp
     core/commands/options.cpp
     core/commands/bots.cpp
@@ -40,6 +41,7 @@ add_library(latibot_core STATIC
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/legacy_replacements.cpp
+    core/events/log_channel.cpp
     core/events/message_pipeline.cpp
     core/events/midnight.cpp
     core/events/nickname_import.cpp

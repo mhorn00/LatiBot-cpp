@@ -25,6 +25,7 @@ the design and the order of work behind it are in
 | 🔊 | [`/chat`](#chat) | Say something as a voice message |
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot |
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot |
+| 📋 | [`/logs`](#logs) | Post the bot's log in one channel |
 | 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases |
 | 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear |
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record |
@@ -389,6 +390,59 @@ The phrase is **per server**, and the default is `say goodbye latibot`.
 Turning it off stores an empty phrase rather than deleting the setting. Deleting
 it would fall back to the default the next time the bot read it, which is the
 opposite of off.
+
+### `/logs`
+
+Posts the bot's own log in one Discord channel, as well as to its console.
+
+| | |
+|---|---|
+| **Options** | see below |
+| **Who** | only users in `trusted_users` in `config.json`; shown to Administrators, by default |
+| **Where** | servers only |
+| **Bot needs** | View Channel and Send Messages in the log channel |
+
+| Subcommand | Options | Effect |
+|---|---|---|
+| `set` | `channel` (required, a text or announcement channel) · `level` (optional) | Posts a first message there, then `ok, my log goes to #channel from now on: info and above` |
+| `level` | `level` (required) | `ok, my log channel gets debug and above from now on` |
+| `off` | none | `ok, my log isn't posted anywhere now` |
+| `show` | none | Where it goes, from which level, how many lines are waiting, and whether posting is failing |
+
+`level` is one of `error`, `warn`, `info`, `debug` or `trace`, each taking
+everything above it too. `set` keeps the current level when it is not given,
+and uses `info` the first time.
+
+There is **one log channel for the whole bot**, not one per server: `set`
+from another server moves it there. That is why only `trusted_users` can use
+it, and not the administrators of `trusted_guilds`: the log covers every
+server the bot is in, so the channel's readers see all of it. Anyone else is
+told `only the people listed in trusted_users in my config.json can choose
+where my log goes, since it covers every server i'm in`.
+
+The channel's level is its own, independent of the console's: a console at
+`info` and a channel at `debug` each get their own share. Lines are gathered
+and posted every two seconds, as few messages as fit, each a code block of
+`12:34:56 [info] …` lines in UTC, silent and with no previews or mentions.
+
+- **Bursts.** At most two messages go out each time, well inside Discord's
+  limit of five a channel every five seconds. Up to 1000 lines wait; beyond
+  that the newest are dropped and the next message says how many.
+- **Posting fails** (the channel is deleted, or the bot loses access): what
+  was being posted is lost, the console gets one warning, and the bot waits
+  30 seconds before trying again, doubling each time up to 15 minutes. `show`
+  gives the reason and when the next try is. Lines keep waiting meanwhile.
+- **`set` checks first.** It posts its first message before it changes
+  anything, so a channel the bot cannot post in is refused with Discord's
+  reason and the old setting kept.
+- **Secrets.** The bot's token and API keys are masked in anything posted,
+  in case anything ever logs one.
+- **`trace` is everything**: the content of every message the bot sees, in
+  every server, and DPP's gateway traffic. It is a lot of messages, and it
+  puts every server's conversations in the channel.
+- The setting is kept across restarts. What was logged while starting up is
+  posted once the bot has connected. Lines logged in the last moments before
+  a shutdown may not make it.
 
 ### `/trigger`
 
@@ -1144,9 +1198,9 @@ buttons keep the flags its message was sent with.
 and what it did; so does every button and form in a panel, every message the
 bot posts on its own, and each start, stop and schema change. Turning the level
 up to `debug` adds the reasoning — which trigger matched, why one stayed quiet,
-what a cooldown had left to run. Nothing is posted to Discord; it all goes to
-the bot's own log. See [Logging](../../README.md#logging) for how to set the
-level.
+what a cooldown had left to run. It all goes to the bot's own log, and to a
+Discord channel only if [`/logs`](#logs) has set one. See
+[Logging](../../README.md#logging) for how to set the level.
 
 **The bot needs two privileged intents**, both enabled for the application
 under *Bot → Privileged Gateway Intents* in the Discord developer portal:

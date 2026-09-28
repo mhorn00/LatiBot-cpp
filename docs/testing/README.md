@@ -313,9 +313,12 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     `audit_nickname` are pure and tested; that they are hooked to the right
     events, that the guild is read correctly out of an audit entry's raw
     frame, and that the delayed audit-log fallback fires, are not.
-  - The timers. That the midnight tick, the embed tracker's one-second tick
-    and the backup schedule are started at all, and at the intervals
-    configured.
+  - The timers. That the midnight tick, the embed tracker's one-second tick,
+    the log channel's two-second tick and the backup schedule are started at
+    all, and at the intervals configured. The log channel's buffering,
+    posting and backoff are tested against `mock_discord`; that the bot
+    starts it from the stored setting at startup is not, nor that `/logs set`
+    really posts, which needs an interaction.
   - The URL replacement wiring. The tracker, the reaction store and the
     backfill are tested against the mocks; that `on_message_update`,
     `on_message_delete` and the four reaction events reach them, that

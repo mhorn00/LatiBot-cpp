@@ -5,19 +5,19 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-584 test cases across 10 components, including 122 sections.
+608 test cases across 10 components, including 122 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 115 | 12 |
 | [config](#config) | 23 | 19 |
-| [commands](#commands) | 138 | 27 |
-| [events](#events) | 157 | 37 |
+| [commands](#commands) | 141 | 27 |
+| [events](#events) | 174 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 58 | 8 |
 | [ports](#ports) | 7 | 0 |
-| [log](#log) | 28 | 0 |
+| [log](#log) | 32 | 0 |
 | [util](#util) | 39 | 19 |
 
 ## db
@@ -232,6 +232,9 @@ Command framework (`src/core/commands`)
 | a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:329](../../tests/unit/linkstats_command_test.cpp#L329) |
 | a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:354](../../tests/unit/linkstats_command_test.cpp#L354) |
 | what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:377](../../tests/unit/linkstats_command_test.cpp#L377) |
+| only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
+| the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
+| the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
 | an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
 | a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
 | an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
@@ -388,6 +391,23 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | other bots' links are never the original |  |  | [tests/unit/legacy_replacements_test.cpp:219](../../tests/unit/legacy_replacements_test.cpp#L219) |
 | a front-page link proves nothing about which message was answered |  |  | [tests/unit/legacy_replacements_test.cpp:228](../../tests/unit/legacy_replacements_test.cpp#L228) |
 | a message's time comes from its id |  |  | [tests/unit/legacy_replacements_test.cpp:238](../../tests/unit/legacy_replacements_test.cpp#L238) |
+| a waiting line has its time and level, in a code block |  |  | [tests/unit/log_channel_test.cpp:51](../../tests/unit/log_channel_test.cpp#L51) |
+| lines are packed into as few messages as fit, in order |  |  | [tests/unit/log_channel_test.cpp:59](../../tests/unit/log_channel_test.cpp#L59) |
+| what does not fit this time keeps waiting |  |  | [tests/unit/log_channel_test.cpp:77](../../tests/unit/log_channel_test.cpp#L77) |
+| secrets are masked wherever they appear, and short ones left alone |  |  | [tests/unit/log_channel_test.cpp:88](../../tests/unit/log_channel_test.cpp#L88) |
+| nothing a line holds can close its code block |  |  | [tests/unit/log_channel_test.cpp:99](../../tests/unit/log_channel_test.cpp#L99) |
+| a very long line is cut to fit one message |  |  | [tests/unit/log_channel_test.cpp:112](../../tests/unit/log_channel_test.cpp#L112) |
+| a flood keeps its start and says how much was dropped |  |  | [tests/unit/log_channel_test.cpp:123](../../tests/unit/log_channel_test.cpp#L123) |
+| the log channel is kept bot-wide and can be cleared |  |  | [tests/unit/log_channel_test.cpp:142](../../tests/unit/log_channel_test.cpp#L142) |
+| a stored level that cannot be read is info, and the channel is kept |  |  | [tests/unit/log_channel_test.cpp:159](../../tests/unit/log_channel_test.cpp#L159) |
+| the log is posted to its channel, silently, from its level up | `coro` |  | [tests/unit/log_channel_test.cpp:177](../../tests/unit/log_channel_test.cpp#L177) |
+| the level can change without moving the channel | `coro` |  | [tests/unit/log_channel_test.cpp:200](../../tests/unit/log_channel_test.cpp#L200) |
+| a failed post waits before trying again, longer each time | `coro` |  | [tests/unit/log_channel_test.cpp:214](../../tests/unit/log_channel_test.cpp#L214) |
+| the first failure is logged, and the lines it lost are counted | `coro` |  | [tests/unit/log_channel_test.cpp:253](../../tests/unit/log_channel_test.cpp#L253) |
+| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:271](../../tests/unit/log_channel_test.cpp#L271) |
+| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:289](../../tests/unit/log_channel_test.cpp#L289) |
+| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:305](../../tests/unit/log_channel_test.cpp#L305) |
+| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:318](../../tests/unit/log_channel_test.cpp#L318) |
 | stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:51](../../tests/unit/message_pipeline_test.cpp#L51) |
 | a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:64](../../tests/unit/message_pipeline_test.cpp#L64) |
 | the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:79](../../tests/unit/message_pipeline_test.cpp#L79) |
@@ -621,12 +641,16 @@ Logging (`src/core/util/log`)
 | never and always mean exactly that |  |  | [tests/unit/log_color_test.cpp:213](../../tests/unit/log_color_test.cpp#L213) |
 | a replacement sink gets plain text even with colours on |  |  | [tests/unit/log_color_test.cpp:222](../../tests/unit/log_color_test.cpp#L222) |
 | colours are off until something turns them on |  |  | [tests/unit/log_color_test.cpp:235](../../tests/unit/log_color_test.cpp#L235) |
-| level names round trip |  |  | [tests/unit/log_test.cpp:17](../../tests/unit/log_test.cpp#L17) |
-| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:25](../../tests/unit/log_test.cpp#L25) |
-| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:32](../../tests/unit/log_test.cpp#L32) |
-| off silences everything |  |  | [tests/unit/log_test.cpp:45](../../tests/unit/log_test.cpp#L45) |
-| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:53](../../tests/unit/log_test.cpp#L53) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:61](../../tests/unit/log_test.cpp#L61) |
+| level names round trip |  |  | [tests/unit/log_test.cpp:19](../../tests/unit/log_test.cpp#L19) |
+| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:27](../../tests/unit/log_test.cpp#L27) |
+| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:34](../../tests/unit/log_test.cpp#L34) |
+| off silences everything |  |  | [tests/unit/log_test.cpp:47](../../tests/unit/log_test.cpp#L47) |
+| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:55](../../tests/unit/log_test.cpp#L55) |
+| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
+| a tap gets lines below the logger's own level when it asks for them |  |  | [tests/unit/log_test.cpp:114](../../tests/unit/log_test.cpp#L114) |
+| a tap above the logger's level leaves out what it did not ask for |  |  | [tests/unit/log_test.cpp:131](../../tests/unit/log_test.cpp#L131) |
+| a removed tap gets nothing more |  |  | [tests/unit/log_test.cpp:143](../../tests/unit/log_test.cpp#L143) |
+| colour is stripped and the text kept |  |  | [tests/unit/log_test.cpp:155](../../tests/unit/log_test.cpp#L155) |
 
 ## util
 

@@ -41,6 +41,8 @@ add_executable(latibot_tests
     unit/paginator_test.cpp
     unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
+    unit/logs_command_test.cpp
+    unit/log_channel_test.cpp
     unit/log_color_test.cpp
     unit/log_test.cpp
     unit/message_flags_test.cpp

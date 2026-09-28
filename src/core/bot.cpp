@@ -4,6 +4,7 @@
 #include "core/commands/bots.hpp"
 #include "core/commands/chat.hpp"
 #include "core/commands/linkstats.hpp"
+#include "core/commands/logs.hpp"
 #include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
@@ -150,6 +151,14 @@ auto prepare(const std::filesystem::path& database_path) -> std::filesystem::pat
     return database_path;
 }
 
+/// What the log channel masks, in case anything ever logs one of them.
+auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> {
+    std::vector<std::string> secrets{credentials.discord_token};
+    if (credentials.anthropic_key) secrets.push_back(*credentials.anthropic_key);
+    if (credentials.openai_key) secrets.push_back(*credentials.openai_key);
+    return secrets;
+}
+
 } // namespace
 
 bot::bot(config::bootstrap settings, const config::secrets& credentials)
@@ -178,7 +187,9 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       voices_(database_),
       voice_drafts_(clock_),
       voice_lab_(voice_drafts_, voices_, clock_,
-                 {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}) {
+                 {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
+      log_destinations_(guild_settings_),
+      log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -207,6 +218,14 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     // heading rather than before the bot has said it is starting.
     const int version = db::migrate(database_);
     util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
+
+    // As soon as the setting can be read, so the rest of starting up is in
+    // the channel too. It is posted once the connection is up.
+    if (const auto destination = log_destinations_.find()) {
+        log_channel_.start(*destination);
+        util::log().info("posting the log to channel {} in guild {} at {}", destination->channel_id, destination->guild_id,
+                         util::to_string(destination->level));
+    }
 
     // Years of history from the Java bot, if its file was left beside the
     // database. Importing is idempotent, so this needs no marker file and no
@@ -250,6 +269,7 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
+    commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
 
     const commands::speech_services speech{
         .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
@@ -466,6 +486,12 @@ auto bot::register_timers() -> void {
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
     cluster_.start_timer(guarded("the preview tracker's tick", [this](dpp::timer) { carry_out(embed_tracker_.tick()); }), 1);
+
+    // Posts what has been logged since the last tick, if a channel is set.
+    // A tick with nothing waiting, or no channel, costs a coroutine that
+    // takes a lock and returns.
+    cluster_.start_timer(guarded("the log channel's tick", [this](dpp::timer) { detach(log_channel_.flush(), "posting the log"); }),
+                         static_cast<std::uint64_t>(events::log_channel_tick.count()));
 
     // Leaving a voice channel nobody else is in, once its guild's grace has
     // passed (plan §13). Leaving is the bot's own voice state changing, which

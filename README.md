@@ -196,7 +196,7 @@ message naming it, so a typo is never silently ignored.
 | `backup_interval_minutes` | whole number | `360` | how often a backup is taken; must be positive |
 | `track_nicknames` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above) |
 | `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands: `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` |
-| `trusted_users` | list of IDs, as text | none | users who may use those commands in any server |
+| `trusted_users` | list of IDs, as text | none | users who may use those commands in any server, and the only ones who may choose the log channel (`/logs`) |
 | `llm_provider` | text | `anthropic` | read but **not used yet** (phase 5) |
 | `llm_model` | text | `claude-haiku-4-5` | read but **not used yet** (phase 5) |
 | `spend_cap_daily_usd` | number | `2.0` | read but **not used yet** (phase 5) |
@@ -259,6 +259,13 @@ To keep the output to one file:
 .\build\bin\Release\LatiBot.exe 2> latibot.log
 ```
 
+**A log channel.** `/logs set` posts the log in one Discord channel as well,
+from a level of its own: a console at `info` and a channel at `debug` each get
+their share. There is one for the whole bot, kept across restarts, and only
+`trusted_users` can set it, since it covers every server. The token and API
+keys are masked in anything posted.
+[docs/features/](docs/features/README.md#logs) has the details.
+
 **Colour.** In a terminal, arguments are coloured by their type — numbers,
 `true` and `false`, Discord ids, durations — along with the timestamp, the
 level, and the `[dpp]` tag on lines forwarded from DPP. The text around them
@@ -299,6 +306,7 @@ options, replies and edge cases.
 | `/chat` | say something as a voice message |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
+| `/logs` | `set`, `level`, `off`, `show` — post the bot's log in one channel |
 | `/trigger` | `add`, `edit`, `remove`, `list`, `panel` — automatic replies |
 | `/bots` | `allow`, `deny`, `list` — which other bots the bot may hear |
 | `/nickname` | change somebody's nickname, and record who did it |

@@ -14,6 +14,7 @@
 #include "core/discord/raw_api.hpp"
 #include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
+#include "core/events/log_channel.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
@@ -193,6 +194,12 @@ private:
     audio::voice_store voices_;
     commands::voice_drafts voice_drafts_;
     commands::voice_lab voice_lab_;
+
+    /// Where the log is posted (`/logs`). Destroyed before everything above
+    /// it, and unhooked from the logger as it goes, so a line logged while
+    /// the rest shuts down reaches the console and nothing else.
+    events::log_destination_store log_destinations_;
+    events::log_channel log_channel_;
 
     /// Replacements the last run left `pending` or `retrying`, by guild. Read
     /// in the constructor, before anything can be posted, so none of them is

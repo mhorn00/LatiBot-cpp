@@ -378,6 +378,14 @@ panels, with typed getters that fall back to a caller-supplied default. A value
 that cannot be parsed falls back rather than throwing: one hand-edited row
 should not take a feature down.
 
+*Added after phase 4:* the log can also be posted in **one Discord channel**
+for the whole bot, from a level of its own (`/logs`). The logger gained a
+second output, a tap with its own level, so the channel can take lines the
+console does not; the lines wait in a bounded buffer and are posted every two
+seconds, backing off when posting fails. The setting lives under the bot-wide
+guild id, beside `/status`, and only `trusted_users` can change it, since the
+log covers every server.
+
 ### 5.2 Database ✅
 
 Our own wrapper — `database`, `statement`, `transaction` — over `sqlite3`, with
