@@ -111,8 +111,10 @@ TEST_CASE("an audit entry's nickname arrives as JSON rather than as text", "[eve
     CHECK_FALSE(latibot::events::audit_nickname("").has_value());
 
     // Quotes and backslashes survive the round trip, which is the whole point
-    // of it being JSON.
-    CHECK(latibot::events::audit_nickname(R"("say \"420\"")") == R"(say "420")");
+    // of it being JSON. Worked out outside CHECK: VS 2022's compiler cannot
+    // stringize a raw string holding \" inside a macro argument.
+    const auto quoted = latibot::events::audit_nickname(R"("say \"420\"")");
+    CHECK(quoted == R"(say "420")");
 }
 
 TEST_CASE("an unreadable audit value is treated as no nickname", "[events]") {

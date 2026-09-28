@@ -43,7 +43,7 @@ if (-not (Test-Path $toolchain)) {
 The ninja-tidy preset needs a Ninja-flavoured dependency install, which is not present.
 Run this once (it builds the dependencies from source, so allow several minutes):
 
-  conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja
+  conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 -c tools.cmake.cmaketoolchain:generator=Ninja -c tools.cmake.cmaketoolchain:user_presets=
 "@
 }
 

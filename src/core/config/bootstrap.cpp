@@ -6,6 +6,8 @@
 #include <dpp/json.h>
 
 #include <algorithm>
+#include <filesystem>
+#include <format>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -249,9 +251,12 @@ auto secrets::from_environment() -> secrets {
 
     const auto token = util::env_var("DISCORD_BOT_TOKEN");
     if (!token || token->empty()) {
+        // Says where .env goes, since a release is only the executable, with
+        // no .env.example beside it to show the way.
         throw config_error(
-            "DISCORD_BOT_TOKEN is not set. Secrets come from the environment "
-            "only; never put the token in config.json.");
+            std::format("DISCORD_BOT_TOKEN is not set. Set it in the environment, or put the line "
+                        "DISCORD_BOT_TOKEN=<your token> in {}. Never put the token in config.json.",
+                        std::filesystem::absolute(".env").generic_string()));
     }
     loaded.discord_token = *token;
 

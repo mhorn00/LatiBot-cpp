@@ -221,6 +221,8 @@ TEST_CASE("secrets come from the environment", "[config]") {
     SECTION("the token is required") {
         const scoped_env token("DISCORD_BOT_TOKEN", nullptr);
         REQUIRE_THROWS_AS(secrets::from_environment(), config_error);
+        // Where to put it, for an install that is only the executable.
+        CHECK_THROWS_WITH(secrets::from_environment(), ContainsSubstring(".env") && ContainsSubstring("DISCORD_BOT_TOKEN="));
     }
 
     SECTION("optional keys stay unset when absent") {

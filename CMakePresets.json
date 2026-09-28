@@ -9,7 +9,7 @@
     {
       "name": "msvc",
       "displayName": "MSVC (Debug + Release)",
-      "description": "Default multi-config build, used locally and by CI. The Visual Studio version is deliberately not pinned: CMake picks the installed one, which is what keeps this working across VS 2022 and VS 2026. Needs: conan install . --build=missing -s build_type=Release && ... -s build_type=Debug",
+      "description": "Default multi-config build, used locally and by CI. The Visual Studio version is deliberately not pinned: CMake picks the installed one, which is what keeps this working across VS 2022 and VS 2026. Needs: conan install . --build=missing -s build_type=Release -s compiler.cppstd=20, and again with -s build_type=Debug",
       "binaryDir": "${sourceDir}/build",
       "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
     },
@@ -37,7 +37,7 @@
     {
       "name": "ninja-tidy",
       "displayName": "Ninja (compile_commands.json for clang-tidy)",
-      "description": "Needs: conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja, and a shell with vcvars loaded (build/Debug/generators/conanbuild.bat)",
+      "description": "Needs: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 -c tools.cmake.cmaketoolchain:generator=Ninja -c tools.cmake.cmaketoolchain:user_presets=, and a shell with vcvars loaded (build/Debug/generators/conanbuild.bat)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build-tidy",
       "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",

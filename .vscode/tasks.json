@@ -153,7 +153,7 @@
       // conanfile.py; the first run builds the dependencies from source.
       "label": "Conan: install dependencies",
       "type": "shell",
-      "command": "conan install . --build=missing -s build_type=Release && conan install . --build=missing -s build_type=Debug",
+      "command": "conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 && conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20",
       "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }

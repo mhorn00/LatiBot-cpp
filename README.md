@@ -17,9 +17,18 @@ reference during the port; it is not part of the C++ build.
 | [Git](https://git-scm.com/) | any recent | needed for the submodules (and by DPP's CMake) |
 | [CMake](https://cmake.org/) | >= 3.21 | required for the `TARGET_RUNTIME_DLLS` generator expression |
 | [Conan](https://conan.io/) | 2.x | dependency manager |
+| [PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) | 7.x (`pwsh`) | runs the scripts in `tools/` and VS Code's tasks. Windows' built-in PowerShell 5.1 is not enough: the scripts use .NET APIs it does not have |
 
-If any are missing: `winget install Git.Git`, `winget install Kitware.CMake`,
-and `pip install conan` (or `winget install --id Conan.Conan`).
+If any are missing:
+
+```powershell
+winget install Git.Git
+winget install Kitware.CMake
+winget install Microsoft.PowerShell
+winget install --id Conan.Conan   # or, with Python installed: pip install conan
+```
+
+Open a new terminal afterwards, so the tools are on `PATH`.
 
 The Build Tools install in step 2 already includes AddressSanitizer, Ninja and
 clang-tidy/clang-format. One more is optional:
@@ -69,29 +78,29 @@ elevation and exit with code 5007 instead.
 
 ## 3. Set up the Conan profile
 
+Once per machine, if you have never used Conan on it:
+
 ```powershell
-conan profile detect --force
+conan profile detect
 ```
 
-This writes `~/.conan2/profiles/default`. **Edit it and set
-`compiler.cppstd=20`**. The detected default is usually `14`, and this project
-is C++20:
+This writes `~/.conan2/profiles/default` from the compiler it finds. If one is
+already there it stops with `ERROR: Profile ... already exists`, which is
+fine: keep the one you have. It should say `compiler=msvc` and
+`compiler.version=195`, the v145 toolset that ships with VS 2026 (`194` is
+VS 2022, which works too). It will also say `compiler.cppstd=14`: leave that,
+since the install commands below ask for C++20 themselves, which is what this
+project needs and what CI does.
 
-```
-[settings]
-arch=x86_64
-build_type=Release
-compiler=msvc
-compiler.cppstd=20
-compiler.runtime=dynamic
-compiler.version=195
-os=Windows
-```
-
-`compiler.version=195` is the v145 toolset that ships with VS 2026, and it is
-what the CI runner detects too. ConanCenter has no prebuilt binaries for it
-yet, so the first `conan install` builds the dependencies from source (about
-ten minutes); afterwards they come from `~/.conan2/p/`.
+**The profile, not the newest Visual Studio installed, decides which compiler
+builds everything**, dependencies and bot alike: Conan's toolchain sets the
+toolset. A profile made while only VS 2022 was installed keeps building with
+VS 2022 after VS 2026 is added. To move to the compiler CI uses, run
+`conan profile detect --force`, which replaces the profile (or change only
+its `compiler.version` line), delete `build\`, then steps 4 and 5 again. A
+build folder remembers its toolset, and configuring it for another fails with
+`generator toolset ... does not match the toolset used previously`.
+The first install after that builds the dependencies from source once more.
 
 The default `conancenter` remote is all that's needed.
 
@@ -101,13 +110,18 @@ MSVC is a multi-config toolchain, so install both configurations into the same
 `build/generators` folder:
 
 ```powershell
-conan install . --build=missing -s build_type=Release
-conan install . --build=missing -s build_type=Debug
+conan install . --build=missing -s build_type=Release -s compiler.cppstd=20
+conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
 ```
 
 This provides OpenSSL, zlib and opus (DPP's dependencies), SQLite with FTS5,
-CTRE, and Catch2 for the tests. The first run can take a few minutes; packages
-are cached in `~/.conan2/p/` afterwards.
+CTRE, and Catch2 for the tests. `-s compiler.cppstd=20` is required: CTRE
+refuses anything below C++17, and without it the profile's `14` applies.
+
+ConanCenter has no prebuilt binaries for the VS 2026 compiler yet, so the
+first time, every dependency is built from source: about ten minutes for each
+command. After that they come from the cache in `~/.conan2/p/`, and running
+the commands again takes seconds.
 
 ## 5. Configure and build
 
@@ -117,12 +131,23 @@ cmake --build build --config Debug
 cmake --build build --config Release
 ```
 
-The first build compiles DPP from source, which takes a while (10+ minutes,
-longer for Release). Later builds only recompile what changed.
+The first build of each configuration compiles DPP from source, about ten
+minutes each. Later builds only recompile what changed. Configure prints a
+lot of DPP's own output, including `CMAKE_CXX_STANDARD ... modified to 17`
+warnings, which are expected; it should include
+`VOICE support will be enabled`.
 
-Binaries land in `build\bin\Debug\` and `build\bin\Release\`. A post-build step
-copies `dpp.dll` and the other runtime DLLs next to `LatiBot.exe`, so it runs
+Binaries land in `build\bin\Debug\` and `build\bin\Release\`, with `dpp.dll`,
+`dectalk.dll` and DECtalk's dictionary beside `LatiBot.exe`, so it runs
 without extra `PATH` setup.
+
+Check the setup with the tests, which need nothing else:
+
+```powershell
+ctest --preset debug
+```
+
+Every test should pass.
 
 ## 6. In VS Code
 
@@ -139,6 +164,41 @@ tell which build of a Conan package this project links, so it is a stopgap
 rather than the answer.
 
 ## Running
+
+### The Discord application
+
+The bot needs an application of its own in the
+[Discord Developer Portal](https://discord.com/developers/applications):
+
+1. **New Application**, then under **Bot**, **Reset Token** and keep the
+   token for the next step. It is shown once.
+2. Still under **Bot**, turn on both **Privileged Gateway Intents**:
+   Message Content and Server Members, described below.
+3. Under **OAuth2 → URL Generator**, tick the scopes `bot` and
+   `applications.commands`, then the bot permissions: View Channels, Send
+   Messages, Send Messages in Threads, Read Message History, Embed Links,
+   Attach Files, Add Reactions, Use External Emojis, Manage Messages, Manage
+   Nicknames, View Audit Log, Connect and Speak. Open the generated URL to
+   add the bot to a server.
+
+A permission left out only disables what needs it: the startup log names
+anything missing, per server, and what it is for.
+
+The bot needs two **privileged intents**, both enabled for the application at
+*Discord Developer Portal → your app → Bot → Privileged Gateway Intents*:
+
+- **Message Content.** Without it Discord delivers guild messages with an empty
+  `content`, and everything that reads a message — the goodbye phrase, the
+  triggers — goes quiet while the slash commands keep working.
+- **Server Members.** Without it no nickname change is ever seen. Set
+  `"track_nicknames": false` in `config.json` to turn nickname tracking off
+  and stop the bot asking for this one.
+
+An intent the application was not granted is not a warning: Discord refuses the
+gateway outright and the bot reconnects in a loop. The log says which toggle to
+go and find when that happens.
+
+### Starting it
 
 Secrets come from the environment only ([plan §5.1](docs/porting/Porting_Plan_Final.md)): `DISCORD_BOT_TOKEN`,
 and optionally `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for later phases.
@@ -158,27 +218,40 @@ the shell already set. Run it from the repo root so it finds both `.env` and
 In VS Code, **F5** does both: `.vscode/launch.json` builds the executable and
 runs it from the repo root, so the same `.env` applies.
 
-The bot needs two **privileged intents**, both enabled for the application at
-*Discord Developer Portal → your app → Bot → Privileged Gateway Intents*:
+### On another machine
 
-- **Message Content.** Without it Discord delivers guild messages with an empty
-  `content`, and everything that reads a message — the goodbye phrase, the
-  triggers — goes quiet while the slash commands keep working.
-- **Server Members.** Without it no nickname change is ever seen. Set
-  `"track_nicknames": false` in `config.json` to turn nickname tracking off
-  and stop the bot asking for this one.
+A Release build runs anywhere with these four files from `build\bin\Release\`,
+kept together in one folder:
 
-An intent the application was not granted is not a warning: Discord refuses the
-gateway outright and the bot reconnects in a loop. The log says which toggle to
-go and find when that happens.
+| File | |
+|---|---|
+| `LatiBot.exe` | the bot |
+| `dpp.dll` | DPP, with OpenSSL, zlib and opus linked into it |
+| `dectalk.dll` | the speech engine |
+| `dtalk_us.dic` | DECtalk's dictionary, which has to stay beside `dectalk.dll` |
+
+The machine also needs the **Microsoft Visual C++ Redistributable** (x64), for
+`MSVCP140.dll` and `VCRUNTIME140.dll`. Without it Windows refuses to start the
+bot and names a missing DLL. It has to be at least as new as the compiler, so
+install the latest:
+
+```powershell
+winget install Microsoft.VCRedist.2015+.x64
+```
+
+Then, in that folder: create `.env` with the line `DISCORD_BOT_TOKEN=<your
+token>` (or set the variable), and run `LatiBot.exe`. The first run writes
+`config.json` with the defaults, and `data/` for the database, its backups and
+the certificate bundle, all beside where it was run from. Without a token it
+stops, saying exactly where `.env` goes.
 
 ### Configuration
 
 Settings for the whole bot go in `config.json`, in the directory the bot is
 run from; everything per server is set with commands instead, and kept in the
 database. When there is no `config.json`, the bot **writes one** with the
-defaults and runs on them, so a fresh install, which is only the executable,
-has a file to edit; change it and restart. It is git-ignored, since it holds
+defaults and runs on them, so a fresh install has a file to edit; change it
+and restart. It is git-ignored, since it holds
 real Discord IDs. [config.example.json](config.example.json) is the same file,
 for reading here, and a test keeps the two identical. The bot never writes
 over a file that is there, and one it cannot read stops startup. A folder it
@@ -383,8 +456,9 @@ by component and is generated by `tools/Update-TestCatalog.ps1`.
 Tests live in `tests/`, and the bot's code is in the `latibot_core` static
 library so both `LatiBot.exe` and `latibot_tests.exe` link the same code.
 Each test carries one component tag (`[db]`, `[config]`, `[commands]`,
-`[discord]`, `[ports]`, `[log]`, `[util]`) plus optional traits (`[coro]`,
-`[threads]`, `[fs]`), which select subsets:
+`[events]`, `[ui]`, `[discord]`, `[audio]`, `[ports]`, `[log]`, `[util]`) plus
+optional traits (`[coro]`, `[threads]`, `[fs]`, `[golden]`), which select
+subsets:
 
 ```powershell
 .\build\bin\Debug\latibot_tests.exe "[db]"           # one component
@@ -425,8 +499,15 @@ the Visual Studio generator cannot produce `compile_commands.json`. It says so
 if the install is missing rather than starting a long build on its own:
 
 ```powershell
-conan install . --build=missing -s build_type=Debug -c tools.cmake.cmaketoolchain:generator=Ninja
+conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 -c tools.cmake.cmaketoolchain:generator=Ninja -c tools.cmake.cmaketoolchain:user_presets=
 ```
+
+The empty `user_presets=` at the end matters. Without it Conan adds this
+install's presets to `CMakeUserPresets.json` beside the ones from step 4, both
+define `conan-debug`, and CMake then refuses to read any presets at all:
+`Duplicate preset: "conan-debug"`, from the command line and CMake Tools
+alike. If that has happened, delete `CMakeUserPresets.json` and run the two
+installs from step 4 again.
 
 ### VS Code tasks
 
@@ -442,14 +523,19 @@ the same commands as above; nothing is exclusive to the editor.
 CMakeLists.txt      top-level build definition (also configures the DPP submodule)
 CMakePresets.json   msvc / asan / fuzz / ninja-tidy presets
 conanfile.py        Conan recipe: openssl, zlib, opus, sqlite3, ctre, catch2
+config.example.json what the bot writes as config.json on its first run
+.env.example        the environment variables, to copy to .env
 cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
 tools/              catalog generator, clang-tidy and clang-format wrappers
-.vscode/            tasks, IntelliSense and the grouped test tree
+.github/workflows/  CI: build and test Debug and Release, and a secret scan
+.vscode/            tasks, launch configurations, IntelliSense and the grouped test tree
 src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
-tests/              Catch2 tests, mocks, support and fuzz targets
+tests/              Catch2 tests, mocks, support, golden files and fuzz targets
 docs/features/      what the bot does, and what it will do
+docs/testing/       the test strategy, and the generated test catalog
 docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
+docs/analysis/      the codebase cleanup analysis
 docs/ideas/         parked ideas
 third_party/DPP     submodule: DPP v10.1.6, built from source
 third_party/dectalk submodule: DECtalk (develop branch), built by cmake/dectalk.cmake
@@ -495,6 +581,9 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   upgrading DPP.
 - **"CMAKE_CXX_STANDARD ... modified to 17" warnings** during configure are
   expected. DPP sets 17 in its own scope but compiles the `dpp` target as C++20.
+- **Three linker warnings in a clean build are expected**, none of them ours:
+  `LNK4017` from `dectalk.def`'s `DESCRIPTION` line, in each configuration,
+  and `LNK4075` from DPP's own link settings in Debug.
 - **`CMAKE_CONFIGURATION_TYPES` is limited to `Debug;Release`.** Without that,
   the Visual Studio generator also expects `MinSizeRel`/`RelWithDebInfo`, which
   Conan hasn't installed.

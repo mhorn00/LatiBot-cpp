@@ -169,14 +169,14 @@ Configuration (`src/core/config`)
 | the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:178](../../tests/unit/bootstrap_test.cpp#L178) |
 | trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:186](../../tests/unit/bootstrap_test.cpp#L186) |
 | secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:220](../../tests/unit/bootstrap_test.cpp#L220) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:247](../../tests/unit/bootstrap_test.cpp#L247) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:274](../../tests/unit/bootstrap_test.cpp#L274) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:286](../../tests/unit/bootstrap_test.cpp#L286) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:307](../../tests/unit/bootstrap_test.cpp#L307) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:316](../../tests/unit/bootstrap_test.cpp#L316) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:325](../../tests/unit/bootstrap_test.cpp#L325) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:337](../../tests/unit/bootstrap_test.cpp#L337) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:350](../../tests/unit/bootstrap_test.cpp#L350) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:249](../../tests/unit/bootstrap_test.cpp#L249) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:276](../../tests/unit/bootstrap_test.cpp#L276) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:288](../../tests/unit/bootstrap_test.cpp#L288) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:309](../../tests/unit/bootstrap_test.cpp#L309) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:318](../../tests/unit/bootstrap_test.cpp#L318) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:327](../../tests/unit/bootstrap_test.cpp#L327) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:339](../../tests/unit/bootstrap_test.cpp#L339) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:352](../../tests/unit/bootstrap_test.cpp#L352) |
 
 ## commands
 
@@ -457,19 +457,19 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | an audit entry with no actor attributes nothing |  |  | [tests/unit/nicknames_test.cpp:95](../../tests/unit/nicknames_test.cpp#L95) |
 | a row that already names somebody is left alone |  |  | [tests/unit/nicknames_test.cpp:99](../../tests/unit/nicknames_test.cpp#L99) |
 | an audit entry's nickname arrives as JSON rather than as text |  |  | [tests/unit/nicknames_test.cpp:106](../../tests/unit/nicknames_test.cpp#L106) |
-| an unreadable audit value is treated as no nickname |  |  | [tests/unit/nicknames_test.cpp:118](../../tests/unit/nicknames_test.cpp#L118) |
-| a change the bot just made is claimed once |  |  | [tests/unit/nicknames_test.cpp:127](../../tests/unit/nicknames_test.cpp#L127) |
-| an expectation only matches the change it was made for |  |  | [tests/unit/nicknames_test.cpp:140](../../tests/unit/nicknames_test.cpp#L140) |
-| an expectation stops applying once it has expired |  |  | [tests/unit/nicknames_test.cpp:151](../../tests/unit/nicknames_test.cpp#L151) |
-| expired expectations are cleared out as new ones arrive |  |  | [tests/unit/nicknames_test.cpp:161](../../tests/unit/nicknames_test.cpp#L161) |
-| a change Discord refused stops being expected |  |  | [tests/unit/nicknames_test.cpp:172](../../tests/unit/nicknames_test.cpp#L172) |
-| clearing a nickname is expected and claimed like any other change |  |  | [tests/unit/nicknames_test.cpp:182](../../tests/unit/nicknames_test.cpp#L182) |
-| a cleared nickname reads as cleared rather than as a blank |  |  | [tests/unit/nicknames_test.cpp:195](../../tests/unit/nicknames_test.cpp#L195) |
-| who changed it is a mention, unknown, or nothing |  |  | [tests/unit/nicknames_test.cpp:201](../../tests/unit/nicknames_test.cpp#L201) |
-| a history line carries the nickname, the time and the author |  |  | [tests/unit/nicknames_test.cpp:215](../../tests/unit/nicknames_test.cpp#L215) |
-| an imported history line says nothing about who |  |  | [tests/unit/nicknames_test.cpp:227](../../tests/unit/nicknames_test.cpp#L227) |
-| the attachment spells out times rather than leaving markup in a file |  |  | [tests/unit/nicknames_test.cpp:234](../../tests/unit/nicknames_test.cpp#L234) |
-| one entry is not described as one entries |  |  | [tests/unit/nicknames_test.cpp:253](../../tests/unit/nicknames_test.cpp#L253) |
+| an unreadable audit value is treated as no nickname |  |  | [tests/unit/nicknames_test.cpp:120](../../tests/unit/nicknames_test.cpp#L120) |
+| a change the bot just made is claimed once |  |  | [tests/unit/nicknames_test.cpp:129](../../tests/unit/nicknames_test.cpp#L129) |
+| an expectation only matches the change it was made for |  |  | [tests/unit/nicknames_test.cpp:142](../../tests/unit/nicknames_test.cpp#L142) |
+| an expectation stops applying once it has expired |  |  | [tests/unit/nicknames_test.cpp:153](../../tests/unit/nicknames_test.cpp#L153) |
+| expired expectations are cleared out as new ones arrive |  |  | [tests/unit/nicknames_test.cpp:163](../../tests/unit/nicknames_test.cpp#L163) |
+| a change Discord refused stops being expected |  |  | [tests/unit/nicknames_test.cpp:174](../../tests/unit/nicknames_test.cpp#L174) |
+| clearing a nickname is expected and claimed like any other change |  |  | [tests/unit/nicknames_test.cpp:184](../../tests/unit/nicknames_test.cpp#L184) |
+| a cleared nickname reads as cleared rather than as a blank |  |  | [tests/unit/nicknames_test.cpp:197](../../tests/unit/nicknames_test.cpp#L197) |
+| who changed it is a mention, unknown, or nothing |  |  | [tests/unit/nicknames_test.cpp:203](../../tests/unit/nicknames_test.cpp#L203) |
+| a history line carries the nickname, the time and the author |  |  | [tests/unit/nicknames_test.cpp:217](../../tests/unit/nicknames_test.cpp#L217) |
+| an imported history line says nothing about who |  |  | [tests/unit/nicknames_test.cpp:229](../../tests/unit/nicknames_test.cpp#L229) |
+| the attachment spells out times rather than leaving markup in a file |  |  | [tests/unit/nicknames_test.cpp:236](../../tests/unit/nicknames_test.cpp#L236) |
+| one entry is not described as one entries |  |  | [tests/unit/nicknames_test.cpp:255](../../tests/unit/nicknames_test.cpp#L255) |
 | a reaction is keyed by id when custom, by itself when Unicode |  |  | [tests/unit/reactions_test.cpp:11](../../tests/unit/reactions_test.cpp#L11) |
 | the colour-form selector does not make a second emoji |  |  | [tests/unit/reactions_test.cpp:20](../../tests/unit/reactions_test.cpp#L20) |
 | typed emojis are understood in every form a command sees |  |  | [tests/unit/reactions_test.cpp:25](../../tests/unit/reactions_test.cpp#L25) |
