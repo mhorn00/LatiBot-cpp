@@ -152,7 +152,8 @@ $env:DISCORD_BOT_TOKEN = "your-token-here"
 or copy [.env.example](.env.example) to `.env` (git-ignored) and fill it in —
 `LatiBot.exe` loads it on startup if present, without overriding a variable
 the shell already set. Run it from the repo root so it finds both `.env` and
-`config.json`, which is optional (see [Configuration](#configuration)).
+`config.json`, which the first run writes if it is missing (see
+[Configuration](#configuration)).
 
 In VS Code, **F5** does both: `.vscode/launch.json` builds the executable and
 runs it from the repo root, so the same `.env` applies.
@@ -175,19 +176,18 @@ go and find when that happens.
 
 Settings for the whole bot go in `config.json`, in the directory the bot is
 run from; everything per server is set with commands instead, and kept in the
-database. The bot never writes the file, and it is optional: without it every
-key takes its default, which startup says. To change something, copy
-[config.example.json](config.example.json) to `config.json` (git-ignored,
-since it holds real Discord IDs) and edit it:
+database. When there is no `config.json`, the bot **writes one** with the
+defaults and runs on them, so a fresh install, which is only the executable,
+has a file to edit; change it and restart. It is git-ignored, since it holds
+real Discord IDs. [config.example.json](config.example.json) is the same file,
+for reading here, and a test keeps the two identical. The bot never writes
+over a file that is there, and one it cannot read stops startup. A folder it
+cannot write to is only a warning, and it runs on the defaults.
 
-```powershell
-Copy-Item config.example.json config.json
-```
-
-The example lists every key at its default except `log_level`, which is left
-out so each build keeps its own; add it to set one. Keys can be removed too,
-since a missing key is its default. A key the bot does not know, or a value of
-the wrong type, stops startup with a message naming it, so a typo is never
+Every key is listed at its default except `log_level`, which is left out so
+each build keeps its own; add it to set one. Keys can be removed too, since a
+missing key is its default. A key the bot does not know, or a value of the
+wrong type, stops startup with a message naming it, so a typo is never
 silently ignored. JSON has no comments, so the table below is the
 documentation. To use the trusted commands, including [`/logs`](docs/features/README.md#logs),
 put your own user ID in `trusted_users`:

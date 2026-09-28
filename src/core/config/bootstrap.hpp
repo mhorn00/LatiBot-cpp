@@ -71,8 +71,17 @@ struct bootstrap {
     /// hand-edited file is reported instead of silently doing nothing.
     [[nodiscard]] static auto from_json(std::string_view text) -> bootstrap;
 
-    /// Reads the file, or returns the defaults when it does not exist.
+    /// Reads the file. When there is nothing at `path`, writes `default_json`
+    /// there, so a fresh install has a file to edit, and returns the
+    /// defaults; a file that cannot be written is logged and the defaults
+    /// used all the same. Throws `config_error` when something is there that
+    /// cannot be read, rather than writing over it.
     [[nodiscard]] static auto load(const std::filesystem::path& path) -> bootstrap;
+
+    /// The file `load` writes: every key at its default, except `log_level`,
+    /// left out so each build keeps its own. config.example.json in the repo
+    /// is exactly this text, which a test checks.
+    [[nodiscard]] static auto default_json() -> std::string;
 
     /// Whether this user may use the host-touching DECtalk commands here.
     [[nodiscard]] auto is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool;

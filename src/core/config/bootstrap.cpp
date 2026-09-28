@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <system_error>
 
 namespace latibot::config {
 namespace {
@@ -67,7 +69,7 @@ auto require_bool(const json& object, std::string_view key) -> bool {
 
 /// Rejects anything we do not recognise, so a typo in a hand-edited file is
 /// reported instead of silently doing nothing. A key added here belongs in
-/// config.example.json too, at its default.
+/// `bootstrap::default_json` too, at its default.
 auto reject_unknown_keys(const json& parsed) -> void {
     static constexpr std::array<std::string_view, 13> known_keys{
         "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
@@ -110,6 +112,29 @@ auto read_llm_keys(const json& parsed, bootstrap& config) -> void {
     }
 }
 
+/// Writes the defaults where the configuration was looked for. Never fatal:
+/// the defaults are what the bot runs on either way, and a folder it cannot
+/// write to is no reason not to start.
+auto write_default_config(const std::filesystem::path& path) -> void {
+    const std::string shown = std::filesystem::absolute(path).generic_string();
+
+    std::error_code error;
+    if (path.has_parent_path()) std::filesystem::create_directories(path.parent_path(), error);
+
+    std::ofstream file;
+    if (!error) file.open(path, std::ios::binary);
+    if (file) file << bootstrap::default_json();
+    if (file) file.close();
+    if (error || !file) {
+        util::log().warn("no configuration file at {}, and one could not be written there; using defaults", shown);
+        return;
+    }
+
+    // Info rather than debug: "my setting did nothing" is usually a file the
+    // bot never found, and this says where it looks.
+    util::log().info("no configuration file at {}; wrote one with the defaults, to edit and restart", shown);
+}
+
 } // namespace
 
 auto bootstrap::from_json(std::string_view text) -> bootstrap {
@@ -139,22 +164,44 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
     return config;
 }
 
+auto bootstrap::default_json() -> std::string {
+    // Ordered, so the file reads in the order the keys are documented.
+    const bootstrap defaults;
+    nlohmann::ordered_json file;
+    file["database_path"] = defaults.database_path.generic_string();
+    file["backup_directory"] = defaults.backup_directory.generic_string();
+    file["backups_to_keep"] = defaults.backups_to_keep;
+    file["backup_interval_minutes"] = defaults.backup_interval.count();
+    file["track_nicknames"] = defaults.track_nicknames;
+    file["trusted_guilds"] = nlohmann::ordered_json::array();
+    file["trusted_users"] = nlohmann::ordered_json::array();
+    file["llm_provider"] = defaults.llm_provider;
+    file["llm_model"] = defaults.llm_model;
+    file["spend_cap_daily_usd"] = defaults.spend_cap_daily_usd;
+    file["spend_cap_monthly_usd"] = defaults.spend_cap_monthly_usd;
+    file["llm_tool_rounds"] = defaults.llm_tool_rounds;
+    return file.dump(2) + "\n";
+}
+
 auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
     bootstrap config;
 
-    const std::ifstream file(path);
-    if (file) {
+    std::error_code error;
+    if (!std::filesystem::exists(path, error) && !error) {
+        // A missing file is the ordinary case on a fresh install: every value
+        // has a default, and the only thing the bot truly needs is the token
+        // from the environment.
+        write_default_config(path);
+    } else {
+        // Something is there, so it is somebody's configuration: one that
+        // cannot be read stops startup rather than being replaced.
+        const std::ifstream file(path);
+        if (!file) throw config_error("could not read the configuration file at " + std::filesystem::absolute(path).generic_string());
+
         std::ostringstream contents;
         contents << file.rdbuf();
         config = from_json(contents.str());
         util::log().debug("read configuration from {}", std::filesystem::absolute(path).generic_string());
-    } else {
-        // A missing config file is fine: every value has a default, and the
-        // only thing the bot truly needs is the token from the environment.
-        // Worth an info line all the same, since "my setting did nothing" is
-        // usually a file the bot never found.
-        util::log().info("no configuration file at {}; using defaults. Copy config.example.json there to change them",
-                         std::filesystem::absolute(path).generic_string());
     }
 
     // Last word goes to the environment, so the level can be raised for one

@@ -22,6 +22,14 @@ using latibot::testing::temp_directory;
 
 namespace {
 
+/// A whole file as text, or empty when it cannot be read.
+auto read_file(const std::filesystem::path& path) -> std::string {
+    const std::ifstream file(path, std::ios::binary);
+    std::ostringstream contents;
+    contents << file.rdbuf();
+    return contents.str();
+}
+
 /// Sets an environment variable for the duration of a test.
 class scoped_env {
 public:
@@ -56,10 +64,16 @@ TEST_CASE("an empty config object gives the documented defaults", "[config]") {
     CHECK(config.trusted_guilds.empty());
 }
 
-TEST_CASE("a missing config file is not an error", "[config][fs]") {
+TEST_CASE("a missing config file is written with the defaults", "[config][fs]") {
+    // A release is one executable, with no example beside it to copy, so the
+    // first run leaves a file to edit.
     const temp_directory temp;
-    const bootstrap config = bootstrap::load(temp.file("does-not-exist.json"));
+    const auto path = temp.file("config.json");
+
+    const bootstrap config = bootstrap::load(path);
+
     CHECK(config.llm_model == "claude-haiku-4-5");
+    CHECK(read_file(path) == bootstrap::default_json());
 }
 
 TEST_CASE("values in the file replace the defaults", "[config][fs]") {
@@ -269,30 +283,75 @@ TEST_CASE("loading the configuration applies the recompute bot override as the b
     }
 }
 
-TEST_CASE("the example config loads, and holds the defaults", "[config][fs]") {
-    // config.example.json is what config.json is copied from, so it has to
-    // stay loadable as keys change, and say what leaving a key out would.
-    // log_level is left out of it on purpose: setting it there would replace
+TEST_CASE("the written defaults load as the defaults", "[config]") {
+    // log_level is left out of the file on purpose: writing it would replace
     // the build's own default.
-    std::ifstream file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json");
-    REQUIRE(file);
-    std::ostringstream contents;
-    contents << file.rdbuf();
-
-    const bootstrap example = bootstrap::from_json(contents.str());
+    const bootstrap written = bootstrap::from_json(bootstrap::default_json());
     const bootstrap defaults;
 
-    CHECK(example.log_level == defaults.log_level);
-    CHECK(example.database_path == defaults.database_path);
-    CHECK(example.backup_directory == defaults.backup_directory);
-    CHECK(example.backups_to_keep == defaults.backups_to_keep);
-    CHECK(example.backup_interval == defaults.backup_interval);
-    CHECK(example.track_nicknames == defaults.track_nicknames);
-    CHECK(example.trusted_guilds == defaults.trusted_guilds);
-    CHECK(example.trusted_users == defaults.trusted_users);
-    CHECK(example.llm_provider == defaults.llm_provider);
-    CHECK(example.llm_model == defaults.llm_model);
-    CHECK(example.spend_cap_daily_usd == defaults.spend_cap_daily_usd);
-    CHECK(example.spend_cap_monthly_usd == defaults.spend_cap_monthly_usd);
-    CHECK(example.llm_tool_rounds == defaults.llm_tool_rounds);
+    CHECK(written.log_level == defaults.log_level);
+    CHECK(written.database_path == defaults.database_path);
+    CHECK(written.backup_directory == defaults.backup_directory);
+    CHECK(written.backups_to_keep == defaults.backups_to_keep);
+    CHECK(written.backup_interval == defaults.backup_interval);
+    CHECK(written.track_nicknames == defaults.track_nicknames);
+    CHECK(written.trusted_guilds == defaults.trusted_guilds);
+    CHECK(written.trusted_users == defaults.trusted_users);
+    CHECK(written.llm_provider == defaults.llm_provider);
+    CHECK(written.llm_model == defaults.llm_model);
+    CHECK(written.spend_cap_daily_usd == defaults.spend_cap_daily_usd);
+    CHECK(written.spend_cap_monthly_usd == defaults.spend_cap_monthly_usd);
+    CHECK(written.llm_tool_rounds == defaults.llm_tool_rounds);
+}
+
+TEST_CASE("the example config is exactly what the bot writes", "[config][fs]") {
+    // config.example.json is for reading on GitHub; the bot writes its own.
+    // Line endings aside, since git may check the example out with CRLF.
+    std::string example = read_file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json");
+    std::erase(example, '\r');
+
+    CHECK(example == bootstrap::default_json());
+}
+
+TEST_CASE("a config file in a folder that does not exist yet is written there", "[config][fs]") {
+    const temp_directory temp;
+    const auto path = temp.path() / "settings" / "config.json";
+
+    static_cast<void>(bootstrap::load(path));
+
+    CHECK(read_file(path) == bootstrap::default_json());
+}
+
+TEST_CASE("an existing config file is never written over", "[config][fs]") {
+    const temp_directory temp;
+    const auto path = temp.file("config.json");
+    {
+        std::ofstream out(path);
+        out << R"({"backups_to_keep": 3})";
+    }
+
+    CHECK(bootstrap::load(path).backups_to_keep == 3);
+    CHECK(read_file(path) == R"({"backups_to_keep": 3})");
+}
+
+TEST_CASE("a config file that cannot be written leaves the defaults", "[config][fs]") {
+    // A file where the folder should be: nothing can be created under it.
+    const temp_directory temp;
+    {
+        std::ofstream out(temp.file("in-the-way"));
+        out << "not a folder";
+    }
+
+    const bootstrap config = bootstrap::load(temp.path() / "in-the-way" / "config.json");
+
+    CHECK(config.backups_to_keep == 7);
+}
+
+TEST_CASE("something at the config path that cannot be read stops startup", "[config][fs]") {
+    // A folder, say: somebody's configuration went wrong, and writing the
+    // defaults over it, or running without it, would hide that.
+    const temp_directory temp;
+    std::filesystem::create_directories(temp.path() / "config.json");
+
+    CHECK_THROWS_WITH(bootstrap::load(temp.path() / "config.json"), ContainsSubstring("could not read the configuration file"));
 }

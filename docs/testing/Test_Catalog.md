@@ -5,12 +5,12 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-609 test cases across 10 components, including 122 sections.
+614 test cases across 10 components, including 122 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 115 | 12 |
-| [config](#config) | 24 | 19 |
+| [config](#config) | 29 | 19 |
 | [commands](#commands) | 141 | 27 |
 | [events](#events) | 174 | 37 |
 | [ui](#ui) | 11 | 0 |
@@ -158,20 +158,25 @@ Configuration (`src/core/config`)
 | partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:107](../../tests/db/guild_settings_test.cpp#L107) |
 | all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:117](../../tests/db/guild_settings_test.cpp#L117) |
 | the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:130](../../tests/db/guild_settings_test.cpp#L130) |
-| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:47](../../tests/unit/bootstrap_test.cpp#L47) |
-| a missing config file is not an error | `fs` |  | [tests/unit/bootstrap_test.cpp:59](../../tests/unit/bootstrap_test.cpp#L59) |
-| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:65](../../tests/unit/bootstrap_test.cpp#L65) |
-| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:94](../../tests/unit/bootstrap_test.cpp#L94) |
-| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:101](../../tests/unit/bootstrap_test.cpp#L101) |
-| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:115](../../tests/unit/bootstrap_test.cpp#L115) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:145](../../tests/unit/bootstrap_test.cpp#L145) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:156](../../tests/unit/bootstrap_test.cpp#L156) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:164](../../tests/unit/bootstrap_test.cpp#L164) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:172](../../tests/unit/bootstrap_test.cpp#L172) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:206](../../tests/unit/bootstrap_test.cpp#L206) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:233](../../tests/unit/bootstrap_test.cpp#L233) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:260](../../tests/unit/bootstrap_test.cpp#L260) |
-| the example config loads, and holds the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:272](../../tests/unit/bootstrap_test.cpp#L272) |
+| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:55](../../tests/unit/bootstrap_test.cpp#L55) |
+| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:67](../../tests/unit/bootstrap_test.cpp#L67) |
+| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:79](../../tests/unit/bootstrap_test.cpp#L79) |
+| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:108](../../tests/unit/bootstrap_test.cpp#L108) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:115](../../tests/unit/bootstrap_test.cpp#L115) |
+| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:159](../../tests/unit/bootstrap_test.cpp#L159) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:170](../../tests/unit/bootstrap_test.cpp#L170) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:178](../../tests/unit/bootstrap_test.cpp#L178) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:186](../../tests/unit/bootstrap_test.cpp#L186) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:220](../../tests/unit/bootstrap_test.cpp#L220) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:247](../../tests/unit/bootstrap_test.cpp#L247) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:274](../../tests/unit/bootstrap_test.cpp#L274) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:286](../../tests/unit/bootstrap_test.cpp#L286) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:307](../../tests/unit/bootstrap_test.cpp#L307) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:316](../../tests/unit/bootstrap_test.cpp#L316) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:325](../../tests/unit/bootstrap_test.cpp#L325) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:337](../../tests/unit/bootstrap_test.cpp#L337) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:350](../../tests/unit/bootstrap_test.cpp#L350) |
 
 ## commands
 

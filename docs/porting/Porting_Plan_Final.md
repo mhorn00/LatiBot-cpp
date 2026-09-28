@@ -364,7 +364,9 @@ doing nothing. Keys: `log_level`, `database_path`, `backup_directory`,
 `llm_provider`, `llm_model`,
 `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `llm_tool_rounds`,
 `trusted_guilds`, `trusted_users`. Discord ids are given as **strings**,
-because a JSON number cannot hold a snowflake exactly.
+because a JSON number cannot hold a snowflake exactly. *Added after phase 4:*
+a missing file is written with the defaults, since a release is only the
+executable; `config.example.json` is the same text, kept identical by a test.
 
 **Secrets from the environment only:** `DISCORD_BOT_TOKEN`,
 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `LATIBOT_TEST_TOKEN` for live tests.
