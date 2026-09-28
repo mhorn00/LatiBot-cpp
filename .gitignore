@@ -10,6 +10,10 @@ CMakeUserPresets.json
 token.txt
 openai_key.txt
 
+# local settings: trusted_users and trusted_guilds hold real Discord IDs.
+# config.example.json is the committed template.
+config.json
+
 # runtime data
 data/
 

@@ -8,8 +8,10 @@
 #include <catch2/matchers/catch_matchers_string.hpp>
 
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 
 using Catch::Matchers::ContainsSubstring;
@@ -265,4 +267,32 @@ TEST_CASE("loading the configuration applies the recompute bot override as the b
     } else {
         CHECK_FALSE(loaded.recompute_bot_id.has_value());
     }
+}
+
+TEST_CASE("the example config loads, and holds the defaults", "[config][fs]") {
+    // config.example.json is what config.json is copied from, so it has to
+    // stay loadable as keys change, and say what leaving a key out would.
+    // log_level is left out of it on purpose: setting it there would replace
+    // the build's own default.
+    std::ifstream file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json");
+    REQUIRE(file);
+    std::ostringstream contents;
+    contents << file.rdbuf();
+
+    const bootstrap example = bootstrap::from_json(contents.str());
+    const bootstrap defaults;
+
+    CHECK(example.log_level == defaults.log_level);
+    CHECK(example.database_path == defaults.database_path);
+    CHECK(example.backup_directory == defaults.backup_directory);
+    CHECK(example.backups_to_keep == defaults.backups_to_keep);
+    CHECK(example.backup_interval == defaults.backup_interval);
+    CHECK(example.track_nicknames == defaults.track_nicknames);
+    CHECK(example.trusted_guilds == defaults.trusted_guilds);
+    CHECK(example.trusted_users == defaults.trusted_users);
+    CHECK(example.llm_provider == defaults.llm_provider);
+    CHECK(example.llm_model == defaults.llm_model);
+    CHECK(example.spend_cap_daily_usd == defaults.spend_cap_daily_usd);
+    CHECK(example.spend_cap_monthly_usd == defaults.spend_cap_monthly_usd);
+    CHECK(example.llm_tool_rounds == defaults.llm_tool_rounds);
 }

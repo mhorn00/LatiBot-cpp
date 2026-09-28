@@ -1,0 +1,14 @@
+{
+  "database_path": "data/bot.db",
+  "backup_directory": "data/backups",
+  "backups_to_keep": 7,
+  "backup_interval_minutes": 360,
+  "track_nicknames": true,
+  "trusted_guilds": [],
+  "trusted_users": [],
+  "llm_provider": "anthropic",
+  "llm_model": "claude-haiku-4-5",
+  "spend_cap_daily_usd": 2.0,
+  "spend_cap_monthly_usd": 20.0,
+  "llm_tool_rounds": 4
+}

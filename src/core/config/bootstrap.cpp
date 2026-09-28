@@ -66,7 +66,8 @@ auto require_bool(const json& object, std::string_view key) -> bool {
 }
 
 /// Rejects anything we do not recognise, so a typo in a hand-edited file is
-/// reported instead of silently doing nothing.
+/// reported instead of silently doing nothing. A key added here belongs in
+/// config.example.json too, at its default.
 auto reject_unknown_keys(const json& parsed) -> void {
     static constexpr std::array<std::string_view, 13> known_keys{
         "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
@@ -150,9 +151,10 @@ auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
     } else {
         // A missing config file is fine: every value has a default, and the
         // only thing the bot truly needs is the token from the environment.
-        // Worth a line all the same, since "my setting did nothing" is usually
-        // a file the bot never found.
-        util::log().debug("no configuration file at {}; using defaults", std::filesystem::absolute(path).generic_string());
+        // Worth an info line all the same, since "my setting did nothing" is
+        // usually a file the bot never found.
+        util::log().info("no configuration file at {}; using defaults. Copy config.example.json there to change them",
+                         std::filesystem::absolute(path).generic_string());
     }
 
     // Last word goes to the environment, so the level can be raised for one
