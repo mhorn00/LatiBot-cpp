@@ -1804,6 +1804,18 @@ newly added files, and a second build picks them up. Left alone rather than
 worked around in our CMake, since the fix belongs to Conan's `CMakeDeps` or to
 CMake; the README's notes describe it.
 
+*Revisited after phase 4:* the errors fill CMake Tools' Problems panel on
+every configure, which is too much noise to leave. `latibot_map_conan_configs`
+(`cmake/helpers.cmake`) sets `MAP_IMPORTED_CONFIG_<other>` on each
+`CONAN_LIB::…_RELEASE` and `_DEBUG` target to its own configuration, so the
+question has an answer. It has to be only those leaf targets. A global
+`CMAKE_MAP_IMPORTED_CONFIG_DEBUG "Debug;Release"` was tried first and linked
+Release OpenSSL, zlib, opus and SQLite into Debug: Conan picks each
+configuration's libraries with `$<CONFIG:…>` on an imported
+`…_DEPS_TARGET`, and `$<CONFIG>` honours an imported target's mapping. With
+the leaf-only mapping, all 30 generated projects are byte-identical to the
+ones built without it.
+
 ### 21.15 One set of message flags per command is not enough
 
 The first idea was one flags field per command: ephemeral, silent, no

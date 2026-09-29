@@ -489,9 +489,8 @@ function Initialize-Configure {
             else { Request-Change 'cmake --preset msvc' | Out-Null }
             return
         }
-        # Kept quiet unless it fails. When VS Code has configured the folder,
-        # CMake 4.4 prints dozens of "IMPORTED_LOCATION not set" errors while
-        # succeeding (README, Notes), which would read as a failure here.
+        # Kept quiet unless it fails: a setup script's job is to say whether it
+        # worked, and a configure's pages of output bury that.
         Write-Doing 'cmake --preset msvc'
         $configure = Get-NativeOutput cmake @('--preset', 'msvc')
         if ($configure.ExitCode -ne 0) {

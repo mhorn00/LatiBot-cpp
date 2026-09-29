@@ -28,6 +28,7 @@ find_package(ZLIB REQUIRED)
 find_package(Opus REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ctre REQUIRED)
+latibot_map_conan_configs()
 
 # DPP from source (third_party/DPP), linked against the Conan-provided
 # OpenSSL/zlib/opus instead of the outdated binaries bundled in DPP's win32/ folder.

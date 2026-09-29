@@ -649,15 +649,14 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   the 2026 path:
   `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"`.
 - **`IMPORTED_LOCATION not set for imported target "CONAN_LIB::…_RELEASE"
-  configuration "Debug"`** (and the reverse), dozens of times, during a
-  configure of `build/`. This comes from CMake 4.4 answering the codemodel
-  query VS Code's CMake Tools leaves in `build/.cmake/api/v1/query/`: to
-  describe every target for both configurations it asks each of Conan's
-  per-configuration libraries where it lives in the *other* configuration.
-  The generated projects are still correct and configure exits 0, but the
-  first `cmake --build` after a `CMakeLists.txt` edit can finish without
-  compiling newly added files. Build again. A fresh build folder without the
-  query configures cleanly.
+  configuration "Debug"`**, dozens of times, is what configuring `build/`
+  printed before `latibot_map_conan_configs()` in `cmake/helpers.cmake`. CMake
+  4.4, answering the codemodel query VS Code's CMake Tools leaves in
+  `build/.cmake/api/v1/query/`, asks each of Conan's per-configuration
+  libraries where it lives in the *other* configuration. The helper points
+  each at its own, which answers that without changing what is built. Any
+  new `find_package` of a Conan package needs the helper called after it, in
+  the same directory; if these errors come back, that is the likely cause.
 - **To upgrade DPP:** `git -C third_party/DPP fetch --depth 1 origin tag vX.Y.Z`,
   check out that tag, commit the submodule change, then rebuild.
 - **To add a dependency:** add it to `requirements()` in `conanfile.py`, re-run

@@ -1,4 +1,5 @@
 find_package(Catch2 3 REQUIRED)
+latibot_map_conan_configs()
 
 add_executable(latibot_tests
     support/quiet_log.cpp

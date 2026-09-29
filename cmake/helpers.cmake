@@ -32,6 +32,33 @@ function(latibot_copy_asan_runtime target)
     )
 endfunction()
 
+# Conan's CMakeDeps makes one imported target per library per configuration,
+# CONAN_LIB::<package>_<lib>_RELEASE and _DEBUG, each with only its own
+# configuration's location. Answering VS Code's codemodel query, CMake 4.4
+# asks each for its location in the other configuration too, and reports
+# dozens of "IMPORTED_LOCATION not set" errors (plan §21.14).
+#
+# Pointing each at its own configuration answers that. Only these leaf
+# targets are mapped, never the _DEPS_TARGET that links them: that one picks
+# a configuration's libraries with $<CONFIG:...>, which honours a mapping, so
+# mapping it would link Release libraries into Debug (a global
+# CMAKE_MAP_IMPORTED_CONFIG_<CONFIG> did exactly that). What is built does not
+# change: the generated projects are byte for byte the same with and without
+# this.
+#
+# Imported targets belong to the directory whose find_package made them, so
+# call this after the find_package calls in each such directory.
+function(latibot_map_conan_configs)
+    get_property(imported DIRECTORY PROPERTY IMPORTED_TARGETS)
+    foreach(target IN LISTS imported)
+        if(target MATCHES "^CONAN_LIB::.*_RELEASE$")
+            set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_DEBUG Release)
+        elseif(target MATCHES "^CONAN_LIB::.*_DEBUG$")
+            set_property(TARGET ${target} PROPERTY MAP_IMPORTED_CONFIG_RELEASE Debug)
+        endif()
+    endforeach()
+endfunction()
+
 # DPP is built as a DLL, so every executable that links it needs the runtime
 # DLLs beside it. $<TARGET_RUNTIME_DLLS:...> needs CMake >= 3.21.
 function(latibot_copy_runtime_dlls target)
