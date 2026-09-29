@@ -300,11 +300,17 @@ ten built-in voices plus DECtalk's `[:dv]` voice parameters. With `voice` it
 starts from one of this server's saved voices; without, from where you left
 off.
 
-The panel shows what has been changed, grouped (Pitch, Character, Breath,
-Formants, Parallel formants and tilt, Source gains, Formant gains), and the
-whole voice as inline commands, such as `[:nh][:dv ap 200 pr 150]`, which can
-be pasted into any `/speak`. From it:
+The panel's first line says what you are editing: a new voice not saved yet,
+or a saved one, and then whether it still matches what is saved or has
+**unsaved changes**. Under it is what has been changed, grouped (Pitch,
+Character, Breath, Formants, Parallel formants and tilt, Source gains, Formant
+gains), and the whole voice as inline commands, such as
+`[:nh][:dv ap 200 pr 150]`, which can be pasted into any `/speak`. From it:
 
+- **Open a saved voice** lists this server's saved voices (the first 25, and
+  always the one being edited; `/voice lab voice:` opens any). Picking one
+  replaces the draft, so picking the one you are editing throws away your
+  changes to it. The menu only appears once the server has a saved voice.
 - **Change a group of settings** opens a form for up to five of them, each
   with its range. An empty box goes back to the built-in voice's own value; a
   value out of range is brought into range, and the panel says so.
@@ -312,10 +318,11 @@ be pasted into any `/speak`. From it:
 - **Built on** picks the built-in voice underneath.
 - **▶ Test** says a test phrase in the voice channel, joining yours if the bot
   is not in one.
-- **Save as…** keeps it under a name: lowercase letters, digits, `-` and `_`,
-  up to 32 characters, and never a built-in voice's name. `/speak voice:` then
-  offers it.
-- **Start over** goes back to Paul.
+- **Save as…** (**Save…** once it has a name) keeps it under a name:
+  lowercase letters, digits, `-` and `_`, up to 32 characters, and never a
+  built-in voice's name. The name you opened it as is filled in; change it to
+  keep a copy. `/speak voice:` then offers it.
+- **New voice** starts again from Paul, with no name.
 
 Your draft is kept for half an hour after you last touched it, so closing the
 panel by accident loses nothing. Anyone may save a voice; replacing or
@@ -518,9 +525,12 @@ buttons appear:
 
 **Add** opens the same form, empty.
 
-The form keeps fields it cannot read rather than resetting them: typing
-"thirty" into the cooldown box leaves the cooldown you had. A blank pattern or
-no responses is refused with an explanation, and nothing is saved.
+The form's mode takes `word` or `anywhere` (`whole word`, `whole_word` and
+`substring` work too). It keeps fields it cannot read rather than resetting
+them, and says so under the list: typing "thirty" into the cooldown box leaves
+the cooldown you had. A blank pattern or no responses is refused with an
+explanation, and nothing is saved. After a save the panel shows the trigger
+picked, on whichever page it landed.
 
 The panel survives restarts and has nothing to expire, because which page and
 which trigger is selected are carried in the buttons themselves rather than
@@ -739,7 +749,9 @@ menu to pick one, then **Edit** and **Delete** for it. The last row has
 **Add rule**, **Turn replacement on** (or **off**), and paging. Edit and Add
 open a form with the site and **the mirrors one per line** in the order they
 are tried, so reordering is rewriting lines; changing the site renames the rule
-rather than adding a second one. Delete asks to confirm in the panel itself.
+rather than adding a second one. Neither will save over another site's rule:
+adding a site that already has one, or renaming onto one, is refused, and the
+existing rule is left as it was. Delete asks to confirm in the panel itself.
 Like the trigger panel it keeps nothing on the bot's side, survives restarts,
 and is ephemeral.
 

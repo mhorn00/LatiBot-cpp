@@ -34,7 +34,7 @@ the order of work behind it.
 | 5 | LLM: providers, tools and memory, documents, guards and spend caps, advanced triggers, voice replies, pacing | ✅ done |
 | — | Music (and with it the mixer), emote statistics, appearance tracking | ⏳ unscheduled |
 
-697 tests pass in Debug, Release and under AddressSanitizer, including the
+726 tests pass in Debug, Release and under AddressSanitizer, including the
 real DECtalk engine and golden audio, and clang-tidy is clean over `src/` and
 `tests/`. The language model has not yet answered a real message: it is tested
 against recorded provider replies, and its first live run is still to come. Four libFuzzer targets cover the text that arrives from people: the
@@ -1158,9 +1158,12 @@ an admin can replace or delete it.**
 Breath, Formants, Parallel formants and tilt, Source gains, Formant gains,
 each five parameters at most, a modal's limit), a menu opening each group's
 form, a form for the whole voice as `[:dv]` text, the base voice, **▶ Test**
-in the voice channel, **Save as…**, and **Start over**. The draft is kept per
-person for half an hour after it was last touched. The lab routes its own
-buttons and forms, unlike the older panels, because Test has to speak.
+in the voice channel, **Save as…**, and **New voice**. A menu opens one of
+the server's saved voices, and the first line says which voice is being edited
+and whether it has unsaved changes, since a lab that only lists the built-in
+voices leaves that unclear. The draft is kept per person for half an hour
+after it was last touched. The lab routes its own buttons and forms, as every
+panel now does (§21.21).
 
 ### 12.7 Stopping and limits ✅
 
@@ -1551,8 +1554,10 @@ mean mocking `dpp::cluster`, which is what the ports exist to avoid. The price
 is that a handful of decisions live where no test reaches them, and they are
 worth naming rather than assuming away:
 
-- **Component and modal routing.** `on_component` and `on_form` dispatch by
-  view name. Everything they call is tested; the routing between them is not.
+- **Component and modal routing.** `on_component` and `on_form` hand each view
+  to the panel that claims it. The panels themselves are tested end to end
+  through DPP's own interaction handling (§21.21); the one-line hand-off is
+  not, nor the nickname history's and link board's paging.
 - **The nickname handlers.** Turning a member update into "is this a change",
   and an audit entry into "does this describe a row", are both pure and
   tested. What is not tested is that they are hooked to the right events, that
@@ -1569,13 +1574,13 @@ worth naming rather than assuming away:
   against mocks and a clock; that DPP's voice-ready, track-marker and
   voice-state events reach them, that the bot's own voice state ends the
   session, and that `dpp_voice_output` queues audio DPP will play, are not.
-  Nor is the voice lab's routing, `/chat`'s upload, or who DPP's cache says
-  is a bot.
+  Nor is `/chat`'s upload, or who DPP's cache says is a bot. The voice lab
+  is tested end to end (§21.21).
 - **The language model's wiring.** The stage, the responder, the tools and
   the stores are tested against mocks, and the providers against recorded
   replies. That `describe` sees a mention and a reply to the bot, that the
-  shell waits out the pacing before answering, and the `/llm` panels'
-  routing, are not. Nor, above all, whether Anthropic and OpenAI accept what
+  shell waits out the pacing before answering, are not; the `/llm` panels
+  are tested end to end (§21.21). Nor, above all, whether Anthropic and OpenAI accept what
   is sent: the request shapes follow their documentation as of September
   2026, and the first real call is the test that settles it.
 
@@ -2038,3 +2043,62 @@ extra.
 Also found on the way, and cheaper to write down than to rediscover: a
 variable called `near` does not compile on Windows, where `<windows.h>`
 defines `near` (and `far`) as nothing.
+
+### 21.21 DPP 10.1 hands a modal's fields back unwrapped, and every form arrived empty
+
+Discord's current modals wrap each text input in a Label (type 18), and DPP
+10.1.6 sends them that way. What comes back wraps each value the same way,
+and DPP unwraps it: `form_submit_t::components` is the inputs themselves, one
+per entry, each with its `custom_id` and `value`. Every panel read them as
+action rows, `components[row].components[i]`, which is what older modals
+were, and so found nothing. Each form arrived empty:
+
+- the trigger and URL rule forms refused every add and edit ("a pattern of
+  only whitespace", "\"\" doesn't look like a site");
+- the voice lab's group forms changed nothing, so ▶ Test only ever spoke
+  the built-in voice, and its `[:dv]` text form wiped the voice;
+- the `/llm` settings form said it had nothing to change;
+- and the personality, system and style forms **saved an empty document**
+  as a new version, since an empty text differs from the current one. Any
+  such version is still there to `revert` from.
+
+Each panel had its own copy of the loop, so the fix is one reader,
+`ui::form_fields`, which takes both shapes, and two guards so that a misread
+can never again save blanks: the shell refuses a submission with no fields at
+all, since Discord sends every field back, and a document form must come back
+with every part.
+
+No test saw it, because every test built its events by hand, in the shape the
+code expected. `tests/support/panel_harness.hpp` now goes through DPP instead:
+it writes what Discord would send, has DPP's own
+`events::internal_handle_interaction` read it, and gets the answer from DPP's
+own `reply` and `dialog`, which on the webhook path queue it rather than send
+it. A form is submitted by taking the modal DPP wrote and sending it back as
+Discord would, so a change in either direction shows. The trigger and URL
+panels' routing moved out of the shell into `trigger_panel` and `url_panel`
+for it, which is also where the voice lab and `/llm` panels already kept
+theirs; the "third example" §21.5 waited for turned out to be a shape (a
+class with `on_component` and `on_form`) rather than a shared base.
+
+Going through each panel by hand turned up smaller things, now fixed and
+tested:
+
+- The trigger form's mode was read without trimming, and not as "whole
+  word", which is how the panel writes it; an unread mode or cooldown was
+  kept silently. Both now read, and what was kept is said under the list.
+- A trigger added onto a later page left the panel on the first, with
+  Edit and Disable buttons for a trigger it did not show, the Disable label
+  guessed. The panel now follows it, as the URL panel already did.
+- The URL panel's form could save over another site's rule, by adding a
+  site that had one or renaming onto one. Both are refused.
+- A page of the longest patterns or mirrors could pass 2000 characters,
+  which makes Discord refuse the whole panel. Lines are shortened evenly
+  when a page would not fit (`util::fit_lines`).
+- The voice lab could not show or open the server's saved voices, and
+  did not say whether the draft still matched the one it was opened from.
+
+Left alone, and worth checking in Discord: a response can do only one thing,
+so a select menu that opens a form (the voice lab's groups, the `/llm`
+settings) cannot also be reset by it. If Discord leaves the menu showing the
+option picked after the form is cancelled, picking that same option again
+does nothing until another option or any button updates the panel.

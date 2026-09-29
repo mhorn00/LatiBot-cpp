@@ -307,19 +307,19 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
   Three parts of it are no longer as thin as that claim implies, and are worth
   watching:
 
-  - `on_component` and `on_form` route a panel's buttons, select menus and
-    modal submissions by view name, which is branching logic with no test
-    behind it. The pure parts they call — `ui::decode`, `apply_form`,
-    `build_rule`, `decode_board`, `plan_retry`, and every `render_*` — are
-    tested; the routing between them is not. With the URL rule panel it was
-    split per panel (`on_trigger_component`, `on_url_component`), each
-    claiming its own view names. The voice lab and `/llm settings` route
-    their own the same way, from their modules. Moving the routing into a
-    function that takes a decoded `page_state` and returns what to render
-    would make it testable without an interaction; that is still to do.
-    The trigger panel's on/off buttons are a table (`toggle_for`), which is
-    tested; that a panel update keeps its message's flags (`update_panel`)
-    is not.
+  - `on_component` and `on_form` hand a panel's buttons, select menus and
+    modal submissions to the panel whose view name it is. The panels route
+    their own, from their modules (`trigger_panel`, `url_panel`,
+    `voice_lab`, `llm_panels`), and `tests/unit/panels_test.cpp` uses each
+    one end to end through `support/panel_harness.hpp`: every press, choice
+    and form is the JSON Discord sends, read by DPP's own interaction
+    handler, and answered through DPP's own `reply` and `dialog`, which on
+    DPP's webhook path hand the answer back instead of sending it. No
+    connection, no token. That is what caught every form arriving empty
+    (plan §21.21), which tests of hand-built events could not.
+    Still untested in the shell: which panel it hands a view to (a one-line
+    chain of `||`), the nickname history's and the link board's paging, the
+    Retry button on a replacement, and the refusal of a form with no fields.
   - The nickname handlers. `is_new_nickname`, `describes`, `may_attribute` and
     `audit_nickname` are pure and tested; that they are hooked to the right
     events, that the guild is read correctly out of an audit entry's raw
@@ -342,14 +342,15 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     tested against `mock_voice` and `mock_clock`, and DECtalk itself runs in
     the suite; that DPP's voice-ready, track-marker and voice-state events
     reach them, that `dpp_voice_output` queues audio DPP will actually play,
-    the voice lab's routing, and `/chat`'s upload being accepted as a voice
-    message, are not. Nor is how the cache tells a bot from a person when
+    and `/chat`'s upload being accepted as a voice message, are not. The voice
+    lab's panel is tested end to end, its ▶ Test as far as the synthesizer. Nor is how the cache tells a bot from a person when
     counting who is left in a channel.
   - The language model's wiring. The stage, the responder, the memory tools
     and the stores are tested against the mocks, and the providers' JSON
     against recorded replies; that `describe` sees a mention or a reply to
     the bot (the second is read from the raw gateway frame), that the shell
-    waits out the pacing, and the `/llm` panels' routing, are not. Nor is
+    waits out the pacing, are not. The `/llm settings` panel and the
+    document forms are tested end to end. Nor is
     whether the providers' real APIs still accept what is sent, which only a
     call with a key can answer; the request shapes were checked against their
     documentation in September 2026.
