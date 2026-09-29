@@ -7,6 +7,45 @@ source as a git submodule, and Conan 2 for the remaining dependencies.
 The `java-reference/` folder holds the original Java source purely for
 reference during the port; it is not part of the C++ build.
 
+## Setup
+
+On a Windows machine with nothing installed, Git first, then the clone, then
+one script that does the rest:
+
+```powershell
+winget install Git.Git        # skip if you have Git; open a new terminal after
+git clone --recursive https://github.com/mhorn00/LatiBot-cpp.git
+cd LatiBot-cpp
+powershell -ExecutionPolicy Bypass -File tools\DevEnvSetup.ps1
+```
+
+[tools/DevEnvSetup.ps1](tools/DevEnvSetup.ps1) does steps 1 to 5 below, up
+to configuring (building too with `-Build`), and checks each thing before
+doing it, so anything already there is left alone.
+It installs CMake, PowerShell 7 and Conan with winget, and installs the
+Visual Studio 2026 Build Tools, or adds whatever components an existing
+install lacks. It checks out the submodules and creates a Conan profile if
+there is none. A profile naming a compiler that is not installed is pointed
+at VS 2026. Finally it installs the dependencies for Debug, Release and
+clang-tidy, configures `build\`, and copies `.env.example` to `.env`.
+
+- **Timing and prompts.** On a fresh machine the Build Tools download is
+  several GB, and the dependencies build from source for about twenty
+  minutes. Each installer asks for administrator rights. Run again, the
+  script takes seconds.
+- **`-ExecutionPolicy Bypass`.** Windows' built-in PowerShell blocks scripts
+  by default, which is why the script is written to run there as well as in
+  PowerShell 7: installing 7 is one of its jobs.
+
+| Option | |
+|---|---|
+| `-CheckOnly` | report what is missing, change nothing; exits 1 if anything is |
+| `-Build` | also build Debug and run the tests, the proof it all works (about ten more minutes the first time) |
+| `-ResetBuild` | delete `build\` if it was configured for another compiler, rather than stopping to ask |
+| `-SkipTidy` | leave out the dependency install clang-tidy needs |
+
+The steps below are what it does, for reference or to do by hand.
+
 ## Prerequisites
 
 | Tool | Version used | Notes |
@@ -526,7 +565,7 @@ conanfile.py        Conan recipe: openssl, zlib, opus, sqlite3, ctre, catch2
 config.example.json what the bot writes as config.json on its first run
 .env.example        the environment variables, to copy to .env
 cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
-tools/              catalog generator, clang-tidy and clang-format wrappers
+tools/              dev environment setup, catalog generator, clang-tidy and clang-format wrappers
 .github/workflows/  CI: build and test Debug and Release, and a secret scan
 .vscode/            tasks, launch configurations, IntelliSense and the grouped test tree
 src/main.cpp        entry point
