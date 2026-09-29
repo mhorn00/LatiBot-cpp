@@ -70,13 +70,14 @@ grouped by; the traits are for filtering.
 | `[ui]` | `src/core/ui`: paging and panel primitives |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
 | `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV |
+| `[llm]` | `src/core/llm`: the providers, the tool loop, memory, documents, spending, guards, the prompt, the responder and its pipeline stage |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
 | `[log]` | `src/core/util/log` |
 | `[util]` | the remaining small helpers in `src/core/util`, version |
 
-Add a new component tag when a new area appears (`[url]`, `[tts]`, `[llm]`
-are expected), and register it in `tools/Update-TestCatalog.ps1` and in
-`.vscode/settings.json` at the same time.
+Add a new component tag when a new area appears, and register it in
+`tools/Update-TestCatalog.ps1` and in `.vscode/settings.json` at the same
+time.
 
 ### Trait tags
 
@@ -106,9 +107,18 @@ mock at all.
 SQL, which is the part most likely to be wrong.
 
 **Ports and mocks** cover the cases where a feature has to talk to the outside
-world mid-logic. Four ports exist — `clock`, `discord_gateway`, `http_client`,
-`tts_engine` — each with a hand-written mock in `tests/mocks/`. There is no
-mocking framework: a mock that fits on one screen is easier to trust.
+world mid-logic. Five ports exist — `clock`, `discord_gateway`, `http_client`,
+`tts_engine`, `voice_output` — each with a hand-written mock in `tests/mocks/`.
+There is no mocking framework: a mock that fits on one screen is easier to
+trust.
+
+The language model has two levels of stand-in. The providers turn a
+conversation into a provider's JSON and back, and are tested against recorded
+replies through `mock_http`, so what is sent to Anthropic and OpenAI is pinned
+down byte for byte. Everything above them (the tool loop, the responder) talks
+to `llm::provider`, which `mock_llm` implements from a script of replies:
+"call `remember` with this", then "answer with that". No test needs an API
+key, and none calls out.
 
 A feature test then looks like this:
 
@@ -303,9 +313,10 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     `build_rule`, `decode_board`, `plan_retry`, and every `render_*` — are
     tested; the routing between them is not. With the URL rule panel it was
     split per panel (`on_trigger_component`, `on_url_component`), each
-    claiming its own view names. If `/llm settings` makes a third, the routing
-    should move into a function that takes a decoded `page_state` and returns
-    what to render, which is testable without an interaction.
+    claiming its own view names. The voice lab and `/llm settings` route
+    their own the same way, from their modules. Moving the routing into a
+    function that takes a decoded `page_state` and returns what to render
+    would make it testable without an interaction; that is still to do.
     The trigger panel's on/off buttons are a table (`toggle_for`), which is
     tested; that a panel update keeps its message's flags (`update_panel`)
     is not.
@@ -334,6 +345,14 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
     the voice lab's routing, and `/chat`'s upload being accepted as a voice
     message, are not. Nor is how the cache tells a bot from a person when
     counting who is left in a channel.
+  - The language model's wiring. The stage, the responder, the memory tools
+    and the stores are tested against the mocks, and the providers' JSON
+    against recorded replies; that `describe` sees a mention or a reply to
+    the bot (the second is read from the raw gateway frame), that the shell
+    waits out the pacing, and the `/llm` panels' routing, are not. Nor is
+    whether the providers' real APIs still accept what is sent, which only a
+    call with a key can answer; the request shapes were checked against their
+    documentation in September 2026.
 - **No command's `execute()` is tested.** Replying needs `event.co_reply`,
   and that needs a `dpp::cluster`, so which branch of a handler answers with
   what, and whether as a result or a refusal, is unchecked; so is that

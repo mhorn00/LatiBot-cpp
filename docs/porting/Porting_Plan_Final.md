@@ -31,12 +31,13 @@ the order of work behind it.
 | 2 | Nicknames, the import, midnight, scheduled backups | ✅ done |
 | 3 | URL replacement, reaction statistics, backfill | ✅ done |
 | 4 | DECtalk, speech queue, voice sessions, custom voices, `/chat` | ✅ done |
-| 5 | LLM | ⏳ next |
+| 5 | LLM: providers, tools and memory, documents, guards and spend caps, advanced triggers, voice replies, pacing | ✅ done |
 | — | Music (and with it the mixer), emote statistics, appearance tracking | ⏳ unscheduled |
 
-582 tests pass in Debug, Release and under AddressSanitizer, including the
+697 tests pass in Debug, Release and under AddressSanitizer, including the
 real DECtalk engine and golden audio, and clang-tidy is clean over `src/` and
-`tests/`. Four libFuzzer targets cover the text that arrives from people: the
+`tests/`. The language model has not yet answered a real message: it is tested
+against recorded provider replies, and its first live run is still to come. Four libFuzzer targets cover the text that arrives from people: the
 text helpers, the URL scanner, the legacy replacement parser and the DECtalk
 sanitizer.
 
@@ -322,7 +323,7 @@ src/
               basic.*  trigger.*  bots.*  nickname.*  midnight.*
               urlrepl.*  linkstats.*
               speak.* (and /tts)  voice.*  voice_lab.*  chat.*
-              llm_admin.*                                  (phase 5)
+              llm.* (/llm, /memory and their panels)
     events/   message_pipeline.*  goodbye.*  triggers.*  bot_allowlist.*
               nicknames.*  nickname_import.*  midnight.*
               url_rules.*  url_replacer.*  embed_watch.*  replacements.*
@@ -333,8 +334,9 @@ src/
     audio/    dectalk_engine.*  dectalk_sanitizer.*  voice_params.*  voice_store.*
               speech_queue.*  pcm.*  wav.*
               voice_mixer.*                                (with music, §13)
-    llm/      provider.hpp  anthropic.*  conversation.*  memory.*
-              tools.*  documents.*  responder.*  spend.*   (phase 5)
+    llm/      provider.hpp  models.*  anthropic.*  openai.*  tools.*
+              memory.*  memory_tools.*  documents.*  spend.*  guards.*
+              settings.*  advanced_triggers.*  prompt.*  responder.*  stage.*
     ports/    clock.*  discord_gateway.hpp  http_client.hpp  tts_engine.hpp
               voice_output.hpp  result.hpp
     util/     log.*  text.*  env.*  ca_certificates.*  url_scan.*
@@ -367,6 +369,10 @@ doing nothing. Keys: `log_level`, `database_path`, `backup_directory`,
 because a JSON number cannot hold a snowflake exactly. *Added after phase 4:*
 a missing file is written with the defaults, since a release is only the
 executable; `config.example.json` is the same text, kept identical by a test.
+*Phase 5:* `llm_model` must be a model in the bot's price table, and from the
+provider `llm_provider` names, or startup stops naming the known ones: the
+spend caps are worked out from those prices, and a model without one would
+spend without being counted (§14.6).
 
 **Secrets from the environment only:** `DISCORD_BOT_TOKEN`,
 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `LATIBOT_TEST_TOKEN` for live tests.
@@ -450,7 +456,26 @@ midnight_messages.message_flags                          -- added, default 4096 
 -- 10: tts_voices
 tts_voices(guild_id, name, base_voice, params, created_by, updated_at)
                                                   -- PK (guild_id, name); params "ap 200 pr 150"
+
+-- 11: llm
+llm_usage(id, guild_id, model, input_tokens, output_tokens, cache_write_tokens,
+          cache_read_tokens, cost_usd, at)
+llm_documents(guild_id, kind, version, content, edited_by, edited_at, note NULL)
+                                                  -- PK (guild_id, kind, version)
+llm_memory(id, guild_id, subject_user_id NULL, content, created_by NULL, created_at)
+llm_memory_search                                 -- FTS5 over llm_memory.content,
+                                                  -- kept in step by three triggers
+llm_blacklist(guild_id, kind, target_id)          -- kind: user | role
+llm_triggers(id, guild_id, pattern, match_mode, context_prompt, probability,
+             cooldown_s, enabled, created_by)
 ```
+
+The planned `llm_settings(guild_id, key, value)` table was not made: it would
+have been `guild_settings` again, column for column, so the model's settings
+are `guild_settings` rows with an `llm_` prefix. `llm_usage` gained the two
+cache columns the plan did not have, since cache reads and writes are priced
+differently from other input, and stores each call's cost as it was priced
+then.
 
 `replacement_messages` lost the plan's `domain` and `alternate_index` columns
 to `replacement_links`: a replacement carries up to five links, each on its own
@@ -458,18 +483,6 @@ mirror, which one row per message could not describe. `known_mirrors` and
 `emojis` are new: the first so a changed rule does not hide its old messages
 from the backfill, the second because a custom emoji is only an id in
 `reactions` and has to be shown by name.
-
-Planned, refined as each phase lands:
-
-```sql
-llm_triggers(id, guild_id, pattern, match_mode, context_prompt, probability,
-             cooldown_s, enabled, created_by)
-llm_settings(guild_id, key, value)
-llm_blacklist(guild_id, kind, target_id)
-llm_memory(id, guild_id, subject_user_id NULL, content, created_at, …)   -- + FTS5
-llm_documents(guild_id, kind, version, content, edited_by, edited_at, note)
-llm_usage(id, guild_id, model, input_tokens, output_tokens, cost_usd, at)
-```
 
 **Backups** ✅ use SQLite's online backup API, so a copy can be taken while the
 bot runs; `create_backup` writes a timestamped file and rotates to the newest
@@ -511,9 +524,14 @@ changing it is one line:
 ignore self / bots this guild has not allowed
 → admin goodbye phrase          (consumes)
 → URL replacement               (does not consume)
-→ simple trigger responses      (does not consume; suppresses advanced triggers)
-→ LLM addressed / advanced trigger (consumes)               phase 5
+→ simple trigger responses      (does not consume; marks the message answered)
+→ LLM addressed / advanced trigger (consumes)
 ```
+
+*Phase 5:* a stage can also say it **answered** the message, and the pipeline
+passes that on to the stages after it (`incoming_message::answered`). That is
+how a simple trigger's reply keeps an advanced trigger quiet without the two
+stages knowing about each other (§14.3).
 
 This exists because of a real bug in the Java version: `onMessageReceived`
 handled each feature with early `return`s, so **a message containing both "420"
@@ -544,7 +562,9 @@ only `flags`), and any component type DPP lacks (§2.1).
 Five interfaces wrap the outside world so the core can be tested without it:
 `clock`, `discord_gateway`, `http_client`, `tts_engine`, and `voice_output`,
 added in phase 4 for the speech queue. Each has a hand-written mock in
-`tests/mocks/`. See §17.3.
+`tests/mocks/`. See §17.3. Phase 5 added `start_typing` to `discord_gateway`,
+and `llm::provider` is an interface of the same kind one level up, with
+`mock_llm` beside the others.
 
 ---
 
@@ -1204,121 +1224,171 @@ with one user (§21.5).
 
 ---
 
-## 14. LLM ⏳ (phase 5)
+## 14. LLM ✅
 
 Designed fresh. The Java `ApiDriver` is ignored: it was fully written but never
 wired up, and its prompt configuration does not survive contact with current
-models.
+models. What is built is below; the user-facing side is `/llm`, `/memory` and
+*Talking to the bot* in [docs/features/](../features/README.md). It has been
+tested against recorded provider replies, not yet against a real key (§17.9).
 
-### 14.1 Providers and models
+### 14.1 Providers and models ✅
 
-An `llm_provider` interface, Anthropic by default, OpenAI optional. Provider and
-model are per guild with the defaults in `config.json`.
+`llm::provider` is the interface: a provider-neutral conversation in, a reply,
+a stop reason and the token usage out. `anthropic_provider` (the Messages API)
+and `openai_provider` (Chat Completions) each translate both ways, and exist
+only when their key is set. The provider follows from the model, so a guild
+chooses a model (`/llm model`) and `config.json` has the default.
 
-| Model | ID | $/1M in | $/1M out | Notes |
-|---|---|---|---|---|
-| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 | $5 | **Default** |
-| Claude Sonnet 5 | `claude-sonnet-5` | $2 | $10 | A step up |
-| Claude Opus 5 | `claude-opus-5` | $5 | $25 | Selectable, not expected |
+A model is usable only if it is in `llm::known_models`, with its prices,
+because the spend caps are worked out from them (§14.6). Checked against the
+providers' pages in September 2026:
 
-Model ids are used exactly as written, with **no date suffixes**. The request
-builder is **model-aware**: it sends `temperature` only to models that accept
-it, and effort settings only to models that support them. Otherwise changing the
-model in config produces 400s.
+| Model | ID | $/1M in | $/1M out | Cache write / read | Effort |
+|---|---|---|---|---|---|
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 | $5 | $1.25 / $0.10 | no — **default** |
+| Claude Sonnet 5 | `claude-sonnet-5` | $2 | $10 | $2.50 / $0.20 | yes |
+| Claude Sonnet 5.5 | `claude-sonnet-5-5` | $2 | $10 | $2.50 / $0.20 | yes |
+| Claude Opus 5.5 | `claude-opus-5-5` | $4 | $20 | $5 / $0.20 | yes |
+| Claude Opus 5 | `claude-opus-5` | $5 | $25 | $6.25 / $0.50 | yes |
+| Claude Fable 5.1 | `claude-fable-5-1` | $10 | $50 | $12.50 / $0.25 | yes |
+| GPT-6 Luna | `gpt-6-luna` | $0.10 | $0.50 | — / $0.01 | reasoning off |
+| GPT-6 Sol | `gpt-6-sol` | $2 | $10 | — / $0.20 | reasoning off |
 
-Two gotchas that break a direct translation of the Java prompt config:
-**`temperature` is rejected with a 400** on current Claude models — the Java
-`ApiDriver` set `1.5` for variety, which has to come from the system prompt
-instead — and **`max_tokens` must cover thinking**, since thinking tokens count
-toward the output budget, so the Java `maxCompletionTokens(100)` would truncate.
-Give real headroom with a low effort setting rather than disabling thinking,
-which has documented failure modes. Assistant prefill also 400s.
+The plan's table predates Sonnet 5.5 and Opus 5.5, and priced Opus 5 as the
+top of the range. **Haiku 4.5 is due for retirement no sooner than
+15 October 2026**, which makes it a default with a short future: when it goes,
+`llm_model` in `config.json` has to move (Sonnet 5.5 costs twice as much), or
+every guild still on it gets a 404 from the API.
 
-### 14.2 Reply mode
+The request builder is **model-aware**, as planned, with what the current API
+documentation says rather than what the plan assumed (§21.18):
 
-Text by default; spoken **and** posted while a voice session is active in that
-guild and the message is in the session's text channel. Voice replies use the
-DECtalk-aware prompt and the `llm` trust level, and the posted copy keeps the
-sanitized inline commands rather than stripping them for display.
+- **No `temperature`, ever.** Every current Claude model rejects a
+  non-default one with a 400.
+- **Effort `low`** on the models that take one, which keeps thinking on but
+  short, rather than switching thinking off: on Opus 5.5 `thinking: disabled`
+  is itself a 400. Haiku 4.5 takes no effort setting and thinks only when
+  asked, so it is sent neither.
+- **`max_tokens` covers thinking**, so the reply budget (1024 by default) is
+  a setting with room in it, not a word count.
+- **Thinking blocks go back unchanged.** In a tool loop, the assistant turn
+  that called a tool is sent back exactly as it came, signatures included,
+  which is why `llm::turn` carries the provider's raw JSON.
+- **OpenAI runs with reasoning off**, the only way Chat Completions calls
+  functions on these models (§21.19).
 
-For voice, the system prompt carries a short curated reference of the inline
-commands the model may use and asks for plain spoken text — no markdown, no
-emoji. The prompt is guidance; the sanitizer is enforcement.
+### 14.2 Reply mode ✅
 
-### 14.3 When it responds
+Text by default; spoken **and** posted when the message is in the text channel
+of the guild's voice session. Spoken replies get a speaking section in the
+prompt (plain spoken text, no markdown, and a short list of inline commands
+with the built-in voices), are sanitized at the `llm` trust level, and the
+posted copy is the sanitized text, inline commands and all, as §13 planned.
+The spoken part is cut at the guild's `/speak` character limit and queued
+under whoever asked, so they can `/tts stop` it.
 
-- **Addressed:** @mention, a reply to one of its messages, or a message starting
-  with its name. Consumes the message.
-- **Advanced triggers**, separate from §11: `llm_triggers` rows with a pattern,
-  match mode, a short user-written **`context_prompt`** describing *what* to say
-  ("Someone mentioned pineapple pizza. Defend it with unreasonable passion"), a
-  probability and a per-channel cooldown. *How* to say it comes from the shared
-  **trigger style** document (§14.5), so each trigger's prompt stays short.
-  Context window: 5 recent messages. Admin-managed by command and panel.
-- Blacklists and the spend cap are checked first.
-- **When a simple and an advanced trigger both match, the simple one wins** and
-  the advanced one does not fire. That keeps the cheap, instant response in
-  charge and avoids paying for a model call on a message that already has an
-  answer.
+### 14.3 When it responds ✅
 
-### 14.4 Bot-to-bot pacing
+- **Addressed:** an @mention, a reply to one of its messages, or a message
+  starting with its name followed by anything that is not a letter. Consumes
+  the message. DPP does not parse the message a reply points to, so whose
+  message it was comes from the raw gateway frame, and only for replies
+  (§21.20).
+- **Advanced triggers**: `llm_triggers` rows, managed with `/llm trigger`.
+  Each has a pattern (matched as §11 matches), a `context_prompt`, a chance
+  and a per-channel cooldown; a match that loses its roll does not start the
+  cooldown. How to say it is the `trigger_style` document. Reads the last 5
+  messages (a setting). **Commands only**: the panel the plan mentioned was
+  not built, since `/trigger`'s panel is the model to copy and the commands
+  cover everything it would.
+- **The simple trigger wins**, through the pipeline's `answered` flag (§5.4).
+- **Bots** are answered only when they address the bot; they never set off an
+  advanced trigger.
 
-The allowlist shipped in phase 1 (§11.1). What remains here is the pacing, which
-exists because an LLM exchange is expensive and open-ended in a way a trigger
-reply is not: at most ~6 consecutive bot turns per channel, a minimum delay
-between turns, a daily cap, and a human message resets the counter. Optionally
-only when a human started the exchange. All per-guild settings, to tune after
-implementation.
+The stage decides; the answer is an `ask_llm` action the shell hands to the
+responder, since a model call cannot happen inside a stage.
 
-### 14.5 Memory, settings and documents
+### 14.4 Bot-to-bot pacing ✅
 
-**Short-term:** a rolling per-channel window bounded by message count **and** an
-approximate token budget. **Admin-editable at runtime** through `/llm settings`
-(panel plus modal), stored in `llm_settings` and read per request, so a change
-applies to the next message: context message count, token budget, max output
-tokens, per-user and per-channel rate limits, advanced-trigger context size.
-Values are validated against documented ranges, and out-of-range input is
-rejected showing the allowed range.
+`llm::bot_pacing`, per channel and in memory: at most `llm_bot_turns` (6)
+replies to bots in a row, `llm_bot_delay_seconds` (5) between them, waited out
+before answering rather than refused, and `llm_bot_daily_cap` (50) per guild
+per UTC day. Any person speaking in the channel resets the count, whether or
+not the model answers them. `llm_bot_needs_human` (off) answers bots only once
+a person has spoken in the channel since the bot started. A turn is claimed
+when the stage decides, so two bot messages at once cannot both take the last
+one.
 
-**Long-term:** `llm_memory` with FTS5, managed by the model through
-`remember` / `recall` / `forget` tools. The tool loop is a **general framework**
-— a registry of name, JSON schema and handler — capped at 4 rounds per reply, so
-later features can add tools without touching the loop. The most relevant
-memories are also injected up front so common facts need no tool call. Admins
-get `/memory list | forget | clear`; users can remove their own.
+### 14.5 Memory, settings and documents ✅
 
-**Documents** (`llm_documents`, kinds `personality`, `system`,
-`trigger_style`): every edit is a new version, so nothing is lost and `revert`
-is one command. `/llm personality view | edit | history | diff | revert`, and
-likewise for the others. Editing uses a pre-filled modal — up to 5 sections ×
-4000 characters — or a `.txt`/`.md` attachment for longer text.
+**Short-term:** the channel's recent messages, fetched from Discord with each
+request rather than kept in memory, which costs one REST call and is right
+after a restart, an edit or a deletion. Cut by count, then from the oldest end
+to a token budget, four characters to a token. They go to the model as one
+transcript in a single user turn, `Name (user id): text`, with continuation
+lines indented so a message cannot fake another speaker, and mentions of the
+bot written as its name: several people talk in a channel, and the providers
+expect two sides taking turns.
 
-- **`system` and `trigger_style`: admins only.**
-- **`personality`:** gated by `personality_editor_role`, which **defaults to
-  `@everyone`**, since it is meant to be a living document people tune. Point it
-  at any role to narrow it. Edits go to the bot's own log rather than being
-  announced in Discord; `history` / `diff` / `revert` show them on demand.
-- **Prompt order:** fixed in-code rules → `system` → `personality` → memories →
-  conversation. The personality section is labelled as style guidance that
-  cannot override what is above it, which limits what an edited personality can
-  do, including attempts to use it as a jailbreak.
-- Token counts are estimated on save and warn when large, since documents are
-  sent on every request. **Prompt caching** (`cache_control` on the stable
-  prefix) is on from the start.
+**Runtime settings:** `/llm settings`, a panel with a form per group of at most
+five, stored as `guild_settings` rows (§5.2). Each is validated against its
+range, a form with any value out of range changes nothing and names it, and a
+stored value is clamped when read. The defaults are in §20.
 
-### 14.6 Guards
+**Long-term:** `llm_memory` with FTS5, and `remember` / `recall` / `forget`
+tools in a `tool_registry`: name, JSON schema, handler, so a later feature adds
+a tool without touching the loop. The loop runs at most `llm_tool_rounds`
+rounds of tools; the request after the last forbids tools (`tool_choice:
+none`) so the model has to answer. Up to 8 memories are put in front of it
+before it answers: those about the author, then those matching the message's
+words. A search quotes each word, so nothing in a message is read as FTS5
+syntax. Two limits the plan did not have: **the model may forget only what is
+about, or was saved by, the person it is answering**, so nobody can talk it
+into erasing what it knows about someone else; and a guild holds at most 500
+memories of 500 characters, past which `remember` refuses rather than
+dropping the oldest. `/memory list | forget | clear` for admins, and for
+everyone about themselves.
 
-Per-guild blacklists of users and roles; per-user and per-channel rate limits;
-an output token cap; a per-guild on/off switch. **Spend cap: $20/month and
-$2/day**, computed from usage counts × per-model prices recorded in `llm_usage`;
-the LLM switches itself off at the limit and tells admins. Keys from environment
-variables only.
+**Documents:** `llm_documents`, every edit a new version, `revert` saving the
+old text as a new one and version 0 being the default text. `/llm personality |
+system | style` with `view | edit | history | diff | revert`; `edit` opens a
+form of five 4000-character parts split between lines, or takes a `.txt` /
+`.md` attachment, up to 20,000 characters. Personality editing is gated by
+`llm_personality_role`, defaulting to @everyone; `system` and `style` are
+Manage Server to edit **and to read**, since they may hold rules better kept
+out of sight. Edits go to the log.
 
-### 14.7 HTTP
+**Prompt order:** the fixed rules in code, then `system`, then `personality`
+(labelled as style that cannot override what is above it), then the trigger
+style and the speaking section when they apply: all of it the cached prefix.
+After it, uncached, the memories and the time; then the conversation. The
+cache breakpoint is on the last stable system block, which caches the tools
+with it. Token counts are estimated on save, with a warning past 1500.
 
-`co_request` with the cluster's 60 s timeout (§2.1). A typing indicator while
-waiting. No streaming responses — a Discord bot cannot edit a message per token
-without hitting rate limits anyway.
+### 14.6 Guards ✅
+
+In the stage, before any money is spent, in order: the guild's switch
+(**off by default**, which the plan left open: every answer costs money);
+addressed, or an advanced trigger fired; a key for the model's provider; the
+blacklist (users and roles); the spend caps; the per-user and per-channel rate
+limits, per minute; for bots, the pacing.
+
+**Spend caps:** `$2/day and $20/month`, UTC, bot-wide, summed from `llm_usage`,
+where each call's cost is written as it arrives, so a reply that fails halfway
+still counts what it spent. Checked before a call, so one call can go past a
+cap and the next is refused. At the cap the model goes quiet on its own, says
+so once per guild per day or month where it was asked, and warns in the log,
+which [`/logs`](../features/README.md#logs) can put in front of the admins.
+
+### 14.7 HTTP ✅
+
+`co_request` through `dpp_http_client`, with the cluster's 60 s timeout
+(§2.1). A typing indicator when the answer starts, which lasts ten seconds:
+most replies arrive inside it, and a longer one is left to stop showing
+rather than kept alive with a timer. No streaming. A 429 or 529 tells whoever
+asked to try again in a minute; any other failure, that it could not come up
+with anything. Neither is retried.
 
 ---
 
@@ -1501,6 +1571,13 @@ worth naming rather than assuming away:
   session, and that `dpp_voice_output` queues audio DPP will play, are not.
   Nor is the voice lab's routing, `/chat`'s upload, or who DPP's cache says
   is a bot.
+- **The language model's wiring.** The stage, the responder, the tools and
+  the stores are tested against mocks, and the providers against recorded
+  replies. That `describe` sees a mention and a reply to the bot, that the
+  shell waits out the pacing before answering, and the `/llm` panels'
+  routing, are not. Nor, above all, whether Anthropic and OpenAI accept what
+  is sent: the request shapes follow their documentation as of September
+  2026, and the first real call is the test that settles it.
 
 These are covered by running the bot rather than by CI, which is the honest
 description. `[live]` tests are where they would go.
@@ -1555,10 +1632,11 @@ duration cap and the wall-time limit; resampler and speech queue; `/speak`;
 voice sessions and auto-leave; custom voices and the voice lab; `/chat` voice
 message; a zeroed heap for DECtalk (§21.17). The mixer waits for music.
 
-**Phase 5 — LLM**
-Provider and tool framework; text replies; guards, spend cap, prompt caching;
-runtime settings; documents; short- then long-term memory; advanced triggers;
-voice-session replies; bot-to-bot pacing.
+**Phase 5 — LLM** ✅
+Provider and tool framework, Anthropic and OpenAI; text replies; guards, spend
+cap, prompt caching; runtime settings; documents; short- then long-term
+memory; advanced triggers, by command; voice-session replies; bot-to-bot
+pacing.
 
 **Later:** music, emote statistics, appearance tracking, and possibly the
 self-hosted embeds idea in [docs/ideas/](../ideas/Self_Hosted_Embeds.md).
@@ -1591,6 +1669,13 @@ change, not a design decision.
 | 15 | Embed timeout | ~6 s per attempt, 2 attempts per mirror | a constant for now (§9.3) |
 | 16 | Simple + advanced trigger on one message | the simple trigger wins | §14.3 |
 | 17 | Goodbye phrase | "say goodbye latibot", Administrator only | per guild, `/goodbye` |
+| 18 | The language model | off until `/llm on` | per guild |
+| 19 | Short-term context | 15 messages, about 3000 tokens | per guild, `/llm settings` |
+| 20 | Longest reply | 1024 tokens, thinking included | per guild, `/llm settings` |
+| 21 | Rate limits | 3 replies per person and 8 per channel, a minute | per guild, `/llm settings` |
+| 22 | Bot-to-bot delay and daily cap | 5 s, 50 a day | per guild, `/llm settings` |
+| 23 | Advanced trigger cooldown and chance | 300 s, 100% | per trigger |
+| 24 | Memories | 8 shown up front; 500 per guild, 500 characters each | constants (§14.5) |
 
 ---
 
@@ -1908,3 +1993,48 @@ a value that shapes timing, not one that corrupts the waveform.
 The same investigation trimmed each utterance's trailing silence to 50 ms.
 DECtalk ends everything with about 400 ms of it, which would otherwise sit
 between queued utterances and at the end of every voice message.
+
+### 21.18 The model rules had moved on since the plan
+
+§14.1 was written against the models of its day, and the API documentation
+read before building phase 5 differed in ways that each would have been a 400
+on the first real message:
+
+- **`temperature` is refused by every current Claude model**, not only the
+  thinking ones, so no request sends it; variety is the prompt's job.
+- **Thinking cannot always be turned off.** On Opus 5.5 it is always on, and
+  `thinking: {"type": "disabled"}` is a 400; on Sonnet 5.5 the lowest setting
+  is a different type altogether. So the builder never sends a `thinking`
+  field, leaving each model at its own default, and steers the ones that
+  think with `output_config.effort` set to `low`.
+- **Haiku 4.5 takes no effort setting**, and sending one is a 400. Which
+  models take one is a column of the model table rather than a rule written
+  into the builder.
+- **Thinking blocks must go back unchanged** in a tool loop, signature and
+  all, so a provider's own JSON for an assistant turn is kept and resent
+  rather than rebuilt from the neutral form.
+- **The price table was out of date**: Sonnet 5.5 and Opus 5.5 had arrived,
+  Opus 5.5 below Opus 5's price, and Haiku 4.5 has a retirement date
+  (§14.1).
+
+### 21.19 OpenAI's Chat Completions calls functions only with reasoning off
+
+For the GPT-6 models, Chat Completions supports function calling only with
+`reasoning_effort` at `none`, and the bot's memory is functions. So the OpenAI
+provider sends `none` on every request. The Responses API does not have the
+limit, and is where to go if OpenAI's models ever need to reason here.
+OpenAI also caches prompts without being asked and reports only what it read
+from the cache, so its cache writes are priced as ordinary input.
+
+### 21.20 DPP does not read the message a reply points to
+
+A reply's gateway frame carries the whole message it replies to, in
+`referenced_message`, but DPP reads only `message_reference`, the ids. Whose
+message it was, which is what "a reply to the bot" means, is therefore read
+out of the raw frame, as §8.1 already does for an audit entry's guild, and
+only when the message is a reply, so an ordinary message costs nothing
+extra.
+
+Also found on the way, and cheaper to write down than to rediscover: a
+variable called `near` does not compile on Windows, where `<windows.h>`
+defines `near` (and `far`) as nothing.

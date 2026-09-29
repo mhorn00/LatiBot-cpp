@@ -34,6 +34,8 @@ the design and the order of work behind it are in
 | 🔗 | [`/urlrepl`](#urlrepl) | Turn link replacement on, and choose which links get posted again with a working preview |
 | 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone |
 | 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links |
+| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers |
+| 🧠 | [`/memory`](#memory) | What the language model remembers |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command |
 | 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised |
 | 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on |
@@ -41,6 +43,7 @@ the design and the order of work behind it are in
 | 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
 | 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel |
+| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
@@ -207,8 +210,8 @@ for **trusted** users only: those listed in `trusted_users` in the bot's
 config, or an administrator of a server listed in `trusted_guilds`. Being an
 administrator somewhere the bot was added is not enough on its own. `[:pause]`
 only pauses a sound card the bot does not use, so all it would do is hold
-everyone else's speech up. Anything the LLM writes will never be trusted,
-whoever asked.
+everyone else's speech up. Anything the language model writes is never
+trusted, whoever asked.
 
 Commands are recognised the way DECtalk recognises them, in any case and by
 any unique prefix, so `[:PLA "x"]` counts as `[:play]`.
@@ -275,8 +278,8 @@ Voice sessions, and this server's custom voices.
 `start` brings the bot into **your** voice channel, moving it if it is
 elsewhere in the server, and ties the session to the text channel you ran it
 in. While it lasts, `/speak` from anywhere in the server goes to that voice
-channel; in phase 5 the LLM's replies in that text channel will be spoken as
-well as posted. `stop` ends the session and leaves. So does `/leave`, being
+channel, and the language model's replies in that text channel are spoken as
+well as posted (see [Talking to the bot](#talking-to-the-bot)). `stop` ends the session and leaves. So does `/leave`, being
 disconnected, or everyone leaving (see below).
 
 | Situation | Reply |
@@ -861,6 +864,196 @@ with a second bot; see
 What it recognises, and how it finds whose link each one was, is under
 [Reaction statistics](#reaction-statistics).
 
+### `/llm`
+
+The language model: whether it answers here, which model, its settings, the
+documents that shape it, its advanced triggers and who it ignores. How it
+decides to answer is under [Talking to the bot](#talking-to-the-bot).
+
+| | |
+|---|---|
+| **Who** | everyone may run it; `status` and the personality are open to everyone by default, and everything else needs Manage Server, checked by the bot itself |
+| **Where** | servers only |
+| **Bot needs** | Send Messages, Read Message History |
+
+| Subcommand | Options | Effect |
+|---|---|---|
+| `status` | none | Whether it is on, the model, and what was spent against the caps |
+| `on` / `off` | none | Lets it answer here, or stops it |
+| `model` | `name` (one of the models below) | This server's model from now on |
+| `settings` | none | Opens the [settings panel](#llm-settings) |
+| `personality` · `system` · `style` | a subcommand, below | The [documents](#the-documents) |
+| `trigger` | `add` · `edit` · `remove` · `list` | [Advanced triggers](#advanced-triggers) |
+| `blacklist` | `add` · `remove` (`user` or `role`) · `list` | People and roles it never answers here |
+
+It is **off in every server** until someone runs `/llm on` there: every message
+it answers costs money. It also needs an API key in the bot's environment,
+`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; without the one its model needs, `on`
+says so and it stays quiet. The models it can use are the ones whose price it
+knows, since its spending limit is worked out from them:
+
+| Model | Per million tokens in / out | |
+|---|---|---|
+| Claude Haiku 4.5 | $1 / $5 | the default |
+| Claude Sonnet 5, Sonnet 5.5 | $2 / $10 | |
+| Claude Opus 5.5 | $4 / $20 | |
+| Claude Opus 5 | $5 / $25 | |
+| Claude Fable 5.1 | $10 / $50 | |
+| GPT-6 Luna | $0.10 / $0.50 | needs `OPENAI_API_KEY` |
+| GPT-6 Sol | $2 / $10 | needs `OPENAI_API_KEY` |
+
+| Situation | Reply |
+|---|---|
+| `on` | `ok, i'll answer here when addressed` |
+| `on`, with no key for its model | `ok, i'll answer here when addressed, but there's no API key for its model on the bot, so it can't yet` |
+| `off` | `ok, i'll stay quiet here` |
+| `model` | `ok, this server now uses Claude Sonnet 5.5` |
+| `model` with no key for it | `there's no openai API key on the bot, so GPT-6 Luna can't be used` |
+| Anything but `status` or the personality, without Manage Server | `that needs Manage Server` |
+| `status` | `The language model is **on** here, using Claude Haiku 4.5.` then what was spent today and this month, against the caps, and how much of the month's was this server's |
+
+`status` adds a line when there is no API key for the model, and one when a
+spending limit has been reached.
+
+#### The documents
+
+Three documents per server shape what the model says. **Every edit is a new
+version**, nothing is overwritten, and any earlier version is one command away.
+
+| Document | Group | Who may change it | What it is for |
+|---|---|---|---|
+| personality | `personality` | **everyone**, by default | How the bot comes across. Meant to be tuned by the people who talk to it |
+| system instructions | `system` | Manage Server | Rules that are not up for negotiation; empty to begin with |
+| trigger style | `style` | Manage Server | How advanced-trigger replies are written |
+
+Each group has the same subcommands:
+
+| Subcommand | Options | Effect |
+|---|---|---|
+| `view` | none | What it says now, in a code block, or as an attached file when it is long |
+| `edit` | `file` (optional, a `.txt` or `.md` file) | Without `file`, a form holding the document in up to five parts of 4000 characters; with it, the file replaces the document |
+| `history` | none | The newest fifteen versions: who, when, how long, and a note such as `reverted to version 2` |
+| `diff` | `from`, `to` (optional versions) | What changed, line by line, from the version before `to` to `to` (the current one by default) |
+| `revert` | `version` (required) | Saves that version's text as a new version. Version 0 is the default text |
+
+`personality` also has `editors` (`role`): without a role it says who may
+edit; with one it limits editing to that role, plus anyone with Manage Server.
+Choosing @everyone opens it up again. Setting it needs Manage Server.
+
+The personality can be read by anyone; the system instructions and the trigger
+style only by people with Manage Server, since they may hold rules better kept
+out of sight. **The personality cannot override the rest**: the model is told
+it is style guidance written by people in the server, after the fixed rules
+and the system instructions. Edits are recorded in the bot's own log, not
+announced in the channel.
+
+A document is at most 20,000 characters, and is sent with every message the
+model answers, so its length costs money each time. Saving one over about 1500
+tokens says so:
+
+| Situation | Reply |
+|---|---|
+| Saved | `saved the personality as version 4 (about 180 tokens)` |
+| Saved, and long | the same, then `that's long, and it's sent with every message the model answers, …` |
+| The form, with nothing changed | `nothing changed, so nothing was saved` |
+| Too long for the form | ``it's too long to edit in a form; attach it as a .txt or .md file with `file:` `` |
+| `file` is not `.txt` or `.md` | `attach a .txt or .md file` |
+| `file` over the limit | `that's over the 20000-character limit` |
+| Not allowed to edit the personality | `you can't edit the personality here` |
+| `revert` or `diff` to a version that does not exist | `there's no version 9 of the personality` |
+
+#### `/llm settings`
+
+A panel of the numbers that shape each reply. A menu opens a form for one
+group; every value is checked against its range, and a form with any value out
+of range changes nothing and says which, for example `"Token budget for them"
+takes a whole number from 200 to 20000; nothing was changed`. Changes apply to
+the next message. The panel also turns the model on or off.
+
+| Setting | Default | Range |
+|---|---|---|
+| Recent messages it reads | 15 | 0–50 |
+| Token budget for them | 3000 | 200–20000 |
+| Messages an advanced trigger reads | 5 | 0–20 |
+| Longest reply, in tokens | 1024 | 256–8192 |
+| Replies per person per minute | 3 | 1–60 |
+| Replies per channel per minute | 8 | 1–120 |
+| Bot turns in a row (0: never) | 6 | 0–50 |
+| Seconds between bot turns | 5 | 0–300 |
+| Replies to bots per day | 50 | 0–1000 |
+| Only after a person spoke | no | yes or no |
+
+The token budget is a rough count, four characters to a token. The longest
+reply includes the model's thinking, on the models that think, so it is not a
+word count.
+
+#### Advanced triggers
+
+A [simple trigger](#trigger-responses) answers with fixed replies; an advanced
+one asks the model to say something. Each has a pattern, matched the same way
+(whole word or anywhere, ignoring case), and a **prompt**: one line about what
+to say, such as `Someone mentioned pineapple pizza. Defend it with
+unreasonable passion.` How to say it comes from the trigger style document, so
+the prompt stays short.
+
+| Subcommand | Options |
+|---|---|
+| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` |
+| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays |
+| `remove` | `id` |
+| `list` | none |
+
+- **`chance`** is how often a match gets a reply, and a match that loses its
+  roll does not start the cooldown.
+- **The cooldown is per trigger, per channel**, as with simple triggers.
+- **A simple trigger wins.** When a message sets off a simple trigger, no
+  advanced trigger answers it, and no model call is made.
+- **Other bots never set one off.** A bot has to address the bot to be
+  answered at all.
+- Its reply is posted silently, as a simple trigger's is, and reads the last
+  five messages rather than fifteen (the setting above).
+
+#### The blacklist
+
+`/llm blacklist add` with a `user` or a `role` stops the model answering that
+member, or anyone with that role, here. It still reads what they write, as part
+of the conversation. `remove` undoes it and `list` shows it. Give one of `user`
+and `role`, not both. Replies: `ok, i won't answer @name`, `ok, i'll answer
+@name again`, or that they were already on (or not on) the list.
+
+### `/memory`
+
+What the model remembers in this server.
+
+| | |
+|---|---|
+| **Subcommands** | `list` (`user`) · `forget` (`id`) · `clear` (`user`, `everything`) |
+| **Who** | everyone, for what is about them; Manage Server for anyone else's |
+| **Where** | servers only |
+| **Bot needs** | nothing |
+
+The model decides for itself what to remember, when people tell it things or
+ask it to (see [Talking to the bot](#talking-to-the-bot)). Each memory is a
+sentence, may be about one person, and has a number.
+
+- **`list`** shows ten at a time, newest first, with ◀ / ▶ buttons. Without
+  `user` it is what the model remembers about you; with Manage Server,
+  without `user` it is everything here.
+- **`forget`** removes one by its number: one about you, or with Manage
+  Server, any.
+- **`clear`** removes everything about you. With Manage Server, `user`
+  clears someone else's and `everything:true` clears the whole server's.
+
+| Situation | Reply |
+|---|---|
+| `forget` | `forgot #12` |
+| `clear` | `forgot 3 things` |
+| No such memory | `there's no memory #12 here` |
+| Someone else's, without Manage Server | `you can remove memories about you; anyone else's needs Manage Server` |
+| `list` of someone else's, without Manage Server | `you can see what i remember about you; anyone else needs Manage Server` |
+
+All private.
+
 ---
 
 ## Passive behaviour
@@ -911,7 +1104,9 @@ does not bring them back on the next restart.
   panel's buttons.
 - Triggers **do not consume the message**. One containing both `420` and a link
   gets the reply *and* the [link replacement](#url-replacement) — the Java
-  version's early `return` meant it got only the first of those.
+  version's early `return` meant it got only the first of those. A message a
+  trigger answered does not also set off an
+  [advanced trigger](#advanced-triggers); the simple, free reply wins.
 
 **Other bots are ignored unless the server allows them.** Two bots answering
 each other is a loop nobody asked for, so the default is silence. Allowing a bot
@@ -1137,6 +1332,83 @@ as far as Discord has told the bot who is a bot.
 Leaving by any route, a moderator disconnecting the bot included, ends the
 server's voice session and drops whatever it was about to say.
 
+### Talking to the bot
+
+Once a server has turned it on with [`/llm on`](#llm), the language model
+answers anyone who **addresses** the bot:
+
+- **@mentions** it anywhere in a message,
+- **replies** to one of its messages, or
+- **starts the message with its name**: `latibot, what's the plan` or
+  `LatiBot what's the plan`, but not `latibots` or `hey latibot`.
+
+It shows *LatiBot is typing…* while it thinks, then replies to the message.
+Whoever asked is notified of the reply, as with any reply; nothing the model
+writes can ping anyone else, `@everyone` included. A reply too long for one
+message is split, three messages at most.
+
+**What it reads.** The last fifteen messages in the channel, cut to about 3000
+tokens from the oldest end, then the message it is answering; both numbers are
+[settings](#llm-settings). The messages are what it is shown, not instructions
+it has to follow, and it is told so.
+
+**What shapes it**, in this order, each outranking the next: rules built into
+the bot, which nobody in Discord can change; the server's
+[system instructions](#the-documents); its [personality](#the-documents),
+which is only ever style; then the memories that look relevant, and the
+conversation.
+
+**Memory.** The model can remember things for later, look them up, and forget
+them, by itself: when someone tells it something worth keeping, or asks it to
+remember. The memories about whoever it is answering, and those matching what
+they said, are put in front of it before it answers, so it rarely has to look.
+It can forget only what is about the person it is answering, or what that
+person had it remember, so nobody can talk it into forgetting someone else;
+[`/memory`](#memory) is how people see and remove the rest. A server holds up
+to 500 memories of up to 500 characters each.
+
+**In a voice session**, a reply in the session's text channel is also spoken
+there, in Paul's voice. The model is told it will be heard and keeps it short
+and plain, and may use a few DECtalk inline commands such as `[:rate 250]`;
+the posted text keeps the commands it was allowed, so the channel sees what
+was said as it was said. Nothing the model writes is ever trusted with the
+commands that touch the bot's machine, whoever asked, and the spoken part is
+cut at this server's [`/speak` limit](#tts). Whoever asked can stop it with
+`/tts stop`.
+
+**When it stays quiet.** Checked in this order, before anything is spent:
+
+- The server has not turned it on, or there is no API key for its model.
+- Nobody addressed it and no [advanced trigger](#advanced-triggers) fired.
+- The author, or one of their roles, is on the [blacklist](#the-blacklist).
+- **The spending limit is reached**: $2 in a UTC day or $20 in a UTC month,
+  across every server, from the `config.json` caps. It says
+  `i've hit today's spending limit, so i'm staying quiet until tomorrow (UTC)`
+  (or this month's) once per server, and warns in the bot's log. One reply can
+  take spending a little past the cap; the next is refused.
+- The author asked more than three times this minute, or the channel had eight
+  replies this minute.
+- For another bot: see below.
+
+If the model itself fails, someone who addressed the bot is told
+`sorry, i couldn't come up with anything just now`, or
+`i'm a bit overloaded right now; try me again in a minute` when the model is
+busy. An advanced trigger's failure is silent.
+
+**Other bots.** The model answers a bot only if the server
+[allows that bot](#bots), and only when the bot addresses it. Because two
+models can talk to each other forever, it paces itself: at most six replies to
+bots in a row in a channel before waiting for a person to say something, at
+least five seconds between them, and fifty a day per server. Any person
+speaking in the channel resets the count. It can also be told to answer bots
+only once a person has spoken in the channel. All of these are
+[settings](#llm-settings).
+
+**Cost.** Every call to the model is written down with its tokens and price,
+which is what the spending limit adds up. The instructions and documents are
+marked for the provider's prompt cache, so a conversation in full swing pays
+far less for them.
+
 ### Permission warnings
 
 When the bot joins a server — and for every server it is already in, each time
@@ -1161,8 +1433,9 @@ Nothing is posted to Discord — this goes to the bot's own log.
 Not user-facing, but worth knowing when something looks wrong.
 
 **Settings are per server.** The goodbye phrase, triggers, the bot allowlist,
-URL rules, opt-outs, emoji aliases, speech limits and custom voices are all
-stored per server, in a SQLite database at `data/bot.db`. Two servers never
+URL rules, opt-outs, emoji aliases, speech limits, custom voices, and the
+language model's switch, model, settings, documents, memories, advanced
+triggers and blacklist are all stored per server, in a SQLite database at `data/bot.db`. Two servers never
 see each other's anything.
 
 **Speech is DECtalk**, built from source alongside the bot, and it needs
@@ -1219,9 +1492,5 @@ when that happens.
 
 ## What is coming
 
-In order, with the detail in [Planned.md](Planned.md):
-
-| Phase | Features |
-|---|---|
-| 5 | The LLM: replies, memory, personality, advanced triggers |
-| Later | Music · emote statistics · appearance tracking |
+Unscheduled, with the detail in [Planned.md](Planned.md): music, emote
+statistics and appearance tracking.
