@@ -2,6 +2,7 @@
 
 #include "core/commands/message_options.hpp"
 #include "core/commands/options.hpp"
+#include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -27,6 +28,22 @@ constexpr std::uint32_t responses_length_limit = 2000;
 
 /// Discord's limit on a select option's label.
 constexpr std::size_t select_option_limit = 100;
+
+/// The longest cooldown, in seconds: a day.
+constexpr std::int64_t cooldown_limit = 86400;
+
+/// Room for a page of triggers in a message, less its heading, page label
+/// and note. Eight at a full 200 characters of pattern would pass Discord's
+/// 2000, and one message too long makes Discord refuse the whole panel.
+constexpr std::size_t lines_budget = 1650;
+
+/// The longest note under the panel.
+constexpr std::size_t note_limit = 200;
+
+/// The mode as the form's field takes it, which is how its label names it.
+auto mode_label(events::match_mode mode) -> std::string_view {
+    return mode == events::match_mode::substring ? "anywhere" : "word";
+}
 
 /// Splits a leading "<weight> |" off a response line.
 auto leading_weight(std::string_view& line) -> std::optional<int> {
@@ -98,10 +115,11 @@ auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guil
     if (all.empty()) {
         body = "No triggers here yet. Add one with `/trigger add`.";
     } else {
+        std::vector<std::string> lines;
         for (std::size_t index = window.begin; index < window.end; ++index) {
-            body += describe(all[index]);
-            body.push_back('\n');
+            lines.push_back(describe(all[index]));
         }
+        body += util::fit_lines(lines, lines_budget);
         body += std::format("\n_{}_", ui::page_label(current, all.size(), triggers_per_page));
     }
 
@@ -142,7 +160,7 @@ auto trigger_command::build(const std::string& name, dpp::snowflake application_
     add.add_option(mode);
     add.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 0 for none.", false)
                        .set_min_value(0)
-                       .set_max_value(86400));
+                       .set_max_value(cooldown_limit));
     add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
     add_message_options(add);
 
@@ -152,7 +170,8 @@ auto trigger_command::build(const std::string& name, dpp::snowflake application_
     edit.add_option(
         dpp::command_option(dpp::co_string, "responses", "Replaces every response.", false).set_max_length(responses_length_limit));
     edit.add_option(mode);
-    edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(86400));
+    edit.add_option(
+        dpp::command_option(dpp::co_integer, "cooldown", "Seconds. 0 for none.", false).set_min_value(0).set_max_value(cooldown_limit));
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
     edit.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots. See /bots.", false));
     add_message_options(edit);
@@ -304,31 +323,49 @@ auto trigger_command::panel(const dpp::slashcommand_t& event) -> dpp::task<void>
 // The panel
 // --------------------------------------------------------------------------
 
-auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optional<std::string> {
+auto apply_form(events::trigger& entry, const form_fields& fields) -> form_outcome {
     const std::string_view pattern = util::trim(fields.pattern);
-    if (pattern.empty()) return "a pattern of only whitespace would match everything";
+    if (pattern.empty()) return {.refused = "a pattern of only whitespace would match everything", .note = {}};
 
     const auto responses = parse_responses(fields.responses);
-    if (responses.empty()) return "that leaves no responses to pick from";
+    if (responses.empty()) return {.refused = "that leaves no responses to pick from", .note = {}};
 
     entry.pattern = std::string(pattern);
     entry.responses = responses;
 
     // The optional fields are left as they were when they cannot be read,
-    // rather than reset: someone typing "thirty" into the cooldown box should
-    // not silently lose the cooldown they had.
-    if (const auto mode = events::match_mode_from_string(fields.mode)) entry.mode = *mode;
+    // rather than reset, and the note says so: someone typing "thirty" into
+    // the cooldown box should neither lose the cooldown they had nor think
+    // it changed.
+    std::vector<std::string> kept;
+    if (const std::string_view mode = util::trim(fields.mode); !mode.empty()) {
+        if (const auto read = events::match_mode_from_string(mode)) {
+            entry.mode = *read;
+        } else {
+            kept.push_back(std::format("\"{}\" isn't word or anywhere, so it still matches {}", mode,
+                                       entry.mode == events::match_mode::substring ? "anywhere" : "whole words"));
+        }
+    }
 
-    const std::string_view cooldown = util::trim(fields.cooldown);
-    if (!cooldown.empty()) {
+    if (const std::string_view cooldown = util::trim(fields.cooldown); !cooldown.empty()) {
         std::int64_t seconds = 0;
         const char* begin = cooldown.data();
         const char* end = begin + cooldown.size();
         const auto [stop, error] = std::from_chars(begin, end, seconds);
-        if (error == std::errc{} && stop == end && seconds >= 0) entry.cooldown = std::chrono::seconds(seconds);
+        if (error == std::errc{} && stop == end && seconds >= 0 && seconds <= cooldown_limit) {
+            entry.cooldown = std::chrono::seconds(seconds);
+        } else {
+            kept.push_back(std::format("\"{}\" isn't a number of seconds from 0 to {}, so the cooldown stayed {}s", cooldown,
+                                       cooldown_limit, entry.cooldown.count()));
+        }
     }
 
-    return std::nullopt;
+    std::string note;
+    for (const std::string& line : kept) {
+        if (!note.empty()) note += "; ";
+        note += line;
+    }
+    return {.refused = std::nullopt, .note = std::move(note)};
 }
 
 namespace {
@@ -350,7 +387,7 @@ auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t 
         // and one label too long makes Discord refuse the whole panel. The
         // lines above the menu show the pattern in full.
         menu.add_select_option(dpp::select_option(util::truncate(entry.pattern, select_option_limit), std::to_string(entry.id),
-                                                  std::string(events::to_string(entry.mode)))
+                                                  entry.mode == events::match_mode::substring ? "anywhere" : "whole word")
                                    .set_default(entry.id == selected));
     }
 
@@ -485,9 +522,21 @@ auto toggle_for(std::string_view view) -> trigger_toggle {
 }
 
 auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected,
-                          bool confirming_delete) -> dpp::message {
+                          bool confirming_delete, std::string_view note) -> dpp::message {
     const std::vector<events::trigger> all = store.for_guild(guild_id);
-    const int current = ui::clamp_page(page, all.size(), triggers_per_page);
+    int current = ui::clamp_page(page, all.size(), triggers_per_page);
+
+    // A trigger just added may sort onto another page; follow it there, so
+    // the menu can show it selected. One deleted from another client is no
+    // longer selected at all, rather than left with buttons for nothing.
+    if (selected != 0) {
+        if (const auto found = std::ranges::find(all, selected, &events::trigger::id); found != all.end()) {
+            current = static_cast<int>(static_cast<std::size_t>(found - all.begin()) / triggers_per_page);
+        } else {
+            selected = 0;
+        }
+    }
+
     const ui::page_range window = ui::range_for(current, all.size(), triggers_per_page);
     const std::span<const events::trigger> page_of(all.data() + window.begin, window.size());
 
@@ -495,12 +544,14 @@ auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake gui
     if (all.empty()) {
         body += "\nNothing here yet. **Add** one below.";
     } else {
+        std::vector<std::string> lines;
         for (const events::trigger& entry : page_of) {
-            body += describe(entry);
-            body.push_back('\n');
+            lines.push_back(describe(entry));
         }
+        body += util::fit_lines(lines, lines_budget);
         body += std::format("\n_{}_", ui::page_label(current, all.size(), triggers_per_page));
     }
+    if (!note.empty()) body += std::format("\n-# {}", util::truncate(note, note_limit));
 
     dpp::message reply(body);
 
@@ -551,7 +602,7 @@ auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_mo
                            .set_type(dpp::cot_text)
                            .set_text_style(dpp::text_short)
                            .set_required(false)
-                           .set_default_value(entry == nullptr ? "word" : std::string(events::to_string(entry->mode))));
+                           .set_default_value(std::string(mode_label(entry == nullptr ? events::match_mode::whole_word : entry->mode))));
 
     form.add_row();
     form.add_component(
@@ -564,6 +615,142 @@ auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_mo
             .set_default_value(std::to_string(entry == nullptr ? events::default_trigger_cooldown.count() : entry->cooldown.count())));
 
     return form;
+}
+
+// --------------------------------------------------------------------------
+// The panel's buttons and forms
+// --------------------------------------------------------------------------
+
+namespace {
+
+/// The trigger a button carries, or 0 when it carries none.
+auto argument_id(const ui::page_state& state) -> std::int64_t {
+    std::int64_t id = 0;
+    const char* begin = state.argument.data();
+    const char* end = begin + state.argument.size();
+    const auto [stop, error] = std::from_chars(begin, end, id);
+    return error == std::errc{} && stop == end ? id : 0;
+}
+
+auto field(const ui::form_values& fields, std::string_view name) -> std::string {
+    const auto found = fields.find(name);
+    return found == fields.end() ? std::string{} : found->second;
+}
+
+} // namespace
+
+trigger_panel::trigger_panel(events::trigger_store& store) : store_(&store) {}
+
+auto trigger_panel::on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool {
+    // Buttons carry the trigger they act on in the argument. The select menu
+    // carries its choice in `chosen` instead, and is read below.
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::int64_t id = chosen.empty() ? argument_id(state) : 0;
+
+    // Paging, then picking, deleting, toggling, and the two forms. Every
+    // branch but the forms re-renders the panel in place.
+    if (state.view == trigger_list_view) {
+        ui::update_panel(event, render_trigger_list(*store_, guild, state.page));
+    } else if (state.view == trigger_panel_view) {
+        // Paging carries no trigger; Cancel carries the one it was deleting.
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, id));
+    } else if (state.view == trigger_pick_view) {
+        std::int64_t picked = 0;
+        const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
+        if (error != std::errc{} || stop != chosen.data() + chosen.size()) picked = 0;
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, picked));
+    } else if (state.view == trigger_delete_view) {
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, id, /*confirming_delete=*/true));
+    } else if (state.view == trigger_confirm_view) {
+        // Logged only when something went: a second press, or one from another
+        // client, finds it already gone.
+        if (store_->remove(id, guild)) {
+            util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild,
+                             describe_user(event.command.get_issuing_user()));
+        }
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page));
+    } else if (const trigger_toggle change = toggle_for(state.view)) {
+        toggle(event, id, change);
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, id));
+    } else if (state.view == trigger_add_view) {
+        event.dialog(trigger_form(state.page, nullptr));
+    } else if (state.view == trigger_edit_view) {
+        if (const auto entry = store_->find(id, guild)) {
+            event.dialog(trigger_form(state.page, &*entry));
+        } else {
+            ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, 0, false, "that trigger is gone"));
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+auto trigger_panel::toggle(const dpp::interaction_create_t& event, std::int64_t id, trigger_toggle change) -> void {
+    const dpp::snowflake guild = event.command.guild_id;
+    auto entry = store_->find(id, guild);
+    if (!entry) {
+        // Deleted from another client while this panel was open. The caller
+        // re-renders either way, which is what puts the panel back in step.
+        util::log().debug("panel asked to change trigger {}, which is no longer in guild {}", id, guild);
+        return;
+    }
+
+    const std::string_view became = change(*entry);
+    if (!store_->update(*entry)) {
+        util::log().debug("trigger {} in guild {} was removed before the panel could change it", id, guild);
+        return;
+    }
+    util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild, became, describe_user(event.command.get_issuing_user()));
+}
+
+auto trigger_panel::on_form(const dpp::form_submit_t& event, const ui::page_state& state) -> bool {
+    if (state.view != trigger_form_view) return false;
+
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::int64_t id = argument_id(state);
+    const user_label who = describe_user(event.command.get_issuing_user());
+
+    // Zero means add. Anything else has to still exist: somebody could have
+    // deleted it from another client while the modal was open.
+    events::trigger entry;
+    if (id != 0) {
+        auto existing = store_->find(id, guild);
+        if (!existing) {
+            ui::update_panel(event,
+                             render_trigger_panel(*store_, guild, state.page, 0, false, "that trigger was deleted while you edited it"));
+            return true;
+        }
+        entry = std::move(*existing);
+    } else {
+        entry.guild_id = guild;
+        entry.cooldown = events::default_trigger_cooldown;
+    }
+
+    const ui::form_values values = ui::form_fields(event);
+    const form_outcome applied = apply_form(entry, {.pattern = field(values, "pattern"),
+                                                    .responses = field(values, "responses"),
+                                                    .mode = field(values, "mode"),
+                                                    .cooldown = field(values, "cooldown")});
+    if (applied.refused) {
+        util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild, *applied.refused);
+        ui::answer_privately(event, *applied.refused);
+        return true;
+    }
+
+    // Deleted from another client between opening the modal and saving it.
+    if (id != 0 && !store_->update(entry)) {
+        util::log().info("trigger {} in guild {} was removed before {}'s edit from the panel could be saved", id, guild, who);
+        ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, 0, false, "that trigger was deleted while you edited it"));
+        return true;
+    }
+
+    const std::int64_t saved = id == 0 ? store_->add(entry) : entry.id;
+    util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
+                     describe(entry));
+    const std::string note = applied.note.empty() ? std::format("{} trigger `{}`", id == 0 ? "added" : "saved", saved) : applied.note;
+    ui::update_panel(event, render_trigger_panel(*store_, guild, state.page, saved, false, note));
+    return true;
 }
 
 } // namespace latibot::commands

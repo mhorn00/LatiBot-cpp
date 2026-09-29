@@ -90,6 +90,21 @@ TEST_CASE("the voice and rate settings change the audio", "[audio][coro][threads
     CHECK(fast.samples.size() < paul.samples.size());
 }
 
+TEST_CASE("a custom voice's edits change the voice it is built on", "[audio][coro][threads]") {
+    // What the voice lab's Test and a saved voice rely on: the edits come
+    // after the voice is chosen, and DECtalk has to keep them rather than
+    // reloading the chosen voice's own values over them.
+    dectalk_engine engine;
+
+    const pcm_audio harry = say(engine, speech_request{.text = "Hello there.", .voice = {.voice = "harry"}});
+    const pcm_audio higher = say(engine, speech_request{.text = "Hello there.", .voice = {.voice = "harry", .custom_params = "ap 300"}});
+    const pcm_audio smaller = say(engine, speech_request{.text = "Hello there.", .voice = {.voice = "harry", .custom_params = "hs 70"}});
+
+    CHECK(higher.samples != harry.samples);
+    CHECK(smaller.samples != harry.samples);
+    CHECK(higher.samples != smaller.samples);
+}
+
 TEST_CASE("volume scales the samples", "[audio][coro][threads]") {
     dectalk_engine engine;
 

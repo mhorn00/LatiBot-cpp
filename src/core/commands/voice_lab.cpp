@@ -14,6 +14,7 @@
 #include <dpp/cluster.h>
 #include <dpp/discordclient.h>
 
+#include <algorithm>
 #include <charconv>
 #include <format>
 #include <vector>
@@ -58,17 +59,6 @@ auto join(const std::vector<std::string>& parts) -> std::string {
         joined += part;
     }
     return joined;
-}
-
-/// A modal's fields, by id.
-auto fields_of(const dpp::form_submit_t& event) -> std::map<std::string, std::string, std::less<>> {
-    std::map<std::string, std::string, std::less<>> fields;
-    for (const dpp::component& row : event.components) {
-        for (const dpp::component& input : row.components) {
-            if (const auto* text = std::get_if<std::string>(&input.value)) fields.insert_or_assign(input.custom_id, *text);
-        }
-    }
-    return fields;
 }
 
 } // namespace
@@ -138,6 +128,47 @@ auto group_menu() -> dpp::component {
     return menu;
 }
 
+/// The menu that opens one of the server's saved voices into the draft.
+/// Nothing when there are none. The voice being edited is always offered,
+/// so it can be picked again to throw away changes to it.
+auto saved_menu(std::span<const audio::saved_voice> saved, std::string_view editing) -> std::optional<dpp::component> {
+    if (saved.empty()) return std::nullopt;
+
+    std::vector<const audio::saved_voice*> offered;
+    const auto current = std::ranges::find(saved, editing, &audio::saved_voice::name);
+    if (current != saved.end()) offered.push_back(&*current);
+    for (const audio::saved_voice& voice : saved) {
+        if (offered.size() == saved_voices_offered) break;
+        if (&voice != (current == saved.end() ? nullptr : &*current)) offered.push_back(&voice);
+    }
+    std::ranges::sort(offered, {}, &audio::saved_voice::name);
+
+    const std::string placeholder =
+        saved.size() > offered.size()
+            ? std::format("Open a saved voice ({} of {}; /voice lab voice: opens any)", offered.size(), saved.size())
+            : std::string("Open a saved voice");
+
+    dpp::component menu;
+    menu.set_type(dpp::cot_selectmenu)
+        .set_placeholder(placeholder)
+        .set_id(ui::encode({.view = std::string(lab_open_view), .page = 0, .argument = {}}).value_or(std::string(lab_open_view)));
+    for (const audio::saved_voice* voice : offered) {
+        menu.add_select_option(dpp::select_option(voice->name, voice->name, util::truncate(as_commands(voice->voice), 100))
+                                   .set_default(voice->name == editing));
+    }
+    return menu;
+}
+
+/// What the panel is editing, in a line: a new voice, or a saved one and
+/// whether the draft still matches it.
+auto describe_editing(const voice_draft& draft, std::span<const audio::saved_voice> saved) -> std::string {
+    if (draft.name.empty()) return "a new voice, not saved yet";
+    const auto found = std::ranges::find(saved, draft.name, &audio::saved_voice::name);
+    if (found == saved.end()) return std::format("`{}`, which is no longer saved; **Save as…** keeps it again", draft.name);
+    if (found->voice == draft.voice) return std::format("`{}`, as saved", draft.name);
+    return std::format("`{}`, with **unsaved changes**", draft.name);
+}
+
 /// The menu that picks the built-in voice underneath.
 auto base_menu(std::string_view base_name) -> dpp::component {
     dpp::component menu;
@@ -153,28 +184,28 @@ auto base_menu(std::string_view base_name) -> dpp::component {
 
 } // namespace
 
-auto render_voice_lab(const voice_draft& draft) -> dpp::message {
+auto render_voice_lab(const voice_draft& draft, std::span<const audio::saved_voice> saved) -> dpp::message {
     const audio::builtin_voice* base = audio::find_builtin_voice(draft.voice.base);
     const std::string_view base_name = base == nullptr ? std::string_view{"paul"} : base->name;
     const std::string_view description = base == nullptr ? std::string_view{} : base->description;
 
-    std::string content = std::format("**Voice lab**: built on {} ({})", base_name, description);
-    if (!draft.name.empty()) content += std::format(", saved as `{}`", draft.name);
-    content += '\n';
+    std::string content = std::format("**Voice lab**: editing {}\n", describe_editing(draft, saved));
+    content += std::format("Built on **{}** ({})\n", base_name, description);
     content += describe_edits(draft.voice, base_name);
     content += std::format("`{}`", as_commands(draft.voice));
     if (!draft.note.empty()) content += std::format("\n-# {}", util::truncate(draft.note, note_limit));
 
     dpp::message panel(content);
     panel.set_allowed_mentions();
+    if (const auto menu = saved_menu(saved, draft.name)) panel.add_component(row_of(*menu));
     panel.add_component(row_of(group_menu()));
     panel.add_component(row_of(base_menu(base_name)));
 
     dpp::component controls;
     controls.set_type(dpp::cot_action_row);
     controls.add_component(button(dpp::cos_primary, "▶ Test", lab_test_view));
-    controls.add_component(button(dpp::cos_success, "Save as…", lab_save_view));
-    controls.add_component(button(dpp::cos_danger, "Start over", lab_reset_view));
+    controls.add_component(button(dpp::cos_success, draft.name.empty() ? "Save as…" : "Save…", lab_save_view));
+    controls.add_component(button(dpp::cos_secondary, "New voice", lab_reset_view));
     panel.add_component(controls);
     return panel;
 }
@@ -245,8 +276,14 @@ auto apply_voice_form(voice_draft& draft, std::string_view which, const std::map
     std::vector<std::string> problems;
 
     if (which == lab_raw_form) {
+        // Missing is not the same as emptied: reading nothing as "no edits"
+        // would wipe the voice.
         const auto found = fields.find(lab_raw_form);
-        const audio::parsed_voice parsed = audio::parse_custom_voice(found == fields.end() ? "" : found->second, draft.voice.base);
+        if (found == fields.end()) {
+            draft.note = "that form came back empty, so nothing changed";
+            return;
+        }
+        const audio::parsed_voice parsed = audio::parse_custom_voice(found->second, draft.voice.base);
         draft.voice = parsed.voice;
         draft.note = join(parsed.problems);
         return;
@@ -299,7 +336,7 @@ auto voice_lab::open(dpp::snowflake guild, dpp::snowflake user, std::string_view
     }
     draft.note.clear();
     drafts_->put(guild, user, draft);
-    return render_voice_lab(draft);
+    return render_voice_lab(draft, store_->list(guild));
 }
 
 auto voice_lab::on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool {
@@ -312,7 +349,7 @@ auto voice_lab::on_component(const dpp::interaction_create_t& event, const ui::p
         if (auto form = voice_lab_form(chosen, draft)) {
             event.dialog(*form);
         } else {
-            ui::update_panel(event, render_voice_lab(draft));
+            ui::update_panel(event, render_voice_lab(draft, store_->list(guild)));
         }
         return true;
     }
@@ -321,7 +358,15 @@ auto voice_lab::on_component(const dpp::interaction_create_t& event, const ui::p
         return true;
     }
 
-    if (state.view == lab_base_view) {
+    if (state.view == lab_open_view) {
+        // Opening one replaces the draft, unsaved changes and all, which is
+        // also how changes to a saved voice are thrown away.
+        if (const auto saved = store_->find(guild, chosen)) {
+            draft = voice_draft{.voice = saved->voice, .name = saved->name, .note = std::format("opened `{}`", saved->name)};
+        } else {
+            draft.note = std::format("`{}` is no longer saved here", chosen);
+        }
+    } else if (state.view == lab_base_view) {
         if (audio::find_builtin_voice(chosen) != nullptr) draft.voice.base = chosen;
     } else if (state.view == lab_reset_view) {
         draft = voice_draft{};
@@ -339,7 +384,7 @@ auto voice_lab::on_component(const dpp::interaction_create_t& event, const ui::p
     }
 
     drafts_->put(guild, user, draft);
-    ui::update_panel(event, render_voice_lab(draft));
+    ui::update_panel(event, render_voice_lab(draft, store_->list(guild)));
     return true;
 }
 
@@ -348,7 +393,7 @@ auto voice_lab::on_form(const dpp::form_submit_t& event, const ui::page_state& s
     const dpp::snowflake user = event.command.get_issuing_user().id;
     voice_draft draft = drafts_->get(guild, user);
 
-    const auto fields = fields_of(event);
+    const ui::form_values fields = ui::form_fields(event);
     if (state.view == lab_form_view) {
         apply_voice_form(draft, state.argument, fields);
     } else if (state.view == lab_name_view) {
@@ -359,7 +404,7 @@ auto voice_lab::on_form(const dpp::form_submit_t& event, const ui::page_state& s
     }
 
     drafts_->put(guild, user, draft);
-    ui::update_panel(event, render_voice_lab(draft));
+    ui::update_panel(event, render_voice_lab(draft, store_->list(guild)));
     return true;
 }
 

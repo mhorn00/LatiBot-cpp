@@ -116,13 +116,38 @@ TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[
                                    .responses = {{.text = "nice", .weight = 1}}};
 
     // Someone typing "thirty" into a box should not silently lose what was
-    // there, which is the difference between an optional field and a reset.
-    const auto problem = apply_form(entry, {.pattern = "69", .responses = "nice", .mode = "sideways", .cooldown = "thirty"});
+    // there, which is the difference between an optional field and a reset;
+    // nor should they think it changed, which is what the note is for.
+    const auto applied = apply_form(entry, {.pattern = "69", .responses = "nice", .mode = "sideways", .cooldown = "thirty"});
 
-    CHECK_FALSE(problem.has_value());
+    CHECK_FALSE(applied.refused.has_value());
     CHECK(entry.pattern == "69");
     CHECK(entry.mode == latibot::events::match_mode::substring);
     CHECK(entry.cooldown == 45s);
+    CHECK(applied.note ==
+          "\"sideways\" isn't word or anywhere, so it still matches anywhere; "
+          "\"thirty\" isn't a number of seconds from 0 to 86400, so the cooldown stayed 45s");
+}
+
+TEST_CASE("the modal reads the mode however the panel writes it", "[commands]") {
+    using latibot::commands::apply_form;
+    using latibot::events::match_mode;
+
+    // The panel's lines say "whole word"; the form's label says "word or
+    // anywhere"; and a phone keyboard adds a capital and a space.
+    for (const std::string_view typed : {"whole word", "Word ", " whole_word", "WHOLE-WORD"}) {
+        latibot::events::trigger entry{.pattern = "420", .mode = match_mode::substring};
+        const auto applied = apply_form(entry, {.pattern = "420", .responses = "nice", .mode = std::string(typed), .cooldown = ""});
+        INFO(typed);
+        CHECK(entry.mode == match_mode::whole_word);
+        CHECK(applied.note.empty());
+    }
+    for (const std::string_view typed : {"anywhere", " Anywhere", "substring"}) {
+        latibot::events::trigger entry{.pattern = "420", .mode = match_mode::whole_word};
+        (void)apply_form(entry, {.pattern = "420", .responses = "nice", .mode = std::string(typed), .cooldown = ""});
+        INFO(typed);
+        CHECK(entry.mode == match_mode::substring);
+    }
 }
 
 TEST_CASE("the modal applies the fields it can read", "[commands]") {
@@ -130,9 +155,10 @@ TEST_CASE("the modal applies the fields it can read", "[commands]") {
 
     latibot::events::trigger entry{.pattern = "420", .mode = latibot::events::match_mode::whole_word, .cooldown = 30s};
 
-    const auto problem = apply_form(entry, {.pattern = "  69  ", .responses = "2 | nice\nvery nice", .mode = "anywhere", .cooldown = "0"});
+    const auto applied = apply_form(entry, {.pattern = "  69  ", .responses = "2 | nice\nvery nice", .mode = "anywhere", .cooldown = "0"});
 
-    REQUIRE_FALSE(problem.has_value());
+    REQUIRE_FALSE(applied.refused.has_value());
+    CHECK(applied.note.empty());
     CHECK(entry.pattern == "69");
     CHECK(entry.mode == latibot::events::match_mode::substring);
     CHECK(entry.cooldown == 0s);
@@ -146,14 +172,14 @@ TEST_CASE("the modal refuses a trigger that could not work", "[commands]") {
     latibot::events::trigger entry{.pattern = "420", .responses = {{.text = "nice", .weight = 1}}};
 
     SECTION("a blank pattern would match every message") {
-        const auto problem = apply_form(entry, {.pattern = "   ", .responses = "nice"});
-        REQUIRE(problem.has_value());
+        const auto applied = apply_form(entry, {.pattern = "   ", .responses = "nice"});
+        REQUIRE(applied.refused.has_value());
         CHECK(entry.pattern == "420"); // unchanged
     }
 
     SECTION("no responses leaves nothing to say") {
-        const auto problem = apply_form(entry, {.pattern = "69", .responses = "  \n \n"});
-        REQUIRE(problem.has_value());
+        const auto applied = apply_form(entry, {.pattern = "69", .responses = "  \n \n"});
+        REQUIRE(applied.refused.has_value());
         CHECK(entry.pattern == "420");
     }
 }
@@ -314,6 +340,28 @@ TEST_CASE("the longest pattern the command takes still fits the panel", "[comman
 
     // The list above the menu still shows the pattern in full.
     CHECK(panel.content.find(std::string(200, 'a')) != std::string::npos);
+}
+
+TEST_CASE("a full page of the longest patterns still fits the panel and the list", "[commands]") {
+    // Eight lines of 200-character patterns pass 2000 characters, and one
+    // message too long and Discord refuses it, for everybody.
+    latibot::db::database db{":memory:"};
+    latibot::db::migrate(db);
+    latibot::events::trigger_store store(db);
+    const dpp::snowflake guild{1000};
+
+    for (std::size_t index = 0; index < latibot::commands::triggers_per_page; ++index) {
+        store.add({.guild_id = guild,
+                   .pattern = std::string(200, static_cast<char>('a' + index)),
+                   .cooldown = 30s,
+                   .enabled = true,
+                   .responses = {{.text = "nice", .weight = 1}}});
+    }
+
+    const std::int64_t first = store.for_guild(guild).front().id;
+    const std::string note(300, 'n');
+    latibot::testing::check_message_fits(latibot::commands::render_trigger_panel(store, guild, 0, first, false, note));
+    latibot::testing::check_message_fits(latibot::commands::render_trigger_list(store, guild, 0));
 }
 
 TEST_CASE("the trigger modal takes no more than the command does", "[commands]") {

@@ -2,8 +2,10 @@
 
 #include "core/commands/registry.hpp"
 #include "core/events/triggers.hpp"
+#include "core/ui/paginator.hpp"
 
 #include <dpp/appcommand.h>
+#include <dpp/dispatcher.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -81,25 +83,57 @@ struct form_fields {
     std::string cooldown;
 };
 
+/// What applying the modal came to.
+struct form_outcome {
+    /// Why nothing was applied, when the trigger would be unusable.
+    std::optional<std::string> refused;
+
+    /// The optional fields that could not be read and were left as they
+    /// were, said in a line for the panel. Empty when everything read.
+    std::string note;
+};
+
 /// Applies the modal's fields to a trigger.
 ///
-/// Returns a message to show the user when the result would be unusable, and
-/// nothing when `entry` was updated. Unparseable optional fields are left
-/// alone rather than reset: someone typing "thirty" into the cooldown box
-/// should not silently lose the cooldown they had.
-[[nodiscard]] auto apply_form(events::trigger& entry, const form_fields& fields) -> std::optional<std::string>;
+/// Nothing is applied when the result would be unusable. Unreadable optional
+/// fields are left alone rather than reset, and said so in the note:
+/// someone typing "thirty" into the cooldown box should neither lose the
+/// cooldown they had nor think it changed.
+[[nodiscard]] auto apply_form(events::trigger& entry, const form_fields& fields) -> form_outcome;
 
 /// The panel, at `page`.
 ///
 /// `selected` is the trigger the select menu is pointing at, 0 for none, and
 /// `confirming_delete` swaps the Edit/Delete row for a confirmation. Both ride
 /// in the buttons' custom_ids, so the panel needs no server-side state and
-/// keeps working after a restart.
+/// keeps working after a restart. A selected trigger on another page is
+/// followed there, and one that no longer exists is not selected. `note` is
+/// a line under the list saying what the last action came to.
 [[nodiscard]] auto render_trigger_panel(const events::trigger_store& store, dpp::snowflake guild_id, int page, std::int64_t selected = 0,
-                                        bool confirming_delete = false) -> dpp::message;
+                                        bool confirming_delete = false, std::string_view note = {}) -> dpp::message;
 
 /// The add or edit modal. `entry` is null for add.
 [[nodiscard]] auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_modal_response;
+
+/// The panel's buttons, menus and forms, and the list's paging.
+///
+/// Routes its own, as the voice lab does, rather than living in the shell:
+/// that keeps it where its tests can reach it.
+class trigger_panel {
+public:
+    explicit trigger_panel(events::trigger_store& store);
+
+    /// False when the view is not one of the panel's.
+    auto on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool;
+
+    /// False when the form is not the panel's.
+    auto on_form(const dpp::form_submit_t& event, const ui::page_state& state) -> bool;
+
+private:
+    auto toggle(const dpp::interaction_create_t& event, std::int64_t id, trigger_toggle change) -> void;
+
+    events::trigger_store* store_;
+};
 
 /// `/trigger add | edit | remove | list | panel` (plan §11).
 class trigger_command final : public command {

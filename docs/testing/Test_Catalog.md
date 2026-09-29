@@ -5,21 +5,21 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-699 test cases across 11 components, including 122 sections.
+728 test cases across 11 components, including 136 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 128 | 12 |
 | [config](#config) | 30 | 19 |
-| [commands](#commands) | 154 | 27 |
+| [commands](#commands) | 181 | 41 |
 | [events](#events) | 174 | 37 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 58 | 8 |
+| [audio](#audio) | 59 | 8 |
 | [llm](#llm) | 58 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
-| [util](#util) | 39 | 19 |
+| [util](#util) | 40 | 19 |
 
 ## db
 
@@ -281,6 +281,27 @@ Command framework (`src/core/commands`)
 | a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:81](../../tests/unit/nickname_command_test.cpp#L81) |
 | a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:90](../../tests/unit/nickname_command_test.cpp#L90) |
 | a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:97](../../tests/unit/nickname_command_test.cpp#L97) |
+| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:93](../../tests/unit/panels_test.cpp#L93) |
+| the trigger panel adds a trigger as it was typed |  |  | [tests/unit/panels_test.cpp:149](../../tests/unit/panels_test.cpp#L149) |
+| the trigger panel's form, sent back untouched, changes nothing |  |  | [tests/unit/panels_test.cpp:177](../../tests/unit/panels_test.cpp#L177) |
+| the trigger panel's form saves what it can read, and says what it kept |  |  | [tests/unit/panels_test.cpp:199](../../tests/unit/panels_test.cpp#L199) |
+| the trigger panel refuses a form that could not work, and keeps the trigger |  |  | [tests/unit/panels_test.cpp:216](../../tests/unit/panels_test.cpp#L216) |
+| the trigger panel's buttons flip what they say, and say the new state |  |  | [tests/unit/panels_test.cpp:226](../../tests/unit/panels_test.cpp#L226) |
+| the trigger panel deletes only once it is confirmed |  |  | [tests/unit/panels_test.cpp:252](../../tests/unit/panels_test.cpp#L252) |
+| a trigger added past the first page is shown on its own page, picked |  |  | [tests/unit/panels_test.cpp:268](../../tests/unit/panels_test.cpp#L268) |
+| the URL panel adds a rule |  |  | [tests/unit/panels_test.cpp:313](../../tests/unit/panels_test.cpp#L313) |
+| the URL panel edits a rule's mirrors, and an untouched form changes nothing |  |  | [tests/unit/panels_test.cpp:327](../../tests/unit/panels_test.cpp#L327) |
+| the URL panel renames a rule by editing its site |  |  | [tests/unit/panels_test.cpp:343](../../tests/unit/panels_test.cpp#L343) |
+| the URL panel will not save over another site's rule |  | 2 | [tests/unit/panels_test.cpp:353](../../tests/unit/panels_test.cpp#L353) |
+| the URL panel deletes a rule once confirmed, and turns replacement on and off |  |  | [tests/unit/panels_test.cpp:373](../../tests/unit/panels_test.cpp#L373) |
+| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:448](../../tests/unit/panels_test.cpp#L448) |
+| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:470](../../tests/unit/panels_test.cpp#L470) |
+| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:480](../../tests/unit/panels_test.cpp#L480) |
+| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:504](../../tests/unit/panels_test.cpp#L504) |
+| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:555](../../tests/unit/panels_test.cpp#L555) |
+| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:574](../../tests/unit/panels_test.cpp#L574) |
+| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:587](../../tests/unit/panels_test.cpp#L587) |
+| the memory list pages |  |  | [tests/unit/panels_test.cpp:620](../../tests/unit/panels_test.cpp#L620) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -313,17 +334,19 @@ Command framework (`src/core/commands`)
 | responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
 | a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:79](../../tests/unit/trigger_command_test.cpp#L79) |
 | the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:106](../../tests/unit/trigger_command_test.cpp#L106) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:128](../../tests/unit/trigger_command_test.cpp#L128) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:143](../../tests/unit/trigger_command_test.cpp#L143) |
-| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:161](../../tests/unit/trigger_command_test.cpp#L161) |
-| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:178](../../tests/unit/trigger_command_test.cpp#L178) |
-| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:201](../../tests/unit/trigger_command_test.cpp#L201) |
-| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:210](../../tests/unit/trigger_command_test.cpp#L210) |
-| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:220](../../tests/unit/trigger_command_test.cpp#L220) |
-| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:260](../../tests/unit/trigger_command_test.cpp#L260) |
-| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:296](../../tests/unit/trigger_command_test.cpp#L296) |
-| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:319](../../tests/unit/trigger_command_test.cpp#L319) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:336](../../tests/unit/trigger_command_test.cpp#L336) |
+| the modal reads the mode however the panel writes it |  |  | [tests/unit/trigger_command_test.cpp:132](../../tests/unit/trigger_command_test.cpp#L132) |
+| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:153](../../tests/unit/trigger_command_test.cpp#L153) |
+| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:169](../../tests/unit/trigger_command_test.cpp#L169) |
+| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:187](../../tests/unit/trigger_command_test.cpp#L187) |
+| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:204](../../tests/unit/trigger_command_test.cpp#L204) |
+| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:227](../../tests/unit/trigger_command_test.cpp#L227) |
+| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:236](../../tests/unit/trigger_command_test.cpp#L236) |
+| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:246](../../tests/unit/trigger_command_test.cpp#L246) |
+| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:286](../../tests/unit/trigger_command_test.cpp#L286) |
+| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:322](../../tests/unit/trigger_command_test.cpp#L322) |
+| a full page of the longest patterns still fits the panel and the list |  |  | [tests/unit/trigger_command_test.cpp:345](../../tests/unit/trigger_command_test.cpp#L345) |
+| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:367](../../tests/unit/trigger_command_test.cpp#L367) |
+| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:384](../../tests/unit/trigger_command_test.cpp#L384) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |
@@ -345,14 +368,18 @@ Command framework (`src/core/commands`)
 | the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:273](../../tests/unit/urlrepl_command_test.cpp#L273) |
 | the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:284](../../tests/unit/urlrepl_command_test.cpp#L284) |
 | anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [tests/unit/urlrepl_command_test.cpp:300](../../tests/unit/urlrepl_command_test.cpp#L300) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:314](../../tests/unit/urlrepl_command_test.cpp#L314) |
-| the voice lab shows the voice as groups and as inline commands |  |  | [tests/unit/voice_lab_test.cpp:36](../../tests/unit/voice_lab_test.cpp#L36) |
-| an untouched voice says so, and a note shows once under it |  |  | [tests/unit/voice_lab_test.cpp:47](../../tests/unit/voice_lab_test.cpp#L47) |
-| every voice lab form fits in a modal |  |  | [tests/unit/voice_lab_test.cpp:58](../../tests/unit/voice_lab_test.cpp#L58) |
-| a group's form sets, clears and clamps its parameters |  |  | [tests/unit/voice_lab_test.cpp:76](../../tests/unit/voice_lab_test.cpp#L76) |
-| the raw form replaces the whole voice |  |  | [tests/unit/voice_lab_test.cpp:85](../../tests/unit/voice_lab_test.cpp#L85) |
-| only whoever made a voice, or an admin, may change it |  |  | [tests/unit/voice_lab_test.cpp:95](../../tests/unit/voice_lab_test.cpp#L95) |
-| a draft is kept per person for half an hour after it was last touched |  |  | [tests/unit/voice_lab_test.cpp:102](../../tests/unit/voice_lab_test.cpp#L102) |
+| a full page of rules with the most, longest mirrors still fits the panel and the list |  |  | [tests/unit/urlrepl_command_test.cpp:314](../../tests/unit/urlrepl_command_test.cpp#L314) |
+| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:329](../../tests/unit/urlrepl_command_test.cpp#L329) |
+| the voice lab shows the voice as groups and as inline commands |  |  | [tests/unit/voice_lab_test.cpp:44](../../tests/unit/voice_lab_test.cpp#L44) |
+| an untouched voice says so, and a note shows once under it |  |  | [tests/unit/voice_lab_test.cpp:55](../../tests/unit/voice_lab_test.cpp#L55) |
+| the voice lab says which voice it is editing, and whether it still matches what is saved |  | 4 | [tests/unit/voice_lab_test.cpp:66](../../tests/unit/voice_lab_test.cpp#L66) |
+| the voice lab offers the server's saved voices, the one being edited picked |  | 3 | [tests/unit/voice_lab_test.cpp:88](../../tests/unit/voice_lab_test.cpp#L88) |
+| every voice lab form fits in a modal |  |  | [tests/unit/voice_lab_test.cpp:129](../../tests/unit/voice_lab_test.cpp#L129) |
+| a group's form sets, clears and clamps its parameters |  |  | [tests/unit/voice_lab_test.cpp:147](../../tests/unit/voice_lab_test.cpp#L147) |
+| the raw form replaces the whole voice |  |  | [tests/unit/voice_lab_test.cpp:156](../../tests/unit/voice_lab_test.cpp#L156) |
+| a raw form that came back without its field leaves the voice alone |  |  | [tests/unit/voice_lab_test.cpp:166](../../tests/unit/voice_lab_test.cpp#L166) |
+| only whoever made a voice, or an admin, may change it |  |  | [tests/unit/voice_lab_test.cpp:177](../../tests/unit/voice_lab_test.cpp#L177) |
+| a draft is kept per person for half an hour after it was last touched |  |  | [tests/unit/voice_lab_test.cpp:184](../../tests/unit/voice_lab_test.cpp#L184) |
 
 ## events
 
@@ -509,11 +536,11 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a pattern with punctuation matches as a word |  |  | [tests/unit/triggers_test.cpp:45](../../tests/unit/triggers_test.cpp#L45) |
 | an empty pattern never matches |  |  | [tests/unit/triggers_test.cpp:52](../../tests/unit/triggers_test.cpp#L52) |
 | match modes parse from their stored and spoken names |  |  | [tests/unit/triggers_test.cpp:58](../../tests/unit/triggers_test.cpp#L58) |
-| weighted responses are picked in proportion |  | 2 | [tests/unit/triggers_test.cpp:67](../../tests/unit/triggers_test.cpp#L67) |
-| a trigger with nothing to say picks nothing |  | 1 | [tests/unit/triggers_test.cpp:96](../../tests/unit/triggers_test.cpp#L96) |
-| a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:108](../../tests/unit/triggers_test.cpp#L108) |
-| cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:120](../../tests/unit/triggers_test.cpp#L120) |
-| a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:129](../../tests/unit/triggers_test.cpp#L129) |
+| weighted responses are picked in proportion |  | 2 | [tests/unit/triggers_test.cpp:68](../../tests/unit/triggers_test.cpp#L68) |
+| a trigger with nothing to say picks nothing |  | 1 | [tests/unit/triggers_test.cpp:97](../../tests/unit/triggers_test.cpp#L97) |
+| a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:109](../../tests/unit/triggers_test.cpp#L109) |
+| cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:121](../../tests/unit/triggers_test.cpp#L121) |
+| a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:130](../../tests/unit/triggers_test.cpp#L130) |
 | a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:30](../../tests/unit/url_rules_test.cpp#L30) |
 | each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:40](../../tests/unit/url_rules_test.cpp#L40) |
 | a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:51](../../tests/unit/url_rules_test.cpp#L51) |
@@ -584,11 +611,12 @@ Speech and voice (`src/core/audio`)
 | the same request gives the same audio every time | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:58](../../tests/unit/dectalk_engine_test.cpp#L58) |
 | one request's inline settings do not reach the next | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:69](../../tests/unit/dectalk_engine_test.cpp#L69) |
 | the voice and rate settings change the audio | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:82](../../tests/unit/dectalk_engine_test.cpp#L82) |
-| volume scales the samples | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:93](../../tests/unit/dectalk_engine_test.cpp#L93) |
-| an utterance stops at its maximum duration | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:103](../../tests/unit/dectalk_engine_test.cpp#L103) |
-| an utterance that takes too long is abandoned | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:116](../../tests/unit/dectalk_engine_test.cpp#L116) |
-| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:133](../../tests/unit/dectalk_engine_test.cpp#L133) |
-| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:154](../../tests/unit/dectalk_engine_test.cpp#L154) |
+| a custom voice's edits change the voice it is built on | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:93](../../tests/unit/dectalk_engine_test.cpp#L93) |
+| volume scales the samples | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:108](../../tests/unit/dectalk_engine_test.cpp#L108) |
+| an utterance stops at its maximum duration | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:118](../../tests/unit/dectalk_engine_test.cpp#L118) |
+| an utterance that takes too long is abandoned | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:131](../../tests/unit/dectalk_engine_test.cpp#L131) |
+| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:148](../../tests/unit/dectalk_engine_test.cpp#L148) |
+| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:169](../../tests/unit/dectalk_engine_test.cpp#L169) |
 | DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [tests/unit/dectalk_golden_test.cpp:91](../../tests/unit/dectalk_golden_test.cpp#L91) |
 | plain text passes through untouched |  |  | [tests/unit/dectalk_sanitizer_test.cpp:29](../../tests/unit/dectalk_sanitizer_test.cpp#L29) |
 | everyday commands are kept for everyone |  |  | [tests/unit/dectalk_sanitizer_test.cpp:35](../../tests/unit/dectalk_sanitizer_test.cpp#L35) |
@@ -773,10 +801,11 @@ Utilities (`src/core/util`, `src/core/version`)
 | is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |
 | character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:38](../../tests/unit/text_test.cpp#L38) |
 | truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
-| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:89](../../tests/unit/text_test.cpp#L89) |
-| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:97](../../tests/unit/text_test.cpp#L97) |
-| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:105](../../tests/unit/text_test.cpp#L105) |
+| lines that fit are kept whole, and lines that do not are cut evenly |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:85](../../tests/unit/text_test.cpp#L85) |
+| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:102](../../tests/unit/text_test.cpp#L102) |
+| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:110](../../tests/unit/text_test.cpp#L110) |
+| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:118](../../tests/unit/text_test.cpp#L118) |
 | every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:42](../../tests/unit/url_scan_test.cpp#L42) |
 | a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:52](../../tests/unit/url_scan_test.cpp#L52) |
 | trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:100](../../tests/unit/url_scan_test.cpp#L100) |

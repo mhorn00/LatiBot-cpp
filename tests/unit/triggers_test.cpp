@@ -60,6 +60,7 @@ TEST_CASE("match modes parse from their stored and spoken names", "[events]") {
     CHECK(match_mode_from_string("WORD") == match_mode::whole_word);
     CHECK(match_mode_from_string("substring") == match_mode::substring);
     CHECK(match_mode_from_string("anywhere") == match_mode::substring);
+    CHECK(match_mode_from_string(" Whole word ") == match_mode::whole_word);
     CHECK_FALSE(match_mode_from_string("regex").has_value());
     CHECK_FALSE(match_mode_from_string("").has_value());
 }

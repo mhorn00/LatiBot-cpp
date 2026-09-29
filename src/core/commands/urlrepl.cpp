@@ -2,6 +2,7 @@
 
 #include "core/commands/options.hpp"
 #include "core/events/embed_watch.hpp"
+#include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -22,6 +23,15 @@ constexpr std::size_t reply_budget = 1900;
 
 /// Autocomplete shows at most this many choices; Discord's limit is 25.
 constexpr std::size_t domain_choices = 25;
+
+/// Room for a page of rules in a message, less the panel's heading, page
+/// label and note. Five rules of eight long mirrors each would pass
+/// Discord's 2000, and one message too long makes Discord refuse the whole
+/// panel.
+constexpr std::size_t lines_budget = 1450;
+
+/// The longest note under the panel.
+constexpr std::size_t note_limit = 200;
 
 auto button(dpp::component_style style, std::string_view label, const std::string& id) -> dpp::component {
     return dpp::component().set_type(dpp::cot_button).set_style(style).set_label(std::string(label)).set_id(id);
@@ -173,10 +183,11 @@ auto render_url_rule_list(const events::url_rule_store& store, dpp::snowflake gu
     if (rules.empty()) {
         body += "No URL rules here yet. Add one with `/urlrepl set`.";
     } else {
+        std::vector<std::string> lines;
         for (std::size_t index = window.begin; index < window.end; ++index) {
-            body += describe(rules[index]);
-            body.push_back('\n');
+            lines.push_back(describe(rules[index]));
         }
+        body += util::fit_lines(lines, lines_budget);
         body += std::format("\n_{}_", ui::page_label(current, rules.size(), url_rules_per_page));
     }
 
@@ -260,7 +271,7 @@ auto footer_row(int page, std::size_t total, bool enabled) -> std::optional<dpp:
 } // namespace
 
 auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page, std::string_view selected,
-                      bool confirming_delete) -> dpp::message {
+                      bool confirming_delete, std::string_view note) -> dpp::message {
     const std::vector<events::url_rule> rules = store.for_guild(guild_id);
     int current = ui::clamp_page(page, rules.size(), url_rules_per_page);
 
@@ -283,12 +294,14 @@ auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_
     if (rules.empty()) {
         body += "Nothing here yet. **Add rule** below.";
     } else {
+        std::vector<std::string> lines;
         for (const events::url_rule& rule : page_of) {
-            body += describe(rule);
-            body.push_back('\n');
+            lines.push_back(describe(rule));
         }
+        body += util::fit_lines(lines, lines_budget);
         body += std::format("\n_{}_", ui::page_label(current, rules.size(), url_rules_per_page));
     }
+    if (!note.empty()) body += std::format("\n-# {}", util::truncate(note, note_limit));
 
     dpp::message reply(body);
 
@@ -337,6 +350,105 @@ auto url_rule_form(int page, const events::url_rule* rule) -> dpp::interaction_m
                            .set_default_value(mirrors));
 
     return form;
+}
+
+auto url_form_refusal(const events::url_rule_store& store, dpp::snowflake guild_id, std::string_view previous, const events::url_rule& rule)
+    -> std::optional<std::string> {
+    if (previous == rule.domain || !store.find(guild_id, rule.domain)) return std::nullopt;
+    if (previous.empty()) return std::format("there's already a rule for {}; pick it from the menu to change it", rule.domain);
+    return std::format("there's already a rule for {}, so {} can't be renamed to it", rule.domain, previous);
+}
+
+// --------------------------------------------------------------------------
+// The panel's buttons and forms
+// --------------------------------------------------------------------------
+
+url_panel::url_panel(events::url_rule_store& store) : store_(&store) {}
+
+auto url_panel::on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    // As the trigger panel, except that the argument is a domain rather than
+    // an id, and the footer also has the on/off switch for the whole server.
+    if (state.view == url_list_view) {
+        ui::update_panel(event, render_url_rule_list(*store_, guild, state.page));
+    } else if (state.view == url_panel_view) {
+        // Paging carries no rule; Cancel carries the one it was deleting.
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page, state.argument));
+    } else if (state.view == url_pick_view) {
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page, chosen));
+    } else if (state.view == url_delete_view) {
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page, state.argument, /*confirming_delete=*/true));
+    } else if (state.view == url_confirm_view) {
+        std::string note;
+        if (store_->remove(guild, state.argument)) {
+            util::log().info("URL rule for {} removed from guild {} by {} from the panel", state.argument, guild,
+                             describe_user(event.command.get_issuing_user()));
+            note = std::format("deleted the rule for {}", state.argument);
+        }
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page, {}, false, note));
+    } else if (state.view == url_switch_view) {
+        switch_url_replacement(*store_, guild, state.argument == "on", describe_user(event.command.get_issuing_user()), " from the panel");
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page));
+    } else if (state.view == url_add_view) {
+        event.dialog(url_rule_form(state.page, nullptr));
+    } else if (state.view == url_edit_view) {
+        // Removed from another client while this panel was open.
+        if (const auto rule = store_->find(guild, state.argument)) {
+            event.dialog(url_rule_form(state.page, &*rule));
+        } else {
+            ui::update_panel(
+                event, render_url_panel(*store_, guild, state.page, {}, false, std::format("{} has no rule any more", state.argument)));
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+auto url_panel::on_form(const dpp::form_submit_t& event, const ui::page_state& state) -> bool {
+    if (state.view != url_form_view) return false;
+
+    const dpp::snowflake guild = event.command.guild_id;
+    const user_label who = describe_user(event.command.get_issuing_user());
+
+    const ui::form_values fields = ui::form_fields(event);
+    const auto domain = fields.find("domain");
+    const auto mirrors = fields.find("mirrors");
+    const auto built = build_rule(domain == fields.end() ? std::string_view{} : std::string_view(domain->second),
+                                  mirrors == fields.end() ? std::string_view{} : std::string_view(mirrors->second));
+    if (const auto* problem = std::get_if<std::string>(&built)) {
+        util::log().debug("{} submitted an unusable URL rule in guild {}: {}", who, guild, *problem);
+        ui::answer_privately(event, *problem);
+        return true;
+    }
+
+    const auto& rule = std::get<events::url_rule>(built);
+
+    // The argument is the domain the modal was opened for, so a changed site
+    // is a rename rather than a second rule.
+    const std::string& previous = state.argument;
+    if (const auto refused = url_form_refusal(*store_, guild, previous, rule)) {
+        util::log().debug("{} tried to save over the URL rule for {} in guild {}", who, rule.domain, guild);
+        ui::answer_privately(event, *refused);
+        return true;
+    }
+    if (!previous.empty() && previous != rule.domain) {
+        store_->rename(guild, previous, rule);
+    } else {
+        store_->set(guild, rule);
+    }
+
+    std::string what = "changed";
+    if (previous.empty()) {
+        what = "added";
+    } else if (previous != rule.domain) {
+        what = std::format("renamed from {}", previous);
+    }
+    util::log().info("URL rule for {} {} in guild {} by {} from the panel: {}", rule.domain, what, guild, who,
+                     describe_mirrors(rule.mirrors));
+    ui::update_panel(event, render_url_panel(*store_, guild, state.page, rule.domain, false, std::format("{} {}", rule.domain, what)));
+    return true;
 }
 
 // --------------------------------------------------------------------------

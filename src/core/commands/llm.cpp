@@ -59,16 +59,6 @@ auto manages_server(const dpp::interaction_create_t& event) -> bool {
     return invoker_permissions(event).can(dpp::p_manage_guild);
 }
 
-auto fields_of(const dpp::form_submit_t& event) -> std::map<std::string, std::string, std::less<>> {
-    std::map<std::string, std::string, std::less<>> fields;
-    for (const dpp::component& row : event.components) {
-        for (const dpp::component& input : row.components) {
-            if (const auto* text = std::get_if<std::string>(&input.value)) fields.insert_or_assign(input.custom_id, *text);
-        }
-    }
-    return fields;
-}
-
 auto group_title(std::string_view group) -> std::string_view {
     if (group == "context") return "What it reads";
     if (group == "replies") return "Replies and rate limits";
@@ -969,7 +959,7 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
             ui::answer_privately(event, "the settings need Manage Server");
             return true;
         }
-        const auto read = read_llm_settings_form(state.argument, fields_of(event));
+        const auto read = read_llm_settings_form(state.argument, ui::form_fields(event));
         if (const auto* problem = std::get_if<std::string>(&read)) {
             ui::answer_privately(event, *problem);
             return true;
@@ -1001,11 +991,20 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
             return true;
         }
 
-        const auto fields = fields_of(event);
+        // Every part has to have come back, empty or not. One that did not
+        // was misread rather than cleared, and saving without it would cut
+        // that part out of the document.
+        const ui::form_values fields = ui::form_fields(event);
         std::vector<std::string> parts;
         for (std::size_t index = 1; index <= form_parts; ++index) {
             const auto found = fields.find(std::format("part{}", index));
-            parts.push_back(found == fields.end() ? std::string{} : found->second);
+            if (found == fields.end()) {
+                util::log().warn("the {} form from {} in guild {} came back without part {}; nothing saved", label_of(*kind), who, guild,
+                                 index);
+                ui::answer_privately(event, "that form came back incomplete, so nothing was saved; try again");
+                return true;
+            }
+            parts.push_back(found->second);
         }
         const std::string text = join_document_parts(parts);
         if (text == services_.documents->text(guild, *kind)) {

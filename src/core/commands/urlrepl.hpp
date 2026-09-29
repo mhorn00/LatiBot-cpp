@@ -2,8 +2,10 @@
 
 #include "core/commands/registry.hpp"
 #include "core/events/url_rules.hpp"
+#include "core/ui/paginator.hpp"
 
 #include <dpp/appcommand.h>
+#include <dpp/dispatcher.h>
 #include <dpp/permissions.h>
 
 #include <cstddef>
@@ -80,11 +82,38 @@ auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 
 /// The panel at `page`. `selected` is the domain the select menu points at,
 /// empty for none; `confirming_delete` swaps Edit/Delete for a confirmation.
+/// `note` is a line under the rules saying what the last action came to.
 [[nodiscard]] auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_id, int page, std::string_view selected = {},
-                                    bool confirming_delete = false) -> dpp::message;
+                                    bool confirming_delete = false, std::string_view note = {}) -> dpp::message;
 
 /// The add or edit modal. `rule` is null for add.
 [[nodiscard]] auto url_rule_form(int page, const events::url_rule* rule) -> dpp::interaction_modal_response;
+
+/// Why the panel's form may not save `rule`, or nothing when it may.
+/// `previous` is the site the form was opened for, empty when adding.
+///
+/// Saving over another site's rule would lose it without a word: adding a
+/// site that already has one, or renaming a rule onto one.
+[[nodiscard]] auto url_form_refusal(const events::url_rule_store& store, dpp::snowflake guild_id, std::string_view previous,
+                                    const events::url_rule& rule) -> std::optional<std::string>;
+
+/// The panel's buttons, menus and forms, and the list's paging.
+///
+/// Routes its own, as the voice lab does, rather than living in the shell:
+/// that keeps it where its tests can reach it.
+class url_panel {
+public:
+    explicit url_panel(events::url_rule_store& store);
+
+    /// False when the view is not one of the panel's.
+    auto on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool;
+
+    /// False when the form is not the panel's.
+    auto on_form(const dpp::form_submit_t& event, const ui::page_state& state) -> bool;
+
+private:
+    events::url_rule_store* store_;
+};
 
 /// `/urlrepl enable | disable | list | set | remove | test | panel` (plan
 /// §9.5).

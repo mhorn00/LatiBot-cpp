@@ -196,10 +196,12 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       bot_allowlist_(database_),
       nicknames_(database_),
       triggers_(database_),
+      trigger_panel_(triggers_),
       trigger_responder_(triggers_, clock_),
       midnight_(database_),
       midnight_scheduler_(midnight_, clock_),
       url_rules_(database_),
+      url_panel_(url_rules_),
       replacements_(database_),
       reactions_(database_),
       backfill_progress_(database_),
@@ -630,31 +632,6 @@ auto bot::register_timers() -> void {
                      settings_.backups_to_keep);
 }
 
-namespace {
-
-/// The id a panel button carries, or 0 when it carries none.
-auto argument_id(const ui::page_state& state) -> std::int64_t {
-    std::int64_t id = 0;
-    const char* begin = state.argument.data();
-    const char* end = begin + state.argument.size();
-    const auto [stop, error] = std::from_chars(begin, end, id);
-    return error == std::errc{} && stop == end ? id : 0;
-}
-
-/// A modal's field, by the id it was built with.
-auto field_of(const dpp::form_submit_t& event, std::string_view name) -> std::string {
-    for (const dpp::component& row : event.components) {
-        for (const dpp::component& input : row.components) {
-            if (input.custom_id == name) {
-                if (const auto* text = std::get_if<std::string>(&input.value)) return *text;
-            }
-        }
-    }
-    return {};
-}
-
-} // namespace
-
 auto bot::record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
                           events::nickname_source source) -> std::optional<std::int64_t> {
     const auto latest = nicknames_.latest(guild_id, user_id);
@@ -856,24 +833,6 @@ auto bot::carry_out(std::vector<events::embed_action> actions) -> void {
     if (!actions.empty()) detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
 }
 
-auto bot::toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
-                         const std::function<std::string_view(events::trigger&)>& change) -> void {
-    auto entry = triggers_.find(id, guild);
-    if (!entry) {
-        // Deleted from another client while this panel was open. The caller
-        // re-renders either way, which is what puts the panel back in step.
-        util::log().debug("panel asked to change trigger {}, which is no longer in guild {}", id, guild);
-        return;
-    }
-
-    const std::string_view became = change(*entry);
-    if (!triggers_.update(*entry)) {
-        util::log().debug("trigger {} in guild {} was removed before the panel could change it", id, guild);
-        return;
-    }
-    util::log().info("trigger {} in guild {} {} by {} from the panel", id, guild, became, who);
-}
-
 auto bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) -> void {
     const auto state = ui::decode(custom_id);
     if (!state) {
@@ -925,139 +884,29 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state.page));
     } else {
         // Each panel's router says whether the view was one of its own.
-        return on_trigger_component(event, state, chosen, who) || on_url_component(event, state, chosen, who) ||
+        return trigger_panel_.on_component(event, state, chosen) || url_panel_.on_component(event, state, chosen) ||
                voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen);
     }
     return true;
 }
 
-auto bot::on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                               const commands::user_label& who) -> bool {
-    // Buttons carry the trigger they act on in the argument. The select menu
-    // carries its choice in `chosen` instead, and is read below.
-    const dpp::snowflake guild = event.command.guild_id;
-    const std::int64_t id = chosen.empty() ? argument_id(state) : 0;
-
-    // Paging, then picking, deleting, toggling, and the two forms. Every
-    // branch but the forms re-renders the panel in place.
-    if (state.view == commands::trigger_list_view) {
-        update_panel(event, commands::render_trigger_list(triggers_, guild, state.page));
-    } else if (state.view == commands::trigger_panel_view) {
-        // Paging carries no trigger; Cancel carries the one it was deleting.
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id));
-    } else if (state.view == commands::trigger_pick_view) {
-        std::int64_t picked = 0;
-        const auto [stop, error] = std::from_chars(chosen.data(), chosen.data() + chosen.size(), picked);
-        if (error != std::errc{} || stop != chosen.data() + chosen.size()) picked = 0;
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, picked));
-    } else if (state.view == commands::trigger_delete_view) {
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id, /*confirming_delete=*/true));
-    } else if (state.view == commands::trigger_confirm_view) {
-        // Logged only when something went: a second press, or one from another
-        // client, finds it already gone.
-        if (triggers_.remove(id, guild)) util::log().info("trigger {} removed from guild {} by {} from the panel", id, guild, who);
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
-    } else if (const commands::trigger_toggle change = commands::toggle_for(state.view)) {
-        toggle_trigger(id, guild, who, change);
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, id));
-    } else if (state.view == commands::trigger_add_view) {
-        event.dialog(commands::trigger_form(state.page, nullptr));
-    } else if (state.view == commands::trigger_edit_view) {
-        const auto entry = triggers_.find(id, guild);
-        if (entry) {
-            event.dialog(commands::trigger_form(state.page, &*entry));
-        } else {
-            update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
-
-auto bot::on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                           const commands::user_label& who) -> bool {
-    const dpp::snowflake guild = event.command.guild_id;
-
-    // As the trigger panel, except that the argument is a domain rather than
-    // an id, and the footer also has the on/off switch for the whole server.
-    if (state.view == commands::url_list_view) {
-        update_panel(event, commands::render_url_rule_list(url_rules_, guild, state.page));
-    } else if (state.view == commands::url_panel_view) {
-        // Paging carries no rule; Cancel carries the one it was deleting.
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, state.argument));
-    } else if (state.view == commands::url_pick_view) {
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, chosen));
-    } else if (state.view == commands::url_delete_view) {
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, state.argument, /*confirming_delete=*/true));
-    } else if (state.view == commands::url_confirm_view) {
-        if (url_rules_.remove(guild, state.argument)) {
-            util::log().info("URL rule for {} removed from guild {} by {} from the panel", state.argument, guild, who);
-        }
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
-    } else if (state.view == commands::url_switch_view) {
-        commands::switch_url_replacement(url_rules_, guild, state.argument == "on", who, " from the panel");
-        update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
-    } else if (state.view == commands::url_add_view) {
-        event.dialog(commands::url_rule_form(state.page, nullptr));
-    } else if (state.view == commands::url_edit_view) {
-        // Removed from another client while this panel was open.
-        const auto rule = url_rules_.find(guild, state.argument);
-        if (!rule) {
-            update_panel(event, commands::render_url_panel(url_rules_, guild, state.page));
-        } else {
-            event.dialog(commands::url_rule_form(state.page, &*rule));
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
-
-auto bot::on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void {
-    const dpp::snowflake guild = event.command.guild_id;
-    const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
-
-    const auto built = commands::build_rule(field_of(event, "domain"), field_of(event, "mirrors"));
-    if (const auto* problem = std::get_if<std::string>(&built)) {
-        util::log().debug("{} submitted an unusable URL rule in guild {}: {}", who, guild, *problem);
-        answer_privately(event, *problem);
-        return;
-    }
-
-    const auto& rule = std::get<events::url_rule>(built);
-
-    // The argument is the domain the modal was opened for, so a changed site
-    // is a rename rather than a second rule.
-    const std::string& previous = state.argument;
-    if (!previous.empty() && previous != rule.domain) {
-        url_rules_.rename(guild, previous, rule);
-    } else {
-        url_rules_.set(guild, rule);
-    }
-
-    std::string what = "changed";
-    if (previous.empty()) {
-        what = "added";
-    } else if (previous != rule.domain) {
-        what = std::format("renamed from {}", previous);
-    }
-    util::log().info("URL rule for {} {} in guild {} by {} from the panel: {}", rule.domain, what, guild, who,
-                     commands::describe_mirrors(rule.mirrors));
-    update_panel(event, commands::render_url_panel(url_rules_, guild, state.page, rule.domain));
-}
-
 auto bot::on_form(const dpp::form_submit_t& event) -> void {
     const auto state = ui::decode(event.custom_id);
 
+    // Every form the bot sends has fields, and Discord sends every one back,
+    // empty or not. None at all means the submission was misread, and
+    // acting on it would save blanks over what was there.
+    if (ui::form_fields(event).empty()) {
+        util::log().warn("a modal submission \"{}\" arrived with no fields that could be read; nothing was changed", event.custom_id);
+        answer_privately(event, "that form came back empty, so nothing was changed; try again");
+        return;
+    }
+
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && state->view == commands::url_form_view) {
-            on_url_form(event, *state);
-        } else if (state && state->view == commands::trigger_form_view) {
-            on_trigger_form(event, *state);
-        } else if (state && (voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
-            // The voice lab and the language model's panels answer their own.
+        if (state && (trigger_panel_.on_form(event, *state) || url_panel_.on_form(event, *state) || voice_lab_.on_form(event, *state) ||
+                      llm_panels_.on_form(event, *state))) {
+            // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
             answer_privately(event, stale_component_reply);
@@ -1067,50 +916,6 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
                           commands::describe_user(event.command.get_issuing_user()), event.command.guild_id, error.what());
         answer_privately(event, commands::command_failed_reply);
     }
-}
-
-auto bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void {
-    const dpp::snowflake guild = event.command.guild_id;
-    const std::int64_t id = argument_id(state);
-    const commands::user_label who = commands::describe_user(event.command.get_issuing_user());
-
-    // Zero means add. Anything else has to still exist: somebody could have
-    // deleted it from another client while the modal was open.
-    events::trigger entry;
-    if (id != 0) {
-        auto existing = triggers_.find(id, guild);
-        if (!existing) {
-            update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
-            return;
-        }
-        entry = std::move(*existing);
-    } else {
-        entry.guild_id = guild;
-        entry.cooldown = events::default_trigger_cooldown;
-    }
-
-    const commands::form_fields fields{.pattern = field_of(event, "pattern"),
-                                       .responses = field_of(event, "responses"),
-                                       .mode = field_of(event, "mode"),
-                                       .cooldown = field_of(event, "cooldown")};
-
-    if (const auto problem = commands::apply_form(entry, fields)) {
-        util::log().debug("{} submitted an unusable trigger form in guild {}: {}", who, guild, *problem);
-        answer_privately(event, *problem);
-        return;
-    }
-
-    // Deleted from another client between opening the modal and saving it.
-    if (id != 0 && !triggers_.update(entry)) {
-        util::log().info("trigger {} in guild {} was removed before {}'s edit from the panel could be saved", id, guild, who);
-        update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page));
-        return;
-    }
-
-    const std::int64_t saved = id == 0 ? triggers_.add(entry) : entry.id;
-    util::log().info("trigger {} {} in guild {} by {} from the panel: {}", saved, id == 0 ? "added" : "updated", guild, who,
-                     commands::describe(entry));
-    update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, saved));
 }
 
 auto bot::describe(const dpp::message& message, const std::string& raw_event) const -> events::incoming_message {

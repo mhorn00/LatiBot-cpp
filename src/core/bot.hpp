@@ -5,6 +5,8 @@
 #include "core/audio/voice_store.hpp"
 #include "core/commands/llm.hpp"
 #include "core/commands/registry.hpp"
+#include "core/commands/trigger.hpp"
+#include "core/commands/urlrepl.hpp"
 #include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
@@ -110,22 +112,6 @@ private:
     /// Modal submissions.
     auto on_form(const dpp::form_submit_t& event) -> void;
 
-    /// The URL rule modal: add, edit, or rename a rule.
-    auto on_url_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void;
-
-    /// The trigger modal: add a trigger, or edit one.
-    auto on_trigger_form(const dpp::form_submit_t& event, const ui::page_state& state) -> void;
-
-    /// The trigger panel's and list's buttons and menu. False when the view
-    /// is not one of theirs.
-    auto on_trigger_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                              const commands::user_label& who) -> bool;
-
-    /// The URL rule panel's buttons and menu. False when `view` is not one of
-    /// its views.
-    auto on_url_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                          const commands::user_label& who) -> bool;
-
     /// Records a nickname change, if it is one, and says which row it wrote.
     ///
     /// Shared by the gateway event and the startup sweep, because "is this
@@ -172,12 +158,6 @@ private:
     /// The clock's time to the second, which is what the database stores.
     [[nodiscard]] auto now_seconds() const -> std::chrono::sys_seconds;
 
-    /// Applies one change to a trigger from the panel and logs what happened.
-    /// `change` returns the past-tense verb for the log, so the two toggles
-    /// differ only in the field they flip.
-    auto toggle_trigger(std::int64_t id, dpp::snowflake guild, const commands::user_label& who,
-                        const std::function<std::string_view(events::trigger&)>& change) -> void;
-
     config::bootstrap settings_;
     db::database database_;
     config::guild_settings guild_settings_;
@@ -194,10 +174,12 @@ private:
     events::nickname_store nicknames_;
     events::pending_nicknames pending_nicknames_;
     events::trigger_store triggers_;
+    commands::trigger_panel trigger_panel_;
     events::trigger_responder trigger_responder_;
     events::midnight_store midnight_;
     events::midnight_scheduler midnight_scheduler_;
     events::url_rule_store url_rules_;
+    commands::url_panel url_panel_;
     events::replacement_store replacements_;
     events::reaction_store reactions_;
     events::backfill_progress_store backfill_progress_;

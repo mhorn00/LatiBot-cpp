@@ -40,6 +40,12 @@ namespace latibot::util {
 /// never split.
 [[nodiscard]] auto truncate(std::string_view text, std::size_t limit) -> std::string;
 
+/// The lines, each followed by a newline, in at most `budget` characters.
+/// When they all fit they are kept whole; otherwise each is cut to an equal
+/// share, so a page of long lines still fits in a message and every line
+/// still shows how it starts.
+[[nodiscard]] auto fit_lines(const std::vector<std::string>& lines, std::size_t budget) -> std::string;
+
 /// A Discord ID written as text: digits only, surrounding whitespace allowed.
 /// Nothing for anything else, including 0, rather than the leading digits of
 /// "123abc" or a "-1" wrapped round to a huge number, which is what

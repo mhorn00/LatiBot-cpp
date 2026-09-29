@@ -5,13 +5,29 @@
 #include <dpp/dispatcher.h>
 #include <dpp/message.h>
 
+#include <functional>
+#include <map>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace latibot::ui {
 
 // Answering panels' buttons, menus and forms, for the shell and the panels
 // that route their own.
+
+/// A submitted modal's text fields, by the id each was built with.
+using form_values = std::map<std::string, std::string, std::less<>>;
+
+/// What a modal sent back, read from however DPP laid it out.
+///
+/// DPP 10.1 sends each field wrapped in a Label, and hands back the fields
+/// themselves as `components`, one per entry. Older DPP, and Discord's
+/// older modals, had action rows with the fields inside them. Both are
+/// read, so neither a DPP update nor a change back loses what was typed:
+/// reading only the rows is what once made every form arrive empty.
+[[nodiscard]] auto form_fields(const std::vector<dpp::component>& components) -> form_values;
+[[nodiscard]] auto form_fields(const dpp::form_submit_t& event) -> form_values;
 
 /// Replaces the message a panel's button or form belongs to.
 ///

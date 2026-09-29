@@ -2,14 +2,18 @@
 
 #include "core/commands/voice_lab.hpp"
 
+#include "core/audio/voice_store.hpp"
+
 #include "mocks/mock_clock.hpp"
 #include "support/discord_limits.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <format>
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace std::chrono_literals;
 using latibot::commands::apply_voice_form;
@@ -31,12 +35,16 @@ auto edited_draft() -> voice_draft {
     return draft;
 }
 
+auto saved(std::string name, const latibot::audio::custom_voice& voice) -> latibot::audio::saved_voice {
+    return {.name = std::move(name), .voice = voice, .created_by = alice, .updated_at = {}};
+}
+
 } // namespace
 
 TEST_CASE("the voice lab shows the voice as groups and as inline commands", "[commands]") {
     const dpp::message panel = render_voice_lab(edited_draft());
 
-    CHECK(panel.content.find("built on harry (Huge Harry), saved as `robo`") != std::string::npos);
+    CHECK(panel.content.find("Built on **harry** (Huge Harry)") != std::string::npos);
     CHECK(panel.content.find("**Pitch** ap 200 · pr 150") != std::string::npos);
     CHECK(panel.content.find("**Breath** br 40") != std::string::npos);
     CHECK(panel.content.find("Everything else is harry's own.") != std::string::npos);
@@ -53,6 +61,69 @@ TEST_CASE("an untouched voice says so, and a note shows once under it", "[comman
     CHECK(panel.content.find("`[:np]`") != std::string::npos);
     CHECK(panel.content.ends_with("\n-# saved as `x`"));
     latibot::testing::check_message_fits(panel);
+}
+
+TEST_CASE("the voice lab says which voice it is editing, and whether it still matches what is saved", "[commands]") {
+    const voice_draft draft = edited_draft();
+
+    SECTION("a new voice") {
+        const dpp::message panel = render_voice_lab(voice_draft{});
+        CHECK(panel.content.starts_with("**Voice lab**: editing a new voice, not saved yet\n"));
+    }
+    SECTION("a saved voice, unchanged") {
+        const std::vector<latibot::audio::saved_voice> kept{saved("robo", draft.voice)};
+        CHECK(render_voice_lab(draft, kept).content.starts_with("**Voice lab**: editing `robo`, as saved\n"));
+    }
+    SECTION("a saved voice, changed since") {
+        voice_draft changed = draft;
+        changed.voice.set("ap", 90);
+        const std::vector<latibot::audio::saved_voice> kept{saved("robo", draft.voice)};
+        CHECK(render_voice_lab(changed, kept).content.find("editing `robo`, with **unsaved changes**") != std::string::npos);
+    }
+    SECTION("a saved voice someone has deleted") {
+        CHECK(render_voice_lab(draft, {}).content.find("`robo`, which is no longer saved") != std::string::npos);
+    }
+}
+
+TEST_CASE("the voice lab offers the server's saved voices, the one being edited picked", "[commands]") {
+    const voice_draft draft = edited_draft();
+
+    SECTION("none saved, no menu") {
+        CHECK(render_voice_lab(draft, {}).components.size() == 3);
+    }
+
+    SECTION("some saved") {
+        const std::vector<latibot::audio::saved_voice> kept{saved("alto", {}), saved("robo", draft.voice)};
+        const dpp::message panel = render_voice_lab(draft, kept);
+        latibot::testing::check_message_fits(panel);
+        REQUIRE(panel.components.size() == 4);
+
+        const dpp::component& menu = panel.components[0].components[0];
+        CHECK(latibot::ui::decode(menu.custom_id)->view == latibot::commands::lab_open_view);
+        REQUIRE(menu.options.size() == 2);
+        CHECK(menu.options[0].value == "alto");
+        CHECK_FALSE(menu.options[0].is_default);
+        CHECK(menu.options[1].value == "robo");
+        CHECK(menu.options[1].is_default);
+        CHECK(menu.options[1].description == "[:nh][:dv ap 200 pr 150 br 40]");
+    }
+
+    SECTION("more than a menu holds, the one being edited still among them") {
+        std::vector<latibot::audio::saved_voice> kept;
+        kept.reserve(41);
+        for (int index = 0; index < 40; ++index) {
+            kept.push_back(saved(std::format("voice{:02}", index), {}));
+        }
+        kept.push_back(saved("robo", draft.voice));
+
+        const dpp::message panel = render_voice_lab(draft, kept);
+        latibot::testing::check_message_fits(panel);
+        const dpp::component& menu = panel.components[0].components[0];
+        CHECK(menu.options.size() == latibot::commands::saved_voices_offered);
+        CHECK(std::ranges::any_of(menu.options,
+                                  [](const dpp::select_option& option) { return option.value == "robo" && option.is_default; }));
+        CHECK(menu.placeholder.find("25 of 41") != std::string::npos);
+    }
 }
 
 TEST_CASE("every voice lab form fits in a modal", "[commands]") {
@@ -90,6 +161,17 @@ TEST_CASE("the raw form replaces the whole voice", "[commands]") {
     CHECK(draft.voice.base == "kit");
     CHECK(draft.voice.dv_parameters() == "hs 80");
     CHECK(draft.note.empty());
+}
+
+TEST_CASE("a raw form that came back without its field leaves the voice alone", "[commands]") {
+    // Read as "no edits", it would wipe the voice, which is what an unread
+    // form once did.
+    voice_draft draft = edited_draft();
+
+    apply_voice_form(draft, "raw", fields{});
+
+    CHECK(draft.voice == edited_draft().voice);
+    CHECK_FALSE(draft.note.empty());
 }
 
 TEST_CASE("only whoever made a voice, or an admin, may change it", "[commands]") {

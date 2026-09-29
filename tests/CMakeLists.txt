@@ -41,6 +41,7 @@ add_executable(latibot_tests
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp
     unit/paginator_test.cpp
+    unit/panels_test.cpp
     unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
     unit/llm_answer_test.cpp

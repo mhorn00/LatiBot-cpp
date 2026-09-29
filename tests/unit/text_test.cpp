@@ -69,6 +69,19 @@ TEST_CASE("truncate cuts to a character limit and marks the cut", "[util]") {
     }
 }
 
+TEST_CASE("lines that fit are kept whole, and lines that do not are cut evenly", "[util]") {
+    using latibot::util::character_count;
+    using latibot::util::fit_lines;
+
+    CHECK(fit_lines({"one", "two"}, 100) == "one\ntwo\n");
+    CHECK(fit_lines({}, 100).empty());
+
+    const std::vector<std::string> long_lines(8, std::string(250, 'x'));
+    const std::string fitted = fit_lines(long_lines, 1000);
+    CHECK(character_count(fitted) <= 1000);
+    CHECK(latibot::util::count_occurrences(fitted, "…\n") == 8);
+}
+
 TEST_CASE("a Discord ID is read as digits and nothing else", "[util]") {
     using latibot::util::parse_snowflake;
 

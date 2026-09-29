@@ -38,8 +38,10 @@ auto to_string(match_mode mode) noexcept -> std::string_view {
 }
 
 auto match_mode_from_string(std::string_view name) -> std::optional<match_mode> {
-    const std::string key = util::to_lower(name);
-    if (key == "whole_word" || key == "word") return match_mode::whole_word;
+    // The panel's form is free text, and the panel itself says "whole word",
+    // so that has to read back too.
+    const std::string key = util::to_lower(util::trim(name));
+    if (key == "whole_word" || key == "word" || key == "whole word" || key == "whole-word") return match_mode::whole_word;
     if (key == "substring" || key == "anywhere") return match_mode::substring;
     return std::nullopt;
 }

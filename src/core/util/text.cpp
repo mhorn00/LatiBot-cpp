@@ -88,6 +88,25 @@ auto truncate(std::string_view text, std::size_t limit) -> std::string {
     return std::string(text.substr(0, cut)) + "…";
 }
 
+auto fit_lines(const std::vector<std::string>& lines, std::size_t budget) -> std::string {
+    std::size_t total = 0;
+    for (const std::string& line : lines) {
+        total += character_count(line) + 1;
+    }
+
+    // Each line's share leaves room for its newline, and at least a
+    // character and an ellipsis however many lines there are.
+    const bool fits = total <= budget;
+    const std::size_t share = lines.empty() ? 0 : std::max<std::size_t>(budget / lines.size(), 3) - 1;
+
+    std::string text;
+    for (const std::string& line : lines) {
+        text += fits ? line : truncate(line, share);
+        text += '\n';
+    }
+    return text;
+}
+
 auto parse_snowflake(std::string_view text) -> std::optional<dpp::snowflake> {
     text = trim(text);
     std::uint64_t value = 0;

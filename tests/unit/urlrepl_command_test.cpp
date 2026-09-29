@@ -311,6 +311,21 @@ TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebod
     CHECK_FALSE(urltoggle_refusal(me, them, dpp::permission(dpp::p_administrator)).has_value());
 }
 
+TEST_CASE("a full page of rules with the most, longest mirrors still fits the panel and the list", "[commands]") {
+    store_fixture fixture;
+    for (std::size_t rule = 0; rule < latibot::commands::url_rules_per_page; ++rule) {
+        url_rule made{.domain = std::format("{}.example.com", std::string(80, static_cast<char>('a' + rule))), .mirrors = {}};
+        for (std::size_t mirror = 0; mirror < latibot::commands::max_mirrors_per_rule; ++mirror) {
+            made.mirrors.push_back({.host = std::format("{}{}.example.net", std::string(100, 'm'), mirror), .translate_suffix = "/en"});
+        }
+        fixture.store.set(guild, made);
+    }
+
+    const std::string first = fixture.store.for_guild(guild).front().domain;
+    latibot::testing::check_message_fits(latibot::commands::render_url_panel(fixture.store, guild, 0, first, false, std::string(300, 'n')));
+    latibot::testing::check_message_fits(latibot::commands::render_url_rule_list(fixture.store, guild, 0));
+}
+
 TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
     store_fixture fixture;
     const latibot::commands::urlrepl_command urlrepl(fixture.store);

@@ -10,9 +10,11 @@
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstddef>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -23,7 +25,8 @@ class clock;
 
 namespace latibot::audio {
 class voice_store;
-}
+struct saved_voice;
+} // namespace latibot::audio
 
 namespace latibot::commands {
 
@@ -37,6 +40,13 @@ inline constexpr std::string_view lab_save_view = "vlabsave";
 inline constexpr std::string_view lab_reset_view = "vlabreset";
 inline constexpr std::string_view lab_form_view = "vlabform";
 inline constexpr std::string_view lab_name_view = "vlabname";
+
+/// The menu that opens one of the server's saved voices.
+inline constexpr std::string_view lab_open_view = "vlabopen";
+
+/// How many saved voices that menu lists: Discord's limit on a menu's
+/// options. A server can keep more, which `/voice lab voice:` opens.
+inline constexpr std::size_t saved_voices_offered = 25;
 
 /// The form that edits the whole voice as `[:dv]` text, rather than a group.
 inline constexpr std::string_view lab_raw_form = "raw";
@@ -81,8 +91,10 @@ private:
     std::map<std::pair<dpp::snowflake, dpp::snowflake>, kept> drafts_;
 };
 
-/// The panel: the voice as it stands, then the controls.
-[[nodiscard]] auto render_voice_lab(const voice_draft& draft) -> dpp::message;
+/// The panel: which voice is being edited and whether it still matches what
+/// is saved, the voice as it stands, then the controls. `saved` is the
+/// server's saved voices, for the menu that opens one.
+[[nodiscard]] auto render_voice_lab(const voice_draft& draft, std::span<const audio::saved_voice> saved = {}) -> dpp::message;
 
 /// The form for one group of parameters, by its index in
 /// `voice_parameter_groups`, or `lab_raw_form` for the whole voice as text.
