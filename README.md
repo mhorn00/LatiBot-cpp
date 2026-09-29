@@ -582,6 +582,7 @@ src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
 tests/              Catch2 tests, mocks, support, golden files and fuzz targets
 docs/features/      what the bot does, and what it will do
+docs/architecture/  diagrams: the components, the classes, and the flow from main()
 docs/testing/       the test strategy, and the generated test catalog
 docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
 docs/analysis/      the codebase cleanup analysis
