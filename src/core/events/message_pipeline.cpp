@@ -27,10 +27,13 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
     util::log().trace("message {} from {} in channel {}: \"{}\"", message.from_bot ? "(bot)" : "", message.author_id, message.channel_id,
                       message.content);
 
+    // A copy the stages see, so one stage answering is visible to the rest.
+    incoming_message current = message;
+
     for (const stage& entry : stages_) {
         stage_result result;
         try {
-            result = entry.handler(message);
+            result = entry.handler(current);
         } catch (const std::exception& error) {
             // One broken stage should not silence the rest of the pipeline,
             // and it certainly should not escape into DPP's event thread.
@@ -50,6 +53,7 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
         }
 
         actions.insert(actions.end(), std::make_move_iterator(result.actions.begin()), std::make_move_iterator(result.actions.end()));
+        current.answered = current.answered || result.answered;
 
         if (result.consumed) break;
     }

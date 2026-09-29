@@ -130,6 +130,14 @@ public:
         co_return std::vector<dpp::snowflake>{};
     }
 
+    /// Channels a typing indicator was started in, in order.
+    std::vector<dpp::snowflake> typing;
+
+    auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override {
+        typing.push_back(channel_id);
+        co_return ports::result<void>{};
+    }
+
 private:
     auto next_id() -> dpp::snowflake { return dpp::snowflake{++last_id_}; }
 

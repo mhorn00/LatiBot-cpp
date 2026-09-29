@@ -275,6 +275,7 @@ auto trigger_responder::operator()(const incoming_message& message) -> stage_res
 
         util::log().debug("trigger {} (\"{}\") fired in channel {}", entry.id, entry.pattern, message.channel_id);
         last_fired_[key] = now;
+        result.answered = true;
         result.actions.emplace_back(send_message{.channel_id = message.channel_id,
                                                  .content = reply->text,
                                                  .flags = entry.message_flags,

@@ -1,5 +1,6 @@
 #include "core/config/bootstrap.hpp"
 
+#include "core/llm/models.hpp"
 #include "core/util/env.hpp"
 #include "core/util/text.hpp"
 
@@ -111,6 +112,28 @@ auto read_llm_keys(const json& parsed, bootstrap& config) -> void {
     if (parsed.contains("llm_tool_rounds")) {
         config.llm_tool_rounds = require_int(parsed, "llm_tool_rounds");
         if (config.llm_tool_rounds < 1) throw config_error("config key \"llm_tool_rounds\" must be at least 1");
+    }
+
+    if (config.spend_cap_daily_usd < 0 || config.spend_cap_monthly_usd < 0) throw config_error("the spend caps cannot be negative");
+
+    const auto provider = llm::provider_from_string(config.llm_provider);
+    if (!provider) throw config_error(R"(config key "llm_provider" has ")" + config.llm_provider + R"(", expected: anthropic, openai)");
+
+    // Only models with a known price, since the spend caps are worked out
+    // from it: a model the bot cannot price would spend without being counted.
+    const llm::model_info* model = llm::find_model(config.llm_model);
+    if (model == nullptr) {
+        std::string known;
+        for (const llm::model_info& candidate : llm::known_models()) {
+            if (!known.empty()) known += ", ";
+            known += candidate.id;
+        }
+        throw config_error(std::format(R"(config key "llm_model" has "{}", which is not a model the bot knows the price of. Known: {})",
+                                       config.llm_model, known));
+    }
+    if (model->provider != *provider) {
+        throw config_error(std::format(R"(config key "llm_model" names a model from {}, but "llm_provider" is {})",
+                                       llm::to_string(model->provider), llm::to_string(*provider)));
     }
 }
 

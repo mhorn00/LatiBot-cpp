@@ -23,6 +23,7 @@ public:
         -> dpp::task<ports::result<std::vector<dpp::message>>> override;
     auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                             std::uint64_t limit) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override;
+    auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override;
 
 private:
     dpp::cluster* cluster_;

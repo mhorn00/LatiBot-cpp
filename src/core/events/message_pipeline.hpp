@@ -6,6 +6,7 @@
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -41,6 +42,23 @@ struct incoming_message {
     bool embeds_suppressed = false;
 
     std::string content;
+
+    /// How the author is shown to people: their server nickname, display
+    /// name or username, whichever they have.
+    std::string author_name;
+
+    /// The author's roles here, for the model's blacklist (plan §14.6).
+    std::vector<dpp::snowflake> author_roles;
+
+    /// Whether the message @mentions LatiBot, or replies to one of its
+    /// messages: two of the three ways to address it (plan §14.3).
+    bool mentions_bot = false;
+    bool replies_to_bot = false;
+
+    /// Set by the pipeline once a stage has answered the message, so a later
+    /// stage can stand back: the simple trigger wins over an advanced one
+    /// (plan §14.3).
+    bool answered = false;
 };
 
 /// Post a message in a channel.
@@ -82,12 +100,39 @@ struct replace_links {
     std::vector<planned_link> links;
 };
 
+/// Ask the model to answer a message (plan §14).
+///
+/// An action of its own because answering takes a model call, maybe several,
+/// and the stage that decides to answer cannot wait for them: it only
+/// decides, and the shell hands this to the responder.
+struct ask_llm {
+    dpp::snowflake guild_id;
+    dpp::snowflake channel_id;
+    dpp::snowflake message_id;
+    dpp::snowflake author_id;
+    std::string author_name;
+    std::string content;
+    bool author_is_bot = false;
+
+    /// Set when an advanced trigger fired rather than someone addressing the
+    /// bot: which one, and what it asks the model to say.
+    std::int64_t trigger_id = 0;
+    std::string context_prompt;
+
+    /// Also say the reply in the voice session this channel belongs to
+    /// (plan §14.2).
+    bool speak = false;
+
+    /// How long to wait before answering: bot-to-bot pacing (plan §14.4).
+    std::chrono::seconds wait{0};
+};
+
 /// Something a stage wants done.
 ///
 /// Stages return actions rather than performing them, which is what keeps
 /// them pure: a test reads the actions, and the shell is the only code that
 /// touches Discord.
-using action = std::variant<send_message, stop_bot, replace_links>;
+using action = std::variant<send_message, stop_bot, replace_links, ask_llm>;
 
 struct stage_result {
     std::vector<action> actions;
@@ -96,6 +141,10 @@ struct stage_result {
     /// replacement can both fire on one message; an LLM reply should not
     /// follow a goodbye (plan §5.4).
     bool consumed = false;
+
+    /// Whether this stage answered the message, which later stages see as
+    /// `incoming_message::answered`.
+    bool answered = false;
 };
 
 /// The ordered stages a message passes through.

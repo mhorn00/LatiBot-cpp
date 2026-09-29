@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 10> all_migrations{{
+constexpr std::array<migration, 11> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -273,6 +273,92 @@ constexpr std::array<migration, 10> all_migrations{{
             updated_at INTEGER NOT NULL,
             PRIMARY KEY (guild_id, name)
         ) WITHOUT ROWID;
+     )sql"},
+    {.version = 11, .name = "llm", .sql = R"sql(
+        -- Every call to a model and what it cost (plan 14.6). The spend caps
+        -- are sums over this, so a restart does not reset them. The price is
+        -- stored with each row rather than worked out when read, so a price
+        -- change applies from then on.
+        CREATE TABLE llm_usage (
+            id                 INTEGER PRIMARY KEY,
+            guild_id           INTEGER NOT NULL,
+            model              TEXT    NOT NULL,
+            input_tokens       INTEGER NOT NULL,
+            output_tokens      INTEGER NOT NULL,
+            cache_write_tokens INTEGER NOT NULL,
+            cache_read_tokens  INTEGER NOT NULL,
+            cost_usd           REAL    NOT NULL,
+            at                 INTEGER NOT NULL      -- Unix seconds
+        );
+
+        CREATE INDEX llm_usage_by_time ON llm_usage (at);
+
+        -- personality | system | trigger_style, one row per version (plan
+        -- 14.5). Nothing is ever overwritten: a revert is a new version with
+        -- the old text, so it can itself be reverted.
+        CREATE TABLE llm_documents (
+            guild_id  INTEGER NOT NULL,
+            kind      TEXT    NOT NULL,
+            version   INTEGER NOT NULL,
+            content   TEXT    NOT NULL,
+            edited_by INTEGER NOT NULL,
+            edited_at INTEGER NOT NULL,
+            note      TEXT,
+            PRIMARY KEY (guild_id, kind, version)
+        ) WITHOUT ROWID;
+
+        -- What the model chose to remember (plan 14.5). subject_user_id is
+        -- who it is about, NULL for the server in general; created_by is
+        -- whom the model was answering when it wrote it.
+        CREATE TABLE llm_memory (
+            id              INTEGER PRIMARY KEY,
+            guild_id        INTEGER NOT NULL,
+            subject_user_id INTEGER,
+            content         TEXT    NOT NULL,
+            created_by      INTEGER,
+            created_at      INTEGER NOT NULL
+        );
+
+        CREATE INDEX llm_memory_by_subject ON llm_memory (guild_id, subject_user_id);
+
+        -- Full-text search over it, kept in step by the triggers below.
+        CREATE VIRTUAL TABLE llm_memory_search USING fts5 (content, content = 'llm_memory', content_rowid = 'id');
+
+        CREATE TRIGGER llm_memory_added AFTER INSERT ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
+        END;
+        CREATE TRIGGER llm_memory_removed AFTER DELETE ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
+        END;
+        CREATE TRIGGER llm_memory_changed AFTER UPDATE ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
+            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
+        END;
+
+        -- Who the model does not answer here: kind is user | role (plan 14.6).
+        CREATE TABLE llm_blacklist (
+            guild_id  INTEGER NOT NULL,
+            kind      TEXT    NOT NULL,
+            target_id INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, kind, target_id)
+        ) WITHOUT ROWID;
+
+        -- Advanced triggers (plan 14.3): a pattern, as the simple triggers
+        -- match them, and a line telling the model what to say about it.
+        -- probability is 0 to 1; the cooldown is per channel.
+        CREATE TABLE llm_triggers (
+            id             INTEGER PRIMARY KEY,
+            guild_id       INTEGER NOT NULL,
+            pattern        TEXT    NOT NULL,
+            match_mode     TEXT    NOT NULL,
+            context_prompt TEXT    NOT NULL,
+            probability    REAL    NOT NULL,
+            cooldown_s     INTEGER NOT NULL,
+            enabled        INTEGER NOT NULL DEFAULT 1,
+            created_by     INTEGER NOT NULL
+        );
+
+        CREATE INDEX llm_triggers_by_guild ON llm_triggers (guild_id);
      )sql"},
 }};
 

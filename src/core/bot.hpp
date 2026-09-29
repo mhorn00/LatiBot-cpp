@@ -3,6 +3,7 @@
 #include "core/audio/dectalk_engine.hpp"
 #include "core/audio/speech_queue.hpp"
 #include "core/audio/voice_store.hpp"
+#include "core/commands/llm.hpp"
 #include "core/commands/registry.hpp"
 #include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
@@ -23,12 +24,22 @@
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
 #include "core/events/voice_sessions.hpp"
+#include "core/llm/advanced_triggers.hpp"
+#include "core/llm/documents.hpp"
+#include "core/llm/guards.hpp"
+#include "core/llm/memory.hpp"
+#include "core/llm/provider.hpp"
+#include "core/llm/responder.hpp"
+#include "core/llm/spend.hpp"
+#include "core/llm/stage.hpp"
+#include "core/llm/tools.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
 
 #include <dpp/dpp.h>
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -69,8 +80,18 @@ private:
     auto check_permissions(const dpp::guild& guild) const -> void;
 
     /// Turns a DPP message into the plain struct the stages work on, which is
-    /// where the Administrator check happens.
-    [[nodiscard]] auto describe(const dpp::message& message) const -> events::incoming_message;
+    /// where the Administrator check happens. `raw_event` is the gateway
+    /// frame, the only place a reply says whose message it replies to.
+    [[nodiscard]] auto describe(const dpp::message& message, const std::string& raw_event) const -> events::incoming_message;
+
+    /// The provider that serves a kind of model, or null without its key.
+    [[nodiscard]] auto provider_for(llm::provider_kind kind) const -> llm::provider*;
+
+    /// Everything `/llm`, `/memory` and their panels work with.
+    [[nodiscard]] auto llm_services() -> commands::llm_command_services;
+
+    /// Waits out any pacing, then has the model answer (plan §14).
+    auto answer_with_llm(events::ask_llm ask) -> dpp::task<void>;
 
     /// Performs what the stages decided.
     auto carry_out(const std::vector<events::action>& actions) -> void;
@@ -194,6 +215,20 @@ private:
     audio::voice_store voices_;
     commands::voice_drafts voice_drafts_;
     commands::voice_lab voice_lab_;
+
+    // The language model (plan §14). A provider exists only when its key is
+    // set; the stage and the commands ask `provider_for` rather than assume.
+    llm::usage_store llm_usage_;
+    llm::document_store llm_documents_;
+    llm::memory_store llm_memories_;
+    llm::blacklist_store llm_blacklist_;
+    llm::advanced_trigger_store llm_triggers_;
+    llm::tool_registry llm_tools_;
+    std::unique_ptr<llm::provider> anthropic_;
+    std::unique_ptr<llm::provider> openai_;
+    llm::responder responder_;
+    llm::llm_stage llm_stage_;
+    commands::llm_panels llm_panels_;
 
     /// Where the log is posted (`/logs`). Destroyed before everything above
     /// it, and unhooked from the logger as it goes, so a line logged while

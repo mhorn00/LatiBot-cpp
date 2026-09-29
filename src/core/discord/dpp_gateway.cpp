@@ -87,4 +87,10 @@ auto dpp_gateway::get_reaction_users(dpp::snowflake channel_id, dpp::snowflake m
     co_return ids;
 }
 
+auto dpp_gateway::start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> {
+    const auto confirmation = co_await cluster_->co_channel_typing(channel_id);
+    if (confirmation.is_error()) co_return to_error(confirmation);
+    co_return ports::result<void>{};
+}
+
 } // namespace latibot::discord

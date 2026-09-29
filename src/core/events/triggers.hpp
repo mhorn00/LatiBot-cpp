@@ -131,8 +131,9 @@ private:
 /// Answers messages that match a guild's triggers.
 ///
 /// Does not consume the message: a message with both "420" and a link should
-/// get the reply and the replacement (plan §5.4). It does suppress the
-/// advanced LLM triggers, which is a decision for the stage that adds them.
+/// get the reply and the replacement (plan §5.4). A reply marks the message
+/// answered, which keeps the advanced triggers quiet: the simple one wins
+/// (plan §14.3).
 ///
 /// Safe to call from several threads at once, which is how DPP delivers
 /// messages.

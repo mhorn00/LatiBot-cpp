@@ -13,6 +13,7 @@ add_executable(latibot_tests
     db/url_rule_store_test.cpp
     db/voice_store_test.cpp
     db/guild_settings_test.cpp
+    db/llm_store_test.cpp
     db/migrations_test.cpp
     db/midnight_store_test.cpp
     db/nickname_import_test.cpp
@@ -42,6 +43,11 @@ add_executable(latibot_tests
     unit/paginator_test.cpp
     unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
+    unit/llm_answer_test.cpp
+    unit/llm_command_test.cpp
+    unit/llm_guards_test.cpp
+    unit/llm_provider_test.cpp
+    unit/llm_tools_test.cpp
     unit/logs_command_test.cpp
     unit/log_channel_test.cpp
     unit/log_color_test.cpp

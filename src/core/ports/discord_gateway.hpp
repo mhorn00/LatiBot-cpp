@@ -48,6 +48,10 @@ public:
     /// reports *when* a reaction was added (plan §9.7).
     virtual auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                                     std::uint64_t limit) -> dpp::task<result<std::vector<dpp::snowflake>>> = 0;
+
+    /// Shows "LatiBot is typing…" in a channel for ten seconds, or until the
+    /// bot posts there (plan §14.7).
+    virtual auto start_typing(dpp::snowflake channel_id) -> dpp::task<result<void>> = 0;
 };
 
 } // namespace latibot::ports

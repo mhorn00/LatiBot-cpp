@@ -17,6 +17,7 @@ add_library(latibot_core STATIC
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/linkstats.cpp
+    core/commands/llm.cpp
     core/commands/logs.cpp
     core/commands/message_options.cpp
     core/commands/options.cpp
@@ -53,6 +54,20 @@ add_library(latibot_core STATIC
     core/events/url_replacer.cpp
     core/events/url_rules.cpp
     core/events/voice_sessions.cpp
+    core/llm/advanced_triggers.cpp
+    core/llm/anthropic.cpp
+    core/llm/documents.cpp
+    core/llm/guards.cpp
+    core/llm/memory.cpp
+    core/llm/memory_tools.cpp
+    core/llm/models.cpp
+    core/llm/openai.cpp
+    core/llm/prompt.cpp
+    core/llm/responder.cpp
+    core/llm/settings.cpp
+    core/llm/spend.cpp
+    core/llm/stage.cpp
+    core/llm/tools.cpp
     core/ports/clock.cpp
     core/ui/interaction.cpp
     core/ui/paginator.cpp

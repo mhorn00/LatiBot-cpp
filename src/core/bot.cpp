@@ -18,11 +18,16 @@
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
+#include "core/llm/anthropic.hpp"
+#include "core/llm/memory_tools.hpp"
+#include "core/llm/models.hpp"
+#include "core/llm/openai.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/version.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <filesystem>
@@ -88,6 +93,25 @@ auto guild_of(const dpp::guild_audit_log_entry_create_t& event) -> dpp::snowflak
     const auto found = payload.find("guild_id");
     if (found == payload.end() || !found->is_string()) return {};
     return dpp::snowflake(found->get<std::string>());
+}
+
+/// Who wrote the message a reply replies to, or 0.
+///
+/// DPP reads the reference but not the message it points at, which Discord
+/// sends whole in the same frame. Only parsed for replies, so an ordinary
+/// message costs nothing.
+auto replied_to_author(const std::string& raw_event) -> dpp::snowflake {
+    const auto frame = nlohmann::json::parse(raw_event, nullptr, /*allow_exceptions=*/false);
+    if (frame.is_discarded() || !frame.contains("d")) return {};
+
+    const auto& payload = frame.at("d");
+    const auto referenced = payload.find("referenced_message");
+    if (referenced == payload.end() || !referenced->is_object()) return {};
+    const auto author = referenced->find("author");
+    if (author == referenced->end() || !author->is_object()) return {};
+    const auto id = author->find("id");
+    if (id == author->end() || !id->is_string()) return {};
+    return dpp::snowflake(id->get<std::string>());
 }
 
 /// The nickname an audit entry says a member ended up with, or nothing when
@@ -188,6 +212,35 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       voice_drafts_(clock_),
       voice_lab_(voice_drafts_, voices_, clock_,
                  {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
+      llm_usage_(database_),
+      llm_documents_(database_),
+      llm_memories_(database_),
+      llm_blacklist_(database_),
+      llm_triggers_(database_),
+      anthropic_(credentials.anthropic_key ? std::make_unique<llm::anthropic_provider>(http_, *credentials.anthropic_key) : nullptr),
+      openai_(credentials.openai_key ? std::make_unique<llm::openai_provider>(http_, *credentials.openai_key) : nullptr),
+      responder_({.discord = &gateway_,
+                  .clock = &clock_,
+                  .settings = &guild_settings_,
+                  .bootstrap = &settings_,
+                  .documents = &llm_documents_,
+                  .memories = &llm_memories_,
+                  .usage = &llm_usage_,
+                  .tools = &llm_tools_,
+                  .provider_for = [this](llm::provider_kind kind) { return provider_for(kind); },
+                  .engine = &tts_,
+                  .speech = &speech_},
+                 [this] { return llm::bot_identity{.id = cluster_.me.id, .name = cluster_.me.username}; }),
+      llm_stage_({.settings = &guild_settings_,
+                  .bootstrap = &settings_,
+                  .blacklist = &llm_blacklist_,
+                  .triggers = &llm_triggers_,
+                  .usage = &llm_usage_,
+                  .sessions = &voice_sessions_,
+                  .has_provider = [this](llm::provider_kind kind) { return provider_for(kind) != nullptr; },
+                  .me = [this] { return llm::bot_identity{.id = cluster_.me.id, .name = cluster_.me.username}; }},
+                 clock_),
+      llm_panels_(llm_services()),
       log_destinations_(guild_settings_),
       log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
@@ -218,6 +271,20 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     // heading rather than before the bot has said it is starting.
     const int version = db::migrate(database_);
     util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
+
+    // The model's memory, as tools it can call (plan §14.5).
+    llm::add_memory_tools(llm_tools_, llm_memories_);
+
+    // Info: a missing key is the whole reason the model would never answer,
+    // and the log is where that question gets asked.
+    if (anthropic_ == nullptr && openai_ == nullptr) {
+        util::log().info("the language model is off everywhere: neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set");
+    } else {
+        util::log().info("the language model can use {}{}{}; {} by default, capped at ${:.2f} a day and ${:.2f} a month",
+                         anthropic_ != nullptr ? "Anthropic" : "", anthropic_ != nullptr && openai_ != nullptr ? " and " : "",
+                         openai_ != nullptr ? "OpenAI" : "", settings_.llm_model, settings_.spend_cap_daily_usd,
+                         settings_.spend_cap_monthly_usd);
+    }
 
     // As soon as the setting can be read, so the rest of starting up is in
     // the channel too. It is posted once the connection is up.
@@ -270,6 +337,8 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
+    commands_.add(std::make_unique<commands::llm_command>(llm_services()));
+    commands_.add(std::make_unique<commands::memory_command>(llm_services()));
 
     const commands::speech_services speech{
         .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
@@ -286,10 +355,36 @@ auto bot::register_commands() -> void {
 
 auto bot::register_stages() -> void {
     // The order is plan §5.4, and it is a list so that changing it is one
-    // line. The LLM stages join it in phase 5.
+    // line. The model is last: it consumes what it answers, and a simple
+    // trigger's reply before it keeps an advanced trigger quiet (plan §14.3).
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
     pipeline_.add("url replacement", events::url_replacer(url_rules_));
     pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
+    pipeline_.add("language model", [this](const events::incoming_message& message) { return llm_stage_(message); });
+}
+
+auto bot::provider_for(llm::provider_kind kind) const -> llm::provider* {
+    return kind == llm::provider_kind::openai ? openai_.get() : anthropic_.get();
+}
+
+auto bot::llm_services() -> commands::llm_command_services {
+    return {.settings = &guild_settings_,
+            .bootstrap = &settings_,
+            .documents = &llm_documents_,
+            .triggers = &llm_triggers_,
+            .blacklist = &llm_blacklist_,
+            .memories = &llm_memories_,
+            .usage = &llm_usage_,
+            .http = &http_,
+            .clock = &clock_,
+            .has_provider = [this](llm::provider_kind kind) { return provider_for(kind) != nullptr; }};
+}
+
+auto bot::answer_with_llm(events::ask_llm ask) -> dpp::task<void> {
+    // Bot-to-bot pacing (plan §14.4). The turn was claimed when the stage
+    // decided, so the wait only spaces it out.
+    if (ask.wait > std::chrono::seconds::zero()) co_await cluster_.co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
+    co_await responder_.answer(std::move(ask));
 }
 
 auto bot::register_events() -> void {
@@ -343,7 +438,8 @@ auto bot::register_events() -> void {
     // Every message: reduce it to plain data, let the stages decide, then do
     // what they asked. Handlers run on DPP's thread pool, so two messages
     // can be in here at once.
-    cluster_.on_message_create([this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg))); });
+    cluster_.on_message_create(
+        [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg, event.raw_event))); });
 
     // Discord adds link previews by updating the message a moment after it
     // was posted, which is how the embed tracker learns that a mirror worked
@@ -830,7 +926,7 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
     } else {
         // Each panel's router says whether the view was one of its own.
         return on_trigger_component(event, state, chosen, who) || on_url_component(event, state, chosen, who) ||
-               voice_lab_.on_component(event, state, chosen);
+               voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen);
     }
     return true;
 }
@@ -960,8 +1056,8 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
             on_url_form(event, *state);
         } else if (state && state->view == commands::trigger_form_view) {
             on_trigger_form(event, *state);
-        } else if (state && voice_lab_.on_form(event, *state)) {
-            // The voice lab answers its own forms.
+        } else if (state && (voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
+            // The voice lab and the language model's panels answer their own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
             answer_privately(event, stale_component_reply);
@@ -1017,7 +1113,7 @@ auto bot::on_trigger_form(const dpp::form_submit_t& event, const ui::page_state&
     update_panel(event, commands::render_trigger_panel(triggers_, guild, state.page, saved));
 }
 
-auto bot::describe(const dpp::message& message) const -> events::incoming_message {
+auto bot::describe(const dpp::message& message, const std::string& raw_event) const -> events::incoming_message {
     events::incoming_message described;
     described.guild_id = message.guild_id;
     described.channel_id = message.channel_id;
@@ -1028,6 +1124,17 @@ auto bot::describe(const dpp::message& message) const -> events::incoming_messag
     described.message_id = message.id;
     described.embeds_suppressed = (message.flags & dpp::m_suppress_embeds) != 0;
     described.content = message.content;
+
+    // The name people see: a server nickname, a display name, or the
+    // username, whichever is there first.
+    described.author_name = message.member.get_nickname();
+    if (described.author_name.empty()) described.author_name = message.author.global_name;
+    if (described.author_name.empty()) described.author_name = message.author.username;
+    described.author_roles = message.member.get_roles();
+
+    described.mentions_bot =
+        std::ranges::any_of(message.mentions, [this](const auto& mention) { return mention.first.id == cluster_.me.id; });
+    if (!message.message_reference.message_id.empty()) described.replies_to_bot = replied_to_author(raw_event) == cluster_.me.id;
 
     // Administrator is a guild-level question, so it needs the guild and the
     // member: a message carries neither on its own.
@@ -1070,6 +1177,8 @@ auto bot::carry_out(const std::vector<events::action>& actions) -> void {
                                             });
                 } else if constexpr (std::is_same_v<step_type, events::replace_links>) {
                     detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
+                } else if constexpr (std::is_same_v<step_type, events::ask_llm>) {
+                    detach(answer_with_llm(step), "answering with the language model");
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
                     // A thread of its own, so the pause holds up none of
