@@ -20,6 +20,34 @@ For the user-facing side of what exists today — commands, options, replies —
 see [docs/features/](../features/README.md). This document is the design and
 the order of work behind it.
 
+> **The feature specs take over from here.** Since 2026-09-30, each feature
+> has a spec in [docs/features/](../features/README.md#feature-specs): what it
+> is for, how it behaves and is built, and the decisions behind it, kept
+> current as the feature changes. This plan stays as the record of how the
+> port was designed, and its numbering is unchanged, since code comments cite
+> it. Where each section went:
+>
+> | Plan | Spec |
+> |---|---|
+> | §2.2, §2.4, §12, §21.16, §21.17 | [Speech](../features/Speech.md) |
+> | §5.1, §5.2, §7, §21.1–§21.3, §21.7 | [Running the bot](../features/Operations.md) |
+> | §5.3, §21.4, §21.5, §21.13, §21.15, §21.21 | [Commands and panels](../features/Commands_and_Panels.md) |
+> | §5.4, §11.1 | [Message pipeline](../features/Message_Pipeline.md) |
+> | §6 | [Basic commands](../features/Basic_Commands.md), and [Voice channels](../features/Voice_Channels.md) for `/join` and `/leave` |
+> | §8, §21.8, §21.9 | [Nicknames](../features/Nicknames.md) |
+> | §9.1–§9.5, §21.11 | [URL replacement](../features/Url_Replacement.md) |
+> | §9.6, §9.7, §21.12 | [Link stats](../features/Link_Stats.md) |
+> | §10, §21.10 | [Midnight](../features/Midnight.md) |
+> | §11 | [Triggers](../features/Triggers.md) |
+> | §13 | [Voice channels](../features/Voice_Channels.md) |
+> | §14, §21.18–§21.20 | [Language model](../features/Language_Model.md) |
+> | §8.5, §15, §16 | [Planned.md](../features/Planned.md), until they are built |
+> | §17, §21.6 | [docs/testing/](../testing/README.md) |
+>
+> §2.1, §2.3 and §2.5 are findings the specs draw on where they apply. §0,
+> §1, §3, §4 and §18–§20 describe the port as a project, and §21.14 the build
+> (the README's notes cover it); none has a spec of its own.
+
 ---
 
 ## 0. Where the port stands

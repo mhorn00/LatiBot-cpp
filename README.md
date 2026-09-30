@@ -239,7 +239,7 @@ go and find when that happens.
 
 ### Starting it
 
-Secrets come from the environment only ([plan §5.1](docs/porting/Porting_Plan_Final.md)): `DISCORD_BOT_TOKEN`,
+Secrets come from the environment only ([why](docs/features/Operations.md#4-configuration)): `DISCORD_BOT_TOKEN`,
 and optionally `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the language model.
 Without either key the model never answers, and the log says so at startup.
 Either set them in the shell:
@@ -431,7 +431,9 @@ Phases 1 to 5 are done: the framework, the features that keep records, URL
 replacement with its reaction statistics, DECtalk speech, and the language
 model.
 [docs/features/](docs/features/README.md) documents all of this properly —
-options, replies and edge cases.
+options, replies and edge cases — and each feature has a
+[spec](docs/features/README.md#feature-specs) of its own: what it is for, how
+it is built, and what was decided and why.
 
 | Command | What it does |
 |---|---|
@@ -598,10 +600,10 @@ tools/              dev environment setup, catalog generator, clang-tidy and cla
 src/main.cpp        entry point
 src/core/           the bot itself, built as the latibot_core static library
 tests/              Catch2 tests, mocks, support, golden files and fuzz targets
-docs/features/      what the bot does, and what it will do
+docs/features/      what the bot does and will do, and a spec per feature
 docs/architecture/  diagrams: the components, the classes, and the flow from main()
 docs/testing/       the test strategy, and the generated test catalog
-docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts
+docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts, kept as the record
 docs/analysis/      the codebase cleanup analysis
 docs/ideas/         parked ideas
 third_party/DPP     submodule: DPP v10.1.6, built from source
@@ -612,7 +614,10 @@ data/               runtime database, backups and import files (git-ignored)
 
 Comments in the code cite the plan as "plan §9.4": that always means
 [Porting_Plan_Final.md](docs/porting/Porting_Plan_Final.md). The drafts before
-it are kept for history and numbered differently in places.
+it are kept for history and numbered differently in places. Each feature's
+[spec](docs/features/README.md#feature-specs) now carries its design, and
+lists the plan sections it replaces, so those references still lead
+somewhere current.
 
 The original Java bot lives in `java-reference/` locally. It is deliberately
 **not** tracked in git: it is large and contains personal data.

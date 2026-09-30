@@ -4,47 +4,51 @@ Everything the bot does today, as it actually behaves — commands, options, who
 may run them, what it replies, and the edge cases each one handles. Features not
 built yet are in [Planned.md](Planned.md), written the same way.
 
-This is the reference for *intended* behaviour, so it is the right place to
-disagree with something. A correction here is what the implementation follows;
-the design and the order of work behind it are in
-[docs/porting/Porting_Plan_Final.md](../porting/Porting_Plan_Final.md).
+This guide says how to use each feature. **Each feature's spec** says what it
+is for, how it behaves and is built, and what was decided and why. The specs
+are the documents to correct: a change agreed there is what the
+implementation, and then this guide, follow. They are listed in
+[Feature specs](#feature-specs) below, and in the last column of the table.
+They take over from
+[docs/porting/Porting_Plan_Final.md](../porting/Porting_Plan_Final.md), which
+stays as the record of how the port was designed.
 
 ---
 
 ## At a glance
 
-| | Feature | What it is for |
-|---|---|---|
-| 💬 | [`/ping`](#ping) | Is the bot alive, and how far away is it |
-| 💬 | [`/say`](#say) | Post as the bot, optionally as a reply |
-| 💬 | [`/status`](#status) | Set the bot's presence |
-| 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel |
-| 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice |
-| 🔊 | [`/tts`](#tts) | Stop or skip speech, and set its limits |
-| 🔊 | [`/voice`](#voice) | Voice sessions, and custom voices from the [voice lab](#voice-lab) |
-| 🔊 | [`/chat`](#chat) | Say something as a voice message |
-| 🛑 | [`/shutdown`](#shutdown) | Stop the bot |
-| 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot |
-| 📋 | [`/logs`](#logs) | Post the bot's log in one channel |
-| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases |
-| 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear |
-| 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record |
-| 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here |
-| 🌙 | [`/midnight`](#midnight) | Post a message at midnight |
-| 🔗 | [`/urlrepl`](#urlrepl) | Turn link replacement on, and choose which links get posted again with a working preview |
-| 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone |
-| 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links |
-| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers |
-| 🧠 | [`/memory`](#memory) | What the language model remembers |
-| 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command |
-| 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised |
-| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on |
-| 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways |
-| 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it |
-| 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone |
-| 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel |
-| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session |
-| 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup |
+| | Feature | What it is for | Spec |
+|---|---|---|---|
+| 💬 | [`/ping`](#ping) | Is the bot alive, and how far away is it | [Basic commands](Basic_Commands.md) |
+| 💬 | [`/say`](#say) | Post as the bot, optionally as a reply | [Basic commands](Basic_Commands.md) |
+| 💬 | [`/status`](#status) | Set the bot's presence | [Basic commands](Basic_Commands.md) |
+| 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel | [Voice channels](Voice_Channels.md) |
+| 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice | [Speech](Speech.md) |
+| 🔊 | [`/tts`](#tts) | Stop or skip speech, and set its limits | [Speech](Speech.md) |
+| 🔊 | [`/voice`](#voice) | Voice sessions, and custom voices from the [voice lab](#voice-lab) | [Voice channels](Voice_Channels.md), [Speech](Speech.md#3-custom-voices-and-the-voice-lab) |
+| 🔊 | [`/chat`](#chat) | Say something as a voice message | [Speech](Speech.md) |
+| 🛑 | [`/shutdown`](#shutdown) | Stop the bot | [Basic commands](Basic_Commands.md) |
+| 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | [Basic commands](Basic_Commands.md) |
+| 📋 | [`/logs`](#logs) | Post the bot's log in one channel | [Log channel](Log_Channel.md) |
+| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases | [Triggers](Triggers.md) |
+| 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear | [Message pipeline](Message_Pipeline.md) |
+| 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [Nicknames](Nicknames.md) |
+| 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here | [Nicknames](Nicknames.md) |
+| 🌙 | [`/midnight`](#midnight) | Post a message at midnight | [Midnight](Midnight.md) |
+| 🔗 | [`/urlrepl`](#urlrepl) | Turn link replacement on, and choose which links get posted again with a working preview | [URL replacement](Url_Replacement.md) |
+| 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [URL replacement](Url_Replacement.md) |
+| 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [Link stats](Link_Stats.md) |
+| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers | [Language model](Language_Model.md) |
+| 🧠 | [`/memory`](#memory) | What the language model remembers | [Language model](Language_Model.md) |
+| 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command | [Basic commands](Basic_Commands.md#3-the-goodbye-phrase) |
+| 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised | [Triggers](Triggers.md) |
+| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on | [URL replacement](Url_Replacement.md) |
+| 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways | [Link stats](Link_Stats.md) |
+| 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it | [Nicknames](Nicknames.md) |
+| 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone | [Midnight](Midnight.md) |
+| 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel | [Voice channels](Voice_Channels.md#23-leaving-an-empty-channel) |
+| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session | [Language model](Language_Model.md) |
+| 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup | [Running the bot](Operations.md#6-permission-warnings) |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
 answer. The exceptions are called out below: `/say` posts a separate public
@@ -70,6 +74,35 @@ still offers after it was removed answers `i don't have that command any more`.
 admins can override any of it per role or per channel in
 **Server Settings → Integrations → LatiBot**, which is why these are defaults
 rather than hard checks.
+
+---
+
+## Feature specs
+
+One per feature. Each says what the feature is **for** (and, where the Java
+bot had it, what went wrong there), how it **behaves**, how it is **built**,
+the **decisions** behind it with when and why each was made, and what is
+still open or unchecked in Discord. The header of each lists its code,
+tests, tables, and the plan sections it replaces, which code comments still
+cite.
+
+| Spec | Covers |
+|---|---|
+| [Basic commands](Basic_Commands.md) | `/ping`, `/say`, `/status`, `/shutdown`, `/goodbye` and the goodbye phrase |
+| [Message pipeline](Message_Pipeline.md) | The stages every message passes through, who is heard, and `/bots` |
+| [Triggers](Triggers.md) | `/trigger` and its panel, and the replies |
+| [URL replacement](Url_Replacement.md) | `/urlrepl`, `/urltoggle`, the replacements, watching previews, Retry |
+| [Link stats](Link_Stats.md) | `/linkstats`, reaction counting, the recompute, image posts, emoji copies |
+| [Nicknames](Nicknames.md) | `/nickname`, `/nicknames`, tracking and attribution, the Java import |
+| [Midnight](Midnight.md) | `/midnight` and the once-a-day post |
+| [Speech](Speech.md) | DECtalk, `/speak`, `/tts`, `/chat`, the sanitizer, custom voices and the voice lab |
+| [Voice channels](Voice_Channels.md) | `/join`, `/leave`, voice sessions, the speech queue, leaving empty channels |
+| [Language model](Language_Model.md) | `/llm`, `/memory`, answering, memory, documents, advanced triggers, spend |
+| [Log channel](Log_Channel.md) | `/logs` |
+| [Commands and panels](Commands_and_Panels.md) | What every command and panel shares: registration, flags, `custom_id` state, forms, `--unregister-commands` |
+| [Running the bot](Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
+
+Features designed but not built are in [Planned.md](Planned.md).
 
 ---
 

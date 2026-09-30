@@ -8,8 +8,10 @@ and documented there now.
 **This is the document to correct.** Nothing here is written yet, so changing a
 reply, an option name or a rule costs nothing now and costs a rewrite later. The
 technical design behind each one — schemas, algorithms, the bugs being fixed —
-is in [docs/porting/Porting_Plan_Final.md](../porting/Porting_Plan_Final.md);
-this is the user-facing side of the same thing.
+is in [docs/porting/Porting_Plan_Final.md](../porting/Porting_Plan_Final.md)
+(§15, §16 and §8.5); this is the user-facing side of the same thing. When one
+is built, it gets a spec of its own beside the
+[others](README.md#feature-specs).
 
 Command names, option names and reply wording are all proposals.
 
