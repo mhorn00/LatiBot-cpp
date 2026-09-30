@@ -784,18 +784,25 @@ anyone.
 
 ### `/linkstats`
 
-Reactions on the bot's replacement messages. See
+Reactions on the bot's replacement messages, and on the images and videos
+people post in a server that counts them. See
 [Reaction statistics](#reaction-statistics) for what is counted, and
 [Link_Stats.md](Link_Stats.md) for how it all works and why.
 
 | | |
 |---|---|
-| **Who** | everyone for the views; Manage Server for aliases and `recompute` |
+| **Who** | everyone for the views; Manage Server for aliases, `recompute` and `images` |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, and Read Message History for `recompute` |
 
 The views answer **publicly**, and nobody is pinged by appearing in one.
 `duplicates` answers privately.
+
+`top`, `user` and `reactions` also take `source`: **Links and images**,
+**Replaced links**, or **Images and videos**. Left out, it is links and images
+in a server that counts images, and links alone in one that does not. Titles
+say which: "on replaced links", "on images", "on links and images". A
+`domain` means links alone, since an image has no site.
 
 #### `/linkstats top`
 
@@ -889,6 +896,9 @@ reactions rather than from the day the bot began counting.
 | `start` | `since` (required, `YYYY-MM-DD`) · `until` · `channel` (every text channel if left out) · `fresh` |
 | `cancel` | none |
 
+In a server that counts images, it also finds the images and videos people
+posted, and their reactions.
+
 It replies `Started. Progress goes in this channel.` and posts a progress
 message there, updated every five hundred messages; an interaction's reply
 stops being editable after fifteen minutes, and a recompute can take hours.
@@ -902,7 +912,8 @@ read — are **linked**, so a click jumps to each.
 When it is over, the bot **replies to that message and pings whoever started
 it**, since by then the report is far up the channel. The reply says how it
 went, and carries `recompute-issues.txt` with a link to every message worth a
-look when there are more than the report has room for.
+look whenever there are any, since the report only has room for three of
+each.
 
 **It is safe to run again.** Each replacement's reactions are rebuilt to match
 what Discord shows now rather than added to, and a reaction the bot saw being
@@ -910,6 +921,21 @@ added keeps the time it saw. How far it got is saved per channel, so running it
 again with the same dates carries on from where it stopped — after
 `cancel`, or a restart — and `fresh:true` starts every channel over. One runs
 per server at a time. Threads are not scanned.
+
+#### `/linkstats images`
+
+| Subcommand | Does |
+|---|---|
+| `on` | Counts reactions on the images and videos people post here, credited to whoever posted them |
+| `off` | Stops counting them; those already counted are kept, and `source:Images and videos` still shows them |
+
+Both need Manage Server and answer privately. It is **off** until somebody
+turns it on: it counts every image in every channel, a bigger step than
+counting the bot's own messages. An upload counts, and so does a link
+straight to an image or video file, which Discord shows as one. A site's
+preview does not, such as YouTube's player, and neither do Tenor or Giphy
+GIFs. After turning it on, `/linkstats recompute` counts the images already
+posted.
 
 It looks for replacements posted by the bot's own account. A Debug build can be
 pointed at another account's with `LATIBOT_DEBUG_RECOMPUTE_BOT_ID`, for testing
@@ -1262,6 +1288,16 @@ Reactions are counted as they happen, including removals and a moderator
 clearing them, and kept forever. `❤` and `❤️` are the same heart whichever
 keyboard typed it. Custom emojis that should count as one can be merged with
 [aliases](#linkstats-alias).
+
+**Images.** In a server that has run [`/linkstats images on`](#linkstats-images),
+people's own image and video posts are counted the same three ways, credited
+to whoever posted them.
+
+**Emoji copies.** The bot keeps its own copy of every custom emoji used here,
+as an emoji its application owns, so the statistics can still show an emote
+after its server deletes it. Emojis with the same picture, or merged by an
+alias, share one copy. `emoji_copy_min_uses` in `config.json` sets how many
+reactions an emote needs first (one, to start with).
 
 **History.** [`/linkstats recompute`](#linkstats-recompute) recovers the
 reactions on replacements the bot posted before it started counting — years of

@@ -90,7 +90,8 @@ on matter: coroutines that pause, worker threads, and replies that arrive later.
 
 ## Keeping them current
 
-These are drawn by hand from commit `4848a7e`. Nothing checks them against the
-code, so a renamed class or a new subsystem needs its box changed here too.
+These are drawn by hand from commit `4848a7e`, with link stats brought up to
+date since. Nothing checks them against the code, so a renamed class or a new
+subsystem needs its box changed here too.
 Each diagram is small and about one thing, so a change usually touches one of
 them.

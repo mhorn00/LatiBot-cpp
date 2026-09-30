@@ -1,21 +1,23 @@
 # Link stats
 
-`/linkstats` counts the reactions on the bot's link replacements: who gets the
+`/linkstats` counts the reactions on the bot's link replacements, and in a
+server that turns it on, on the images and videos people post: who gets the
 most, who gives the most, and with which emojis. It can also read years of
-channel history back into those counts.
+channel history back into those counts, and it keeps its own copy of every
+custom emoji it counts.
 
 This is the feature's working document. It records how the feature works,
-what was decided and why, what has been asked for, and what is still waiting
-on a decision. [The user guide](README.md#linkstats) says how to use it;
+what was decided and why, and what has been asked for. [The user guide](README.md#linkstats) says how to use it;
 [Classes.md §8](../architecture/Classes.md#8-link-stats-and-the-recompute)
 draws its classes.
 
 | | |
 |---|---|
-| **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements}.*` |
-| **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/reaction_store_test.cpp`, `tests/db/backfill_test.cpp` |
-| **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress` |
-| **Status** | Built and tested offline. Not yet run against real Discord history. |
+| **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements,media_posts,emoji_copies}.*` |
+| **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies}_test.cpp` |
+| **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies` |
+| **Config** | `emoji_copy_min_uses` in `config.json`; `linkstats_images` per server in `guild_settings` |
+| **Status** | Built and tested offline. Not yet run against real Discord. |
 
 ## Contents
 
@@ -27,8 +29,8 @@ draws its classes.
 6. [Boards and paging](#6-boards-and-paging)
 7. [Decisions](#7-decisions)
 8. [Requests of 2026-09-30](#8-requests-of-2026-09-30)
-9. [Plan: reactions on images](#9-plan-reactions-on-images) — waiting for a decision
-10. [Study: the bot's own copies of emojis](#10-study-the-bots-own-copies-of-emojis) — waiting for a decision
+9. [Reactions on images](#9-reactions-on-images)
+10. [The bot's own copies of emojis](#10-the-bots-own-copies-of-emojis)
 11. [Still to check in Discord](#11-still-to-check-in-discord)
 
 ## 1. The commands
@@ -41,10 +43,11 @@ draws its classes.
 | `duplicates` | Custom emojis with names alike, a group at a time, with menus to merge them | everyone looks; Manage Server merges | private, paged |
 | `alias add` / `remove` / `list` | Count one emoji as another, in all history | Manage Server for add and remove | private (`list` public) |
 | `recompute start` / `cancel` | Read channel history back into the counts | Manage Server | private, then posts in the channel |
+| `images on` / `off` | Count reactions on the images and videos people post here, or stop | Manage Server | private |
 
 `top`, `user` and `reactions` take the same filters: `since` and `until`
-(inclusive, `YYYY-MM-DD`, UTC) and `domain` (only replacements of links to one
-site).
+(inclusive, `YYYY-MM-DD`, UTC), `domain` (only replacements of links to one
+site) and `source` (links, images, or both; §9.4).
 
 ## 2. What is stored
 
@@ -55,15 +58,18 @@ erDiagram
     reactions }o--|| emojis : "shown as"
     emoji_aliases }o--|| emojis : "counts as"
     known_mirrors }o..o{ replacement_links : "recognises"
+    emojis ||--o| emoji_images : "downloaded as"
+    emoji_images }o--o| emoji_copies : "shares"
 
     replacement_messages {
-        int message_id PK "the bot's message"
+        int message_id PK "the bot's message, or a person's image"
         int guild_id
         int channel_id
         int original_message_id "NULL when not found"
         int original_author_id "who is credited; NULL when nobody"
         text state "pending, ok, failed, retrying"
         int created_at
+        text kind "link or image"
     }
     replacement_links {
         int message_id FK
@@ -92,6 +98,20 @@ erDiagram
         text host "a mirror, e.g. fxtwitter.com"
         text domain "the site it stood in for"
     }
+    emoji_images {
+        text emoji_key PK
+        text state "fetched, lost, too_big, failed"
+        text image_sha256 "NULL unless fetched"
+        int animated
+        int checked_at
+    }
+    emoji_copies {
+        text image_sha256 PK
+        int copy_id "the application emoji"
+        text name UK
+        int animated
+        int created_at
+    }
 ```
 
 - One row in `reactions` answers both "who received" (the message's
@@ -104,11 +124,15 @@ erDiagram
   recompute has learned (§4.2). It is never pruned.
 - `reaction_log` keeps every add and remove seen live, for questions nobody
   has asked yet. `backfill_progress` is how far a recompute got per channel.
+- An image post is a row in `replacement_messages` with `kind = 'image'`
+  (§9). `emoji_images` and `emoji_copies` are the bot's copies of emojis
+  (§10).
 
 ## 3. Counting reactions as they happen
 
 Every reaction in every channel reaches the bot. `reaction_store::add` records
-one only when its message is in `replacement_messages`, and asks that in the
+one only when its message is in `replacement_messages` (a replacement, or an
+image post, §9), and asks that in the
 same `INSERT`, so a reaction on any other message costs one statement and
 leaves nothing behind. Removals, and a moderator clearing one emoji or all of
 them, remove rows the same way. Emoji keys drop U+FE0F, so `❤` and `❤️` are
@@ -267,12 +291,13 @@ A board's filters are packed into its ◀ / ▶ buttons' `custom_id`, so a page
 reached by paging is the same board, even after a restart:
 
 ```
-linkboard:<page>:<board>;<emoji>;<site>;<since>;<until>;<user>
+linkboard:<page>:<board>;<emoji>;<site>;<since>;<until>;<user>;<source>
 ```
 
 `<board>` is `r`, `g`, `s` (people received, given, self) or `e`, `f` (emojis
-received, given). Dates are days since 1970. Buttons sent before `<user>`
-existed have five fields and still work. The `custom_id` holds 100
+received, given). Dates are days since 1970. `<source>` is `b`, `l` or `i`:
+both, links, images. Buttons sent before `<user>` or `<source>` existed have
+five or six fields and still work, counting links, which is all there was. The `custom_id` holds 100
 characters, which is why `domain` is capped at 40.
 
 ## 7. Decisions
@@ -293,6 +318,14 @@ characters, which is why `domain` is capped at 40.
 | 2026-09-30 | Names alike: 0 / 1 / 2 letters by length | A flat two letters groups most short names with each other |
 | 2026-09-30 | `/linkstats reactions` added, with `user` and `side` | `top by:emoji` was the only emoji list, hard to find and never one person's |
 | 2026-09-30 | Emoji lists page 20 at a time; people 10 | Emoji lines are short and a server has many |
+| 2026-09-30 | Image posts count images and videos, uploaded or linked straight to the file; not `gifv` (Tenor, Giphy) or a site's preview | The owner's answer. A preview of a page is the site's, not somebody's post |
+| 2026-09-30 | Image posts are rows in `replacement_messages` with a `kind` column | The owner's answer: every statistic already reads that table, so none needed a second query |
+| 2026-09-30 | Counting images is per server, off until `/linkstats images on` | The owner's answer. It counts every image in every channel |
+| 2026-09-30 | `source` defaults to both where images are counted, links elsewhere | The owner's answer. A server that never turned images on reads as before |
+| 2026-09-30 | The bot copies every emote used at least `emoji_copy_min_uses` times (1 to start); raising it deletes copies | The owner's answer. Their first recompute found 182 custom emojis, far under Discord's 2,000 |
+| 2026-09-30 | Copying starts on its own, a round a minute | The owner's answer. A recompute run again fills in what it finds |
+| 2026-09-30 | One copy per image, by SHA-256, and one per emote, by alias | Two servers' copies of one emote, or a re-upload, need no second copy |
+| 2026-09-30 | Lost images are tried again weekly, on two hosts | The owner wants as many lost emotes back as can be had |
 
 ## 8. Requests of 2026-09-30
 
@@ -303,212 +336,128 @@ characters, which is why `domain` is capped at 40.
 | 3 | A paged view of every reaction on one person's links | **Done.** `/linkstats reactions user:` |
 | 4 | A paged total of every emoji, for everyone | **Done.** `/linkstats reactions` (the same list as `top by:emoji`) |
 | 5 | Stop depending on the current URL rules to find old replacements | **Done.** §4.1, §4.2 |
-| 6 | Count reactions on images people post | **Planned, waiting for a decision.** §9 |
+| 6 | Count reactions on images people post | **Done.** §9 |
 | 7 | List emojis with the same or similar names, and alias from the list | **Done.** `/linkstats duplicates`, §5 |
 | 8 | A clearer description for `/linkstats emojis` | **Done.** Replaced by `duplicates`: "Custom emojis with the same or nearly the same name, to merge into one." |
-| 9 | Keep the bot's own copy of every emoji it sees | **Studied, waiting for a decision.** §10 |
+| 9 | Keep the bot's own copy of every emoji it sees | **Done.** §10 |
 | 10 | Offer only masters in `alias add`'s `as`; refuse aliasing an alias | **Done.** §5 |
 
-## 9. Plan: reactions on images
+## 9. Reactions on images
 
-> **Waiting for a decision.** Nothing here is built. It changes the database,
-> so it needs agreement first. The questions are at the end of this section.
+Many of the reactions worth counting are on images people post themselves,
+not on links the bot replaced. In a server that has run `/linkstats images
+on`, those are counted too, credited to whoever posted them, and a reaction
+to your own image is a self-reaction, as for links.
 
-**The ask.** Many of the reactions worth counting are on images people post
-themselves, not on links the bot replaced. These are both uploads and direct
-image links that Discord shows as an image. The bot never replaces these, so
-today nothing counts them.
+### 9.1 What counts
 
-### 9.1 What would count as an image post
+A message from a person, not a bot or a webhook, with at least one of
+(`has_media`):
 
-A message from a person, not a bot or webhook, with at least one of:
+- an **attachment** whose type is `image/*` or `video/*`, or with no type
+  given, a picture or video file's extension;
+- an **embed** of type `image` or `video` with no provider: a link straight to
+  a file, which Discord shows in place of the link.
 
-- an **attachment** whose `content_type` is `image/*` (PNG, JPEG, GIF, WebP);
-- an **embed** of type `image`: a direct link to an image that Discord shows
-  as one.
+A site's preview names its provider, so YouTube's player, whose embed is a
+`video`, does not count. `gifv` embeds, Tenor and Giphy's looping GIFs, are
+left out on purpose.
 
-**Questions:**
+### 9.2 Stored as
 
-- Should videos count: attachments of type `video/*`, and `video` embeds?
-- Should `gifv` embeds count? Those are Tenor and Giphy GIFs, and links that
-  Discord plays as a looping video.
+A row in `replacement_messages` with `kind = 'image'` (migration 12): the
+person's own message, with `original_message_id` itself,
+`original_author_id` the poster, state `ok`, and no links
+(`replacement_store::record_image_post`). Every other row is `link`. Retry,
+the preview tracker and settling after a restart only ever look at `pending`
+and `retrying` rows, so an image row is invisible to them.
 
-The author is credited, exactly as the poster of a replaced link is. Someone
-reacting to their own image is a self-reaction.
+### 9.3 As it happens
 
-### 9.2 Storing them
+`media_tracker`, called from `on_message_create` and `on_message_update`,
+only in a server that counts images:
 
-The recommendation is to reuse the tables rather than add parallel ones.
-`reactions.message_id` references `replacement_messages`. Every statistic
-already joins through that table, so an image post becomes one more row
-there:
+- An **upload** is recorded when the message arrives.
+- A message with **links** waits, author and all, for up to a minute
+  (`media_preview_wait`). Discord adds the preview a moment later, in an
+  update that often has no author, and one that shows a picture or video
+  records it. An update without one leaves it waiting, since a message can
+  be updated more than once.
 
-```sql
--- migration 12
-ALTER TABLE replacement_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'link';  -- link | image
-CREATE INDEX replacement_messages_by_kind ON replacement_messages (guild_id, kind);
-```
+From then on, reactions on it are counted by the same `reaction_store::add`
+as a replacement's.
 
-An image row looks like this:
+### 9.4 Reading them
 
-- `message_id` is the person's own message;
-- `original_message_id` is the same id;
-- `original_author_id` is the poster;
-- `state` is `ok`;
-- it has no `replacement_links`.
+`stat_query::source` is `links`, `images` or `both`, and every statistic
+filters `m.kind` by it. `top`, `user` and `reactions` take it as `source`;
+left out, it is both where images are counted and links alone where they are
+not. Titles say which: "on replaced links", "on images", "on links and
+images", and "their own images" for self-reactions. A `domain` means links
+alone, since an image has no site.
 
-Existing rows become `link`. Nothing else changes shape. Retry and the embed
-tracker only look at `pending` and `retrying` rows, so they never see an
-image row. This needs checking again when it is built.
+### 9.5 The recompute
 
-The alternative is separate `image_posts` and `image_reactions` tables. That
-keeps the name `replacement_messages` honest, but every statistic would then
-need a `UNION` of both, or two queries. The table could also be renamed to
-`tracked_messages`: SQLite renames the foreign keys with it. That is extra
-churn for a name.
+In a server that counts images (`backfill_request::images`), the recompute
+records each image post it passes, whether or not anybody has reacted yet,
+and rebuilds its reactions like a replacement's. The progress message, the
+report ("Images and videos found: 7, with 30 reactions") and the done reply
+count them. Reading reactions costs an API call per emoji per message, so a
+recompute with images takes longer; it stays safe to cancel and run again.
 
-### 9.3 Counting them as they happen
+## 10. The bot's own copies of emojis
 
-Uploads are known when the message arrives, so `on_message_create` records
-those at once. A direct image link is harder. Discord adds its preview a
-moment later, in a message update, and that update often arrives without the
-author (see `bot.cpp`). So the bot would keep a short list of messages
-waiting for a preview, from `on_message_create`, with their authors. An
-update that shows an `image` embed turns one of those into an image post.
-The list could live in memory with a one-minute expiry, the way the embed
-tracker waits for previews now.
+A custom emoji belongs to a server. When the server deletes it, statistics
+that show it get a broken image. So the bot copies every custom emoji it
+counts into its own **application emojis**, which it can use in any message
+and menu in any server, and shows the copy from then on.
 
-Reactions then count through the same `reaction_store::add` as today, with
-no change: the message is in the table.
+### 10.1 What Discord allows
 
-### 9.4 The recompute
+Application emojis are owned by the bot's application, not a server: up to
+2,000 per application, each named with 2–32 letters, digits and
+underscores, and an image of at most 256 KiB. People cannot use them. DPP
+10.1.6 has the calls (`application_emoji_create`, `_delete`), behind
+`discord_gateway::create_application_emoji` and `delete_application_emoji`.
 
-`describe_history` would also note whether a message has an image, from its
-attachments and embeds. History messages carry both. `consider` records each
-image post it finds and rebuilds its reactions, exactly as for a replacement.
-The report would gain "Images found" and count their reactions too.
+### 10.2 What is copied
 
-**Cost.** Reading reactions is one API call for each emoji on each message,
-more for 100+ reactors. Images are likely a large share of reacted messages,
-so a recompute could take several times as long. It stays safe to cancel
-and run again.
+`emoji_copy_store::plan` decides, each round:
 
-### 9.5 The commands
+- An **emote** is an emoji and every emoji merged into it by an alias. Its
+  uses are all their reactions together, in every server.
+- Each emote used at least `emoji_copy_min_uses` times (1 by default) gets
+  **one copy**: of the one kept, or when that one's image is lost, of the
+  next of its emojis, most used first.
+- Emojis with the **same image** share a copy, by the SHA-256 of the file,
+  even without an alias: the same emote on two servers is copied once.
+- Copies nothing wants any more are **deleted**: after the threshold is
+  raised, or when an alias merges two copied emotes. Deleting waits until
+  nothing is left to download, since an image not yet downloaded may be one
+  of them.
 
-A `source` option on `top`, `user` and `reactions`: **Links**, **Images** or
-**Both**, with Both the default. It would also go in the board's
-`custom_id`, one letter. Titles would change from "on replaced links" to
-"on links and images", "on images", or "on replaced links". `domain` only
-means anything for links: with it set, images are left out.
+`emoji_copy_min_uses` of 0 turns copying off and leaves the copies alone.
 
-### 9.6 Questions to answer before building
+### 10.3 How
 
-1. Videos and `gifv`: count them, or images only? (§9.1)
-2. **On everywhere, or per server?** Counting every image post in every
-   channel of every server the bot is in is a bigger step than counting its
-   own replacements. The recommendation is off until a server turns it on,
-   with `/linkstats images on|off` and Manage Server, like `/urlrepl enable`.
-3. Default `source` for the boards: Both, as recommended, or Links, so
-   today's boards read the same until someone asks for images?
-4. Keep the table name `replacement_messages` with a `kind` column, as
-   recommended, or rename it?
+`emoji_copier::run_round` runs every minute once the bot is connected, and
+does at most ten emojis (`copies_per_round`), which keeps well inside
+Discord's limits on making emojis. For each emoji:
 
-## 10. Study: the bot's own copies of emojis
+1. **Download** from `cdn.discordapp.com/emojis/<id>`, then from
+   `media.discordapp.net`, the media proxy, which has served images the CDN
+   no longer would. A `.gif` first, kept only if it has more than one frame,
+   so an animated emoji keeps moving; then a `.png`. An image over 256 KiB
+   is asked for again at `?size=96`.
+2. Nothing on either host is **lost**, tried again weekly in case it comes
+   back. Too big even when smaller is `too_big`, weekly too. A network error
+   or a refused upload is `failed`, tried again the next day.
+3. An image already copied is **shared**. Otherwise it is **uploaded**,
+   named after the original, with `_2`, `_3` added when the name is taken.
 
-> **Waiting for a decision.** This is a feasibility study; nothing is built.
-
-**The ask.** Upload every custom emoji the bot sees to the bot's own emoji
-store, so the statistics can still show an emote after its server deletes it.
-Aliases should share one copy.
-
-### 10.1 Can a bot do this?
-
-**Yes.** Discord has *application emojis*: emojis owned by the bot's
-application rather than a server. From Discord's documentation (to check
-again when building):
-
-- up to **2,000** per application;
-- uploaded with `POST /applications/{application.id}/emojis`, with a name of
-  2–32 letters, digits and underscores, and the image as a data URI of at
-  most **256 KiB**;
-- the bot can use them in any message and any component, in any server,
-  without being in a server that has them. People cannot use them.
-
-DPP 10.1.6, vendored here, already has `application_emoji_create`, `_get`,
-`_edit` and `_delete` (`cluster.h`), so no library change is needed. The
-images come from Discord's CDN, `https://cdn.discordapp.com/emojis/<id>.png`
-(`.gif` for animated ones), which needs no authentication. A server emoji is
-itself capped at 256 KiB, so the original should always fit.
-
-### 10.2 How it would work
-
-- **When.** The first time an emoji is recorded (live, or by a recompute),
-  queue it. A background job uploads at a gentle pace, since the emoji
-  routes are rate-limited. A command such as `/linkstats emojis copy`
-  (owner only) would run the queue for everything already known, with
-  progress like a recompute.
-- **One copy per image.** Hash the downloaded bytes (SHA-256; OpenSSL is
-  already linked). Identical images, such as the same emote on two servers,
-  share one application emoji, even before anyone aliases them. Aliases then
-  cover what differs in bytes but is the same emote.
-- **Storage.** A new table:
-
-  ```sql
-  CREATE TABLE emoji_copies (
-      emoji_key    TEXT PRIMARY KEY,  -- c:<original id>
-      image_sha256 TEXT,              -- NULL when the image could not be had
-      copy_id      INTEGER,           -- the application emoji; NULL until uploaded
-      state        TEXT NOT NULL,     -- queued | copied | lost | failed | skipped
-      updated_at   INTEGER NOT NULL
-  );
-  ```
-
-- **Showing one.** `display_emoji` would prefer the copy:
-  `<:name:copy_id>`. When the emoji itself has no copy, it would use the copy
-  of whatever the emoji counts as, or of any emoji merged into it, since
-  those are the same emote. Only if there is none would it show the original
-  id. The menus in `duplicates` could then show each emote's picture, which
-  they cannot now.
-- **Names.** Application emoji names are unique per application, and servers
-  reuse names (`kekw` twice). The copy keeps the name, with `_2`, `_3` added
-  when taken. The name only shows on hover.
-
-### 10.3 What makes it harder than it looks
-
-- **Already lost.** An emote whose server deleted it before the bot copied
-  it may already be gone from the CDN. A 404 marks it `lost`, and it shows as
-  today. The CDN is known to keep serving some deleted emojis for a long
-  time, so some "lost" ones may still be recoverable. That is worth trying
-  first on real data.
-- **The 2,000 cap is shared.** It covers every server the bot is in. When
-  more than 2,000 distinct images are known, the most-reacted are copied
-  first and the rest are `skipped`. How many distinct custom emojis the
-  statistics hold now is not known; a count from the database would settle
-  whether the cap matters.
-- **Rate limits.** Uploads are slow and rate-limited. A first run over a
-  large backlog could take hours in the background. It resumes from the
-  queue after a restart.
-- **The port.** `discord_gateway` would gain two methods, to upload and to
-  delete an application emoji, plus a mock for the tests. The download goes
-  through the existing `http_client` port.
-- **Whose emotes.** The copies are other servers' artwork, stored in the
-  bot's application. The only place they are visible is the Developer Portal
-  and the bot's own messages. That is probably fine for a private bot, but
-  it is a choice to make knowingly.
-
-### 10.4 Recommendation
-
-It is feasible and worth doing, since the loss it prevents cannot be undone
-later. Build it after the image decision, because images would add more
-emojis to copy. Start with a one-off count of distinct custom emojis and a
-trial of the CDN on a few known-deleted ones.
-
-**Questions:**
-
-1. Copy every custom emoji seen, or only those used at least N times?
-2. The owner-only command to start the backlog, or copy everything
-   automatically from the start?
-3. Is copying other servers' emotes into the bot's application acceptable?
+`display_emoji` shows the copy (`reaction_store::copy_of`): the emoji's own,
+or failing that, one of an emoji it is merged with. The menus in `duplicates`
+draw the copies as well, which they cannot do with other servers' emojis.
 
 ## 11. Still to check in Discord
 
@@ -520,4 +469,10 @@ None of this has met real Discord history yet:
 - that the jump links open the right messages;
 - `/linkstats duplicates` merging on a real server, and the menus as Discord
   draws them;
-- that autocomplete in `alias add` no longer offers merged emojis.
+- that autocomplete in `alias add` no longer offers merged emojis;
+- `/linkstats images on`, then an upload, a link to an image, a YouTube link
+  and a Tenor GIF: the first two counted, the others not;
+- a recompute with images on, and its report;
+- the first rounds of emoji copies: uploads, a GIF that still moves, the log's
+  "lost" count, and the copies showing in a board and in the duplicates menus;
+- raising `emoji_copy_min_uses` and seeing copies deleted.

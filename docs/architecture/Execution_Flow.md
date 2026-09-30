@@ -228,6 +228,11 @@ The stages only decide. Everything that talks to Discord happens in
 coroutine. So the handler returns in microseconds, however long the model
 takes to answer.
 
+After the pipeline, the same handler gives the message to `media_tracker`.
+In a server that counts reactions on images, an upload is recorded there and
+then, and a message with links waits a minute for the preview that shows
+whether it was an image (docs/features/Link_Stats.md §9).
+
 ## 5. Inside the four stages
 
 `goodbye.cpp`, `url_replacer.cpp`, `triggers.cpp`, `llm/stage.cpp`
@@ -703,15 +708,21 @@ flowchart LR
     a["every 5 s<br/>auto_leave.due(grace)"]
     b["every backup_interval, 6 h by default<br/>db::create_backup(), keeps backups_to_keep"]
     n["once, 10 s after a nickname change<br/>the audit log fallback, section 12"]
+    c["every 60 s, once connected<br/>detach(emoji_copier.run_round())"]
 
-    dpp --> m & e & l & a & b & n
+    dpp --> m & e & l & a & b & n & c
 
     m -- "send_message actions,<br/>at local midnight" --> carry["bot::carry_out()"]
     e -- "edits for previews<br/>that did not arrive" --> carryE["carry_out(embed actions)<br/>detached"]
     l -- "posts what was logged,<br/>backing off on errors" --> gw["discord_gateway"]
     a -- "servers where the bot<br/>was alone for the grace period" --> leave["shard->disconnect_voice()"]
     b --> file[("data/backups/bot-*.db")]
+    c -- "images from the CDN,<br/>then upload or delete" --> copies["http_client, then<br/>discord_gateway"]
 ```
+
+The emoji copier's timer exists only when `emoji_copy_min_uses` is above 0.
+A round does at most ten emojis, so a long backlog is worked through a
+minute at a time (docs/features/Link_Stats.md §10).
 
 The midnight tick polls the wall clock every 30 seconds instead of sleeping
 until midnight. The Java bot worked out a delay from the wall clock and then

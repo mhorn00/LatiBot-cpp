@@ -324,6 +324,7 @@ put your own user ID in `trusted_users`:
 | `spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
 | `spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
 | `llm_tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1 |
+| `emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
 cannot hold a Discord ID exactly; a number, or text that is not exactly an ID,
@@ -437,7 +438,7 @@ options, replies and edge cases.
 | `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
 | `/urlrepl` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
 | `/urltoggle` | have your own links left alone, or not |
-| `/linkstats` | `top`, `user`, `reactions`, `duplicates`, `alias`, `recompute` — reactions on replaced links |
+| `/linkstats` | `top`, `user`, `reactions`, `duplicates`, `alias`, `recompute`, `images` — reactions on replaced links, and on images where counted |
 | `/llm` | `status`, `on`, `off`, `model`, `settings`, and groups for the `personality`, `system` and `style` documents, advanced `trigger`s and the `blacklist` — the language model |
 | `/memory` | `list`, `forget`, `clear` — what the language model remembers |
 

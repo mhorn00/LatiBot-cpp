@@ -50,7 +50,7 @@ flowchart TB
 
     storage["<b>Settings and storage</b><br/>settings_ : config::bootstrap<br/>database_ : db::database<br/>guild_settings_ : config::guild_settings"]
     discord["<b>Discord</b><br/>cluster_ : dpp::cluster<br/>commands_ : commands::registry, which owns the 22 commands<br/>gateway_ : discord::dpp_gateway<br/>http_ : discord::dpp_http_client<br/>raw_ : discord::raw_api<br/>clock_ : ports::system_clock"]
-    message["<b>Message features</b><br/>bot_allowlist_, nicknames_, pending_nicknames_<br/>triggers_, trigger_panel_, trigger_responder_<br/>midnight_, midnight_scheduler_<br/>url_rules_, url_panel_, replacements_, reactions_<br/>backfill_progress_, backfill_, embed_tracker_<br/>pipeline_ : events::pipeline"]
+    message["<b>Message features</b><br/>bot_allowlist_, nicknames_, pending_nicknames_<br/>triggers_, trigger_panel_, trigger_responder_<br/>midnight_, midnight_scheduler_<br/>url_rules_, url_panel_, replacements_, media_, reactions_<br/>backfill_progress_, backfill_, emoji_copies_, emoji_copier_<br/>embed_tracker_<br/>pipeline_ : events::pipeline"]
     speech["<b>Speech</b><br/>tts_ : audio::dectalk_engine, starts its worker thread<br/>voice_output_, speech_ : audio::speech_queue<br/>voice_sessions_, auto_leave_<br/>voices_ : audio::voice_store, voice_drafts_, voice_lab_"]
     llm["<b>Language model</b><br/>llm_usage_, llm_documents_, llm_memories_<br/>llm_blacklist_, llm_triggers_, llm_tools_<br/>anthropic_, openai_ : unique_ptr to llm::provider, null without a key<br/>responder_ : llm::responder<br/>llm_stage_ : llm::llm_stage<br/>llm_panels_ : commands::llm_panels"]
     logging["<b>Logging</b><br/>log_destinations_ : events::log_destination_store<br/>log_channel_ : events::log_channel, taps the logger"]
@@ -100,6 +100,8 @@ classDiagram
         +get_messages(channel, before, limit) task~result~vector~message~~~
         +get_reaction_users(...) task~result~vector~snowflake~~~
         +start_typing(channel) task~result~void~~
+        +create_application_emoji(name, image, animated) task~result~snowflake~~
+        +delete_application_emoji(id) task~result~void~~
     }
     class http_client {
         <<interface>>
@@ -783,6 +785,7 @@ classDiagram
         +key : string
         +name : string
         +animated : bool
+        +copy : optional~emoji_copy~
     }
     class stat_query {
         <<struct>>
@@ -791,6 +794,7 @@ classDiagram
         +user_id : optional~snowflake~
         +since, until : optional~sys_seconds~
         +domain : optional~string~
+        +source : stat_source
     }
     class person_tally {
         <<struct>>
@@ -818,12 +822,12 @@ classDiagram
         +channel_ids : vector~snowflake~
         +since, until
         +bot_id
-        +fresh : bool
+        +fresh, images : bool
     }
     class backfill_report {
         <<struct>>
         +scanned, replacements, attributed : int64
-        +reactions : int64
+        +reactions, images, image_reactions : int64
         +unparsed, mismatched, unread : vector~message_place~
         +learned_mirrors : host and site pairs
         +channels_done, channels_total
@@ -853,7 +857,27 @@ classDiagram
         +mirror_urls : vector~string~
     }
     class linkstats_command
+    class media_tracker {
+        -waiting_ : map~message, author~
+        +on_message(posted) bool
+        +on_update(message, has_media) bool
+    }
+    class emoji_copy_store {
+        +plan(min_uses, now) copy_plan
+        +record_image(key, state, sha256, animated, now)
+        +add_copy(stored_copy, animated, now)
+    }
+    class emoji_copier {
+        -min_uses_ : int64
+        +run_round(limit) task~round_report~
+        -fetch(id) task~download~
+    }
 
+    media_tracker o-- replacement_store : records image posts in
+    emoji_copier o-- emoji_copy_store
+    emoji_copier o-- http_client : downloads from the CDN
+    emoji_copier o-- discord_gateway : uploads and deletes
+    reaction_store ..> emoji_copy_store : reads the copies of
     reaction_store ..> emoji_ref
     reaction_store ..> stat_query
     reaction_store ..> person_tally
@@ -887,7 +911,15 @@ The recompute reads each channel a page at a time, newest first, through
    from that, and remembered in `known_mirrors`.
 
 What went wrong is kept as `message_place`s, so the report and the reply
-that follows it link to each message. See
+that follows it link to each message.
+
+A server that has run `/linkstats images on` also has people's own image and
+video posts counted: `media_tracker` records them as they arrive, and the
+recompute as it reads history. They are rows in `replacement_messages` with
+`kind = 'image'`, so every statistic reads them the same way, filtered by
+`stat_query::source`. `emoji_copier` keeps the bot's own copies of the custom
+emojis it has seen, as application emojis, which `display_emoji` then
+prefers. See
 [docs/features/Link_Stats.md](../features/Link_Stats.md) for the whole
 feature.
 
@@ -1386,6 +1418,7 @@ classDiagram
         +llm_provider, llm_model : string
         +spend_cap_daily_usd, spend_cap_monthly_usd : double
         +llm_tool_rounds : int
+        +emoji_copy_min_uses : int64
         +trusted_guilds, trusted_users : vector~snowflake~
         +load(path)$ bootstrap
         +is_trusted(guild, user, administrator) bool
