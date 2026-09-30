@@ -34,7 +34,7 @@ exception anywhere in startup lands in the one `catch` at the end.
 ```mermaid
 flowchart TB
     start(["main(argc, argv)"])
-    path["config path = argv[1], or config.json"]
+    path["config::command_line::parse()<br/>a config path, or config.json, and --unregister-commands"]
     dotenv["util::load_dotenv(.env)<br/>fills in variables the environment does not already have"]
     colors["util::apply_log_colors_from_environment()"]
     envlevel["log level from LATIBOT_LOG_LEVEL, if set"]
@@ -46,6 +46,9 @@ flowchart TB
     certs["util::use_system_certificates()<br/>exports Windows' root certificates for OpenSSL"]
     secrets["config::secrets::from_environment()"]
     token{"DISCORD_BOT_TOKEN<br/>set?"}
+    unregister{"--unregister-<br/>commands?"}
+    delete["discord::unregister_commands(token)<br/>REST only: deletes the global commands<br/>and each server's own, then signs out"]
+    deleted(["return 0, or 1 if<br/>anything was refused"])
     build["latibot::bot bot(settings, credentials)<br/>see section 2"]
     run["bot.run()<br/>cluster_.start(dpp::st_wait)"]
     dpp[["DPP's event loop, on the main thread<br/>returns only once the cluster shuts down"]]
@@ -60,7 +63,10 @@ flowchart TB
     exists -- yes --> read --> level
     level --> certs --> secrets --> token
     token -- no --> fatal
-    token -- yes --> build --> run --> dpp --> stopped --> destroy --> ok
+    token -- yes --> unregister
+    unregister -- yes --> delete --> deleted
+    unregister -- no --> build --> run --> dpp --> stopped --> destroy --> ok
+    path -. "an unknown option,<br/>or two paths" .-> fatal
     read -. "bad JSON or<br/>a bad value" .-> fatal
     build -. "database or<br/>migration error" .-> fatal
     fatal --> fail
@@ -69,6 +75,10 @@ flowchart TB
 The order matters in two places. The `.env` file is read before anything
 looks at the environment. The log level is set before the configuration is
 read, so reading it is logged at the level asked for.
+
+`--unregister-commands` builds no `bot` at all. It needs only the token, the
+log settings and the certificates, and uses a DPP cluster with no shards, so
+the bot never connects to the gateway or comes online.
 
 ## 2. Building the bot
 

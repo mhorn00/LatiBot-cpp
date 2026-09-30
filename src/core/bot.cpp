@@ -14,6 +14,7 @@
 #include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/migrations.hpp"
+#include "core/discord/dpp_log.hpp"
 #include "core/discord/message_flags.hpp"
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
@@ -42,22 +43,6 @@
 
 namespace latibot {
 namespace {
-
-auto from_dpp(dpp::loglevel level) -> util::log_level {
-    switch (level) {
-    case dpp::ll_trace:
-        return util::log_level::trace;
-    case dpp::ll_debug:
-        return util::log_level::debug;
-    case dpp::ll_info:
-        return util::log_level::info;
-    case dpp::ll_warning:
-        return util::log_level::warn;
-    default:
-        // Errors and criticals both matter enough to surface the same way.
-        return util::log_level::error;
-    }
-}
 
 /// The intents to connect with.
 ///
@@ -401,7 +386,7 @@ auto bot::register_events() -> void {
     // types left to colour; the [dpp] tag is coloured instead, which is what
     // tells its lines apart from ours at a glance.
     cluster_.on_log([this](const dpp::log_t& event) {
-        util::log().log(from_dpp(event.severity), "{} {}", util::log_source{"dpp"}, event.message);
+        util::log().log(discord::log_level_of(event.severity), "{} {}", util::log_source{"dpp"}, event.message);
 
         // 4014 is the gateway refusing a privileged intent, and DPP reports it
         // as a websocket number in a reconnect loop. The cause is always the

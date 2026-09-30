@@ -9,6 +9,7 @@ add_library(latibot_core STATIC
     core/audio/wav.cpp
     core/bot.cpp
     core/config/bootstrap.cpp
+    core/config/command_line.cpp
     core/config/guild_settings.cpp
     core/db/backup.cpp
     core/db/database.cpp
@@ -30,13 +31,16 @@ add_library(latibot_core STATIC
     core/commands/preflight.cpp
     core/commands/registry.cpp
     core/commands/speak.cpp
+    core/commands/unregister.cpp
     core/commands/voice.cpp
     core/commands/voice_lab.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
+    core/discord/dpp_log.cpp
     core/discord/dpp_voice_output.cpp
     core/discord/message_flags.cpp
     core/discord/raw_api.cpp
+    core/discord/unregister_commands.cpp
     core/discord/voice_state.cpp
     core/events/backfill.cpp
     core/events/bot_allowlist.cpp

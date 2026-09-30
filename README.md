@@ -349,6 +349,21 @@ recompute is affected: the test bot still posts and tracks its own
 replacements as itself. A Release build never reads the variable, and says so
 if it is set.
 
+A test bot in the same server as the production one also leaves its slash
+commands beside the real ones, so every command shows twice. To remove them
+when done testing:
+
+```powershell
+.\build\bin\Debug\LatiBot.exe --unregister-commands
+```
+
+or run the **Unregister the bot's commands (Debug)** task. It signs in as
+whichever bot `DISCORD_BOT_TOKEN` belongs to, logs its name, deletes its global
+commands and any a server has of its own, and exits. It never comes online,
+and nothing else of the bot runs. Its next ordinary start registers them
+again. It also takes a config file first, like an ordinary start:
+`LatiBot.exe other.json --unregister-commands`.
+
 ### Logging
 
 Lines go to **stderr**, one per message, timestamped first so they stay
@@ -564,8 +579,9 @@ installs from step 4 again.
 `.vscode/tasks.json` wraps the common ones, so they are available from
 **Run Task** with clickable output: build and test per configuration, the
 AddressSanitizer run, clang-tidy over `src/` or a single file, clang-format,
-the test catalog generator, the Conan install and a short fuzz run. They call
-the same commands as above; nothing is exclusive to the editor.
+the test catalog generator, the Conan install, a short fuzz run, and
+unregistering a test bot's commands. They call the same commands as above;
+nothing is exclusive to the editor.
 
 ## Project layout
 

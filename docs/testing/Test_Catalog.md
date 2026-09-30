@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-772 test cases across 11 components, including 159 sections.
+782 test cases across 11 components, including 159 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 148 | 19 |
-| [config](#config) | 31 | 19 |
-| [commands](#commands) | 190 | 54 |
+| [config](#config) | 36 | 19 |
+| [commands](#commands) | 195 | 54 |
 | [events](#events) | 188 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -213,6 +213,11 @@ Configuration (`src/core/config`)
 | an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:351](../../tests/unit/bootstrap_test.cpp#L351) |
 | a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:363](../../tests/unit/bootstrap_test.cpp#L363) |
 | something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:376](../../tests/unit/bootstrap_test.cpp#L376) |
+| no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
+| a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
+| the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
+| an unknown option is refused rather than read as a config file |  |  | [tests/unit/command_line_test.cpp:52](../../tests/unit/command_line_test.cpp#L52) |
+| two config files are refused |  |  | [tests/unit/command_line_test.cpp:57](../../tests/unit/command_line_test.cpp#L57) |
 
 ## commands
 
@@ -377,6 +382,11 @@ Command framework (`src/core/commands`)
 | a full page of the longest patterns still fits the panel and the list |  |  | [tests/unit/trigger_command_test.cpp:345](../../tests/unit/trigger_command_test.cpp#L345) |
 | the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:367](../../tests/unit/trigger_command_test.cpp#L367) |
 | each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:384](../../tests/unit/trigger_command_test.cpp#L384) |
+| unregistering deletes the global commands and every server's own | `coro` |  | [tests/unit/unregister_test.cpp:29](../../tests/unit/unregister_test.cpp#L29) |
+| a set with no commands in it is not deleted | `coro` |  | [tests/unit/unregister_test.cpp:46](../../tests/unit/unregister_test.cpp#L46) |
+| a refused deletion is reported and the other servers still cleared | `coro` |  | [tests/unit/unregister_test.cpp:60](../../tests/unit/unregister_test.cpp#L60) |
+| the servers not being listable still leaves the global commands deleted | `coro` |  | [tests/unit/unregister_test.cpp:79](../../tests/unit/unregister_test.cpp#L79) |
+| the global commands not being listable is reported and nothing global deleted | `coro` |  | [tests/unit/unregister_test.cpp:93](../../tests/unit/unregister_test.cpp#L93) |
 | mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:53](../../tests/unit/urlrepl_command_test.cpp#L53) |
 | the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:66](../../tests/unit/urlrepl_command_test.cpp#L66) |
 | a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:70](../../tests/unit/urlrepl_command_test.cpp#L70) |

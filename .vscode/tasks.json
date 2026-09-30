@@ -51,6 +51,21 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
+      // Deletes every slash command the bot in .env has registered, then
+      // exits, so a test bot's commands stop sitting beside the real bot's
+      // as duplicates. Whose commands go depends only on DISCORD_BOT_TOKEN,
+      // and the log names the bot before deleting anything. Its next
+      // ordinary start registers them again.
+      "label": "Unregister the bot's commands (Debug)",
+      "type": "process",
+      "command": "${workspaceFolder}/build/bin/Debug/LatiBot.exe",
+      "args": ["--unregister-commands"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOn": ["Build bot (Debug)"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
       "label": "Build (Release)",
       "type": "process",
       "command": "cmake",

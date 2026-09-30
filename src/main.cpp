@@ -1,11 +1,14 @@
 #include "core/bot.hpp"
 #include "core/config/bootstrap.hpp"
+#include "core/config/command_line.hpp"
+#include "core/discord/unregister_commands.hpp"
 #include "core/util/ca_certificates.hpp"
 #include "core/util/env.hpp"
 #include "core/util/log.hpp"
 
 #include <exception>
-#include <filesystem>
+#include <string_view>
+#include <vector>
 
 // Everything is caught below; clang-tidy still flags main because writing to
 // the log inside a handler could itself throw. There is nowhere left to
@@ -13,7 +16,8 @@
 // NOLINTNEXTLINE(bugprone-exception-escape)
 auto main(int argc, char** argv) -> int {
     try {
-        const std::filesystem::path config_path = argc > 1 ? argv[1] : "config.json";
+        const std::vector<std::string_view> arguments(argv + 1, argv + argc);
+        const auto command_line = latibot::config::command_line::parse(arguments);
 
         // .env is a local-run convenience only, gitignored, and never
         // overrides a variable the real environment already set (plan
@@ -29,7 +33,7 @@ auto main(int argc, char** argv) -> int {
         // logged at the level asked for.
         if (const auto wanted = latibot::config::log_level_from_environment()) latibot::util::log().set_level(*wanted);
 
-        const auto settings = latibot::config::bootstrap::load(config_path);
+        const auto settings = latibot::config::bootstrap::load(command_line.config_path);
 
         // Applied here rather than only in the bot, so that everything below
         // this line is logged at the level the operator asked for.
@@ -40,6 +44,10 @@ auto main(int argc, char** argv) -> int {
         latibot::util::use_system_certificates(settings.database_path.parent_path() / "ca-bundle.pem");
 
         const auto credentials = latibot::config::secrets::from_environment();
+
+        // Instead of running, not before it: the next ordinary start would
+        // register everything again straight away.
+        if (command_line.unregister_commands) return latibot::discord::unregister_commands(credentials.discord_token) ? 0 : 1;
 
         latibot::bot bot(settings, credentials);
         bot.run();
