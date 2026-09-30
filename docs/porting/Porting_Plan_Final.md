@@ -42,7 +42,8 @@ the order of work behind it.
 > | §11 | [Triggers](../features/Triggers.md) |
 > | §13 | [Voice channels](../features/Voice_Channels.md) |
 > | §14, §21.18–§21.20 | [Language model](../features/Language_Model.md) |
-> | §8.5, §15, §16 | [Planned.md](../features/Planned.md), until they are built |
+> | §15, and the mixer half of §13 | [Music](../features/Music.md) (a draft until it is built) |
+> | §8.5, §16 | [Planned.md](../features/Planned.md), until they are built |
 > | §17, §21.6 | [docs/testing/](../testing/README.md) |
 >
 > §2.1, §2.3 and §2.5 are findings the specs draw on where they apply. §0,

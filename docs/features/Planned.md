@@ -21,9 +21,9 @@ Command names, option names and reply wording are all proposals.
 
 **Music.** The Java bot played from YouTube and direct links through LavaPlayer,
 which has no C++ equivalent. The rebuild will use yt-dlp and ffmpeg, with the
-queue redesigned around Discord's own playback markers rather than the
-hand-rolled bookkeeping the Java version had. Music pauses while the bot speaks
-and resumes afterwards. The commands stay **unregistered** until it works, so
+queue redesigned, and music pausing while the bot speaks and resuming
+afterwards. Its draft spec, with the questions still open, is
+[Music.md](Music.md). The commands stay **unregistered** until it works, so
 the slash menu is not full of things that reply "not implemented".
 
 **Emote statistics.** Which custom emoji actually get used. The Java version

@@ -103,6 +103,7 @@ as subsections, rather than renumbering.
 | [Log channel](Log_Channel.md) | `/logs` |
 | [Commands and panels](Commands_and_Panels.md) | What every command and panel shares: registration, flags, `custom_id` state, forms, `--unregister-commands` |
 | [Running the bot](Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
+| [Music](Music.md) | **Draft, not built.** `/play` and the queue, yt-dlp and ffmpeg, and the mixer that pauses music for speech |
 
 Features designed but not built are in [Planned.md](Planned.md).
 
