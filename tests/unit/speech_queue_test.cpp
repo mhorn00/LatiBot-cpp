@@ -1,4 +1,5 @@
-// What each guild is saying, in order, and stopping it (plan §12.7, §13).
+// What each guild is saying, in order, and stopping it
+// (docs/features/Speech.md §2.4, docs/features/Voice_Channels.md §3).
 
 #include "core/audio/speech_queue.hpp"
 

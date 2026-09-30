@@ -41,8 +41,8 @@ auto read_entry(const json& element, dpp::snowflake guild_id, dpp::snowflake use
         return;
     }
 
-    // A cleared nickname was stored as an empty string there, and is stored as
-    // nothing here (plan §8.2).
+    // A cleared nickname was stored as an empty string there, and is stored
+    // as nothing here (docs/features/Nicknames.md §2.1).
     const std::string text = nickname.get<std::string>();
 
     std::optional<dpp::snowflake> author;

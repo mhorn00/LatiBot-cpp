@@ -49,12 +49,13 @@ namespace {
 /// i_message_content is privileged and must also be enabled in the Discord
 /// developer portal. Without it every guild message arrives with an empty
 /// `content`, which silently disables the whole pipeline: the goodbye phrase
-/// and the triggers both read it (plan §5.4).
+/// and the triggers both read it (docs/features/Operations.md §3).
 ///
-/// i_guild_members is privileged in the same way, and is the only way nickname
-/// changes and a complete member list arrive at all (plan §8). It is asked
-/// for only when nickname tracking is on, because a bot that asks for an
-/// intent it was not granted is refused the gateway outright.
+/// i_guild_members is privileged in the same way, and is the only way
+/// nickname changes and a complete member list arrive at all
+/// (docs/features/Operations.md §3). It is asked for only when nickname
+/// tracking is on, because a bot that asks for an intent it was not granted
+/// is refused the gateway outright.
 auto intents_for(const config::bootstrap& settings) -> std::uint32_t {
     std::uint32_t intents = dpp::i_default_intents | dpp::i_message_content;
     if (settings.track_nicknames) intents |= dpp::i_guild_members;
@@ -263,7 +264,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     const int version = db::migrate(database_);
     util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
 
-    // The model's memory, as tools it can call (plan §14.5).
+    // The model's memory, as tools it can call
+    // (docs/features/Language_Model.md §3.4).
     llm::add_memory_tools(llm_tools_, llm_memories_);
 
     // Info: a missing key is the whole reason the model would never answer,
@@ -287,7 +289,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
 
     // Years of history from the Java bot, if its file was left beside the
     // database. Importing is idempotent, so this needs no marker file and no
-    // "have I done this already" flag (plan §8.3).
+    // "have I done this already" flag (docs/features/Nicknames.md §4).
     const std::filesystem::path legacy = settings_.database_path.parent_path() / "nicknames.json";
     if (const auto imported = events::import_nicknames_file(nicknames_, legacy); imported.value_or(0) > 0) {
         util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
@@ -347,9 +349,10 @@ auto bot::register_commands() -> void {
 }
 
 auto bot::register_stages() -> void {
-    // The order is plan §5.4, and it is a list so that changing it is one
-    // line. The model is last: it consumes what it answers, and a simple
-    // trigger's reply before it keeps an advanced trigger quiet (plan §14.3).
+    // The order of docs/features/Message_Pipeline.md §2.2, as a list so that
+    // changing it is one line. The model is last: it consumes what it
+    // answers, and a simple trigger's reply before it keeps an advanced
+    // trigger quiet.
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
     pipeline_.add("url replacement", events::url_replacer(url_rules_));
     pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
@@ -374,8 +377,8 @@ auto bot::llm_services() -> commands::llm_command_services {
 }
 
 auto bot::answer_with_llm(events::ask_llm ask) -> dpp::task<void> {
-    // Bot-to-bot pacing (plan §14.4). The turn was claimed when the stage
-    // decided, so the wait only spaces it out.
+    // Bot-to-bot pacing (docs/features/Language_Model.md §2.7). The turn was
+    // claimed when the stage decided, so the wait only spaces it out.
     if (ask.wait > std::chrono::seconds::zero()) co_await cluster_.co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
     co_await responder_.answer(std::move(ask));
 }
@@ -388,10 +391,10 @@ auto bot::register_events() -> void {
     cluster_.on_log([this](const dpp::log_t& event) {
         util::log().log(discord::log_level_of(event.severity), "{} {}", util::log_source{"dpp"}, event.message);
 
-        // 4014 is the gateway refusing a privileged intent, and DPP reports it
-        // as a websocket number in a reconnect loop. The cause is always the
-        // same toggle, so say which one rather than leaving somebody to look
-        // the code up (plan §21.2).
+        // 4014 is the gateway refusing a privileged intent, and DPP reports
+        // it as a websocket number in a reconnect loop. The cause is always
+        // the same toggle, so say which one rather than leaving somebody to
+        // look the code up (docs/features/Operations.md §3).
         if (settings_.track_nicknames && event.message.find("4014") != std::string::npos) {
             util::log().error(
                 "Discord refused the Server Members intent. Enable it under Bot > Privileged Gateway Intents "
@@ -408,8 +411,9 @@ auto bot::register_events() -> void {
     cluster_.on_ready([this](const dpp::ready_t& event) { on_ready(event); });
 
     // Guilds arrive as guild_create after the gateway connects, including the
-    // ones the bot was already in, so this covers both cases plan §7 asks
-    // for without a separate sweep on ready.
+    // ones the bot was already in, so this covers startup and later joins
+    // alike without a separate sweep on ready
+    // (docs/features/Operations.md §6).
     cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
         const dpp::guild& guild = event.created;
         util::log().info("in guild {} ({})", guild.name, guild.id);
@@ -418,9 +422,6 @@ auto bot::register_events() -> void {
         reconcile_nicknames(guild);
         import_url_rules(guild);
         settle_stranded_replacements(guild.id);
-
-        const int seeded = triggers_.seed_defaults(guild.id);
-        if (seeded > 0) util::log().info("{}: seeded {} default triggers", guild.name, seeded);
 
         util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
                           triggers_.for_guild(guild.id).size(), bot_allowlist_.for_guild(guild.id).size(),
@@ -434,7 +435,7 @@ auto bot::register_events() -> void {
     cluster_.on_message_create([this](const dpp::message_create_t& event) {
         carry_out(pipeline_.run(describe(event.msg, event.raw_event)));
         // Somebody's image or video, in a server that counts reactions on
-        // them (docs/features/Link_Stats.md 9).
+        // them (docs/features/Link_Stats.md §9).
         const dpp::message& message = event.msg;
         media_.on_message({.message_id = message.id,
                            .guild_id = message.guild_id,
@@ -447,8 +448,9 @@ auto bot::register_events() -> void {
 
     // Discord adds link previews by updating the message a moment after it
     // was posted, which is how the embed tracker learns that a mirror worked
-    // (plan §9.3). Every update goes to it: the one for our message often
-    // arrives without an author, so there is nothing to filter on here.
+    // (docs/features/Url_Replacement.md §3.3). Every update goes to it: the
+    // one for our message often arrives without an author, so there is
+    // nothing to filter on here.
     cluster_.on_message_update([this](const dpp::message_update_t& event) {
         const std::vector<std::string> urls = embed_urls_of(event.msg);
         carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
@@ -457,9 +459,10 @@ auto bot::register_events() -> void {
     });
     cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
 
-    // Reaction statistics (plan §9.6). Every reaction in every channel
-    // arrives here; the store counts the ones on our replacements and
-    // ignores the rest in the same statement that would have recorded them.
+    // Reaction statistics (docs/features/Link_Stats.md §3). Every reaction in
+    // every channel arrives here; the store counts the ones on our
+    // replacements and ignores the rest in the same statement that would have
+    // recorded them.
     cluster_.on_message_reaction_add([this](const dpp::message_reaction_add_t& event) {
         const dpp::emoji& emoji = event.reacting_emoji;
         const auto reacted = events::reaction_emoji(emoji.id, emoji.name, emoji.is_animated());
@@ -491,7 +494,7 @@ auto bot::register_events() -> void {
     //
     // Recording and attributing are separate events on purpose: the change is
     // written down the moment it is seen, and the audit log fills in who did
-    // it if and when it arrives (plan §8.1).
+    // it if and when it arrives (docs/features/Nicknames.md §3).
     if (settings_.track_nicknames) {
         cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
         cluster_.on_guild_audit_log_entry_create(
@@ -509,7 +512,7 @@ auto bot::register_events() -> void {
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
 
     // Speech waits for the connection to be ready, and is told when each
-    // utterance finishes playing (plan §13).
+    // utterance finishes playing (docs/features/Voice_Channels.md §3).
     cluster_.on_voice_ready([this](const dpp::voice_ready_t& event) {
         if (event.voice_client != nullptr) speech_.on_ready(event.voice_client->server_id);
     });
@@ -523,7 +526,7 @@ auto bot::on_ready(const dpp::ready_t& event) -> void {
     util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
 
     // A presence lasts one session, so every connect, a reconnect included,
-    // puts the last /status back (plan §6).
+    // puts the last /status back (docs/features/Basic_Commands.md §2).
     if (const auto status = commands::load_status(guild_settings_)) {
         cluster_.set_presence(commands::presence_for(*status));
         util::log().info("status restored: {} \"{}\"", status->type.empty() ? "playing" : status->type, status->text);
@@ -575,10 +578,10 @@ auto guarded(std::string_view what, Work work) {
 } // namespace
 
 auto bot::register_timers() -> void {
-    // Polling the wall clock is the fix for the Java bot's random-fire bug: it
-    // computed a delay from the wall clock and then waited on a monotonic
+    // Polling the wall clock is the fix for the Java bot's random-fire bug:
+    // it computed a delay from the wall clock and then waited on a monotonic
     // timer, so a machine that slept woke up and posted at whatever time it
-    // happened to be (plan §10).
+    // happened to be (docs/features/Midnight.md §1).
     cluster_.start_timer(guarded("the midnight tick", [this](dpp::timer) { carry_out(midnight_scheduler_.tick()); }),
                          static_cast<std::uint64_t>(events::midnight_tick.count()));
 
@@ -596,8 +599,8 @@ auto bot::register_timers() -> void {
                          static_cast<std::uint64_t>(events::log_channel_tick.count()));
 
     // Leaving a voice channel nobody else is in, once its guild's grace has
-    // passed (plan §13). Leaving is the bot's own voice state changing, which
-    // on_voice_state tidies up after.
+    // passed (docs/features/Voice_Channels.md §2.3). Leaving is the bot's own
+    // voice state changing, which on_voice_state tidies up after.
     cluster_.start_timer(guarded("the voice auto-leave check",
                                  [this](dpp::timer) {
                                      const auto grace = [this](dpp::snowflake guild) {
@@ -677,7 +680,8 @@ auto bot::on_member_update(const dpp::guild_member& member) -> void {
     const std::optional<std::string> nickname = current.empty() ? std::nullopt : std::optional(current);
 
     // A change the bot just made is already in the history with the invoker
-    // against it, and recording it again would lose that (plan §8.1).
+    // against it, and recording it again would lose that
+    // (docs/features/Nicknames.md §3).
     if (pending_nicknames_.claim(member.guild_id, member.user_id, nickname, clock_.now())) {
         util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id, member.guild_id);
         return;
@@ -692,7 +696,8 @@ auto bot::on_member_update(const dpp::guild_member& member) -> void {
     }
 
     // Recording never waits on attribution, so this is the only thing that
-    // notices the audit entry never turning up (plan §8.1).
+    // notices the audit entry never turning up
+    // (docs/features/Nicknames.md §3).
     attribute_later(member.guild_id, member.user_id, *row);
 }
 
@@ -784,7 +789,7 @@ auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
 
     // Changes made while the bot was not running have nobody to attribute
     // them to, which is why they are marked as their own source rather than
-    // guessed at (plan §8.4).
+    // guessed at (docs/features/Nicknames.md §3).
     int recorded = 0;
     for (const auto& [user_id, member] : guild.members) {
         const std::string current = member.get_nickname();
@@ -825,7 +830,8 @@ auto bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowfla
     util::log().info("{} pressed Retry on replacement {} in guild {}", who, message_id, event.command.guild_id);
 
     // Answering the button with the edit is the first attempt, so it cannot
-    // be overtaken by another press. Anyone may press it (plan §9.4).
+    // be overtaken by another press. Anyone may press it
+    // (docs/features/Url_Replacement.md §2.4).
     event.reply(dpp::ir_update_message, events::build_edit(retry.first));
     carry_out(embed_tracker_.watch(std::move(retry.request)));
 }

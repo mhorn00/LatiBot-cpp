@@ -206,8 +206,8 @@ TEST_CASE("last_insert_rowid and changes report the previous statement", "[db]")
 
 TEST_CASE("concurrent writers are serialized by the connection lock", "[db][threads]") {
     // The plan's concurrency model is one connection behind a mutex
-    // (plan v4 §5.2). If that holds, parallel writers cannot corrupt or lose
-    // rows, and none of them throws SQLITE_BUSY.
+    // (docs/features/Operations.md §5). If that holds, parallel writers
+    // cannot corrupt or lose rows, and none of them throws SQLITE_BUSY.
     test_database fixture;
     database& db = fixture.db;
 

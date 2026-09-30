@@ -1,4 +1,4 @@
-// WAV files and voice-message waveforms (plan §12.8).
+// WAV files and voice-message waveforms (docs/features/Speech.md §4.4).
 
 #include "core/audio/wav.hpp"
 

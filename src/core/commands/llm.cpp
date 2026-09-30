@@ -614,7 +614,8 @@ auto llm_command::revert_document(const dpp::slashcommand_t& event, llm::documen
         co_await event.co_reply(refusal(event, std::format("there's no version {} of the {}", number, label_of(kind))));
         co_return;
     }
-    // Edits go to the log, not to the channel (plan §14.5).
+    // Edits go to the log, not to the channel
+    // (docs/features/Language_Model.md §3.5).
     util::log().info("the {} in guild {} reverted to version {} by {}, as version {}", label_of(kind), guild, number,
                      describe_user(event.command.get_issuing_user()), *saved);
     co_await event.co_reply(result(event, describe_saved(kind, *saved, services_.documents->text(guild, kind))));
@@ -1014,7 +1015,8 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
 
         const int version =
             services_.documents->save(guild, *kind, text, event.command.get_issuing_user().id, seconds_now(*services_.clock));
-        // Edits go to the log, not to the channel (plan §14.5).
+        // Edits go to the log, not to the channel
+        // (docs/features/Language_Model.md §3.5).
         util::log().info("the {} in guild {} edited by {}: version {}, {} characters", label_of(*kind), guild, who, version,
                          util::character_count(text));
         ui::answer_privately(event, describe_saved(*kind, version, text));

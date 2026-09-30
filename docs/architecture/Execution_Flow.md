@@ -642,8 +642,7 @@ flowchart TB
         g2["reconcile_nicknames()<br/>records nicknames changed while the bot was off"]
         g3["import_url_rules()<br/>the Java bot's rules, once per server"]
         g4["settle_stranded_replacements()<br/>finishes what the last run left pending"]
-        g5["triggers_.seed_defaults()<br/>the default triggers, for a new server"]
-        g1 --> g2 --> g3 --> g4 --> g5
+        g1 --> g2 --> g3 --> g4
     end
 ```
 

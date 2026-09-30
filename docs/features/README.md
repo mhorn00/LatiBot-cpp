@@ -83,8 +83,10 @@ One per feature. Each says what the feature is **for** (and, where the Java
 bot had it, what went wrong there), how it **behaves**, how it is **built**,
 the **decisions** behind it with when and why each was made, and what is
 still open or unchecked in Discord. The header of each lists its code,
-tests, tables, and the plan sections it replaces, which code comments still
-cite.
+tests, tables, and the plan sections it replaces. Code comments cite specs
+by file and section: `docs/features/Url_Replacement.md §2.4`. So keep a
+spec's section numbers stable: add new sections after the existing ones, or
+as subsections, rather than renumbering.
 
 | Spec | Covers |
 |---|---|
@@ -1198,9 +1200,9 @@ Configure it with [`/goodbye`](#goodbye).
 When a message matches one of this server's triggers, the bot replies with one
 of that trigger's responses, chosen by weight.
 
-New servers start with the three the Java bot had — `420`, `4:20` and `69`, all
-answering "nice" — seeded **only when the server has none**, so deleting them
-does not bring them back on the next restart.
+A server starts with **no** triggers. The Java bot's `420`, `4:20` and `69`,
+all answering "nice", are not added for you; add them with
+[`/trigger add`](#trigger-add) if you want them.
 
 - **Whole word** is the default: `420` fires on `it is 420 somewhere` and on
   `(420)`, but not on `4200`. Every occurrence is checked, so `4200 and also

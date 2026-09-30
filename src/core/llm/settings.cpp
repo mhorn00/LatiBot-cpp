@@ -15,8 +15,8 @@ namespace {
 
 constexpr std::array<std::string_view, 3> groups{"context", "replies", "bots"};
 
-// The defaults are plan §20's where it names one, and otherwise chosen to
-// keep a friendly server well inside the spend caps.
+// The defaults and ranges are the table in docs/features/Language_Model.md
+// §2.9, chosen to keep a friendly server well inside the spend caps.
 constexpr std::array<setting_spec, 10> specs{{
     {.key = "llm_context_messages", .label = "Recent messages it reads", .group = "context", .fallback = 15, .min = 0, .max = 50},
     {.key = "llm_context_tokens", .label = "Token budget for them", .group = "context", .fallback = 3000, .min = 200, .max = 20000},

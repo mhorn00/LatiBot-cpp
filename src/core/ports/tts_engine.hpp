@@ -12,7 +12,7 @@
 namespace latibot::ports {
 
 /// Which voice to speak with. `custom_params` carries a saved custom voice's
-/// `[:dv ...]` pairs (plan §12.6).
+/// `[:dv ...]` pairs (docs/features/Speech.md §3).
 struct voice_settings {
     std::string voice = "paul";
     int rate = 200;
@@ -24,11 +24,13 @@ struct voice_settings {
 
 /// One thing to say.
 struct speech_request {
-    /// Must already have been through the sanitizer (plan §12.5).
+    /// Must already have been through the sanitizer
+    /// (docs/features/Speech.md §4.3).
     std::string text;
     voice_settings voice;
 
-    /// Audio past this is dropped and the utterance ends there (plan §12.7).
+    /// Audio past this is dropped and the utterance ends there
+    /// (docs/features/Speech.md §2.3).
     std::chrono::milliseconds max_duration{std::chrono::seconds{60}};
 };
 
@@ -51,7 +53,7 @@ struct pcm_audio {
 /// Speech synthesis.
 ///
 /// The mixer and the commands talk to this rather than to DECtalk directly,
-/// so they can be tested without the engine (plan §17.3).
+/// so they can be tested without the engine (docs/testing/README.md).
 class tts_engine {
 public:
     virtual ~tts_engine() = default;

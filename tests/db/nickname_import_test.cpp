@@ -61,7 +61,8 @@ TEST_CASE("importing the same file twice adds nothing the second time", "[db]") 
     REQUIRE(import_nicknames(fixture.store, report) == 2);
 
     // Which is what lets the file simply be left where it is, rather than
-    // needing to be moved or marked after one run (plan v4 §8.3).
+    // needing to be moved or marked after one run
+    // (docs/features/Nicknames.md §4).
     CHECK(import_nicknames(fixture.store, report) == 0);
     CHECK(fixture.store.count(guild, member) == 2);
 }

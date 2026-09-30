@@ -1,4 +1,5 @@
-// The built-in voices and the preamble that selects one (plan §12.6).
+// The built-in voices and the preamble that selects one
+// (docs/features/Speech.md §3).
 
 #include "core/audio/voice_params.hpp"
 

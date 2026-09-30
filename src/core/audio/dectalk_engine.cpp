@@ -52,9 +52,10 @@ struct buffer {
 /// What the callback and the worker share while one utterance is spoken.
 ///
 /// DECtalk hands buffers back in the order they were queued, and the pointer
-/// it passes to the callback is cut to 32 bits (plan §2.2). So the buffers in
-/// flight are kept in queue order, and each buffer message takes the front
-/// one; the 32 bits are only compared, as a check.
+/// it passes to the callback is cut to 32 bits
+/// (docs/features/Speech.md §4.1). So the buffers in flight are kept in queue
+/// order, and each buffer message takes the front one; the 32 bits are only
+/// compared, as a check.
 struct session {
     LPTTS_HANDLE_T handle = nullptr;
     std::array<buffer, buffer_count> buffers{};
@@ -70,7 +71,8 @@ struct session {
 };
 
 /// The message id DECtalk sends a filled buffer with. On Windows it is a
-/// registered window message rather than a constant (plan §2.2).
+/// registered window message rather than a constant
+/// (docs/features/Speech.md §4.1).
 auto buffer_message() -> UINT {
     static const UINT id = RegisterWindowMessageA("DECtalkBufferMessage");
     return id;

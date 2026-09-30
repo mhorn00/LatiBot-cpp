@@ -1,5 +1,5 @@
 // Recognising the bot's old replacements and finding whose link each one was
-// (plan v4 §9.7).
+// (docs/features/Link_Stats.md §4.1).
 
 #include "core/events/legacy_replacements.hpp"
 

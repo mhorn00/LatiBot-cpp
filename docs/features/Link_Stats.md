@@ -17,7 +17,7 @@ draws its classes.
 | **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies}_test.cpp` |
 | **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies` |
 | **Config** | `emoji_copy_min_uses` in `config.json`; `linkstats_images` per server in `guild_settings` |
-| **Plan** | Replaces plan §9.6, §9.7 and §21.12; code comments still cite those |
+| **Plan** | Replaces plan §9.6, §9.7 and §21.12 |
 | **Status** | Built and tested offline. Not yet run against real Discord. |
 
 ## Contents

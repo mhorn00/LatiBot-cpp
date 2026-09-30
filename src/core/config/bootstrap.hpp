@@ -22,7 +22,7 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-/// Global settings from `config.json` (plan §5.1).
+/// Global settings from `config.json` (docs/features/Operations.md §4).
 ///
 /// Everything guild-specific lives in the database instead, because it is
 /// edited at runtime through commands and panels.
@@ -36,7 +36,7 @@ struct bootstrap {
     int backups_to_keep = 7;
     std::chrono::minutes backup_interval{360};
 
-    /// Whether to watch for nickname changes (plan §8).
+    /// Whether to watch for nickname changes (docs/features/Nicknames.md §3).
     ///
     /// This is the one setting that decides which intents the bot asks for:
     /// nickname changes only arrive with the privileged Server Members
@@ -53,12 +53,12 @@ struct bootstrap {
 
     /// Servers whose administrators may use the DECtalk commands that touch
     /// the host filesystem, and users who may regardless of server
-    /// (plan §12.5).
+    /// (docs/features/Speech.md §2.2).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 
     /// How many reactions an emote needs before the bot keeps its own copy
-    /// of it, as an application emoji (docs/features/Link_Stats.md 10). 0
+    /// of it, as an application emoji (docs/features/Link_Stats.md §10). 0
     /// turns copying off. Raising it deletes the copies that no longer
     /// qualify, on the next rounds.
     std::int64_t emoji_copy_min_uses = 1;
@@ -121,7 +121,7 @@ inline constexpr bool reads_debug_overrides =
 [[nodiscard]] auto recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides) -> std::optional<dpp::snowflake>;
 
 /// Credentials. These only ever come from the environment, never from a file
-/// that could be committed (plan §5.1).
+/// that could be committed (docs/features/Operations.md §4).
 struct secrets {
     std::string discord_token;
     std::optional<std::string> anthropic_key;

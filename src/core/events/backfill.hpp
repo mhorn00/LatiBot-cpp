@@ -32,7 +32,7 @@ class discord_gateway;
 
 namespace latibot::events {
 
-/// What to recompute (plan §9.7).
+/// What to recompute (docs/features/Link_Stats.md §4).
 struct backfill_request {
     dpp::snowflake guild_id;
     std::vector<dpp::snowflake> channel_ids;
@@ -48,7 +48,7 @@ struct backfill_request {
     bool fresh = false;
 
     /// Also count people's own image and video posts, as a guild that has
-    /// turned that on does (docs/features/Link_Stats.md 9).
+    /// turned that on does (docs/features/Link_Stats.md §9).
     bool images = false;
 };
 
@@ -72,7 +72,8 @@ struct backfill_report {
     std::int64_t unattributed = 0;
 
     /// Of the unattributed: an earlier link was there, but its path did not
-    /// match, so it was reported rather than accepted (plan §9.7).
+    /// match, so it was reported rather than accepted
+    /// (docs/features/Link_Stats.md §4.2).
     std::vector<message_place> mismatched;
     std::int64_t webhooks_skipped = 0;
 
@@ -137,7 +138,8 @@ inline constexpr std::uint64_t reactor_page_size = 100;
 /// How often, in messages scanned, a running backfill reports progress.
 inline constexpr std::int64_t progress_interval = 500;
 
-/// Recovers years of reactions on the bot's old replacements (plan §9.7).
+/// Recovers years of reactions on the bot's old replacements
+/// (docs/features/Link_Stats.md §4).
 ///
 /// Walks each channel backwards a page at a time, recognises the bot's
 /// replacements in any of their six historical formats, works out whose link

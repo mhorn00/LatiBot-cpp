@@ -1,5 +1,5 @@
 // Fuzzes recognising the bot's old replacements, which reads years of
-// whatever people wrote (plan v4 §9.7, §17.5).
+// whatever people wrote (docs/features/Link_Stats.md §4.1).
 
 #include "core/events/legacy_replacements.hpp"
 

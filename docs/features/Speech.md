@@ -19,7 +19,7 @@ follows a `/speak`.
 | **Tests** | `tests/unit/{dectalk_engine,dectalk_golden,dectalk_sanitizer,speak_command,chat_command,custom_voice,voice_params,voice_lab,pcm,wav}_test.cpp`, `tests/db/voice_store_test.cpp`, `tests/golden/dectalk.txt`, `tests/fuzz/fuzz_dectalk_sanitizer.cpp` |
 | **Tables** | `tts_voices` (migration 10); `tts_max_characters` and `tts_max_seconds` per server in `guild_settings` |
 | **Config** | `trusted_users` and `trusted_guilds` in `config.json` |
-| **Plan** | Replaces plan §2.2, §2.4, §12, §21.16 and §21.17; code comments still cite those |
+| **Plan** | Replaces plan §2.2, §2.4, §12, §21.16 and §21.17 |
 | **Status** | Built in phase 4 (2026-09-26). **Not yet run in Discord**: see §6 |
 
 ## Contents

@@ -43,7 +43,7 @@ auto require_int(const json& object, std::string_view key) -> int {
 
 /// Snowflakes are 64-bit and JSON numbers are doubles, which silently lose
 /// precision past 2^53, so IDs are written as strings everywhere they cross a
-/// JSON boundary (plan §5.2).
+/// JSON boundary (docs/features/Operations.md §4).
 auto require_snowflakes(const json& object, std::string_view key) -> std::vector<dpp::snowflake> {
     const auto& value = object.at(std::string(key));
     if (!value.is_array()) wrong_type(key, "an array of ID strings");
@@ -102,7 +102,8 @@ auto read_storage_keys(const json& parsed, bootstrap& config) -> void {
     }
 }
 
-/// Which model answers, and what it is allowed to cost (plan §14).
+/// Which model answers, and what it is allowed to cost
+/// (docs/features/Language_Model.md §3.2).
 auto read_llm_keys(const json& parsed, bootstrap& config) -> void {
     if (parsed.contains("llm_provider")) config.llm_provider = require_string(parsed, "llm_provider");
     if (parsed.contains("llm_model")) config.llm_model = require_string(parsed, "llm_model");
@@ -271,7 +272,7 @@ auto recompute_bot_id_from_environment(bool debug_build) -> std::optional<dpp::s
 auto bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool {
     if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) return true;
     // Administrator is per server, so it only counts in a server we trust
-    // (plan §2.4).
+    // (docs/features/Speech.md §2.2).
     return administrator && std::ranges::find(trusted_guilds, guild_id) != trusted_guilds.end();
 }
 

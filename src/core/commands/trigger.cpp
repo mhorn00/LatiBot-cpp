@@ -399,7 +399,8 @@ auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t 
 /// Edit and Delete for the selected trigger, or the delete confirmation.
 ///
 /// Confirming happens in the panel itself rather than in a second message, so
-/// there is nothing left behind if it is ignored (plan §9.5).
+/// there is nothing left behind if it is ignored
+/// (docs/features/Triggers.md §2.5).
 auto selection_row(std::span<const events::trigger> page_of, int page, std::int64_t selected, bool confirming_delete)
     -> std::optional<dpp::component> {
     if (selected == 0) return std::nullopt;

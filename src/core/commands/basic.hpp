@@ -29,8 +29,8 @@ namespace latibot::commands {
 // Decisions
 //
 // The interesting part of each command is a function from plain data to a
-// decision (plan §17.3). The handler below resolves Discord's state into
-// arguments, calls one of these, and carries the answer out.
+// decision (docs/testing/README.md). The handler below resolves Discord's
+// state into arguments, calls one of these, and carries the answer out.
 // --------------------------------------------------------------------------
 
 /// What `/join` should do. Voice channel ids are `dpp::snowflake`, where 0
@@ -94,7 +94,8 @@ struct say_decision {
 /// rather than `name`, and expects the literal name "Custom Status".
 [[nodiscard]] auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::activity;
 
-/// The last `/status`, kept so a restart does not clear it (plan §6).
+/// The last `/status`, kept so a restart does not clear it
+/// (docs/features/Basic_Commands.md §2).
 struct saved_status {
     std::string text;
 
@@ -197,7 +198,8 @@ private:
     std::function<void()> request_shutdown_;
 };
 
-/// Shows or changes the phrase that stops the bot (plan §6).
+/// Shows or changes the phrase that stops the bot
+/// (docs/features/Basic_Commands.md §3).
 ///
 /// Separate from `/shutdown` because it edits a setting rather than acting on
 /// it, and because the phrase is per guild while `/shutdown` is not.

@@ -1,4 +1,4 @@
-// The voice lab's panel and forms (plan §12.6).
+// The voice lab's panel and forms (docs/features/Speech.md §3).
 
 #include "core/commands/voice_lab.hpp"
 

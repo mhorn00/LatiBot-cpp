@@ -25,8 +25,8 @@ inline constexpr int silence_threshold = 64;
 /// which a queue of utterances would otherwise wait through.
 auto trim_trailing_silence(std::vector<std::int16_t>& samples, std::size_t keep) -> void;
 
-/// Converts mono audio at `source_rate` to what Discord takes: 48 kHz, stereo,
-/// interleaved (plan §12.3).
+/// Converts mono audio at `source_rate` to what Discord takes: 48 kHz,
+/// stereo, interleaved (docs/features/Speech.md §4.1).
 ///
 /// 11025 to 48000 is not a whole ratio (about 4.35), so each output sample
 /// is interpolated at its fractional position in the input. Linear

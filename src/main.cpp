@@ -20,9 +20,9 @@ auto main(int argc, char** argv) -> int {
         const auto command_line = latibot::config::command_line::parse(arguments);
 
         // .env is a local-run convenience only, gitignored, and never
-        // overrides a variable the real environment already set (plan
-        // §5.1: secrets still come from the environment, just optionally
-        // populated from this file first).
+        // overrides a variable the real environment already set
+        // (docs/features/Operations.md §4: secrets still come from the
+        // environment, just optionally populated from this file first).
         latibot::util::load_dotenv(".env");
 
         // After .env, so LATIBOT_LOG_COLOR set there counts; before anything

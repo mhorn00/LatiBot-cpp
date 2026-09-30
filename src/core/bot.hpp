@@ -54,7 +54,7 @@ namespace latibot {
 ///
 /// This is the shell: it wires DPP events to core functions and holds the
 /// ports features talk through. The logic itself lives outside, where it can
-/// be tested without Discord (plan §17.3).
+/// be tested without Discord (docs/testing/README.md).
 class bot {
 public:
     bot(config::bootstrap settings, const config::secrets& credentials);
@@ -76,11 +76,12 @@ private:
 
     /// Starts the things that happen on a clock rather than on an event: the
     /// midnight messages, the embed tracker's one-second tick and the
-    /// database backups (plan §10, §9.3, §5.2).
+    /// database backups (docs/features/Operations.md §2).
     auto register_timers() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
-    /// missing permission disables one feature, not the bot (plan §7).
+    /// missing permission disables one feature, not the bot
+    /// (docs/features/Operations.md §6).
     auto check_permissions(const dpp::guild& guild) const -> void;
 
     /// Turns a DPP message into the plain struct the stages work on, which is
@@ -94,7 +95,8 @@ private:
     /// Everything `/llm`, `/memory` and their panels work with.
     [[nodiscard]] auto llm_services() -> commands::llm_command_services;
 
-    /// Waits out any pacing, then has the model answer (plan §14).
+    /// Waits out any pacing, then has the model answer
+    /// (docs/features/Language_Model.md).
     auto answer_with_llm(events::ask_llm ask) -> dpp::task<void>;
 
     /// Performs what the stages decided.
@@ -118,7 +120,7 @@ private:
     ///
     /// Shared by the gateway event and the startup sweep, because "is this
     /// different from what we last saw" is the same question either way
-    /// (plan §8.4).
+    /// (docs/features/Nicknames.md §3).
     auto record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
                          events::nickname_source source) -> std::optional<std::int64_t>;
 
@@ -132,33 +134,36 @@ private:
     /// hoping to attribute.
     ///
     /// The safety net for a gateway entry that never arrived — a reconnect, a
-    /// dropped event (plan §8.1). Costs one API call per change that is
-    /// still unattributed when it runs, which is normally none of them.
+    /// dropped event (docs/features/Nicknames.md §3). Costs one API call per
+    /// change that is still unattributed when it runs, which is normally none
+    /// of them.
     auto attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void;
 
     /// Someone's voice state changed, the bot's included. Tidies up after the
     /// bot leaves a channel, however that happened, and tells the auto-leave
-    /// check whether it is on its own (plan §13).
+    /// check whether it is on its own (docs/features/Voice_Channels.md §2.3).
     auto on_voice_state(const dpp::voicestate& state) -> void;
 
     /// Writes down nicknames that changed while the bot was not running.
     auto reconcile_nicknames(const dpp::guild& guild) -> void;
 
-    /// Copies the Java bot's URL rules into a guild, once (plan §9.5).
+    /// Copies the Java bot's URL rules into a guild, once
+    /// (docs/features/Url_Replacement.md §2.7).
     auto import_url_rules(const dpp::guild& guild) -> void;
 
     /// Somebody pressed Retry on a replacement that found no preview.
     auto retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void;
 
     /// Settles this guild's replacements the last run left mid-watch, once:
-    /// its first guild_create hands them over (plan §9.4).
+    /// its first guild_create hands them over
+    /// (docs/features/Url_Replacement.md §2.5).
     auto settle_stranded_replacements(dpp::snowflake guild_id) -> void;
 
     /// Runs what the embed tracker decided, without holding up the caller.
     auto carry_out(std::vector<events::embed_action> actions) -> void;
 
     /// One round of keeping the bot's own copies of emojis
-    /// (docs/features/Link_Stats.md 10).
+    /// (docs/features/Link_Stats.md §10).
     auto copy_emojis() -> dpp::task<void>;
 
     /// The clock's time to the second, which is what the database stores.
@@ -196,8 +201,9 @@ private:
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 
-    // Speech (plan §12, §13). The engine starts its worker thread at
-    // construction, and is gone before the cluster is.
+    // Speech (docs/features/Speech.md, docs/features/Voice_Channels.md). The
+    // engine starts its worker thread at construction, and is gone before the
+    // cluster is.
     audio::dectalk_engine tts_;
     discord::dpp_voice_output voice_output_;
     audio::speech_queue speech_;
@@ -207,8 +213,9 @@ private:
     commands::voice_drafts voice_drafts_;
     commands::voice_lab voice_lab_;
 
-    // The language model (plan §14). A provider exists only when its key is
-    // set; the stage and the commands ask `provider_for` rather than assume.
+    // The language model (docs/features/Language_Model.md). A provider exists
+    // only when its key is set; the stage and the commands ask `provider_for`
+    // rather than assume.
     llm::usage_store llm_usage_;
     llm::document_store llm_documents_;
     llm::memory_store llm_memories_;

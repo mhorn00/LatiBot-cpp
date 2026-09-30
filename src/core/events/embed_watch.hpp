@@ -24,16 +24,17 @@ class clock;
 namespace latibot::events {
 
 /// How long one attempt gets to produce a preview before the next is tried
-/// (plan §20, row 15). One value for every guild until somebody needs
-/// another.
+/// (docs/features/Url_Replacement.md §2.3). One value for every guild until
+/// somebody needs another.
 inline constexpr std::chrono::seconds embed_timeout{6};
 
 /// Tries per mirror on a fresh replacement: `alt1, alt1, alt2, alt2, …`
-/// (plan §9.3). A slow first fetch is common enough to be worth a second
-/// chance before giving up on a mirror.
+/// (docs/features/Url_Replacement.md §2.3). A slow first fetch is common
+/// enough to be worth a second chance before giving up on a mirror.
 inline constexpr std::size_t attempts_per_mirror = 2;
 
-/// Retry runs one pass, one try per mirror (plan §9.4).
+/// Retry runs one pass, one try per mirror
+/// (docs/features/Url_Replacement.md §2.4).
 inline constexpr std::size_t retry_attempts_per_mirror = 1;
 
 /// The view name in a Retry button's custom_id; the argument is our
@@ -85,13 +86,15 @@ struct watched_link {
 /// The URL `link` is on at this attempt.
 [[nodiscard]] auto current_url(const watched_link& link, std::size_t per_mirror) -> std::string;
 
-/// Our message: one `🔗 [_](link)` line per link, spoilered where the
-/// original was (plan §9.2). The underscore is the whole visible text,
-/// which is what makes the preview, not the link, the thing people see.
+/// Our message: one `🔗 [_](link)` line per link, spoilered where the original
+/// was (docs/features/Url_Replacement.md §2.2). The underscore is the whole
+/// visible text, which is what makes the preview, not the link, the thing
+/// people see.
 [[nodiscard]] auto render_replacement(std::span<const watched_link> links, std::size_t per_mirror) -> std::string;
 
-/// The note left when nothing embedded (plan §9.4). It names the mirrors
-/// that were tried, which is the first thing anybody asks.
+/// The note left when nothing embedded
+/// (docs/features/Url_Replacement.md §2.4). It names the mirrors that were
+/// tried, which is the first thing anybody asks.
 [[nodiscard]] auto render_failure(std::span<const planned_link> links) -> std::string;
 
 /// Which links a set of previews covers, by index.
@@ -126,7 +129,7 @@ struct watch_request {
 };
 
 /// Follows replacement messages until each link has a preview or has run out
-/// of mirrors (plan §9.3).
+/// of mirrors (docs/features/Url_Replacement.md §3.3).
 ///
 /// Event-driven rather than polled: a preview arriving on `on_embeds`
 /// settles a link immediately, and `tick` only moves on links whose time is

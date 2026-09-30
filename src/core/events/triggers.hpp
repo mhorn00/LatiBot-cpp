@@ -25,7 +25,8 @@ class clock;
 
 namespace latibot::events {
 
-/// How a trigger's pattern is compared against a message (plan §11).
+/// How a trigger's pattern is compared against a message
+/// (docs/features/Triggers.md §2.1).
 ///
 /// Users do not write regular expressions: a pattern is literal text, and the
 /// only choice is whether it has to stand alone as a word.
@@ -50,15 +51,15 @@ struct trigger {
     std::string pattern;
     match_mode mode = match_mode::whole_word;
 
-    /// Per channel, and may be zero (plan §11).
+    /// Per channel, and may be zero (docs/features/Triggers.md §2.2).
     std::chrono::seconds cooldown{30};
     bool enabled = true;
 
     /// Whether this trigger answers messages from other bots.
     ///
     /// Off by default, and only reachable at all for bots this guild has
-    /// allowed (plan §14.4): the allowlist decides who is heard, this
-    /// decides who is answered.
+    /// allowed (docs/features/Message_Pipeline.md §2.1): the allowlist
+    /// decides who is heard, this decides who is answered.
     bool respond_to_bots = false;
 
     /// How its replies are posted: silent, and whether with link previews.
@@ -114,10 +115,6 @@ public:
     auto update(const trigger& entry) -> bool;
     auto remove(std::int64_t id, dpp::snowflake guild_id) -> bool;
 
-    /// The three the Java bot had, added only when the guild has none
-    /// (plan §11). Returns how many were added.
-    auto seed_defaults(dpp::snowflake guild_id) -> int;
-
 private:
     auto replace_responses(std::int64_t trigger_id, std::span<const weighted_response> responses) -> void;
 
@@ -131,9 +128,10 @@ private:
 /// Answers messages that match a guild's triggers.
 ///
 /// Does not consume the message: a message with both "420" and a link should
-/// get the reply and the replacement (plan §5.4). A reply marks the message
+/// get the reply and the replacement
+/// (docs/features/Message_Pipeline.md §2.2). A reply marks the message
 /// answered, which keeps the advanced triggers quiet: the simple one wins
-/// (plan §14.3).
+/// (docs/features/Message_Pipeline.md §2.2).
 ///
 /// Safe to call from several threads at once, which is how DPP delivers
 /// messages.

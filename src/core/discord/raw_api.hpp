@@ -21,7 +21,8 @@ namespace latibot::discord {
 /// trimming a trailing slash. Exposed for testing.
 [[nodiscard]] auto build_endpoint(std::string_view path) -> std::string;
 
-/// Calls Discord endpoints DPP does not wrap (plan §5.5).
+/// Calls Discord endpoints DPP does not wrap (docs/features/Speech.md §4.4,
+/// docs/features/Url_Replacement.md §3.2).
 ///
 /// It is thin on purpose: `post_rest` already goes through DPP's REST queue,
 /// so bot authentication, the correct user agent and Discord's rate limits
@@ -43,11 +44,11 @@ public:
     /// There is deliberately no audit-reason parameter: DPP takes that header
     /// from a cluster-wide slot which another thread's request can consume,
     /// so it cannot be attached reliably. Attribution lives in the database
-    /// instead (plan §8.1).
+    /// instead (docs/features/Nicknames.md §5).
     auto request(ports::http_method method, std::string path, std::string body = {}) -> dpp::task<ports::result<nlohmann::json>>;
 
     /// Multipart form upload, for endpoints that take `payload_json` plus
-    /// files: voice messages, attachments (plan §12.8).
+    /// files: voice messages, attachments (docs/features/Speech.md §4.4).
     auto multipart(ports::http_method method, std::string path, std::string payload_json, std::vector<dpp::message_file_data> files)
         -> dpp::task<ports::result<nlohmann::json>>;
 

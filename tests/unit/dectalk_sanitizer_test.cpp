@@ -1,4 +1,4 @@
-// What may reach DECtalk from whom (plan §12.5).
+// What may reach DECtalk from whom (docs/features/Speech.md §2.2).
 
 #include "core/audio/dectalk_sanitizer.hpp"
 

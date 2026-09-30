@@ -16,7 +16,7 @@ class database;
 
 namespace latibot::llm {
 
-/// The three documents each guild has (plan §14.5).
+/// The three documents each guild has (docs/features/Language_Model.md §3.5).
 enum class document_kind : std::uint8_t {
     /// How the bot comes across. Anyone may edit it by default.
     personality,
@@ -41,7 +41,8 @@ inline constexpr std::size_t document_length_limit = 20000;
 /// that a document is getting expensive, without a tokenizer.
 [[nodiscard]] auto estimate_tokens(std::string_view text) noexcept -> std::size_t;
 
-/// Past this, saving a document warns that it is large (plan §14.5).
+/// Past this, saving a document warns that it is large
+/// (docs/features/Language_Model.md §3.5).
 inline constexpr std::size_t large_document_tokens = 1500;
 
 struct document_version {
@@ -52,8 +53,9 @@ struct document_version {
     std::string note;
 };
 
-/// Every version of every guild's documents (plan §14.5). Nothing is ever
-/// overwritten, so nothing is lost and a revert can itself be reverted.
+/// Every version of every guild's documents
+/// (docs/features/Language_Model.md §3.5). Nothing is ever overwritten, so
+/// nothing is lost and a revert can itself be reverted.
 class document_store {
 public:
     explicit document_store(db::database& db) : db_(&db) {}

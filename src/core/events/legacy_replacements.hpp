@@ -16,7 +16,7 @@
 namespace latibot::events {
 
 /// A message from channel history, reduced to what recognising the bot's old
-/// replacements needs (plan §9.7).
+/// replacements needs (docs/features/Link_Stats.md §4.1).
 struct history_message {
     dpp::snowflake id;
     dpp::snowflake author_id;
@@ -55,7 +55,8 @@ struct history_message {
 /// what paging "before a time" needs.
 [[nodiscard]] auto first_id_at(std::chrono::sys_seconds when) noexcept -> dpp::snowflake;
 
-/// The shapes the bot's replacements have had over the years (plan §9.7).
+/// The shapes the bot's replacements have had over the years
+/// (docs/features/Link_Stats.md §4.1).
 enum class legacy_format : std::uint8_t {
     /// The whole original text with the link replaced, posted as a reply.
     reply_copy = 1,
@@ -101,7 +102,7 @@ struct legacy_match {
     std::vector<std::string> mirror_urls;
 };
 
-/// Recognises the bot's old replacements (plan §9.7).
+/// Recognises the bot's old replacements (docs/features/Link_Stats.md §4.1).
 ///
 /// A message counts when the bot wrote it and it is in one of the shapes a
 /// replacement has had. The URL rules are no help with the oldest: mirrors

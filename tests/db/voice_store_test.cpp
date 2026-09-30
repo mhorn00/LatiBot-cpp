@@ -1,4 +1,4 @@
-// Custom voices, kept per guild (plan §12.6).
+// Custom voices, kept per guild (docs/features/Speech.md §3).
 
 #include "core/audio/voice_store.hpp"
 #include "core/db/database.hpp"

@@ -19,7 +19,7 @@ classes.
 | **Code** | `src/main.cpp`, `src/core/config/{bootstrap,command_line,guild_settings}.*`, `src/core/util/{env,ca_certificates,log}.*`, `src/core/db/*`, `src/core/commands/preflight.*`; intents and timers in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `tests/db/{database,migrations,backup,guild_settings}_test.cpp` |
 | **Tables** | `guild_settings` (migration 1), and `PRAGMA user_version` for the schema's version |
-| **Plan** | Replaces plan §5.1, §5.2, §7, §21.1–§21.3 and §21.7; code comments still cite those |
+| **Plan** | Replaces plan §5.1, §5.2, §7, §21.1–§21.3 and §21.7 |
 | **Status** | Built in phase 0 and 1; `config.json` written when missing since 2026-09-27; the command line since 2026-09-30 |
 
 ## Contents

@@ -71,7 +71,7 @@ TEST_CASE("a long history pages, and the buttons remember whose it is", "[comman
     REQUIRE_FALSE(buttons.empty());
 
     // Whose history a button pages through rides in the custom_id, so paging
-    // still works after a restart (plan v4 §8.2).
+    // still works after a restart (docs/features/Nicknames.md §2.3).
     const auto state = latibot::ui::decode(buttons.front().custom_id);
     REQUIRE(state.has_value());
     CHECK(state->view == nickname_history_view);

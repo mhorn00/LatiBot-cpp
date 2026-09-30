@@ -44,7 +44,8 @@ TEST_CASE("a summer timestamp is read as Central Daylight Time", "[events]") {
 TEST_CASE("the hour that happens twice each November takes the earlier one", "[events]") {
     // 2023-11-05 01:30 Central happened at 06:30 UTC and again at 07:30 UTC.
     // Either is at most an hour wrong and there is no way to know which was
-    // meant, so the choice is made once and written down (plan v4 §8.3).
+    // meant, so the choice is made once and written down
+    // (docs/features/Nicknames.md §4).
     CHECK(central_time_to_utc("2023-11-05 01:30:00") == utc(2023, 11, 5, 6, 30, 0));
 }
 
@@ -133,7 +134,7 @@ TEST_CASE("an imported entry keeps the text its time was read from", "[events]")
     REQUIRE(report.entries.size() == 1);
 
     // So the conversion can be redone if the timezone turns out to be wrong
-    // (plan v4 §8.3).
+    // (docs/features/Nicknames.md §4).
     CHECK(report.entries.front().imported_raw == "2023-11-25 01:58:23");
 }
 

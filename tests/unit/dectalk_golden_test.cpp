@@ -1,5 +1,5 @@
 // Golden audio: what DECtalk says for a few fixed phrases, down to the
-// sample (plan §17.5).
+// sample (docs/testing/README.md).
 //
 // tests/golden/dectalk.txt holds each phrase's sample count and a hash of
 // its samples. On a mismatch the audio actually produced is written beside

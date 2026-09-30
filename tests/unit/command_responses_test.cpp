@@ -102,7 +102,7 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
     CHECK(midnight.info().responses_for("add").post == dpp::m_suppress_notifications);
 
     // The room sees the bot come, go or stop, so it sees why; a refusal is
-    // still only for whoever asked (plan §6).
+    // still only for whoever asked (docs/features/Basic_Commands.md §5).
     const latibot::commands::join_command join;
     const latibot::commands::leave_command leave;
     const latibot::commands::shutdown_command shutdown([] {});

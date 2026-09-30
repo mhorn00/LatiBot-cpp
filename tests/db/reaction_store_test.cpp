@@ -1,4 +1,5 @@
-// Reaction statistics on replacement messages (plan v4 §9.6, §9.7).
+// Reaction statistics on replacement messages
+// (docs/features/Link_Stats.md §3, §4).
 
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
@@ -170,7 +171,8 @@ TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
 }
 
 TEST_CASE("a backfilled reaction is dated by its message", "[db]") {
-    // Discord never says when a reaction was added (plan v4 §9.7).
+    // Discord never says when a reaction was added
+    // (docs/features/Link_Stats.md §2).
     store_fixture fixture;
     const std::vector<reaction_store::observed> seen{{.user_id = carol, .emoji_key = skull().key}};
     fixture.reactions.replace_for_message(bobs_link, seen);

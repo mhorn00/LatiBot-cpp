@@ -72,7 +72,8 @@ TEST_CASE("an entry fires just after local midnight", "[events]") {
 TEST_CASE("an entry that has posted today does not post again", "[events]") {
     const midnight_entry entry = entry_in("UTC", "2026-09-23");
 
-    // Which is what makes a restart at 00:00:30 safe (plan v4 §10).
+    // Which is what makes a restart at 00:00:30 safe
+    // (docs/features/Midnight.md §2.1).
     CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::wait);
     CHECK(verdict_for(entry, utc(2026, 9, 23, 23, 59, 0)) == midnight_verdict::wait);
 

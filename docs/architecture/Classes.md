@@ -1324,7 +1324,6 @@ classDiagram
         +add(trigger) int64
         +update(trigger) bool
         +remove(id, guild) bool
-        +seed_defaults(guild) int
     }
     class trigger_responder {
         -last_fired_ : map~trigger and channel, time_point~

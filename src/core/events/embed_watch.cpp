@@ -166,9 +166,10 @@ auto embed_tracker::watch(watch_request request, std::span<const std::string> em
     const std::scoped_lock guard(mutex_);
     prune_early(now);
 
-    // Previews can already be there: on the message as it was sent, or in
-    // an update that arrived before this watch started (plan §21.11). Either
-    // can settle the watch before it begins.
+    // Previews can already be there: on the message as it was sent, or in an
+    // update that arrived before this watch started
+    // (docs/features/Url_Replacement.md §3.3). Either can settle the watch
+    // before it begins.
     bool settled = absorb(state, embed_urls);
     if (const auto early = early_.find(id); early != early_.end()) {
         settled = absorb(state, early->second.embed_urls);
@@ -186,8 +187,9 @@ auto embed_tracker::on_embeds(dpp::snowflake message_id, std::span<const std::st
     const std::scoped_lock guard(mutex_);
 
     // An update for a message nobody is watching may be for one about to be
-    // watched, so it is kept for a while (plan §21.11). The buffer is capped:
-    // every message update in every guild passes through here.
+    // watched, so it is kept for a while
+    // (docs/features/Url_Replacement.md §3.3). The buffer is capped: every
+    // message update in every guild passes through here.
     const auto found = watches_.find(message_id);
     if (found == watches_.end()) {
         if (!embed_urls.empty()) {
@@ -296,7 +298,8 @@ auto embed_tracker::finish(const watch_state& state) -> std::vector<embed_action
         if (request.retry) {
             store_->mark_retried(request.message_id, replacement_state::ok, wall_now);
             // The failure turned the original's previews back on; a working
-            // replacement means they go off again (plan §9.4).
+            // replacement means they go off again
+            // (docs/features/Url_Replacement.md §2.4).
             if (has_original) {
                 actions.emplace_back(
                     set_original_embeds{.channel_id = request.channel_id, .message_id = request.original_message_id, .suppressed = true});

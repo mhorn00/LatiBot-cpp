@@ -1,5 +1,6 @@
-// Reactions on the images and videos people post (docs/features/Link_Stats.md
-// §9): what counts as one, and recording them as they are posted.
+// Reactions on the images and videos people post
+// (docs/features/Link_Stats.md §9): what counts as one, and recording them as
+// they are posted.
 
 #include "core/events/media_posts.hpp"
 #include "core/config/guild_settings.hpp"

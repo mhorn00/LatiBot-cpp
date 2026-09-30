@@ -16,7 +16,7 @@ namespace latibot::ports {
 ///
 /// Deliberately small: it covers what features need today and grows as they
 /// land, rather than mirroring `dpp::cluster`. Keeping it narrow is what lets
-/// a mock stand in for Discord in tests (plan §17.3).
+/// a mock stand in for Discord in tests (docs/testing/README.md).
 class discord_gateway {
 public:
     virtual ~discord_gateway() = default;
@@ -32,8 +32,9 @@ public:
     virtual auto delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) -> dpp::task<result<void>> = 0;
 
     /// Turns a message's link previews off or back on, including on messages
-    /// somebody else wrote, which needs Manage Messages (plan §9.2). Only
-    /// the flag changes; the message is otherwise untouched.
+    /// somebody else wrote, which needs Manage Messages
+    /// (docs/features/Url_Replacement.md §3.2). Only the flag changes; the
+    /// message is otherwise untouched.
     virtual auto set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflake message_id, bool suppressed)
         -> dpp::task<result<void>> = 0;
 
@@ -45,16 +46,16 @@ public:
         -> dpp::task<result<std::vector<dpp::message>>> = 0;
 
     /// Who reacted with one emoji. Discord pages this 100 at a time and never
-    /// reports *when* a reaction was added (plan §9.7).
+    /// reports *when* a reaction was added (docs/features/Link_Stats.md §2).
     virtual auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                                     std::uint64_t limit) -> dpp::task<result<std::vector<dpp::snowflake>>> = 0;
 
     /// Shows "LatiBot is typing…" in a channel for ten seconds, or until the
-    /// bot posts there (plan §14.7).
+    /// bot posts there (docs/features/Language_Model.md §2.3).
     virtual auto start_typing(dpp::snowflake channel_id) -> dpp::task<result<void>> = 0;
 
     /// Uploads an emoji the bot's application owns, which the bot can use in
-    /// any server (docs/features/Link_Stats.md 10). `image` is a PNG or,
+    /// any server (docs/features/Link_Stats.md §10). `image` is a PNG or,
     /// when `animated`, a GIF, of at most 256 KiB. Gives the new emoji's id.
     virtual auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<result<dpp::snowflake>> = 0;
 

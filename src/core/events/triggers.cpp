@@ -7,7 +7,6 @@
 #include "core/util/text.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <format>
 #include <numeric>
@@ -202,26 +201,6 @@ auto trigger_store::remove(std::int64_t id, dpp::snowflake guild_id) -> bool {
     return true;
 }
 
-auto trigger_store::seed_defaults(dpp::snowflake guild_id) -> int {
-    const auto guard = db_->lock();
-
-    auto count = db_->prepare("SELECT COUNT(*) FROM triggers WHERE guild_id = ?", guild_id);
-    if (!count.step() || count.get<std::int64_t>(0) > 0) return 0;
-
-    // The Java bot's three, which were a regular expression there and are
-    // three literal patterns here (plan §11).
-    static constexpr std::array patterns{"420", "4:20", "69"};
-    for (const char* pattern : patterns) {
-        add({.guild_id = guild_id,
-             .pattern = pattern,
-             .mode = match_mode::whole_word,
-             .cooldown = default_trigger_cooldown,
-             .enabled = true,
-             .responses = {{.text = "nice", .weight = 1}}});
-    }
-    return static_cast<int>(patterns.size());
-}
-
 // --------------------------------------------------------------------------
 
 trigger_responder::trigger_responder(const trigger_store& store, ports::clock& clock, std::function<std::uint64_t()> roll)
@@ -245,7 +224,8 @@ auto trigger_responder::operator()(const incoming_message& message) -> stage_res
         }
 
         // The allowlist decided this bot may be heard; this decides whether
-        // this particular trigger answers it (plan §14.4).
+        // this particular trigger answers it
+        // (docs/features/Message_Pipeline.md §2.1).
         if (message.from_bot && !entry.respond_to_bots) {
             util::log().debug("trigger {} matched a bot's message but does not answer bots", entry.id);
             continue;

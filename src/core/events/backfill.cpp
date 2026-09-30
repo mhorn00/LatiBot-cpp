@@ -326,8 +326,9 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
             util::log().debug("link stats recompute: message {} answered a link further back than the nearest one", message.id);
         }
         if (found.mismatched && !found.author_id) {
-            // Reported rather than accepted (plan §9.7): crediting the
-            // nearest link regardless would credit the wrong person.
+            // Reported rather than accepted
+            // (docs/features/Link_Stats.md §4.2): crediting the nearest link
+            // regardless would credit the wrong person.
             report.mismatched.push_back({.channel_id = scan.channel_id, .message_id = message.id});
             util::log().info(
                 "link stats recompute: message {} in channel {} follows links that are not the one it replaced; left "
@@ -414,7 +415,8 @@ auto backfill_service::reactors(dpp::snowflake channel_id, const history_message
         reactions_->remember(emoji);
 
         // Paged by user id, since the message only carries a count. Discord
-        // never says when any of them reacted (plan §9.7).
+        // never says when any of them reacted
+        // (docs/features/Link_Stats.md §2).
         dpp::snowflake after{};
         while (true) {
             const auto page =

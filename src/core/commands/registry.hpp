@@ -61,7 +61,7 @@ struct response_overrides {
 /// What a command is and what it needs.
 ///
 /// `required_bot_permissions` feeds the startup permission check, which warns
-/// per guild instead of exiting (plan §7).
+/// per guild instead of exiting (docs/features/Operations.md §6).
 // Moving one is only as noexcept as moving a std::map, which allocates on
 // MSVC. Only tests move a command_info, and nothing relies on it not throwing.
 // NOLINTNEXTLINE(bugprone-exception-escape)
@@ -135,7 +135,7 @@ struct user_label {
 /// One slash command.
 ///
 /// Handlers stay thin: turn the event into plain data, call a core function,
-/// act on the result (plan §5.3).
+/// act on the result (docs/features/Commands_and_Panels.md §2.1).
 class command {
 public:
     virtual ~command() = default;

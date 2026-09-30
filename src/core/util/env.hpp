@@ -11,8 +11,9 @@ namespace latibot::util {
 /// Reads an environment variable.
 ///
 /// Secrets (the bot token, API keys) only ever come from the environment
-/// (plan §5.1). Returns nothing when the variable is unset; an empty value
-/// is returned as an empty string, which callers should treat as unset.
+/// (docs/features/Operations.md §4). Returns nothing when the variable is
+/// unset; an empty value is returned as an empty string, which callers should
+/// treat as unset.
 [[nodiscard]] auto env_var(const char* name) -> std::optional<std::string>;
 
 /// Sets an environment variable for this process, replacing any current

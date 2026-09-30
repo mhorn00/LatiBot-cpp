@@ -1,4 +1,5 @@
-// Voice sessions and leaving an empty channel (plan §13).
+// Voice sessions and leaving an empty channel
+// (docs/features/Voice_Channels.md §2.2, §2.3).
 
 #include "core/events/voice_sessions.hpp"
 

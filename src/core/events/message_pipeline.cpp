@@ -14,8 +14,9 @@ auto pipeline::add(std::string name, stage_fn handler) -> void {
 auto pipeline::run(const incoming_message& message) const -> std::vector<action> {
     std::vector<action> actions;
 
-    // Answering ourselves is a loop with no exit. Answering another bot is one
-    // too, unless this guild has said it wants that (plan §5.4).
+    // Answering ourselves is a loop with no exit. Answering another bot is
+    // one too, unless this guild has said it wants that
+    // (docs/features/Message_Pipeline.md §2.1).
     if (message.from_self) return actions;
     if (message.from_bot && !message.author_is_allowed_bot) {
         // Debug rather than trace: "why did the bot ignore the other bot" is a

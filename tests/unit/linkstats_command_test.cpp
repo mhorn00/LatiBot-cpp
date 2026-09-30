@@ -1,4 +1,5 @@
-// /linkstats: leaderboards, profiles and aliases (plan v4 §9.6).
+// /linkstats: leaderboards, profiles and aliases
+// (docs/features/Link_Stats.md §1).
 
 #include "core/commands/linkstats.hpp"
 #include "core/db/database.hpp"
@@ -65,7 +66,8 @@ struct fixture {
 TEST_CASE("changing aliases and recomputing need Manage Server, and reading does not", "[commands]") {
     // Discord's default permissions cover the whole command, and the command
     // is open to everyone, so this is the only thing standing between anybody
-    // and a recompute of years of history (plan §21.13).
+    // and a recompute of years of history
+    // (docs/features/Commands_and_Panels.md §2.1).
     using latibot::commands::linkstats_refusal;
 
     const dpp::permission nobody{};

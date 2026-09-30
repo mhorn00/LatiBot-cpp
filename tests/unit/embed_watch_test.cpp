@@ -1,5 +1,5 @@
 // Posting a replacement and following it until its previews appear or its
-// mirrors run out (plan v4 §9.2-§9.4).
+// mirrors run out (docs/features/Url_Replacement.md §2.2–§2.4).
 
 #include "core/events/embed_watch.hpp"
 #include "core/db/database.hpp"
@@ -468,7 +468,7 @@ TEST_CASE("posting sends the replacement, records it, and turns the original's p
     REQUIRE(discord.sent.size() == 1);
     CHECK(discord.sent[0].content == "🔗 [_](https://fxtwitter.com/a/status/1)");
     CHECK((discord.sent[0].flags & dpp::m_suppress_notifications) != 0);
-    // A plain message, never a reply (plan v4 §9.2).
+    // A plain message, never a reply (docs/features/Url_Replacement.md §2.2).
     CHECK(discord.sent[0].message_reference.message_id.empty());
 
     REQUIRE(discord.suppressions.size() == 1);
@@ -516,7 +516,7 @@ TEST_CASE("a failure's actions reach Discord", "[events][coro]") {
 }
 
 // --------------------------------------------------------------------------
-// Settling what a restart cut off (plan §9.4)
+// Settling what a restart cut off (docs/features/Url_Replacement.md §2.5)
 // --------------------------------------------------------------------------
 
 namespace {
@@ -728,7 +728,12 @@ TEST_CASE("a message with a joke and a link gets both", "[events]") {
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
 
     latibot::events::trigger_store triggers(test.db);
-    triggers.seed_defaults(guild);
+    triggers.add({.guild_id = guild,
+                  .pattern = "420",
+                  .mode = latibot::events::match_mode::whole_word,
+                  .cooldown = latibot::events::default_trigger_cooldown,
+                  .enabled = true,
+                  .responses = {{.text = "nice", .weight = 1}}});
     latibot::events::trigger_responder responder(triggers, test.clock, [] { return std::uint64_t{0}; });
 
     latibot::events::pipeline stages;

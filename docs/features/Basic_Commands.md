@@ -16,7 +16,7 @@ draws the command classes.
 | **Code** | `src/core/commands/basic.*`, `src/core/events/goodbye.*`; the status is put back in `bot`'s `on_ready` |
 | **Tests** | `tests/unit/basic_commands_test.cpp`, `tests/unit/goodbye_test.cpp`, `tests/unit/command_responses_test.cpp` |
 | **Tables** | `guild_settings`: `goodbye_phrase` per server; the saved status under server 0, the bot's own |
-| **Plan** | Replaces plan §6; code comments still cite it |
+| **Plan** | Replaces plan §6 |
 | **Status** | Built in phase 1 (2026-09-21). Not yet seen working in Discord: the goodbye's shutdown since it was made a joined thread, `/say reply:` since it was deferred, and the restored status (all 2026-09-25) |
 
 ## Contents

@@ -1,4 +1,5 @@
-// Deciding which links in a message get replaced, and with what (plan v4 §9.1).
+// Deciding which links in a message get replaced, and with what
+// (docs/features/Url_Replacement.md §3.1).
 
 #include "core/events/url_rules.hpp"
 

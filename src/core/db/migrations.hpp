@@ -10,7 +10,8 @@ class database;
 /// One schema step.
 ///
 /// Migrations are append-only: once a version has shipped, its SQL is never
-/// edited, and a change becomes a new migration (plan §5.2).
+/// edited, and a change becomes a new migration
+/// (docs/features/Operations.md §5).
 struct migration {
     int version;
     std::string_view name;

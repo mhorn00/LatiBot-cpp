@@ -1,4 +1,4 @@
-// Volume and resampling for Discord (plan §12.3).
+// Volume and resampling for Discord (docs/features/Speech.md §4.1).
 
 #include "core/audio/pcm.hpp"
 

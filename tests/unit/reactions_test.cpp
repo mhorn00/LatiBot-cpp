@@ -1,4 +1,5 @@
-// How emojis are keyed and shown for the reaction statistics (plan v4 §9.6).
+// How emojis are keyed and shown for the reaction statistics
+// (docs/features/Link_Stats.md §3).
 
 #include "core/events/reactions.hpp"
 

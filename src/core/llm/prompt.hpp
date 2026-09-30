@@ -28,7 +28,8 @@ struct context_message {
     std::string content;
 };
 
-/// What goes into the cached part of the instructions (plan §14.5).
+/// What goes into the cached part of the instructions
+/// (docs/features/Language_Model.md §3.3).
 struct instruction_parts {
     /// The guild's `system` document: admins' rules.
     std::string system_document;
@@ -40,14 +41,15 @@ struct instruction_parts {
     /// The `trigger_style` document, when an advanced trigger fired.
     std::string trigger_style;
 
-    /// The reply will be spoken as well as posted (plan §14.2).
+    /// The reply will be spoken as well as posted
+    /// (docs/features/Language_Model.md §2.5).
     bool speaking = false;
 };
 
-/// The instructions every request starts with, in the fixed order of plan
-/// §14.5: the rules in code, then `system`, then `personality`. Nothing in
-/// here changes from one message to the next, which is what makes it worth
-/// caching.
+/// The instructions every request starts with, in the fixed order of
+/// docs/features/Language_Model.md §3.3: the rules in code, then `system`,
+/// then `personality`. Nothing in here changes from one message to the next,
+/// which is what makes it worth caching.
 [[nodiscard]] auto stable_instructions(const instruction_parts& parts) -> std::string;
 
 /// The part that changes per message: the memories that matched, and the
@@ -63,10 +65,10 @@ struct instruction_parts {
 /// message to answer, or for an advanced trigger what caught its attention.
 ///
 /// `history` is oldest first, and is cut from the oldest end to fit
-/// `token_budget`, so the messages closest to the one being answered are
-/// the ones kept (plan §14.5). The whole conversation is one turn rather
-/// than a turn per message: several people talk in a channel, and the
-/// providers expect two sides taking turns.
+/// `token_budget`, so the messages closest to the one being answered are the
+/// ones kept (docs/features/Language_Model.md §2.3). The whole conversation
+/// is one turn rather than a turn per message: several people talk in a
+/// channel, and the providers expect two sides taking turns.
 [[nodiscard]] auto question_for(std::span<const context_message> history, const context_message& latest, std::string_view context_prompt,
                                 std::size_t token_budget, dpp::snowflake bot_id, std::string_view bot_name) -> std::string;
 

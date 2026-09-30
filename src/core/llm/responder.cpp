@@ -72,8 +72,9 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
     }
 
     // Typing first, so the wait for the model reads as the bot thinking
-    // rather than ignoring whoever asked (plan §14.7). It lasts ten seconds,
-    // which covers most replies; a failure to show it is not worth a line.
+    // rather than ignoring whoever asked
+    // (docs/features/Language_Model.md §2.3). It lasts ten seconds, which
+    // covers most replies; a failure to show it is not worth a line.
     co_await services_.discord->start_typing(ask.channel_id);
 
     const int wanted = addressed ? settings.context_messages : settings.trigger_context;
@@ -103,7 +104,7 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
 
     // What is spoken is posted too, keeping the inline commands the
     // sanitizer allowed, so the channel sees what was said as it was said
-    // (plan §13, §14.2).
+    // (docs/features/Language_Model.md §2.5).
     if (ask.speak) {
         audio::sanitized_speech clean = audio::sanitize_speech(text, audio::speech_trust::llm);
         commands::log_removed(clean, "the model's reply", ask.guild_id);
@@ -226,7 +227,8 @@ auto responder::speak(const events::ask_llm& ask, std::string text) const -> dpp
     }
 
     const ports::pcm_audio& pcm = spoken.value();
-    // Queued under whoever asked, so they can /tts stop it (plan §12.7).
+    // Queued under whoever asked, so they can /tts stop it
+    // (docs/features/Speech.md §2.4).
     services_.speech->enqueue(ask.guild_id, ask.author_id, ticket, audio::to_discord(pcm.samples, pcm.sample_rate));
     util::log().info("speaking the model's reply of {} in guild {}", pcm.duration(), ask.guild_id);
 }

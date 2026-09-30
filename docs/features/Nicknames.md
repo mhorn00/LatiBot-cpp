@@ -18,7 +18,7 @@ follows a change through.
 | **Tests** | `tests/unit/{nicknames,nickname_import,nickname_command}_test.cpp`, `tests/db/{nickname_store,nickname_import}_test.cpp` |
 | **Tables** | `nickname_history` (migration 4) |
 | **Config** | `track_nicknames` in `config.json` (on by default) |
-| **Plan** | Replaces plan §8, §21.8 and §21.9; code comments still cite those |
+| **Plan** | Replaces plan §8, §21.8 and §21.9 |
 | **Status** | Built in phase 2 (2026-09-23). `/nickname` has been deferred since 2026-09-25 and not seen working in Discord since |
 
 ## Contents

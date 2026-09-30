@@ -20,7 +20,7 @@ the posting and watching. The reactions on replacements are counted by
 | **Tests** | `tests/unit/{url_scan,url_rules,embed_watch,urlrepl_command}_test.cpp`, `tests/db/{url_rule_store,replacement_store}_test.cpp`, the URL panel in `tests/unit/panels_test.cpp`, `tests/fuzz/fuzz_url_scan.cpp` |
 | **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links` (migration 6) |
 | **Settings** | `url_replacement_enabled` and `url_rules_imported` per server in `guild_settings` |
-| **Plan** | Replaces plan §9.1–§9.5, §21.11 and §21.13; code comments still cite those |
+| **Plan** | Replaces plan §9.1–§9.5, §21.11 and §21.13 |
 | **Status** | Built in phase 3 (2026-09-24). The restart sweep (§3.5) has not been seen working in Discord yet |
 
 ## Contents

@@ -85,10 +85,10 @@ struct answer_report {
 /// What the bot says, when addressed, if the model could not answer.
 [[nodiscard]] auto failure_reply(const ports::api_error& error) -> std::string;
 
-/// Answers a message with the model (plan §14): reads the recent
-/// conversation, builds the prompt, runs the tool loop, records the spend,
-/// then posts the reply, and speaks it when the channel is a voice
-/// session's (plan §14.2).
+/// Answers a message with the model (docs/features/Language_Model.md): reads
+/// the recent conversation, builds the prompt, runs the tool loop, records
+/// the spend, then posts the reply, and speaks it when the channel is a voice
+/// session's (docs/features/Language_Model.md §2.5).
 ///
 /// Thread-safe: every answer is independent, and the stores it uses guard
 /// themselves.

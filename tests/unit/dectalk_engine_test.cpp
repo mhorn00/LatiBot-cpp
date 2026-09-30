@@ -1,4 +1,5 @@
-// The real DECtalk, driven through the tts_engine port (plan §12.3, §17.5).
+// The real DECtalk, driven through the tts_engine port
+// (docs/features/Speech.md §4.1).
 //
 // These run the engine rather than a mock: what they check is how DECtalk
 // behaves, which is what the design rests on. It needs no audio device, so
@@ -68,7 +69,7 @@ TEST_CASE("the same request gives the same audio every time", "[audio][coro][thr
 
 TEST_CASE("one request's inline settings do not reach the next", "[audio][coro][threads]") {
     // With a single long-lived engine, [:rate] and [:dv] outlive the request
-    // that set them (plan §2.2).
+    // that set them (docs/features/Speech.md §4.1).
     dectalk_engine engine;
 
     const pcm_audio plain = say(engine, "Hello there.");
@@ -129,8 +130,9 @@ TEST_CASE("an utterance stops at its maximum duration", "[audio][coro][threads]"
 }
 
 TEST_CASE("an utterance that takes too long is abandoned", "[audio][coro][threads]") {
-    // [:pause] waits on the clock rather than producing silence (plan
-    // §21.16), so this would hold the engine for a minute.
+    // [:pause] waits on the clock rather than producing silence
+    // (docs/features/Speech.md §2.2), so this would hold the engine for a
+    // minute.
     dectalk_engine engine(dectalk_engine::default_dictionary(), 300ms);
 
     const auto started = std::chrono::steady_clock::now();

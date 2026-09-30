@@ -36,7 +36,7 @@ endfunction()
 # CONAN_LIB::<package>_<lib>_RELEASE and _DEBUG, each with only its own
 # configuration's location. Answering VS Code's codemodel query, CMake 4.4
 # asks each for its location in the other configuration too, and reports
-# dozens of "IMPORTED_LOCATION not set" errors (plan §21.14).
+# dozens of "IMPORTED_LOCATION not set" errors (README.md, Notes / gotchas).
 #
 # Pointing each at its own configuration answers that. Only these leaf
 # targets are mapped, never the _DEPS_TARGET that links them: that one picks

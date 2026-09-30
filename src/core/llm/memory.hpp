@@ -16,7 +16,8 @@ class database;
 
 namespace latibot::llm {
 
-/// One thing the model chose to remember (plan §14.5).
+/// One thing the model chose to remember
+/// (docs/features/Language_Model.md §3.4).
 struct memory {
     std::int64_t id = 0;
     dpp::snowflake guild_id;
@@ -76,7 +77,8 @@ private:
 
 /// What the model is shown before it answers: memories about whoever it is
 /// answering, then the ones that match what they said, without repeats, at
-/// most `limit` (plan §14.5). Common facts then need no tool call.
+/// most `limit` (docs/features/Language_Model.md §3.4). Common facts then
+/// need no tool call.
 [[nodiscard]] auto relevant_memories(const memory_store& store, dpp::snowflake guild_id, dpp::snowflake author, std::string_view text,
                                      std::size_t limit) -> std::vector<memory>;
 

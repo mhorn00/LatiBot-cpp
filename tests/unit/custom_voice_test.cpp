@@ -1,5 +1,5 @@
 // Custom voices: the [:dv] parameters, reading and writing them, and names
-// (plan §12.6).
+// (docs/features/Speech.md §3).
 
 #include "core/audio/voice_params.hpp"
 #include "core/audio/voice_store.hpp"

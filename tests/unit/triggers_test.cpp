@@ -128,7 +128,8 @@ TEST_CASE("cooldowns are measured from the last reply", "[events]") {
 }
 
 TEST_CASE("a zero cooldown means no cooldown", "[events]") {
-    // Plan v4 §11 allows 0 explicitly, and it must not mean "never again".
+    // docs/features/Triggers.md §2.2 allows 0 explicitly, and it must not
+    // mean "never again".
     const auto start = std::chrono::steady_clock::time_point{};
     CHECK(off_cooldown(start, start, 0s));
     CHECK(off_cooldown(start, start, -5s));

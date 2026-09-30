@@ -103,8 +103,9 @@ TEST_CASE("a gap in the migration versions is rejected", "[db]") {
 }
 
 TEST_CASE("the shipped schema is append-only and correctly numbered", "[db]") {
-    // Guards the rule from plan v4 §5.2: versions run 1, 2, 3 ... with no
-    // gaps, so a database migrated by an older build can always catch up.
+    // Guards the rule from docs/features/Operations.md §5: versions run 1, 2,
+    // 3 ... with no gaps, so a database migrated by an older build can always
+    // catch up.
     int expected = 1;
     for (const migration& step : latibot::db::schema()) {
         CHECK(step.version == expected);

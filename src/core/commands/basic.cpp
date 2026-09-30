@@ -232,7 +232,8 @@ auto status_command::build(const std::string& name, dpp::snowflake application_i
 auto status_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const saved_status status{.text = string_option(event, "status"), .type = string_option(event, "type")};
 
-    // Kept as well as set, so the next start puts it back (plan §6).
+    // Kept as well as set, so the next start puts it back
+    // (docs/features/Basic_Commands.md §2).
     cluster_->set_presence(presence_for(status));
     save_status(*settings_, status);
     util::log().info("status set to {} \"{}\" by {}", status.type.empty() ? "playing" : status.type, status.text,
@@ -251,7 +252,8 @@ join_command::join_command()
             .required_bot_permissions = dpp::p_connect | dpp::p_speak,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
-            // The room sees the bot come and go, so it sees why (plan §6).
+            // The room sees the bot come and go, so it sees why
+            // (docs/features/Voice_Channels.md §2.1).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
@@ -308,7 +310,8 @@ leave_command::leave_command()
             .required_bot_permissions = dpp::p_connect,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
-            // The room sees the bot come and go, so it sees why (plan §6).
+            // The room sees the bot come and go, so it sees why
+            // (docs/features/Voice_Channels.md §2.1).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
@@ -335,7 +338,8 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .required_bot_permissions = 0,
             .default_member_permissions = dpp::permission(dpp::p_administrator),
             .guild_only = true,
-            // Everyone is about to lose the bot; they hear it go (plan §6).
+            // Everyone is about to lose the bot; they hear it go
+            // (docs/features/Basic_Commands.md §2).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}

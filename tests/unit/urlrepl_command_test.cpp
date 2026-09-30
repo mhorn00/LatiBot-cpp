@@ -1,4 +1,5 @@
-// /urlrepl, its panel, and /urltoggle (plan v4 §9.5).
+// /urlrepl, its panel, and /urltoggle
+// (docs/features/Url_Replacement.md §2.6).
 
 #include "core/commands/urlrepl.hpp"
 #include "core/db/database.hpp"
@@ -299,7 +300,8 @@ TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {
 
 TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebody else", "[commands]") {
     // Everyone may run /urltoggle, so Discord's permissions cannot tell the
-    // two apart; this is the check (plan §21.13).
+    // two apart; this is the check
+    // (docs/features/Commands_and_Panels.md §2.1).
     using latibot::commands::urltoggle_refusal;
     const dpp::snowflake me{1};
     const dpp::snowflake them{2};

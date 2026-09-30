@@ -9,8 +9,9 @@ read first.
 
 Two conventions worth knowing before reading:
 
-- **Section numbers match v4.** Code comments across `src/` cite the plan as
-  `plan v4 §5.4` and similar, and those references still resolve here. Sections
+- **Section numbers match v4.** Code comments once cited the plan as
+  `plan v4 §5.4` and similar; they cite the feature specs now, and only the
+  SQL comments in shipped migrations still say `plan v4 9.7`. Sections
   §0–§20 keep their v4 meaning; anything new was added as §21 onward.
 - **Each feature says where it stands.** ✅ built and tested, 🚧 partly built,
   ⏳ planned. What is built is described as it behaves; what is planned is
@@ -24,8 +25,8 @@ the order of work behind it.
 > has a spec in [docs/features/](../features/README.md#feature-specs): what it
 > is for, how it behaves and is built, and the decisions behind it, kept
 > current as the feature changes. This plan stays as the record of how the
-> port was designed, and its numbering is unchanged, since code comments cite
-> it. Where each section went:
+> port was designed, and its numbering is unchanged, since the SQL comments in
+> shipped migrations cite it. Where each section went:
 >
 > | Plan | Spec |
 > |---|---|

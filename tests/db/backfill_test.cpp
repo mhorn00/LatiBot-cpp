@@ -1,5 +1,6 @@
 // /linkstats recompute: reading history back into the reaction statistics
-// (plan v4 §9.7), against the Discord mock and a real database.
+// (docs/features/Link_Stats.md §4), against the Discord mock and a real
+// database.
 
 #include "core/events/backfill.hpp"
 #include "core/db/database.hpp"

@@ -1,4 +1,4 @@
-// The voice message /chat answers with (plan §12.8).
+// The voice message /chat answers with (docs/features/Speech.md §4.4).
 
 #include "core/commands/chat.hpp"
 

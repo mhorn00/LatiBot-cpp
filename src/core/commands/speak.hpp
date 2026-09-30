@@ -48,7 +48,7 @@ struct speak_plan {
 
 [[nodiscard]] auto plan_speak(dpp::snowflake bot_channel, dpp::snowflake caller_channel) noexcept -> speak_plan;
 
-/// Per-guild limits on speech (plan §12.5, §12.7, §20).
+/// Per-guild limits on speech (docs/features/Speech.md §2.3).
 struct speech_limits {
     std::size_t max_characters = 1000;
     std::chrono::seconds max_duration{60};
@@ -68,8 +68,8 @@ inline constexpr std::int64_t max_seconds_limit = 600;
 [[nodiscard]] auto speak_refusal(std::string_view text, const speech_limits& limits) -> std::optional<std::string>;
 
 /// Whether `caller` may stop or skip what is being said: whoever asked for
-/// the utterance playing now, an administrator, or a trusted user (plan
-/// §12.7). With nothing playing, only the latter two.
+/// the utterance playing now, an administrator, or a trusted user
+/// (docs/features/Speech.md §2.4). With nothing playing, only the latter two.
 [[nodiscard]] auto may_stop_speech(dpp::snowflake caller, std::optional<dpp::snowflake> speaking_for, bool trusted,
                                    bool administrator) noexcept -> bool;
 
@@ -82,7 +82,8 @@ inline constexpr std::string_view nothing_left_reply = "there's nothing left to 
 [[nodiscard]] auto resolve_voice(const audio::voice_store* voices, dpp::snowflake guild, std::string_view wanted)
     -> std::optional<ports::voice_settings>;
 
-/// How far to trust what whoever used `event` wants spoken (plan §2.4).
+/// How far to trust what whoever used `event` wants spoken
+/// (docs/features/Speech.md §2.2).
 [[nodiscard]] auto speech_trust_of(const config::bootstrap& bootstrap, const dpp::interaction_create_t& event) -> audio::speech_trust;
 
 /// Logs, at debug, which inline commands the sanitizer took out.
@@ -107,7 +108,7 @@ struct speech_services {
     audio::voice_store* voices = nullptr;
 };
 
-/// Says something in the voice channel (plan §12.6).
+/// Says something in the voice channel (docs/features/Speech.md §2.1).
 class speak_command final : public command {
 public:
     explicit speak_command(speech_services services);
@@ -122,7 +123,8 @@ private:
     speech_services services_;
 };
 
-/// Stops or skips speech, and sets the limits on it (plan §12.7).
+/// Stops or skips speech, and sets the limits on it
+/// (docs/features/Speech.md §2.4).
 class tts_command final : public command {
 public:
     explicit tts_command(speech_services services);

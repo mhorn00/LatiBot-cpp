@@ -22,7 +22,8 @@ namespace latibot::events {
 /// Per-guild setting saying whether URL replacement is on. Absent means off.
 inline constexpr std::string_view url_replacement_enabled_key = "url_replacement_enabled";
 
-/// One site a link can be sent to instead of the original (plan §9).
+/// One site a link can be sent to instead of the original
+/// (docs/features/Url_Replacement.md §2.2).
 struct mirror {
     /// "fxtwitter.com".
     std::string host;
@@ -102,11 +103,11 @@ struct link_verdict {
 /// The links in `content` that a rule covers, in the order they appear, each
 /// once.
 ///
-/// A link to a site without a rule is skipped on its own. The Java bot gave up
-/// on the whole message instead, so one unrelated link stopped every other
-/// replacement (plan §9.1). Links in code, and links written as `<…>` to
-/// turn their preview off, are left alone as well: Discord was not going to
-/// embed those anyway.
+/// A link to a site without a rule is skipped on its own. The Java bot gave
+/// up on the whole message instead, so one unrelated link stopped every other
+/// replacement (docs/features/Url_Replacement.md §3.1). Links in code, and
+/// links written as `<…>` to turn their preview off, are left alone as well:
+/// Discord was not going to embed those anyway.
 [[nodiscard]] auto plan_replacements(std::string_view content, std::span<const url_rule> rules) -> std::vector<planned_link>;
 
 /// `link` on its mirror at `index`. An index past the last mirror uses the
@@ -157,8 +158,9 @@ public:
     auto toggle_opt_out(dpp::snowflake guild_id, dpp::snowflake user_id) -> bool;
 
     /// Every mirror host this guild has had a rule for, including rules since
-    /// removed. Recognising the bot's old replacements depends on it, and they
-    /// do not stop existing when a rule changes (plan §9.7).
+    /// removed. Recognising the bot's old replacements depends on it, and
+    /// they do not stop existing when a rule changes
+    /// (docs/features/Link_Stats.md §4.1).
     [[nodiscard]] auto known_mirrors(dpp::snowflake guild_id) const -> mirror_map;
 
     /// Remembers a mirror without making a rule of it, for hosts the bot used

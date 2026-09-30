@@ -42,7 +42,7 @@ inline constexpr std::size_t leaderboard_size = 10;
 inline constexpr std::size_t emoji_page_size = 20;
 
 /// How many emojis a profile lists per side: "your top 3 reactions"
-/// (plan §9.6).
+/// (docs/features/Link_Stats.md §1).
 inline constexpr std::size_t profile_emojis = 3;
 
 /// A day typed as YYYY-MM-DD, in UTC. Nothing when it is not a real date.
@@ -126,8 +126,8 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
                             const std::string& chosen) -> bool;
 
 /// A recompute's progress message: running while it runs, then the final
-/// report (plan §9.7). Messages worth a look are linked, so a click shows
-/// them.
+/// report (docs/features/Link_Stats.md §4.3). Messages worth a look are
+/// linked, so a click shows them.
 [[nodiscard]] auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished)
     -> std::string;
 
@@ -146,8 +146,9 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
 /// `subcommand_path` spells it ("alias add"), or nothing when they may.
 ///
 /// Reading is open to everyone; changing aliases and recomputing need Manage
-/// Server. Discord's default permissions are per command, not per
-/// subcommand, so this is the only check these get (plan §21.13).
+/// Server. Discord's default permissions are per command, not per subcommand,
+/// so this is the only check these get
+/// (docs/features/Commands_and_Panels.md §2.1).
 [[nodiscard]] auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> std::optional<std::string>;
 
 /// What `/linkstats recompute` needs from outside the statistics.
@@ -165,7 +166,7 @@ struct recompute_support {
 };
 
 /// `/linkstats top | user | reactions | duplicates | alias … | recompute … |
-/// images …` (plan §9.6).
+/// images …` (docs/features/Link_Stats.md §1).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// which `linkstats_refusal` decides before any subcommand runs.
@@ -195,7 +196,7 @@ private:
     auto images(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void>;
 
     /// Whether this guild counts reactions on images and videos
-    /// (docs/features/Link_Stats.md 9).
+    /// (docs/features/Link_Stats.md §9).
     [[nodiscard]] auto counts_images(dpp::snowflake guild_id) const -> bool;
 
     /// The `source` option, or when it is left out, both where images are

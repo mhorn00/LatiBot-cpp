@@ -41,7 +41,8 @@ voice_command::voice_command(events::voice_sessions& sessions, config::guild_set
             .required_bot_permissions = dpp::p_connect | dpp::p_speak,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
-            // The room sees the bot arrive and go, as with /join (plan §6).
+            // The room sees the bot arrive and go, as with /join
+            // (docs/features/Voice_Channels.md §2.2).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {{"grace", private_result},
                                      {"lab", private_result},
@@ -215,7 +216,7 @@ auto voice_command::grace(const dpp::slashcommand_t& event) -> dpp::task<void> {
     }
 
     // Default member permissions are per command, so this checks for itself
-    // (plan §21.13).
+    // (docs/features/Commands_and_Panels.md §2.1).
     if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
         co_await event.co_reply(refusal(event, "changing that needs Manage Server"));
         co_return;

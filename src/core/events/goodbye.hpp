@@ -23,7 +23,7 @@ inline constexpr std::string_view goodbye_reply = "ok bye bye!";
 inline constexpr std::chrono::milliseconds goodbye_delay{1500};
 
 /// Whether this message is the goodbye phrase and essentially nothing else
-/// (plan §6).
+/// (docs/features/Basic_Commands.md §3).
 ///
 /// Case and surrounding punctuation are ignored, and runs of whitespace count
 /// as one space, so "Say goodbye, LatiBot!" matches. Anything with words

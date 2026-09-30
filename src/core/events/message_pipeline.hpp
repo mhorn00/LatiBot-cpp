@@ -19,7 +19,7 @@ namespace latibot::events {
 ///
 /// Deliberately not `dpp::message`: a stage that takes plain data can be
 /// tested without a gateway, and the shell is the only place that has to know
-/// how Discord spells any of this (plan §17.3).
+/// how Discord spells any of this (docs/testing/README.md).
 struct incoming_message {
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;
@@ -29,9 +29,9 @@ struct incoming_message {
     bool from_self = false;
     bool from_bot = false;
 
-    /// Whether this guild allows LatiBot to hear this bot (plan §14.4).
-    /// Only meaningful with `from_bot`; resolved by the shell from
-    /// `bot_allowlist`.
+    /// Whether this guild allows LatiBot to hear this bot
+    /// (docs/features/Message_Pipeline.md §2.1). Only meaningful with
+    /// `from_bot`; resolved by the shell from `bot_allowlist`.
     bool author_is_allowed_bot = false;
 
     /// Whether the author has Administrator in this guild. Resolved by the
@@ -47,17 +47,19 @@ struct incoming_message {
     /// name or username, whichever they have.
     std::string author_name;
 
-    /// The author's roles here, for the model's blacklist (plan §14.6).
+    /// The author's roles here, for the model's blacklist
+    /// (docs/features/Language_Model.md §2.2).
     std::vector<dpp::snowflake> author_roles;
 
     /// Whether the message @mentions LatiBot, or replies to one of its
-    /// messages: two of the three ways to address it (plan §14.3).
+    /// messages: two of the three ways to address it
+    /// (docs/features/Language_Model.md §2.1).
     bool mentions_bot = false;
     bool replies_to_bot = false;
 
     /// Set by the pipeline once a stage has answered the message, so a later
     /// stage can stand back: the simple trigger wins over an advanced one
-    /// (plan §14.3).
+    /// (docs/features/Message_Pipeline.md §2.2).
     bool answered = false;
 };
 
@@ -82,7 +84,8 @@ struct stop_bot {
     std::chrono::milliseconds after{0};
 };
 
-/// Post working previews for links a URL rule covers (plan §9.2).
+/// Post working previews for links a URL rule covers
+/// (docs/features/Url_Replacement.md §3.2).
 ///
 /// Carrying this out takes several calls and then some waiting, which is why
 /// it is an action of its own rather than a `send_message`: what gets posted
@@ -100,7 +103,7 @@ struct replace_links {
     std::vector<planned_link> links;
 };
 
-/// Ask the model to answer a message (plan §14).
+/// Ask the model to answer a message (docs/features/Language_Model.md).
 ///
 /// An action of its own because answering takes a model call, maybe several,
 /// and the stage that decides to answer cannot wait for them: it only
@@ -120,10 +123,11 @@ struct ask_llm {
     std::string context_prompt;
 
     /// Also say the reply in the voice session this channel belongs to
-    /// (plan §14.2).
+    /// (docs/features/Language_Model.md §2.5).
     bool speak = false;
 
-    /// How long to wait before answering: bot-to-bot pacing (plan §14.4).
+    /// How long to wait before answering: bot-to-bot pacing
+    /// (docs/features/Language_Model.md §2.7).
     std::chrono::seconds wait{0};
 };
 
@@ -139,7 +143,7 @@ struct stage_result {
 
     /// Whether later stages should be skipped. A trigger response and a URL
     /// replacement can both fire on one message; an LLM reply should not
-    /// follow a goodbye (plan §5.4).
+    /// follow a goodbye (docs/features/Message_Pipeline.md §2.2).
     bool consumed = false;
 
     /// Whether this stage answered the message, which later stages see as
@@ -150,7 +154,7 @@ struct stage_result {
 /// The ordered stages a message passes through.
 ///
 /// The order is a list rather than a chain of calls, so changing it is a
-/// matter of moving one line (plan §5.4).
+/// matter of moving one line (docs/features/Message_Pipeline.md §2.2).
 class pipeline {
 public:
     using stage_fn = std::function<stage_result(const incoming_message&)>;
@@ -161,9 +165,9 @@ public:
     /// Everything the stages asked for, in order.
     ///
     /// Our own messages produce nothing, and so do other bots' unless this
-    /// guild allows that one (plan §5.4). Reaching the stages is only
-    /// permission to be considered: a stage still decides for itself whether
-    /// it answers a bot.
+    /// guild allows that one (docs/features/Message_Pipeline.md §2.1).
+    /// Reaching the stages is only permission to be considered: a stage still
+    /// decides for itself whether it answers a bot.
     [[nodiscard]] auto run(const incoming_message& message) const -> std::vector<action>;
 
     [[nodiscard]] auto stage_names() const -> std::vector<std::string_view>;

@@ -16,7 +16,7 @@ instead are [advanced triggers](Language_Model.md#26-advanced-triggers).
 | **Code** | `src/core/events/triggers.*`, `src/core/commands/trigger.*` (the command and `trigger_panel`) |
 | **Tests** | `tests/unit/triggers_test.cpp`, `tests/unit/trigger_command_test.cpp`, `tests/db/trigger_store_test.cpp`, the trigger panel in `tests/unit/panels_test.cpp` |
 | **Tables** | `triggers`, `trigger_responses` (migration 2); `respond_to_bots` (migration 3); `message_flags` (migration 9) |
-| **Plan** | Replaces plan §11; code comments still cite it |
+| **Plan** | Replaces plan §11 |
 | **Status** | Built in phase 1 (2026-09-21); the panel's forms were fixed on 2026-09-29 and have not been seen working in Discord since |
 
 ## Contents
@@ -69,15 +69,12 @@ text, and the only choice is whether it must stand alone as a word.
   ([Message_Pipeline.md §2.1](Message_Pipeline.md#21-who-is-heard)), and
   even then a trigger answers one only with `bots:true`, off by default.
 
-### 2.3 The defaults
+### 2.3 No defaults
 
-A server with **no** triggers is given the Java bot's three each time the
-bot connects to it: `420`, `4:20` and `69`, whole word, 30 s, all answering
-"nice". The check is for no triggers at all, not for those three. So
-deleting the defaults while keeping a trigger of your own keeps them gone,
-but **deleting every trigger brings the three back at the next restart**.
-The plan and the user guide say deleting them all keeps them gone; §5 has
-the question this raises.
+A server starts with **no** triggers. The Java bot's `420`, `4:20` and `69`,
+all answering "nice", are not added for anyone; a server that wants them adds
+them with `/trigger add`. Servers that were given them before 2026-09-30
+keep them until someone removes them, and nothing brings them back.
 
 ### 2.4 The command
 
@@ -162,7 +159,7 @@ characters, so a long pattern cannot break the panel for the whole server.
 | plan v4 | Literal patterns, whole word or anywhere; no regular expressions | A user's regex is a performance and stack-overflow risk on every message |
 | plan v4 | A cooldown per trigger per channel, 30 s by default, 0 allowed | A joke repeated in one channel is noise; another channel has not seen it |
 | plan v4 | The randomness comes from the caller | The weighted distribution can be tested |
-| plan v4 | Seed the Java defaults only into a server with no triggers | Deleting them must not bring them back on the next restart. As built, deleting all of them does (§5) |
+| plan v4 | Seed the Java defaults only into a server with no triggers | Deleting them must not bring them back on the next restart. Superseded on 2026-09-30, below |
 | plan v4 | Triggers do not consume the message | The Java bot's early return cost a message its link replacement |
 | 2026-09-22 | A panel with a menu, buttons and forms, all state in `custom_id` | It survives restarts and nothing on the bot's side expires |
 | 2026-09-23 | Answering bots is per trigger, off by default | Hearing a bot and answering it are separate decisions |
@@ -172,16 +169,12 @@ characters, so a long pattern cannot break the panel for the whole server.
 | 2026-09-25 | Replies are silent by default; `silent` and `previews` per trigger | The Java bot's were silent; some triggers want to notify or hide previews (plan §21.15) |
 | 2026-09-28 | A reply marks the message answered | The free, simple reply wins over an advanced trigger's paid one |
 | 2026-09-29 | The form keeps a field it cannot read, and says so | Resetting a cooldown because of a typo in it is worse than keeping it |
+| 2026-09-30 | **No default triggers**; `seed_defaults` removed (the owner's decision) | The seeding checked for no triggers at all, so deleting every trigger brought the three back at the next connect. The bot need not add them; a server that wants them can |
 
 ## 5. Limits, and what is still to check
 
 - Cooldowns are forgotten on restart.
 - A pattern matches message text only: not embeds, attachments or edits.
-- **Open: deleting every trigger does not stick.** `seed_defaults` runs on
-  every connect and seeds any server with no triggers (§2.3). Plan §11 and
-  the user guide promise that deleting them all does not bring them back.
-  Either the promise changes, or the seeding is marked done per server once
-  it has run, the way `url_rules_imported` marks the URL rule import.
 - **Still to check in Discord:** that the panel's forms save, since the fix
   of 2026-09-29 (plan §21.21) was tested only through DPP's own interaction
   handling.

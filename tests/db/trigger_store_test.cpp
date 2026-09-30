@@ -150,17 +150,6 @@ TEST_CASE("removing a trigger takes its responses with it", "[db]") {
     CHECK(orphans.get<std::int64_t>(0) == 0);
 }
 
-TEST_CASE("the defaults are seeded once per guild", "[db]") {
-    store_fixture fixture;
-
-    CHECK(fixture.store.seed_defaults(guild) == 3);
-    CHECK(fixture.store.for_guild(guild).size() == 3);
-
-    // Seeding again would give a server that deliberately deleted them back.
-    CHECK(fixture.store.seed_defaults(guild) == 0);
-    CHECK(fixture.store.for_guild(guild).size() == 3);
-}
-
 TEST_CASE("a matching message gets one of the trigger's responses", "[db]") {
     store_fixture fixture;
     fixture.store.add(nice_trigger());
@@ -178,7 +167,7 @@ TEST_CASE("a matching message gets one of the trigger's responses", "[db]") {
 
     SECTION("and the message does not stop here") {
         // A message with both "420" and a link should get the reply and the
-        // URL replacement (plan v4 §5.4).
+        // URL replacement (docs/features/Message_Pipeline.md §2.2).
         CHECK_FALSE(result.consumed);
     }
 }
@@ -299,8 +288,9 @@ TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[db]") {
 }
 
 TEST_CASE("a trigger only answers an allowed bot when it opts in", "[db]") {
-    // The allowlist got the message this far (plan v4 14.4); this is the
-    // second, per-trigger decision.
+    // The allowlist got the message this far
+    // (docs/features/Message_Pipeline.md §2.1); this is the second,
+    // per-trigger decision.
     store_fixture fixture;
     fixture.store.add(nice_trigger());
 

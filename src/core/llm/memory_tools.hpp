@@ -6,7 +6,7 @@
 namespace latibot::llm {
 
 /// `remember`, `recall` and `forget`: the model's long-term memory, over
-/// `store` (plan §14.5).
+/// `store` (docs/features/Language_Model.md §3.4).
 ///
 /// The model may forget only what is about the person it is answering, or
 /// what that person had it remember. Everything else is an admin's to

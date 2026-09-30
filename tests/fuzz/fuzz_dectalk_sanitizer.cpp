@@ -1,5 +1,5 @@
 // Fuzzes the DECtalk sanitizer, which stands between anyone's text and the
-// engine's inline commands (plan §12.5, §17.5).
+// engine's inline commands (docs/features/Speech.md §4.3).
 //
 // The checks read the output the way DECtalk would, independently of how
 // the sanitizer reads its input: every command bracket in it must name a

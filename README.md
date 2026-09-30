@@ -612,12 +612,12 @@ build/              build output (git-ignored)
 data/               runtime database, backups and import files (git-ignored)
 ```
 
-Comments in the code cite the plan as "plan §9.4": that always means
-[Porting_Plan_Final.md](docs/porting/Porting_Plan_Final.md). The drafts before
-it are kept for history and numbered differently in places. Each feature's
-[spec](docs/features/README.md#feature-specs) now carries its design, and
-lists the plan sections it replaces, so those references still lead
-somewhere current.
+Comments in the code cite a feature's [spec](docs/features/README.md#feature-specs)
+by file and section, as "docs/features/Url_Replacement.md §2.4". The comments
+inside the migrations' SQL still say "plan v4 9.7": shipped migrations are
+never edited, and those mean
+[Porting_Plan_Final.md](docs/porting/Porting_Plan_Final.md), whose drafts are
+kept for history and numbered differently in places.
 
 The original Java bot lives in `java-reference/` locally. It is deliberately
 **not** tracked in git: it is large and contains personal data.

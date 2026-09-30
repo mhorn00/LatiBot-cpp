@@ -21,7 +21,7 @@ follows an answer.
 | **Tests** | `tests/unit/{llm_answer,llm_command,llm_guards,llm_provider,llm_tools}_test.cpp`, `tests/db/llm_store_test.cpp`, `tests/mocks/{mock_llm,mock_http}.hpp` |
 | **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers` (migration 11); settings as `llm_*` rows in `guild_settings` |
 | **Config** | `llm_provider`, `llm_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `llm_tool_rounds` in `config.json`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
-| **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21; code comments still cite those |
+| **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
 | **Status** | Built in phase 5 (2026-09-28). **Never called a real API or run in Discord**: see §5 |
 
 ## Contents

@@ -16,7 +16,7 @@ class database;
 
 namespace latibot::audio {
 
-/// A custom voice a guild has kept (plan §12.6).
+/// A custom voice a guild has kept (docs/features/Speech.md §3).
 struct saved_voice {
     std::string name;
     custom_voice voice;

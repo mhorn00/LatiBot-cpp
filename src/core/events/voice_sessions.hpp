@@ -14,8 +14,9 @@
 
 namespace latibot::events {
 
-/// A voice session: the bot in a voice channel on someone's request, tied
-/// to the text channel it was started from (plan §13).
+/// A voice session: the bot in a voice channel on someone's request, tied to
+/// the text channel it was started from
+/// (docs/features/Voice_Channels.md §2.2).
 ///
 /// While one is active, `/speak` from anywhere in the guild goes to its
 /// voice channel, and the language model's replies in its text channel will
@@ -48,8 +49,8 @@ private:
 };
 
 /// How long the bot stays in a voice channel with nobody else in it, per
-/// guild (plan §13, §20). Long enough that someone dropping out and
-/// rejoining does not lose it.
+/// guild (docs/features/Voice_Channels.md §2.3). Long enough that someone
+/// dropping out and rejoining does not lose it.
 inline constexpr std::string_view voice_grace_key = "voice_grace_seconds";
 inline constexpr std::chrono::seconds default_voice_grace{30};
 

@@ -17,8 +17,8 @@ struct bootstrap;
 
 namespace latibot::llm {
 
-/// One number `/llm settings` edits (plan §14.5), stored in
-/// `guild_settings` under `key`.
+/// One number `/llm settings` edits (docs/features/Language_Model.md §3.7),
+/// stored in `guild_settings` under `key`.
 ///
 /// Values are checked against the range when they are set, and clamped into
 /// it when they are read, so a hand-edited row cannot take the model past
@@ -52,7 +52,7 @@ struct setting_spec {
 /// Reads what was typed into a setting's field. Nothing, with the reason set,
 /// when it is not a value the setting takes: out-of-range input is refused
 /// with the range, rather than clamped, so nobody is surprised by a value
-/// they did not type (plan §14.5).
+/// they did not type (docs/features/Language_Model.md §3.7).
 [[nodiscard]] auto parse_setting(const setting_spec& spec, std::string_view typed, std::string& reason) -> std::optional<std::int64_t>;
 
 /// A value as the panel shows it: "yes", "3000".
@@ -66,7 +66,8 @@ inline constexpr std::string_view enabled_key = "llm_enabled";
 inline constexpr std::string_view model_key = "llm_model";
 inline constexpr std::string_view personality_role_key = "llm_personality_role";
 
-/// Everything a request reads, from one guild's settings (plan §14.5).
+/// Everything a request reads, from one guild's settings
+/// (docs/features/Language_Model.md §3.7).
 struct llm_settings {
     /// Off until someone turns it on: every message it answers costs money.
     bool enabled = false;
@@ -84,13 +85,14 @@ struct llm_settings {
     int user_per_minute = 3;
     int channel_per_minute = 8;
 
-    /// How many recent messages an advanced trigger sees (plan §20).
+    /// How many recent messages an advanced trigger sees
+    /// (docs/features/Language_Model.md §2.9).
     int trigger_context = 5;
 
     pacing_rules pacing;
 
-    /// Who may edit the personality: a role, or the guild's id for
-    /// @everyone, which is the default (plan §14.5).
+    /// Who may edit the personality: a role, or the guild's id for @everyone,
+    /// which is the default (docs/features/Language_Model.md §3.5).
     dpp::snowflake personality_role;
 };
 

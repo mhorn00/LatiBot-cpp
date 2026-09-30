@@ -17,7 +17,7 @@ and what was decided and why. [The user guide](README.md#join--leave) has
 | **Code** | `src/core/commands/basic.*` (`/join`, `/leave`), `src/core/commands/voice.*`, `src/core/events/voice_sessions.*`, `src/core/audio/speech_queue.*`, `src/core/discord/{voice_state,dpp_voice_output}.*`, `src/core/ports/voice_output.hpp`; the voice events in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/{voice_sessions,speech_queue,basic_commands}_test.cpp`, `tests/mocks/mock_voice.hpp` |
 | **Tables** | `voice_grace_seconds` per server in `guild_settings` |
-| **Plan** | Replaces plan §13, and the voice half of §6; code comments still cite those |
+| **Plan** | Replaces plan §13, and the voice half of §6 |
 | **Status** | `/join` and `/leave` built in phase 1; sessions, the queue and auto-leave in phase 4 (2026-09-26). **Not yet run in Discord**: see §5 |
 
 ## Contents

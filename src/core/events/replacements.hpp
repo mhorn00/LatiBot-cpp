@@ -16,7 +16,8 @@ class database;
 
 namespace latibot::events {
 
-/// Where a replacement message stands (plan §9.3, §9.4).
+/// Where a replacement message stands
+/// (docs/features/Url_Replacement.md §3.4).
 enum class replacement_state : std::uint8_t {
     /// Posted, previews not confirmed yet.
     pending,
@@ -39,7 +40,7 @@ struct replacement_record {
     dpp::snowflake channel_id;
 
     /// Nothing for an old message whose original could not be identified
-    /// (plan §9.7).
+    /// (docs/features/Link_Stats.md §4.2).
     std::optional<dpp::snowflake> original_message_id;
     std::optional<dpp::snowflake> original_author_id;
 
@@ -63,7 +64,7 @@ public:
 
     /// Records a person's own image or video post, whose reactions are then
     /// counted as a replacement's are, credited to them
-    /// (docs/features/Link_Stats.md 9). Its row is the post itself, with no
+    /// (docs/features/Link_Stats.md §9). Its row is the post itself, with no
     /// links. Does nothing to a message already recorded, either way; true
     /// when it was new.
     auto record_image_post(dpp::snowflake message_id, dpp::snowflake guild_id, dpp::snowflake channel_id, dpp::snowflake author_id,

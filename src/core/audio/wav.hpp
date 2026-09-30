@@ -12,7 +12,7 @@ namespace latibot::audio {
 inline constexpr std::size_t wav_header_size = 44;
 
 /// A complete .wav file holding 16-bit PCM: a 44-byte RIFF header, then the
-/// samples, little-endian (plan §12.8).
+/// samples, little-endian (docs/features/Speech.md §4.4).
 [[nodiscard]] auto wav_file(std::span<const std::int16_t> samples, std::uint32_t sample_rate, std::uint8_t channels) -> std::string;
 
 /// How many bars Discord draws for a voice message.
@@ -24,7 +24,8 @@ inline constexpr std::size_t waveform_buckets = 256;
 /// bucket per sample.
 ///
 /// The Java bot averaged the signed bytes of the whole file, header and all,
-/// which comes out near zero whatever the audio is (plan §12.8).
+/// which comes out near zero whatever the audio is
+/// (docs/features/Speech.md §4.4).
 [[nodiscard]] auto waveform(std::span<const std::int16_t> samples, std::size_t buckets = waveform_buckets) -> std::vector<std::uint8_t>;
 
 /// `waveform`, base64-encoded, as the voice message payload carries it.

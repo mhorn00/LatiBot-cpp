@@ -60,8 +60,9 @@ TEST_CASE("a recorded change comes back as it went in", "[db]") {
 TEST_CASE("a cleared nickname is stored as nothing, not as an empty string", "[db]") {
     store_fixture fixture;
 
-    // One of the three Java bugs being fixed while porting (plan v4 §8.2):
-    // there, a cleared nickname became a null that later crashed the display.
+    // One of the three Java bugs being fixed while porting
+    // (docs/features/Nicknames.md §1): there, a cleared nickname became a
+    // null that later crashed the display.
     const std::int64_t id = fixture.store.record(change_to(std::nullopt));
 
     const auto read = fixture.store.find(id);
@@ -192,7 +193,7 @@ TEST_CASE("a change that did not go through can be taken back", "[db]") {
 
     // `/nickname` records first and asks Discord second, so a refusal has to
     // leave nothing behind: history should never claim something that did not
-    // happen (plan v4 §8.1).
+    // happen (docs/features/Nicknames.md §3).
     const std::int64_t id = fixture.store.record(change_to("worm scientist"));
 
     CHECK(fixture.store.remove(id));

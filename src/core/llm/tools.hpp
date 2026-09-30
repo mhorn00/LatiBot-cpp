@@ -30,7 +30,7 @@ struct tool_outcome {
 using tool_handler = std::function<tool_outcome(const nlohmann::json& input, const tool_context& context)>;
 
 /// The tools the model may call: a name, a JSON schema and a handler each
-/// (plan §14.5).
+/// (docs/features/Language_Model.md §3.4).
 ///
 /// A registry rather than a fixed set, so a later feature adds a tool
 /// without touching the loop that runs them.
@@ -77,9 +77,9 @@ struct loop_outcome {
 };
 
 /// Asks the model, runs the tools it calls, and asks again, until it answers
-/// or `tool_rounds` rounds of tools have run (plan §14.5, §20). The request
-/// after the last round forbids tools, so the model has to answer with what
-/// it has.
+/// or `tool_rounds` rounds of tools have run
+/// (docs/features/Language_Model.md §3.1). The request after the last round
+/// forbids tools, so the model has to answer with what it has.
 ///
 /// `record` is called with each request's usage as it arrives, so what was
 /// spent is counted even when a later request fails.

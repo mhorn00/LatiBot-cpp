@@ -1,5 +1,6 @@
-// The link scanner under URL replacement (plan v4 §9.1). The first tests are
-// the Java bot's bugs, each written against the behaviour it got wrong.
+// The link scanner under URL replacement
+// (docs/features/Url_Replacement.md §3.1). The first tests are the Java bot's
+// bugs, each written against the behaviour it got wrong.
 
 #include "core/util/url_scan.hpp"
 

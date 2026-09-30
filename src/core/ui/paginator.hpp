@@ -19,7 +19,7 @@ inline constexpr std::size_t custom_id_limit = 100;
 ///
 /// Page state lives in the custom_id rather than in memory, so paging still
 /// works after a restart and no per-message state has to be kept or expired
-/// (plan §8.2).
+/// (docs/features/Commands_and_Panels.md §4).
 struct page_state {
     /// Which view this button belongs to, e.g. "nicks" or "triggers".
     ///

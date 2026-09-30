@@ -14,14 +14,15 @@
 
 namespace latibot::audio {
 
-/// DECtalk behind the `tts_engine` port (plan §12).
+/// DECtalk behind the `tts_engine` port (docs/features/Speech.md §4.1).
 ///
 /// One worker thread takes requests in order. Each utterance gets an engine
-/// of its own, started for it and shut down after it (plan §21.16): that
-/// costs about 45 ms, and it is the only way to start from DECtalk's defaults
-/// every time, since the engine's own reset stops it producing audio at all
-/// in memory mode. Synthesis runs at hundreds of times real time, so a
-/// request is answered with the whole utterance rather than streamed.
+/// of its own, started for it and shut down after it
+/// (docs/features/Speech.md §4.1): that costs about 45 ms, and it is the only
+/// way to start from DECtalk's defaults every time, since the engine's own
+/// reset stops it producing audio at all in memory mode. Synthesis runs at
+/// hundreds of times real time, so a request is answered with the whole
+/// utterance rather than streamed.
 ///
 /// A request finishes early, with what it has so far, at its
 /// `max_duration`. One that takes longer than `max_synthesis` of wall time is

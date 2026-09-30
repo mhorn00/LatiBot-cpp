@@ -1,5 +1,5 @@
 // Exercises the mocks themselves, and the coroutine-plus-mock pattern that
-// every feature from Phase 1 on is written against (plan v4 §17.3).
+// every feature from Phase 1 on is written against (docs/testing/README.md).
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"

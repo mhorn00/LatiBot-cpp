@@ -1,4 +1,4 @@
-// What /speak and /tts decide (plan §12.6, §12.7).
+// What /speak and /tts decide (docs/features/Speech.md §2.1, §2.4).
 
 #include "core/audio/voice_store.hpp"
 #include "core/commands/registry.hpp"

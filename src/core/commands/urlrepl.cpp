@@ -338,8 +338,9 @@ auto url_rule_form(int page, const events::url_rule* rule) -> dpp::interaction_m
 
     form.add_row();
     form.add_component(dpp::component()
-                           // The label is capped at 45 characters (plan
-                           // §21.4); the details go in the placeholder.
+                           // The label is capped at 45 characters
+                           // (docs/features/Commands_and_Panels.md §5); the
+                           // details go in the placeholder.
                            .set_label("Mirrors, one per line, first tried first")
                            .set_placeholder("fxtwitter.com/en\nvxtwitter.com\n\n/en asks the mirror to translate")
                            .set_id("mirrors")

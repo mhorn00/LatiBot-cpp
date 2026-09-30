@@ -310,7 +310,7 @@ auto tts_command::limits(const dpp::slashcommand_t& event) -> dpp::task<void> {
     }
 
     // Default member permissions are per command, not per subcommand, so
-    // this one checks for itself (plan §21.13).
+    // this one checks for itself (docs/features/Commands_and_Panels.md §2.1).
     if (!invoker_permissions(event).can(dpp::p_manage_guild)) {
         co_await event.co_reply(refusal(event, "changing the limits needs Manage Server"));
         co_return;

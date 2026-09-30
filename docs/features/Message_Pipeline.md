@@ -17,7 +17,7 @@ follows a message through it.
 | **Code** | `src/core/events/message_pipeline.*`, `src/core/events/bot_allowlist.*`, `src/core/commands/bots.*`; `bot::describe` and `bot::carry_out` in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/message_pipeline_test.cpp`, `tests/unit/bots_command_test.cpp`, `tests/db/bot_allowlist_test.cpp` |
 | **Tables** | `allowed_bots` (migration 3) |
-| **Plan** | Replaces plan §5.4 and §11.1; code comments still cite those |
+| **Plan** | Replaces plan §5.4 and §11.1 |
 | **Status** | Built in phase 1 (2026-09-21, the allowlist 2026-09-23); the `answered` flag in phase 5 |
 
 ## Contents

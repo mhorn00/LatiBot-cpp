@@ -107,15 +107,17 @@ TEST_CASE("values in the file replace the defaults", "[config][fs]") {
 
 TEST_CASE("IDs written as JSON numbers are rejected", "[config]") {
     // JSON numbers are doubles and lose precision past 2^53, so a snowflake
-    // written unquoted would silently come out wrong (plan v4 §5.2).
+    // written unquoted would silently come out wrong
+    // (docs/features/Operations.md §4).
     REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"trusted_users": [987654321098765432]})"), config_error,
                            Catch::Matchers::MessageMatches(ContainsSubstring("cannot represent a Discord ID exactly")));
 }
 
 TEST_CASE("a trusted ID that is not exactly an ID stops startup", "[config]") {
-    // These lists gate what the bot lets people do to its host (plan §12.5),
-    // so a mistyped ID must not load as some other number: "12345abc" as
-    // 12345, or "-1" wrapped round to the largest 64-bit number.
+    // These lists gate what the bot lets people do to its host
+    // (docs/features/Speech.md §2.2), so a mistyped ID must not load as some
+    // other number: "12345abc" as 12345, or "-1" wrapped round to the largest
+    // 64-bit number.
     for (const char* bad : {"12345abc", "-1", "0", ""}) {
         INFO(bad);
         const std::string guilds = std::string(R"({"trusted_guilds": [")") + bad + R"("]})";
@@ -159,7 +161,8 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
 
 TEST_CASE("the model has to be one the bot can price, from the provider named", "[config]") {
     // The spend caps are worked out from each model's price, so a model the
-    // bot has no price for would spend without being counted (plan §14.6).
+    // bot has no price for would spend without being counted
+    // (docs/features/Language_Model.md §3.2).
     REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_model": "claude-3-opus"})"), config_error,
                            Catch::Matchers::MessageMatches(ContainsSubstring("claude-haiku-4-5")));
     REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_provider": "mistral"})"), config_error,
@@ -182,7 +185,7 @@ TEST_CASE("emoji copies are kept for every emote used, unless the config says ot
 TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
     // This is the one setting that decides which gateway intents are asked
     // for, so a wrong value is the difference between connecting and being
-    // turned away (plan v4 §8).
+    // turned away (docs/features/Operations.md §3).
     CHECK(bootstrap::from_json("{}").track_nicknames);
     CHECK_FALSE(bootstrap::from_json(R"({"track_nicknames": false})").track_nicknames);
 
@@ -226,7 +229,7 @@ TEST_CASE("trust needs a listed user, or an admin in a listed server", "[config]
 
     SECTION("an admin in some other server is not") {
         // The point of the list: being administrator somewhere else must not
-        // grant access to this host (plan v4 §2.8).
+        // grant access to this host (docs/features/Speech.md §2.2).
         CHECK_FALSE(config.is_trusted(other_guild, stranger, /*administrator=*/true));
     }
 

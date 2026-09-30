@@ -22,7 +22,7 @@ class replacement_store;
 
 // Reactions on the images and videos people post, counted alongside the
 // bot's link replacements once a server turns it on
-// (docs/features/Link_Stats.md 9).
+// (docs/features/Link_Stats.md §9).
 
 /// The `guild_settings` key that turns it on. Off until somebody with Manage
 /// Server runs `/linkstats images on`: it counts every image posted in every

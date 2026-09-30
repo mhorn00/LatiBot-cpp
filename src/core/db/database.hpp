@@ -13,10 +13,11 @@ namespace latibot::db {
 
 /// An open SQLite database.
 ///
-/// One connection, guarded by a recursive mutex (plan §5.2). The bot's load
-/// is tiny, so a single serialized connection is simpler than a pool and
-/// removes every question about which thread owns what. `prepare()` and
-/// `transaction` hold the lock for as long as they live.
+/// One connection, guarded by a recursive mutex
+/// (docs/features/Operations.md §5). The bot's load is tiny, so a single
+/// serialized connection is simpler than a pool and removes every question
+/// about which thread owns what. `prepare()` and `transaction` hold the lock
+/// for as long as they live.
 ///
 /// So one statement is always atomic, and anything longer is not. A store
 /// method that runs more than one operation and needs them to agree takes
@@ -60,7 +61,8 @@ public:
     /// Rows changed by the most recent statement.
     [[nodiscard]] auto changes() -> int;
 
-    /// Schema version, held in `PRAGMA user_version` (plan §5.2).
+    /// Schema version, held in `PRAGMA user_version`
+    /// (docs/features/Operations.md §5).
     [[nodiscard]] auto user_version() -> int;
     auto set_user_version(int version) -> void;
 

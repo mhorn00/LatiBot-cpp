@@ -16,7 +16,7 @@ the flows.
 |---|---|
 | **Code** | `src/core/commands/{registry,options,message_options,unregister}.*`, `src/core/discord/{message_flags,unregister_commands}.*`, `src/core/ui/{paginator,interaction}.*`, `src/core/util/text.*` (`fit_lines`, `truncate`); registration and routing in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/{registry,command_options,command_responses,command_log,message_flags,paginator,panels,unregister}_test.cpp`, `tests/support/{panel_harness,slash_event,discord_limits}.hpp` |
-| **Plan** | Replaces plan §5.3, §21.4, §21.5, §21.13, §21.15 and §21.21; code comments still cite those |
+| **Plan** | Replaces plan §5.3, §21.4, §21.5, §21.13, §21.15 and §21.21 |
 | **Status** | Built in phase 0 and 1; message flags per kind on 2026-09-25; forms read through `ui::form_fields` since 2026-09-29; `--unregister-commands` on 2026-09-30, not yet run against Discord |
 
 ## Contents

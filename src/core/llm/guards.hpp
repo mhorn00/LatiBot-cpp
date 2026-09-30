@@ -23,8 +23,9 @@ class clock;
 
 namespace latibot::llm {
 
-// What stands between a message and a model call (plan §14.6): who is not
-// answered, and how often anyone is.
+// What stands between a message and a model call
+// (docs/features/Language_Model.md §2.2): who is not answered, and how often
+// anyone is.
 
 enum class block_kind : std::uint8_t { user, role };
 
@@ -75,7 +76,8 @@ private:
     std::map<key, std::deque<std::chrono::steady_clock::time_point>> taken_;
 };
 
-/// The pacing settings, from `llm_settings` (plan §14.4, §20).
+/// The pacing settings, from `llm_settings`
+/// (docs/features/Language_Model.md §2.7).
 struct pacing_rules {
     /// Replies to bots in a row in one channel before waiting for a human.
     /// Zero never answers a bot.
@@ -103,8 +105,8 @@ struct pacing_decision {
     std::string_view reason;
 };
 
-/// Keeps two bots from talking each other into a bill (plan §14.4).
-/// Thread-safe.
+/// Keeps two bots from talking each other into a bill
+/// (docs/features/Language_Model.md §2.7). Thread-safe.
 ///
 /// A human speaking in a channel resets its count, which is what lets a
 /// conversation between people and bots carry on while a conversation

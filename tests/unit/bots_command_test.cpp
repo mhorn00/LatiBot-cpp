@@ -45,7 +45,8 @@ TEST_CASE("a bot that has left is still listed, and says so", "[commands]") {
 
 TEST_CASE("the list says that hearing is not answering", "[commands]") {
     // The distinction people get wrong: allowing a bot does nothing on its
-    // own until a trigger opts in too (plan v4 14.4).
+    // own until a trigger opts in too
+    // (docs/features/Message_Pipeline.md §2.1).
     const std::vector<listed_bot> known{{dpp::snowflake{55}, "DiceBot"}};
 
     CHECK(render_allowed_bots(known).find("bots:true") != std::string::npos);
