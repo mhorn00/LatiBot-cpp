@@ -267,6 +267,20 @@ TEST_CASE("an alias that would loop is refused", "[db]") {
     CHECK(fixture.reactions.set_alias(guild, "c:1", "c:1").has_value());
 }
 
+TEST_CASE("an emoji already merged into another is not quietly moved", "[db]") {
+    store_fixture fixture;
+    REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:2").has_value());
+
+    // Moving it would undo the first merge without anybody asking to.
+    CHECK(fixture.reactions.set_alias(guild, "c:1", "c:3") == "that one is already an alias; remove that alias first");
+    CHECK(fixture.reactions.canonical(guild, "c:1") == "c:2");
+
+    // Taken back first, it can go anywhere.
+    REQUIRE(fixture.reactions.remove_alias(guild, "c:1"));
+    CHECK_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:3").has_value());
+    CHECK(fixture.reactions.canonical(guild, "c:1") == "c:3");
+}
+
 TEST_CASE("aliases belong to one guild", "[db]") {
     store_fixture fixture;
     REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:2").has_value());
@@ -290,7 +304,86 @@ TEST_CASE("emojis are known by name once somebody has used them", "[db]") {
     CHECK(fixture.reactions.describe("c:424242").name.empty());
     CHECK(fixture.reactions.describe("u:🔥").name == "🔥");
 
-    const auto duplicates = fixture.reactions.likely_duplicates(guild);
+    const auto duplicates = fixture.reactions.similar_emojis(guild);
     REQUIRE(duplicates.size() == 1);
     CHECK(duplicates[0].size() == 2);
+}
+
+TEST_CASE("emojis are listed apart, merged, or only the aliases", "[db]") {
+    using latibot::events::emoji_listing;
+
+    store_fixture fixture;
+    fixture.reactions.add(alices_link, bob, custom_skull(), day_one);
+    fixture.reactions.add(alices_link, carol, custom_skull(), day_one);
+    fixture.reactions.add(bobs_link, carol, custom_skull_again(), day_one);
+    REQUIRE_FALSE(fixture.reactions.set_alias(guild, custom_skull_again().key, custom_skull().key).has_value());
+
+    // Every emoji as reacted with: both skulls, each with its own count.
+    CHECK(fixture.reactions.known_emojis(guild, "skull", 25, emoji_listing::every).size() == 2);
+
+    // What counts: the one kept, with the merged one's reactions in it. This
+    // is what `as` offers, so nobody is offered an emoji that is already
+    // someone else's.
+    const auto counted = fixture.reactions.known_emojis(guild, "skull", 25, emoji_listing::counted);
+    REQUIRE(counted.size() == 1);
+    CHECK(counted[0].emoji.key == custom_skull().key);
+    CHECK(counted[0].emoji.name == "skull");
+    CHECK(counted[0].count == 3);
+
+    // Only the aliases, which is what an alias can be removed from.
+    const auto aliases = fixture.reactions.known_emojis(guild, {}, 25, emoji_listing::aliases);
+    REQUIRE(aliases.size() == 1);
+    CHECK(aliases[0].emoji.key == custom_skull_again().key);
+    CHECK(aliases[0].count == 1);
+}
+
+TEST_CASE("names alike are the same ignoring case, or a letter or two apart", "[db]") {
+    using latibot::events::names_look_alike;
+
+    CHECK(names_look_alike("skull", "SKULL"));
+    CHECK(names_look_alike("kekw", "kekw2"));
+    CHECK(names_look_alike("pepe_sad", "pepesad2"));
+    CHECK(names_look_alike("catjam", "catJAMM"));
+
+    // Short names need to be closer: two letters of three is most of it.
+    CHECK(names_look_alike("ok", "OK"));
+    CHECK_FALSE(names_look_alike("ok", "no"));
+    CHECK_FALSE(names_look_alike("cat", "bat"));
+    CHECK(names_look_alike("pog", "POG"));
+    CHECK(names_look_alike("kekw", "kekl"));
+    CHECK_FALSE(names_look_alike("kekw", "kewl"));
+
+    // Three letters apart is a different emote.
+    CHECK_FALSE(names_look_alike("happycat", "happydog"));
+    CHECK_FALSE(names_look_alike("skull", "skullemoji"));
+}
+
+TEST_CASE("emojis with names alike are grouped, and merged ones count as their keeper", "[db]") {
+    store_fixture fixture;
+    const auto custom = [](std::uint64_t id, std::string_view name) { return reaction_emoji(dpp::snowflake{id}, name); };
+
+    fixture.reactions.add(alices_link, bob, custom(1, "kekw"), day_one);
+    fixture.reactions.add(alices_link, carol, custom(1, "kekw"), day_one);
+    fixture.reactions.add(bobs_link, alice, custom(2, "KEKW"), day_one);
+    fixture.reactions.add(bobs_link, carol, custom(3, "kekw2"), day_one);
+    fixture.reactions.add(bobs_link, alice, custom(4, "catjam"), day_one);
+    fixture.reactions.add(bobs_link, carol, custom(5, "catJAM"), day_one);
+    fixture.reactions.add(unattributed, alice, custom(6, "lonely"), day_one);
+    // A Unicode emoji has no name to compare, so it is never in a group.
+    fixture.reactions.add(unattributed, bob, skull(), day_one);
+
+    auto groups = fixture.reactions.similar_emojis(guild);
+    REQUIRE(groups.size() == 2);
+    // The group with the most reactions first, and within it the most used.
+    REQUIRE(groups[0].size() == 3);
+    CHECK(groups[0][0].emoji.key == "c:1");
+    CHECK(groups[0][0].count == 2);
+    CHECK(groups[1].size() == 2);
+
+    // Once merged, the one kept stands for them, and a group of one is no
+    // group.
+    REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:5", "c:4").has_value());
+    groups = fixture.reactions.similar_emojis(guild);
+    REQUIRE(groups.size() == 1);
+    CHECK(groups[0][0].emoji.key == "c:1");
 }

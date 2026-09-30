@@ -15,7 +15,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <cstdint>
+#include <format>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace std::chrono_literals;
@@ -83,8 +86,11 @@ struct fixture {
     latibot::testing::mock_discord discord;
     latibot::events::backfill_service service{discord, rules, replacements, reactions, progress, clock};
 
-    fixture() {
+    /// Without `with_rules`, no rule has ever named a mirror, as for mirrors
+    /// that broke before this database existed.
+    explicit fixture(bool with_rules = true) {
         latibot::db::migrate(db);
+        if (!with_rules) return;
         // A rule long since changed: the old mirror is still known.
         rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
         rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "vxtwitter.com", .translate_suffix = ""}}});
@@ -156,7 +162,8 @@ TEST_CASE("a replacement after somebody else's link is reported, not credited to
 
     const backfill_report report = test.run(request());
     CHECK(report.unattributed == 1);
-    CHECK(report.mismatched == 1);
+    REQUIRE(report.mismatched.size() == 1);
+    CHECK(report.mismatched[0] == latibot::events::message_place{.channel_id = channel, .message_id = id_at(10s)});
     CHECK_FALSE(test.replacements.find(id_at(10s))->original_author_id.has_value());
 }
 
@@ -224,7 +231,7 @@ TEST_CASE("a replacement the bot recorded itself is not re-attributed", "[events
     CHECK(test.replacements.find(id_at(10s))->original_author_id == carol);
 }
 
-TEST_CASE("messages in no known format are listed by id", "[events][coro]") {
+TEST_CASE("messages in no known format are listed with where they are", "[events][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(
         std::vector<dpp::message>{message(id_at(10s), bot, "here [tweet](https://fxtwitter.com/alice/status/1)", true)});
@@ -232,7 +239,9 @@ TEST_CASE("messages in no known format are listed by id", "[events][coro]") {
     const backfill_report report = test.run(request());
     CHECK(report.replacements == 0);
     REQUIRE(report.unparsed.size() == 1);
-    CHECK(report.unparsed[0] == id_at(10s));
+    CHECK(report.unparsed[0] == latibot::events::message_place{.channel_id = channel, .message_id = id_at(10s)});
+    CHECK(latibot::events::jump_link(guild, report.unparsed[0]) ==
+          std::format("https://discord.com/channels/1000/2000/{}", static_cast<std::uint64_t>(id_at(10s))));
 }
 
 TEST_CASE("a replacement with nobody to credit still counts its reactions", "[events][coro]") {
@@ -271,7 +280,8 @@ TEST_CASE("a failed reaction lookup keeps the counts that were there", "[events]
     test.discord.reaction_pages.emplace_back(latibot::ports::api_error{.http_status = 500, .message = "oops"});
 
     const backfill_report again = test.run(request(/*fresh=*/true));
-    CHECK_FALSE(again.problems.empty());
+    REQUIRE(again.unread.size() == 1);
+    CHECK(again.unread[0].message_id == id_at(10s));
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 2);
 }
 
@@ -293,21 +303,71 @@ TEST_CASE("one recompute per guild, and it can be cancelled", "[events][coro]") 
     CHECK_FALSE(test.service.cancel(guild));
 }
 
-TEST_CASE("without any known mirror there is nothing to recognise", "[events][coro]") {
-    latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
-    const latibot::events::url_rule_store rules{db};
-    latibot::events::replacement_store replacements{db};
-    latibot::events::reaction_store reactions{db};
-    latibot::events::backfill_progress_store progress{db};
-    latibot::testing::mock_clock clock;
-    latibot::testing::mock_discord discord;
-    latibot::events::backfill_service service{discord, rules, replacements, reactions, progress, clock};
+TEST_CASE("an old mirror no rule remembers is found by what it answered, and remembered", "[events][coro]") {
+    fixture test(/*with_rules=*/false);
+    dpp::message copy = message(id_at(10s), bot, "look https://oldfixer.com/alice/status/1", true);
+    copy.reactions = {reaction("💀", 1)};
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{
+        copy,
+        message(id_at(5s), bob, "lmao"),
+        message(id_at(0s), alice, "look https://x.com/alice/status/1"),
+    });
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob});
 
-    const auto report =
-        service.run({.guild_id = guild, .channel_ids = {channel}, .since = day_one, .until = {}, .bot_id = bot, .fresh = false})
-            .sync_wait_for(2s);
-    REQUIRE(report.has_value());
-    CHECK_FALSE(report->problems.empty());
-    CHECK(discord.history_requests.empty());
+    const backfill_report report = test.run(request());
+    CHECK(report.replacements == 1);
+    CHECK(report.attributed == 1);
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice}) == 1);
+
+    // Filed under the site it stood in for, and known from now on.
+    CHECK(report.learned_mirrors == std::vector<std::pair<std::string, std::string>>{{"oldfixer.com", "x.com"}});
+    CHECK(test.rules.known_mirrors(guild).at("oldfixer.com") == "x.com");
+    const auto stored = test.replacements.find(id_at(10s));
+    REQUIRE(stored.has_value());
+    REQUIRE(stored->links.size() == 1);
+    CHECK(stored->links[0].domain == "x.com");
+}
+
+TEST_CASE("a masked replacement is recognised by its shape, whatever its mirror", "[events][coro]") {
+    fixture test(/*with_rules=*/false);
+    dpp::message lonely = message(id_at(10s), bot, "🔗 [_](https://long-gone.example/alice/status/1)", true);
+    lonely.reactions = {reaction("💀", 1)};
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{lonely});
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob});
+
+    const backfill_report report = test.run(request());
+    CHECK(report.replacements == 1);
+    CHECK(report.unattributed == 1);
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::given, .user_id = bob}) == 1);
+}
+
+TEST_CASE("the bot's own links are not replacements unless they answered one", "[events][coro]") {
+    fixture test(/*with_rules=*/false);
+
+    SECTION("a link in something it said") {
+        test.discord.message_pages.emplace_back(std::vector<dpp::message>{
+            message(id_at(10s), bot, "https://tenor.com/view/dance-12345", true),
+            message(id_at(0s), alice, "dance for me"),
+        });
+    }
+
+    SECTION("the same link, on the same site, as somebody posted") {
+        test.discord.message_pages.emplace_back(std::vector<dpp::message>{
+            message(id_at(10s), bot, "https://tenor.com/view/dance-12345", true),
+            message(id_at(0s), alice, "https://tenor.com/view/dance-12345"),
+        });
+    }
+
+    SECTION("a reply to a message with no such link") {
+        dpp::message answer = message(id_at(10s), bot, "see https://example.com/help/1", true);
+        answer.message_reference.message_id = id_at(0s);
+        answer.type = dpp::mt_reply;
+        test.discord.message_pages.emplace_back(std::vector<dpp::message>{answer, message(id_at(0s), alice, "help?")});
+    }
+
+    const backfill_report report = test.run(request());
+    CHECK(report.replacements == 0);
+    CHECK(report.unparsed.empty());
+    CHECK(report.learned_mirrors.empty());
+    CHECK(test.rules.known_mirrors(guild).empty());
 }

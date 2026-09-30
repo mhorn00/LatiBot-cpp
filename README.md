@@ -437,7 +437,7 @@ options, replies and edge cases.
 | `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
 | `/urlrepl` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
 | `/urltoggle` | have your own links left alone, or not |
-| `/linkstats` | `top`, `user`, `emojis`, `alias`, `recompute` — reactions on replaced links |
+| `/linkstats` | `top`, `user`, `reactions`, `duplicates`, `alias`, `recompute` — reactions on replaced links |
 | `/llm` | `status`, `on`, `off`, `model`, `settings`, and groups for the `personality`, `system` and `style` documents, advanced `trigger`s and the `blacklist` — the language model |
 | `/memory` | `list`, `forget`, `clear` — what the language model remembers |
 

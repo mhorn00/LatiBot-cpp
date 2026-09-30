@@ -499,11 +499,12 @@ turn, and the first whose `on_component` returns `true` has handled it.
 
 | Router | Views (the first part of the `custom_id`) |
 | --- | --- |
-| `bot` itself | `nicks` (nickname history pages), `linkboard` (leaderboard pages), `urlretry` (Retry on a replacement) |
+| `bot` itself | `nicks` (nickname history pages), `urlretry` (Retry on a replacement) |
 | `trigger_panel` | `triggers`, `trigpanel`, `trigpick`, `trigedit`, `trigdel`, `trigyes`, `trigadd`, `trigonoff`, `trigbots`, `trigsilent`, `trigprev`; form `trigform` |
 | `url_panel` | `urllist`, `urlpanel`, `urlpick`, `urledit`, `urldel`, `urlyes`, `urladd`, `urlswitch`; form `urlform` |
 | `voice_lab` | `vlabedit`, `vlabbase`, `vlabtest`, `vlabsave`, `vlabreset`, `vlabopen`; forms `vlabform`, `vlabname` |
 | `llm_panels` | `memlist`, `llmset`, `llmsetpick`, `llmswitch`; forms `llmsetform`, `llmdoc` |
+| `on_linkstats_component` | `linkboard` (board pages), `linkdupes`, `linkkeep`, `linkmerge` (`/linkstats duplicates`) |
 
 The voice lab is the one panel that keeps state in memory. A voice being
 edited has too many numbers to fit in a 100-character `custom_id`, so
@@ -774,6 +775,8 @@ classDiagram
         +leaderboard(guild, stat_query, limit, offset) vector~person_tally~
         +emoji_breakdown(guild, stat_query, ...) vector~emoji_tally~
         +total / people / emojis(guild, stat_query) int64
+        +known_emojis(guild, filter, limit, emoji_listing) vector~emoji_tally~
+        +similar_emojis(guild) groups of emoji_tally
     }
     class emoji_ref {
         <<struct>>
@@ -821,9 +824,16 @@ classDiagram
         <<struct>>
         +scanned, replacements, attributed : int64
         +reactions : int64
+        +unparsed, mismatched, unread : vector~message_place~
+        +learned_mirrors : host and site pairs
         +channels_done, channels_total
         +problems : vector~string~
         +cancelled : bool
+    }
+    class message_place {
+        <<struct>>
+        +channel_id
+        +message_id
     }
     class backfill_progress_store {
         +find(guild, channel, since, until) optional~channel_progress~
@@ -856,6 +866,7 @@ classDiagram
     backfill_service o-- backfill_progress_store
     backfill_service ..> backfill_request
     backfill_service ..> backfill_report
+    backfill_report --> message_place
     backfill_service ..> history_message : reads pages of
     history_message ..> legacy_match : classify() gives
     linkstats_command o-- reaction_store
@@ -867,8 +878,18 @@ The recompute reads each channel a page at a time, newest first, through
 
 1. `describe_history` reduces it to a `history_message`.
 2. `classify` decides whether it is one of the bot's reposts, in any of the
-   formats the Java bot or this one ever used.
-3. `attribute` works out whose message it replaced.
+   formats the Java bot or this one ever used. A link to a mirror some rule
+   once named settles it. Without one, the masked `[.](link)` shapes still
+   do, and a copy of a message is `unconfirmed` until step 3 finds the link
+   it replaced.
+3. `attribute` works out whose message it replaced, and `replaced_links`
+   which of its links stood in for which. A mirror no rule named is learned
+   from that, and remembered in `known_mirrors`.
+
+What went wrong is kept as `message_place`s, so the report and the reply
+that follows it link to each message. See
+[docs/features/Link_Stats.md](../features/Link_Stats.md) for the whole
+feature.
 
 `backfill_progress_store` remembers how far each channel got, so a cancelled
 or crashed recompute picks up where it stopped.

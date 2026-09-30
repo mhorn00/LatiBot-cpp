@@ -84,13 +84,15 @@ public:
         return interact(3, {{"custom_id", (*found)["custom_id"]}, {"component_type", dpp::cot_button}});
     }
 
-    /// Picks the option `value` in whichever menu has it.
-    auto choose(std::string_view value) -> json {
+    /// Picks the option `value` in whichever menu has it, or, when two menus
+    /// offer the same values, in the one for the view `in_view`.
+    auto choose(std::string_view value, std::string_view in_view = {}) -> json {
         const json* found = find_component([&](const json& part) {
             if (part.value("type", 0) != dpp::cot_selectmenu || !part.contains("options")) return false;
+            if (!in_view.empty() && !part.value("custom_id", "").starts_with(std::string(in_view) + ":")) return false;
             return std::ranges::any_of(part["options"], [&](const json& option) { return option.value("value", "") == value; });
         });
-        INFO("no menu offers " << value << " on:\n" << panel_.dump(2));
+        INFO("no menu" << (in_view.empty() ? "" : " for " + std::string(in_view)) << " offers " << value << " on:\n" << panel_.dump(2));
         REQUIRE(found != nullptr);
         return interact(3, {{"custom_id", (*found)["custom_id"]}, {"component_type", dpp::cot_selectmenu}, {"values", {value}}});
     }

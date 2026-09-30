@@ -785,7 +785,8 @@ anyone.
 ### `/linkstats`
 
 Reactions on the bot's replacement messages. See
-[Reaction statistics](#reaction-statistics) for what is counted.
+[Reaction statistics](#reaction-statistics) for what is counted, and
+[Link_Stats.md](Link_Stats.md) for how it all works and why.
 
 | | |
 |---|---|
@@ -794,6 +795,7 @@ Reactions on the bot's replacement messages. See
 | **Bot needs** | Send Messages, and Read Message History for `recompute` |
 
 The views answer **publicly**, and nobody is pinged by appearing in one.
+`duplicates` answers privately.
 
 #### `/linkstats top`
 
@@ -801,7 +803,7 @@ A leaderboard, ten a page with ◀ / ▶ that anybody can use.
 
 | Option | Meaning |
 |---|---|
-| `by` | **Reactions received** (default), **Reactions given**, **Reactions to your own links**, or **Most used emojis** |
+| `by` | **Reactions received** (default), **Reactions given**, **Reactions to your own links**, or **Most used emojis** (the same list as `/linkstats reactions`) |
 | `emoji` | Only this emoji. Autocompleted from the ones used here; typing a name like `skull` also works |
 | `since` / `until` | `YYYY-MM-DD`, in UTC. `until` includes the day typed |
 | `domain` | Only links to this site. Autocompleted |
@@ -824,24 +826,58 @@ Reactions given: 80 (💀 25, 😭 20, 👀 9)
 Reacted to their own links: 5 times
 ```
 
-#### `/linkstats emojis`
+#### `/linkstats reactions`
 
-Custom emojis that share a name — usually one emote uploaded twice, or deleted
-and uploaded again, which Discord treats as a brand new emoji. Each group is a
-candidate for an alias.
+Every emoji, most used first, twenty a page with ◀ / ▶, and how many reactions
+and different emojis there are in all.
+
+| Option | Meaning |
+|---|---|
+| `user` | Only this person's. Everyone's if left out |
+| `side` | **Reactions received** (default), or **Reactions given** |
+| `since` / `until` / `domain` | As for `top` |
+
+```
+Reactions @worm received on replaced links
+120 reactions with 14 different emojis
+1. 💀 40
+2. 😂 30
+3. 🔥 12
+```
+
+Received counts the reactions on links somebody posted, leaving out their own.
+Given counts every reaction somebody added, apart from on their own links,
+including on replacements nobody could be credited with.
+
+#### `/linkstats duplicates`
+
+Custom emojis with the **same or nearly the same name**, a group at a time:
+usually one emote uploaded twice, uploaded to two servers, or deleted and
+uploaded again, which Discord treats as a brand new emoji. Names are alike when
+they match ignoring case, or are a letter or two apart: none for names of up to
+3 letters, one up to 5, two from 6. `kekw`, `KEKW` and `kekw2` are one group;
+`ok` and `no` are not.
+
+Anybody can look. For somebody with **Manage Server** the list has two menus:
+pick the one to **keep**, then pick what to **merge** into it, one at a time
+or all of them. Merging is the same as [`alias add`](#linkstats-alias), and
+`alias remove` undoes it. An emoji already merged counts as the one it was
+merged into, so it drops out of the list.
 
 #### `/linkstats alias`
 
 | Subcommand | Options | Reply |
 |---|---|---|
-| `add` | `emoji` · `as` (both required, autocompleted) | `💀 counts as ☠️ now, in every statistic back to the start.` |
-| `remove` | `emoji` | `💀 counts as itself again.` |
+| `add` | `emoji` · `as` (both required, autocompleted with emojis that are not aliases already) | `💀 counts as ☠️ now, in every statistic back to the start.` |
+| `remove` | `emoji` (autocompleted with the aliases) | `💀 counts as itself again.` |
 | `list` | none | Every alias here |
 
 Aliases apply **when statistics are read**, so adding one changes all of
 history at once and removing it puts history back. An alias of an alias is
 pointed straight at the end of the chain, and one that would make two emojis
-count as each other is refused.
+count as each other is refused. So is aliasing an emoji that is **already an
+alias** ("skul is already aliased to skull"), since moving it would quietly
+undo the first; remove that alias first.
 
 #### `/linkstats recompute`
 
@@ -858,8 +894,15 @@ message there, updated every five hundred messages; an interaction's reply
 stops being editable after fifteen minutes, and a recompute can take hours.
 The finished message reports channels, messages scanned, replacements found,
 how many were credited to whoever posted the link and how many were not, any
-webhook replacements skipped, reactions recorded, the ids of anything it did
-not understand, and any channel it could not read.
+webhook replacements skipped, reactions recorded, any old mirrors it
+recognised, and any channel it could not read. Messages worth a look — ones it
+did not understand, ones it would not credit, ones whose reactions it could not
+read — are **linked**, so a click jumps to each.
+
+When it is over, the bot **replies to that message and pings whoever started
+it**, since by then the report is far up the channel. The reply says how it
+went, and carries `recompute-issues.txt` with a link to every message worth a
+look when there are more than the report has room for.
 
 **It is safe to run again.** Each replacement's reactions are rebuilt to match
 what Discord shows now rather than added to, and a reaction the bot saw being
@@ -1233,10 +1276,16 @@ them. It recognises all six shapes the bot's replacements have had:
 | `🔗 [.](link)` | likewise |
 | `🔗 [_](link)`, today's format | likewise |
 
-A message counts when the bot wrote it and it links to a mirror any rule has
-ever used — mirrors are remembered after a rule changes, so old messages are
-still recognised. Anything that looks like a replacement but matches none of
-these is **reported with its id, never guessed at**.
+A message counts when the bot wrote it and either links to a mirror any rule
+has ever used, or has a replacement's shape. Today's rules are not enough: over
+the years mirrors broke and were swapped for others, and many were dropped
+before this bot kept a list. So the `[.](link)` and `🔗 [_](link)` shapes count
+whatever the mirror, since the bot writes them for nothing else. A copy of a
+message counts when it answers somebody's link with the same path on another
+host. A mirror recognised that way is **remembered**, under the site of the
+link it replaced, and named in the report. Anything with a known mirror that
+matches none of these shapes is **reported with a link to it, never guessed
+at**.
 
 **Finding who posted the link:** the nearest earlier message with a link,
 skipping bots and chat in between — the bot answers in a second or two, so

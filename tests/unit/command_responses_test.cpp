@@ -80,11 +80,11 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
 
     const latibot::commands::linkstats_command linkstats(all.reactions);
     const command_info& stats = linkstats.info();
-    for (const char* board : {"top", "user", "emojis", "alias list"}) {
+    for (const char* board : {"top", "user", "reactions", "alias list"}) {
         INFO(board);
         CHECK(stats.responses_for(board).result == dpp::m_suppress_notifications);
     }
-    for (const char* private_answer : {"alias add", "alias remove", "recompute start", "recompute cancel"}) {
+    for (const char* private_answer : {"duplicates", "alias add", "alias remove", "recompute start", "recompute cancel"}) {
         INFO(private_answer);
         CHECK(stats.responses_for(private_answer).result == dpp::m_ephemeral);
     }

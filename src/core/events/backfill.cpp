@@ -48,6 +48,10 @@ auto emoji_for_api(const history_message::reaction_count& reaction) -> std::stri
 
 } // namespace
 
+auto jump_link(dpp::snowflake guild_id, const message_place& place) -> std::string {
+    return std::format("https://discord.com/channels/{}/{}/{}", guild_id, place.channel_id, place.message_id);
+}
+
 // --------------------------------------------------------------------------
 
 auto backfill_progress_store::find(dpp::snowflake guild_id, dpp::snowflake channel_id, std::chrono::sys_seconds since,
@@ -78,7 +82,7 @@ auto backfill_progress_store::save(dpp::snowflake guild_id, dpp::snowflake chann
 
 // --------------------------------------------------------------------------
 
-backfill_service::backfill_service(ports::discord_gateway& discord, const url_rule_store& rules, replacement_store& replacements,
+backfill_service::backfill_service(ports::discord_gateway& discord, url_rule_store& rules, replacement_store& replacements,
                                    reaction_store& reactions, backfill_progress_store& progress, ports::clock& clock)
     : discord_(&discord), rules_(&rules), replacements_(&replacements), reactions_(&reactions), progress_(&progress), clock_(&clock) {}
 
@@ -116,13 +120,10 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
     backfill_report report;
     report.channels_total = request.channel_ids.size();
 
-    // Every mirror this guild has ever used, so a rule removed years ago
-    // still identifies the messages it produced.
-    const mirror_map mirrors = rules_->known_mirrors(request.guild_id);
-    if (mirrors.empty()) {
-        note(report, "no mirrors are known here, so no replacement can be recognised; add the rules first");
-        co_return report;
-    }
+    // Every mirror this guild has ever had a rule for, so a rule removed
+    // years ago still identifies the messages it produced. The ones before
+    // any rule are recognised by their shape, and added as they are learned.
+    mirror_map mirrors = rules_->known_mirrors(request.guild_id);
 
     const flag cancelled = cancel_flag(request.guild_id);
     std::int64_t next_progress = progress_interval;
@@ -142,9 +143,11 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
         ++report.channels_done;
     }
 
-    util::log().info("link stats recompute in guild {} {}: {} scanned, {} replacements ({} attributed, {} not), {} unparsed, {} reactions",
-                     request.guild_id, report.cancelled ? "stopped" : "finished", report.scanned, report.replacements, report.attributed,
-                     report.unattributed, report.unparsed.size(), report.reactions);
+    util::log().info(
+        "link stats recompute in guild {} {}: {} scanned, {} replacements ({} attributed, {} not), {} unparsed, {} reactions, {} "
+        "mirror host(s) learned",
+        request.guild_id, report.cancelled ? "stopped" : "finished", report.scanned, report.replacements, report.attributed,
+        report.unattributed, report.unparsed.size(), report.reactions, report.learned_mirrors.size());
     co_return report;
 }
 
@@ -154,7 +157,7 @@ auto backfill_service::page_before(dpp::snowflake channel_id, dpp::snowflake bef
     if (!page.ok()) {
         // Most often a channel the bot cannot read, which the permission
         // check names; say which one here.
-        note(report, std::format("could not read channel {}: {}", channel_id, page.error().message));
+        note(report, std::format("could not read <#{}>: {}", channel_id, page.error().message));
         co_return std::nullopt;
     }
 
@@ -271,12 +274,12 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
     case legacy_match::kind::unrecognised:
         util::log().info("link stats recompute: message {} in channel {} looks like a replacement in no known format", message.id,
                          scan.channel_id);
-        report.unparsed.push_back(message.id);
+        report.unparsed.push_back({.channel_id = scan.channel_id, .message_id = message.id});
         co_return;
     case legacy_match::kind::recognised:
+    case legacy_match::kind::unconfirmed:
         break;
     }
-    ++report.replacements;
 
     // A replacement the bot recorded as it posted it already knows whose it
     // was; only an old or unattributed one is worked out from the history.
@@ -289,15 +292,29 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
         attribution found = attribute(message, match, older, request.bot_id);
         if (found.needs_fetch && found.original_message_id) {
             const auto original = co_await discord_->get_message(scan.channel_id, *found.original_message_id);
-            if (original.ok()) found.author_id = original.value().author.id;
+            if (original.ok()) {
+                found.author_id = original.value().author.id;
+                found.replaced = replaced_links(match, original.value().content);
+            }
         }
+
+        // A copy of a message on no known mirror is only a replacement if
+        // it answered a link; otherwise it is the bot saying something with
+        // a link in it, and none of the statistics' business.
+        if (match.what == legacy_match::kind::unconfirmed && !existing && found.replaced.empty()) {
+            util::log().debug("link stats recompute: message {} links to no known mirror and answers no link; not a replacement",
+                              message.id);
+            co_return;
+        }
+        learn_mirrors(scan, found.replaced, report);
+
         if (found.skipped_a_link) {
             util::log().debug("link stats recompute: message {} answered a link further back than the nearest one", message.id);
         }
         if (found.mismatched && !found.author_id) {
             // Reported rather than accepted (plan §9.7): crediting the
             // nearest link regardless would credit the wrong person.
-            ++report.mismatched;
+            report.mismatched.push_back({.channel_id = scan.channel_id, .message_id = message.id});
             util::log().info(
                 "link stats recompute: message {} in channel {} follows links that are not the one it replaced; left "
                 "unattributed",
@@ -319,6 +336,7 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
                                .links = existing && !existing->links.empty() ? existing->links : links_of(match, *scan.mirrors)});
     }
 
+    ++report.replacements;
     if (author) {
         ++report.attributed;
     } else {
@@ -329,10 +347,32 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
     // Finally the reactions, rebuilt to match what Discord shows now.
     const auto seen = co_await reactors(scan.channel_id, message);
     if (!seen) {
-        note(report, std::format("could not read the reactions on message {}; its old counts are kept", message.id));
+        util::log().warn("link stats recompute: could not read the reactions on message {} in channel {}; its old counts are kept",
+                         message.id, scan.channel_id);
+        report.unread.push_back({.channel_id = scan.channel_id, .message_id = message.id});
         co_return;
     }
     report.reactions += reactions_->replace_for_message(message.id, *seen);
+}
+
+auto backfill_service::learn_mirrors(const channel_scan& scan, const std::vector<replaced_link>& replaced, backfill_report& report)
+    -> void {
+    for (const replaced_link& link : replaced) {
+        const auto mirror = util::split_url(link.mirror_url);
+        const auto original = util::split_url(link.original_url);
+        if (!mirror || !original) continue;
+
+        std::string host = util::rule_host(mirror->authority);
+        if (scan.mirrors->contains(host)) continue;
+
+        // The site is the one the original link was on, keyed the way a rule
+        // would key it.
+        std::string site = util::rule_host(original->authority);
+        util::log().info("link stats recompute: {} is a mirror no rule remembered, standing in for {}; remembering it", host, site);
+        rules_->remember_mirror(scan.request->guild_id, host, site);
+        report.learned_mirrors.emplace_back(host, site);
+        scan.mirrors->emplace(std::move(host), std::move(site));
+    }
 }
 
 auto backfill_service::reactors(dpp::snowflake channel_id, const history_message& message)

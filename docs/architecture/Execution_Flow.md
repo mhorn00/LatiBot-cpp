@@ -555,9 +555,9 @@ flowchart TB
     decode{"ui::decode(custom_id)<br/>readable?"}
     stale["answer privately: that's from<br/>an older version of me"]
     route["route_component(event, state, chosen)"]
-    builtin{"nicks, linkboard<br/>or urlretry?"}
-    own["bot answers it: a history page,<br/>a leaderboard page, a Retry"]
-    chain["trigger_panel, url_panel, voice_lab,<br/>llm_panels: the first on_component<br/>that returns true has handled it"]
+    builtin{"nicks<br/>or urlretry?"}
+    own["bot answers it:<br/>a history page, a Retry"]
+    chain["trigger_panel, url_panel, voice_lab,<br/>llm_panels, on_linkstats_component:<br/>the first that returns true<br/>has handled it"]
     claimed{"claimed?"}
     answer{"the panel's answer"}
     update["ui::update_panel(event, render_...())<br/>the panel message is edited in place"]
@@ -567,7 +567,7 @@ flowchart TB
     submit(["DPP: on_form_submit<br/>when the person presses Submit"])
     empty{"ui::form_fields(event)<br/>empty?"}
     refuse["answer privately: that form came back<br/>empty, so nothing was changed"]
-    fchain["the same four routers' on_form"]
+    fchain["the four panels' on_form<br/>(link stats has no forms)"]
     apply["read the fields, check them,<br/>save through the store"]
     result["update_panel with a note,<br/>or a private refusal"]
 

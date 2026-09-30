@@ -103,6 +103,24 @@ struct emoji_alias {
     emoji_ref canonical;
 };
 
+/// Which emojis `reaction_store::known_emojis` lists.
+enum class emoji_listing : std::uint8_t {
+    /// Every emoji as it was reacted with, aliases and all.
+    every,
+    /// What the statistics count, after aliases: an emoji merged into another
+    /// is left out, and its reactions are counted with the one it counts as.
+    counted,
+    /// Only the emojis merged into another, which are what an alias can be
+    /// removed from.
+    aliases,
+};
+
+/// Whether two custom emoji names are close enough to be the same emote:
+/// the same ignoring case, or a letter or two apart. How many letters is
+/// scaled to the shorter name, since two letters of a three-letter name is
+/// most of it: none up to 3 letters, one up to 5, two from 6.
+[[nodiscard]] auto names_look_alike(std::string_view first, std::string_view second) -> bool;
+
 /// `reactions`, `reaction_log`, `emojis` and `emoji_aliases`.
 class reaction_store {
 public:
@@ -147,8 +165,10 @@ public:
     ///
     /// Chains are flattened when written, so reading needs one lookup: an
     /// emoji aliased to something that is itself an alias points at the end
-    /// of the chain, and anything that pointed at `emoji` follows it. Returns
-    /// why it could not be done, or nothing when it was.
+    /// of the chain, and anything that pointed at `emoji` follows it. An
+    /// emoji that is already an alias is refused rather than moved, so one
+    /// merge is never quietly undone by another. Returns why it could not be
+    /// done, or nothing when it was.
     auto set_alias(dpp::snowflake guild_id, std::string_view emoji_key, std::string_view canonical_key) -> std::optional<std::string>;
 
     /// Counts an emoji as itself again. False when it was not an alias.
@@ -180,13 +200,18 @@ public:
     [[nodiscard]] auto emoji_breakdown(dpp::snowflake guild_id, const stat_query& query, std::size_t limit, std::size_t offset = 0) const
         -> std::vector<emoji_tally>;
 
-    /// Every emoji reacted with on this guild's replacements whose name
-    /// contains `filter`, most used first, for autocomplete.
-    [[nodiscard]] auto known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit) const -> std::vector<emoji_tally>;
+    /// The emojis reacted with on this guild's replacements whose name
+    /// contains `filter`, most used first, for autocomplete. `which` says
+    /// whether aliases are listed apart, merged, or alone.
+    [[nodiscard]] auto known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit,
+                                    emoji_listing which = emoji_listing::every) const -> std::vector<emoji_tally>;
 
-    /// Custom emojis that share a name, which is usually one emote uploaded
-    /// twice (plan §9.6). Each group is at least two.
-    [[nodiscard]] auto likely_duplicates(dpp::snowflake guild_id) const -> std::vector<std::vector<emoji_tally>>;
+    /// Custom emojis whose names look alike (`names_look_alike`), which is
+    /// usually one emote uploaded twice, or to two servers (plan §9.6).
+    /// Emojis already merged by an alias count as the one they were merged
+    /// into. Each group is at least two, most used first, and the groups are
+    /// in order of how many reactions they hold between them.
+    [[nodiscard]] auto similar_emojis(dpp::snowflake guild_id) const -> std::vector<std::vector<emoji_tally>>;
 
 private:
     /// A statistics query with its six shared filters bound (see

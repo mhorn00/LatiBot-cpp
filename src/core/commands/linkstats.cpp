@@ -1,7 +1,9 @@
 #include "core/commands/linkstats.hpp"
 
 #include "core/commands/options.hpp"
+#include "core/discord/message_flags.hpp"
 #include "core/ports/discord_gateway.hpp"
+#include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
@@ -11,9 +13,11 @@
 #include <dpp/permissions.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <charconv>
 #include <format>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -158,17 +162,21 @@ auto board_letter(board which) -> char {
         return 's';
     case board::emoji:
         return 'e';
+    case board::emoji_given:
+        return 'f';
     case board::received:
         break;
     }
     return 'r';
 }
 
-/// Which side of a reaction a board counts. The emoji board counts what
-/// people received, leaving self-reactions out like every other board.
+/// Which side of a reaction a board counts. The emoji boards count what
+/// people received or gave, leaving self-reactions out like every other
+/// board.
 auto kind_for(board which) -> events::stat_kind {
     switch (which) {
     case board::given:
+    case board::emoji_given:
         return events::stat_kind::given;
     case board::self:
         return events::stat_kind::self;
@@ -177,6 +185,10 @@ auto kind_for(board which) -> events::stat_kind {
         break;
     }
     return events::stat_kind::received;
+}
+
+auto is_emoji_board(board which) -> bool {
+    return which == board::emoji || which == board::emoji_given;
 }
 
 auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
@@ -191,13 +203,21 @@ auto board_title(const events::reaction_store& store, board which, const events:
     const std::string site = query.domain ? *query.domain + " " : std::string{};
     const std::string window = describe_window(query);
 
+    // One person's reactions, by emoji.
+    if (is_emoji_board(which) && query.user_id) {
+        return std::format("Reactions <@{}> {} on replaced {}links{}", *query.user_id, which == board::emoji ? "received" : "gave", site,
+                           window);
+    }
+
     switch (which) {
     case board::given:
         return std::format("Most {}given on replaced {}links{}", emoji, site, window);
     case board::self:
         return std::format("Most {}on their own {}links{}", emoji, site, window);
     case board::emoji:
-        return std::format("Most used reactions on replaced {}links{}", site, window);
+        return std::format("Most used reactions received on replaced {}links{}", site, window);
+    case board::emoji_given:
+        return std::format("Most used reactions given on replaced {}links{}", site, window);
     case board::received:
         break;
     }
@@ -210,14 +230,16 @@ auto encode_board(board which, const events::stat_query& query) -> std::string {
     const auto day = [](const std::optional<std::chrono::sys_seconds>& when) {
         return when ? std::to_string(std::chrono::floor<std::chrono::days>(*when).time_since_epoch().count()) : std::string{};
     };
-    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}", board_separator, board_letter(which), query.emoji_key.value_or(std::string{}),
-                       query.domain.value_or(std::string{}), day(query.since), day(query.until));
+    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}", board_separator, board_letter(which), query.emoji_key.value_or(std::string{}),
+                       query.domain.value_or(std::string{}), day(query.since), day(query.until),
+                       query.user_id ? query.user_id->str() : std::string{});
 }
 
 auto decode_board(std::string_view argument) -> std::optional<std::pair<board, events::stat_query>> {
-    // Split on ';' into exactly the five fields `encode_board` writes: board
-    // letter, emoji key, site, since and until. Anything else was not made
-    // here and is refused whole.
+    // Split on ';' into the six fields `encode_board` writes: board letter,
+    // emoji key, site, since, until and person. Five is a button sent before
+    // the person was added. Anything else was not made here and is refused
+    // whole.
     std::vector<std::string_view> fields;
     while (true) {
         const std::size_t cut = argument.find(board_separator);
@@ -225,7 +247,7 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (cut == std::string_view::npos) break;
         argument.remove_prefix(cut + 1);
     }
-    if (fields.size() != 5 || fields[0].size() != 1) return std::nullopt;
+    if ((fields.size() != 5 && fields.size() != 6) || fields[0].size() != 1) return std::nullopt;
 
     board which = board::received;
     switch (fields[0].front()) {
@@ -239,6 +261,9 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         break;
     case 'e':
         which = board::emoji;
+        break;
+    case 'f':
+        which = board::emoji_given;
         break;
     default:
         return std::nullopt;
@@ -254,26 +279,38 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (!days) return std::nullopt;
         *bound = std::chrono::sys_seconds(std::chrono::sys_days(std::chrono::days(*days)));
     }
+    if (fields.size() == 6 && !fields[5].empty()) {
+        query.user_id = util::parse_snowflake(fields[5]);
+        if (!query.user_id) return std::nullopt;
+    }
     return std::pair{which, query};
 }
 
 auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query, int page)
     -> dpp::message {
-    const bool by_emoji = which == board::emoji;
+    const bool by_emoji = is_emoji_board(which);
+    const std::size_t per_page = by_emoji ? emoji_page_size : leaderboard_size;
     const auto total =
         static_cast<std::size_t>(std::max<std::int64_t>(0, by_emoji ? store.emojis(guild_id, query) : store.people(guild_id, query)));
-    const int current = ui::clamp_page(page, total, leaderboard_size);
-    const ui::page_range window = ui::range_for(current, total, leaderboard_size);
+    const int current = ui::clamp_page(page, total, per_page);
+    const ui::page_range window = ui::range_for(current, total, per_page);
 
     std::string text = std::format("**{}**\n", board_title(store, which, query));
     std::size_t place = window.begin;
 
     if (by_emoji) {
-        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, leaderboard_size, window.begin)) {
+        // How many in all, since that is the one number a list of emojis
+        // does not show.
+        if (total > 0) {
+            const std::int64_t reactions = store.total(guild_id, query);
+            text += std::format("_{} reaction{} with {} different emoji{}_\n", reactions, reactions == 1 ? "" : "s", total,
+                                total == 1 ? "" : "s");
+        }
+        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, per_page, window.begin)) {
             text += std::format("{}. {} {}\n", ++place, events::display_emoji(tally.emoji), tally.count);
         }
     } else {
-        for (const events::person_tally& tally : store.leaderboard(guild_id, query, leaderboard_size, window.begin)) {
+        for (const events::person_tally& tally : store.leaderboard(guild_id, query, per_page, window.begin)) {
             text += std::format("{}. <@{}> {}\n", ++place, tally.user_id, tally.count);
         }
     }
@@ -282,13 +319,13 @@ auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, 
         text +=
             "Nothing counted yet. Reactions are counted from when the bot first saw them; `/linkstats recompute` fills in "
             "older ones.";
-    } else if (total > leaderboard_size) {
-        text += std::format("\n_{}_", ui::page_label(current, total, leaderboard_size));
+    } else if (total > per_page) {
+        text += std::format("\n_{}_", ui::page_label(current, total, per_page));
     }
 
     dpp::message reply(text);
-    if (const auto row = ui::controls({.view = std::string(board_view), .page = current, .argument = encode_board(which, query)}, total,
-                                      leaderboard_size)) {
+    if (const auto row =
+            ui::controls({.view = std::string(board_view), .page = current, .argument = encode_board(which, query)}, total, per_page)) {
         reply.add_component(*row);
     }
     return reply;
@@ -315,22 +352,192 @@ auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id
     text += std::format("Reactions received: {}{}\n", received, received_top.empty() ? "" : " (" + emoji_list(received_top) + ")");
     text += std::format("Reactions given: {}{}\n", given, given_top.empty() ? "" : " (" + emoji_list(given_top) + ")");
     text += std::format("Reacted to their own links: {} time{}\n", self, self == 1 ? "" : "s");
+    text += "_`/linkstats reactions` lists every emoji, for one person or for everyone._\n";
     return text;
 }
 
-auto render_duplicates(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
-    const auto groups = store.likely_duplicates(guild_id);
-    if (groups.empty()) return "No two custom emojis here share a name, so nothing looks duplicated.";
+namespace {
 
-    std::string text = "**Custom emojis that share a name**\nMerge one into another with `/linkstats alias add`.\n";
-    for (const auto& group : groups) {
-        text += std::format("- **{}**: {}\n", group.front().emoji.name, emoji_list(group));
-        if (text.size() > 1800) {
-            text += "…and more\n";
-            break;
+/// A select menu's text: Discord allows 100 characters.
+constexpr std::size_t option_text_limit = 100;
+
+/// A select menu holds at most 25 options.
+constexpr std::size_t menu_limit = 25;
+
+auto similar_line(std::size_t place, const events::emoji_tally& tally) -> std::string {
+    return std::format("{}. {} `{}` {}", place, events::display_emoji(tally.emoji), tally.emoji.name, tally.count);
+}
+
+auto option_for(const events::emoji_tally& tally, std::size_t place) -> dpp::select_option {
+    // A custom emoji cannot be drawn in a menu unless the bot can use it, so
+    // each option is its name and number, matching the list above it.
+    return {util::truncate(std::format("{}. {}", place, tally.emoji.name), option_text_limit), tally.emoji.key,
+            util::truncate(std::format("{} reaction{}", tally.count, tally.count == 1 ? "" : "s"), option_text_limit)};
+}
+
+/// The menus that merge `group`: which to keep, and, once `keeper` is one
+/// of them, which to merge into it.
+auto merge_menus(std::span<const events::emoji_tally> group, std::string_view keeper, int page) -> std::vector<dpp::component> {
+    std::vector<dpp::component> rows;
+    const auto keep_id = ui::encode({.view = std::string(keep_view), .page = page, .argument = {}});
+    if (!keep_id) return rows;
+
+    // Which to keep. The page rides along so the group stays in view.
+    const bool keeping = std::ranges::any_of(group, [&](const events::emoji_tally& tally) { return tally.emoji.key == keeper; });
+    dpp::component keep_menu;
+    keep_menu.set_type(dpp::cot_selectmenu).set_placeholder("Keep which one?").set_id(*keep_id);
+    for (std::size_t index = 0; index < group.size(); ++index) {
+        keep_menu.add_select_option(option_for(group[index], index + 1).set_default(keeping && group[index].emoji.key == keeper));
+    }
+    rows.push_back(dpp::component().set_type(dpp::cot_action_row).add_component(keep_menu));
+
+    // What to merge into it, once there is one to keep. The keeper rides in
+    // the id, since a menu only sends back what was picked in it.
+    const auto merge_id = ui::encode({.view = std::string(merge_view), .page = page, .argument = std::string(keeper)});
+    if (!keeping || !merge_id) return rows;
+
+    const auto kept = std::ranges::find_if(group, [&](const events::emoji_tally& tally) { return tally.emoji.key == keeper; });
+    dpp::component merge_menu;
+    merge_menu.set_type(dpp::cot_selectmenu)
+        .set_placeholder(util::truncate(std::format("Merge into {}…", kept->emoji.name), option_text_limit))
+        .set_id(*merge_id);
+    if (group.size() > 2) {
+        merge_menu.add_select_option(
+            dpp::select_option(std::format("All {} of the others", group.size() - 1), std::string(merge_everything), "Merge every one"));
+    }
+    for (std::size_t index = 0; index < group.size(); ++index) {
+        if (group[index].emoji.key != keeper) merge_menu.add_select_option(option_for(group[index], index + 1));
+    }
+    rows.push_back(dpp::component().set_type(dpp::cot_action_row).add_component(merge_menu));
+    return rows;
+}
+
+} // namespace
+
+auto render_similar(const events::reaction_store& store, dpp::snowflake guild_id, int page, std::string_view keeper, bool can_merge,
+                    std::string_view note) -> dpp::message {
+    const auto groups = store.similar_emojis(guild_id);
+    if (groups.empty()) {
+        std::string text = note.empty() ? std::string{} : std::format("{}\n", note);
+        text += "No two custom emojis here have names alike, so nothing looks duplicated.";
+        return dpp::message(text);
+    }
+
+    const int current = ui::clamp_page(page, groups.size(), 1);
+    const auto& group = groups[static_cast<std::size_t>(current)];
+    const std::size_t shown = std::min(group.size(), menu_limit);
+
+    std::string text = "**Custom emojis with names alike**\n";
+    if (!note.empty()) text += std::format("{}\n", note);
+    for (std::size_t index = 0; index < shown; ++index) {
+        text += similar_line(index + 1, group[index]) + "\n";
+    }
+    if (group.size() > shown) text += std::format("…and {} more, which show once some of these are merged\n", group.size() - shown);
+
+    const auto kept =
+        std::ranges::find(group, keeper, [](const events::emoji_tally& tally) -> const std::string& { return tally.emoji.key; });
+    const bool keeping = kept != group.end();
+
+    if (!can_merge) {
+        text += "\n_Somebody with Manage Server can merge these here, or with `/linkstats alias add`._";
+    } else if (!keeping) {
+        text +=
+            "\n_Pick the one to keep, then which to merge into it. Merged emojis count as the one kept in every statistic, back "
+            "to the start; `/linkstats alias remove` undoes one._";
+    } else {
+        text += std::format("\n_Keeping {}. Pick what to merge into it._", events::display_emoji(kept->emoji));
+    }
+    text += std::format("\n_Group {} of {}_", current + 1, groups.size());
+
+    dpp::message reply(text);
+    if (can_merge) {
+        for (const dpp::component& row : merge_menus(std::span(group).first(shown), keeper, current)) {
+            reply.add_component(row);
         }
     }
-    return text;
+
+    if (const auto row = ui::controls({.view = std::string(similar_view), .page = current, .argument = {}}, groups.size(), 1)) {
+        reply.add_component(*row);
+    }
+    return reply;
+}
+
+namespace {
+
+/// Merges `chosen` — one key, or every other one in the group on `page` —
+/// into `keeper`, and says what happened.
+auto merge_similar(events::reaction_store& store, dpp::snowflake guild_id, int page, const std::string& keeper, const std::string& chosen,
+                   const user_label& who) -> std::string {
+    const auto groups = store.similar_emojis(guild_id);
+    if (groups.empty()) return "Nothing is left to merge.";
+    const auto& group = groups[static_cast<std::size_t>(ui::clamp_page(page, groups.size(), 1))];
+
+    const auto in_group = [&](const std::string& key) {
+        return std::ranges::any_of(group, [&](const events::emoji_tally& tally) { return tally.emoji.key == key; });
+    };
+    // The list may have changed under the menu: another merge, from here or
+    // elsewhere. Only what is still in this group is merged.
+    if (!in_group(keeper)) return "The list changed since that menu was drawn, so nothing was merged; here it is again.";
+
+    std::vector<std::string> merging;
+    if (chosen == merge_everything) {
+        for (std::size_t index = 0; index < std::min(group.size(), menu_limit); ++index) {
+            if (group[index].emoji.key != keeper) merging.push_back(group[index].emoji.key);
+        }
+    } else if (chosen != keeper && in_group(chosen)) {
+        merging.push_back(chosen);
+    }
+    if (merging.empty()) return "The list changed since that menu was drawn, so nothing was merged; here it is again.";
+
+    std::string merged;
+    for (const std::string& key : merging) {
+        if (const auto problem = store.set_alias(guild_id, key, keeper)) {
+            util::log().info("could not merge emoji {} into {} in guild {}: {}", key, keeper, guild_id, *problem);
+            continue;
+        }
+        util::log().info("emoji {} now counts as {} in guild {}, merged by {} from /linkstats duplicates", key, keeper, guild_id, who);
+        merged += events::display_emoji(store.describe(key));
+    }
+    if (merged.empty()) return "Nothing could be merged; the log says why.";
+    return std::format("Merged {} into {}.", merged, events::display_emoji(store.describe(keeper)));
+}
+
+} // namespace
+
+auto on_linkstats_component(events::reaction_store& store, const dpp::interaction_create_t& event, const ui::page_state& state,
+                            const std::string& chosen) -> bool {
+    const dpp::snowflake guild = event.command.guild_id;
+
+    if (state.view == board_view) {
+        // The board's filters ride in the argument, so every page is the
+        // same board as the first. Filters this build cannot read are as
+        // stale as a view it does not know.
+        const auto board = decode_board(state.argument);
+        if (!board) return false;
+        ui::update_panel(event, render_board(store, guild, board->first, board->second, state.page));
+        return true;
+    }
+
+    if (state.view != similar_view && state.view != keep_view && state.view != merge_view) return false;
+
+    // Whether this person may merge, now: the menus are only drawn for
+    // somebody who could, but that may have changed since.
+    const bool can_merge = invoker_permissions(event).can(dpp::p_manage_guild);
+
+    if (state.view == similar_view) {
+        ui::update_panel(event, render_similar(store, guild, state.page, state.argument, can_merge));
+    } else if (!can_merge) {
+        ui::answer_privately(event, "merging emojis needs Manage Server");
+    } else if (state.view == keep_view) {
+        ui::update_panel(event, render_similar(store, guild, state.page, chosen, can_merge));
+    } else {
+        const std::string note =
+            merge_similar(store, guild, state.page, state.argument, chosen, describe_user(event.command.get_issuing_user()));
+        // The keeper stays picked for whatever is left of the group; once
+        // the group is gone the next one is in its place, with none picked.
+        ui::update_panel(event, render_similar(store, guild, state.page, state.argument, can_merge, note));
+    }
+    return true;
 }
 
 auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
@@ -350,9 +557,37 @@ auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id
 
 // --------------------------------------------------------------------------
 
-auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) -> std::string {
+namespace {
+
+/// How many messages of each kind the report links to. The rest are in the
+/// file the reply carries, and all of them in the log.
+constexpr std::size_t report_links = 3;
+
+/// "since 2021-01-01 until 2021-12-31".
+auto describe_range(const events::backfill_request& request) -> std::string {
     std::string range = std::format("since {}", format_day(request.since));
     if (request.until) range += std::format(" until {}", format_day(*request.until - std::chrono::days{1}));
+    return range;
+}
+
+/// The kinds of message a recompute lists for somebody to look at.
+struct issue_list {
+    std::string_view heading;
+    const std::vector<events::message_place>* places;
+};
+
+auto issue_lists(const events::backfill_report& report) -> std::array<issue_list, 3> {
+    return {{
+        {.heading = "Not understood: in no replacement format known", .places = &report.unparsed},
+        {.heading = "Not credited: after a link that is not the one it replaced", .places = &report.mismatched},
+        {.heading = "Reactions not read: their old counts are kept", .places = &report.unread},
+    }};
+}
+
+} // namespace
+
+auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) -> std::string {
+    const std::string range = describe_range(request);
 
     if (!finished) {
         return std::format(
@@ -367,31 +602,74 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
     text += std::format("Messages scanned: {}\n", report.scanned);
     text += std::format("Replacements found: {} ({} credited to whoever posted the link, {} not)\n", report.replacements, report.attributed,
                         report.unattributed);
-    if (report.mismatched > 0) {
-        // Reported rather than accepted (plan §9.7); the log has each id.
-        text += std::format("Of those not credited, {} followed a link that wasn't the one replaced\n", report.mismatched);
-    }
     if (report.webhooks_skipped > 0) text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
     text += std::format("Reactions recorded: {}\n", report.reactions);
 
-    // Listed by id rather than guessed at (plan §9.7). The log has all of
-    // them; a message has room for some.
-    if (!report.unparsed.empty()) {
-        text += std::format("Not understood: {}", report.unparsed.size());
-        std::string ids;
-        for (std::size_t index = 0; index < std::min<std::size_t>(report.unparsed.size(), 15); ++index) {
-            ids += std::format(" `{}`", report.unparsed[index]);
+    if (!report.learned_mirrors.empty()) {
+        // Mirrors no rule remembered, found by what they answered.
+        std::string hosts;
+        std::size_t listed = 0;
+        for (const auto& [host, site] : report.learned_mirrors) {
+            if (listed++ == report_links) break;
+            hosts += std::format("{}{} for {}", hosts.empty() ? "" : ", ", host, site);
         }
-        text += ids;
-        text += report.unparsed.size() > 15 ? " and more, all in the log\n" : "\n";
+        const std::size_t more = report.learned_mirrors.size() - std::min(report.learned_mirrors.size(), report_links);
+        text += std::format("Old mirrors recognised: {}{}\n", hosts, more > 0 ? std::format(" and {} more", more) : std::string{});
     }
 
-    for (std::size_t index = 0; index < std::min<std::size_t>(report.problems.size(), 5); ++index) {
+    // Linked rather than guessed at (plan §9.7), so a click shows each one.
+    // The reply after this carries them all, and the log has them too.
+    for (const issue_list& list : issue_lists(report)) {
+        if (list.places->empty()) continue;
+        text += std::format("{}: {}\n", list.heading, list.places->size());
+        for (std::size_t index = 0; index < std::min(list.places->size(), report_links); ++index) {
+            text += std::format("- {}\n", events::jump_link(request.guild_id, (*list.places)[index]));
+        }
+    }
+
+    for (std::size_t index = 0; index < std::min<std::size_t>(report.problems.size(), 3); ++index) {
         text += std::format("- {}\n", report.problems[index]);
     }
 
     if (report.cancelled) text += "Running it again with the same dates carries on from where it stopped.";
-    return text;
+
+    // Everything above is sized to fit, but a message over Discord's limit
+    // is refused whole, so this is the backstop.
+    return util::truncate(text, 2000);
+}
+
+auto backfill_issues(const events::backfill_report& report, const events::backfill_request& request) -> std::string {
+    std::string text;
+    for (const issue_list& list : issue_lists(report)) {
+        if (list.places->empty()) continue;
+        text += std::format("{}{} ({})\n", text.empty() ? "" : "\n", list.heading, list.places->size());
+        for (const events::message_place& place : *list.places) {
+            text += events::jump_link(request.guild_id, place) + "\n";
+        }
+    }
+    if (text.empty()) return text;
+    return std::format("Link stats recompute {}\n\n{}", describe_range(request), text);
+}
+
+auto backfill_done_reply(const events::backfill_report& report, const events::backfill_request& request, dpp::snowflake channel_id,
+                         dpp::snowflake progress_id, dpp::snowflake starter) -> dpp::message {
+    std::size_t issues = 0;
+    for (const issue_list& list : issue_lists(report)) {
+        issues += list.places->size();
+    }
+
+    std::string text = std::format("<@{}> the link stats recompute {} {}: {} replacement{} found, {} reaction{} recorded.", starter,
+                                   describe_range(request), report.cancelled ? "stopped" : "is done", report.replacements,
+                                   report.replacements == 1 ? "" : "s", report.reactions, report.reactions == 1 ? "" : "s");
+    if (issues > 0) text += std::format(" {} message{} to look at, linked in the file.", issues, issues == 1 ? "" : "s");
+
+    dpp::message reply(channel_id, text);
+    // A reply to the report, so it is one click away however far up it is.
+    if (!progress_id.empty()) reply.set_reference(progress_id, request.guild_id, channel_id);
+    // Only whoever started it is pinged.
+    reply.set_allowed_mentions(false, false, false, false, {starter}, {});
+    if (issues > 0) reply.add_file("recompute-issues.txt", backfill_issues(report, request), "text/plain");
+    return reply;
 }
 
 namespace {
@@ -414,11 +692,12 @@ linkstats_command::linkstats_command(events::reaction_store& store, recompute_su
             .required_bot_permissions = dpp::p_send_messages | dpp::p_read_message_history,
             .default_member_permissions = std::nullopt,
             .guild_only = true,
-            // The boards are for the room. Changing aliases and running a
-            // recompute are answered privately, and the recompute reports its
-            // progress in the channel, as a post.
+            // The boards are for the room. Tidying emojis, changing aliases
+            // and running a recompute are answered privately, and the
+            // recompute reports its progress in the channel, as a post.
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = dpp::m_suppress_notifications},
-            .subcommand_responses = {{"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+            .subcommand_responses = {{"duplicates", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"alias remove", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"recompute start", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"recompute cancel", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}}},
@@ -447,7 +726,19 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     user.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     user.add_option(domain_option());
 
-    const dpp::command_option emojis(dpp::co_sub_command, "emojis", "Custom emojis that share a name, likely the same emote twice.");
+    dpp::command_option side(dpp::co_string, "side", "Received if left out.", false);
+    side.add_choice(dpp::command_option_choice("Reactions received", std::string("received")));
+    side.add_choice(dpp::command_option_choice("Reactions given", std::string("given")));
+
+    dpp::command_option reactions(dpp::co_sub_command, "reactions", "Every emoji reacted with and how often, for everyone or one person.");
+    reactions.add_option(dpp::command_option(dpp::co_user, "user", "Only reactions this person received or gave.", false));
+    reactions.add_option(side);
+    reactions.add_option(date_option("since", "From this day, YYYY-MM-DD."));
+    reactions.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
+    reactions.add_option(domain_option());
+
+    const dpp::command_option duplicates(dpp::co_sub_command, "duplicates",
+                                         "Custom emojis with the same or nearly the same name, to merge into one.");
 
     dpp::command_option alias_add(dpp::co_sub_command, "add", "Count one emoji as another, in all history.");
     alias_add.add_option(emoji_option("emoji", "The one to merge away.", true));
@@ -479,7 +770,8 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
 
     payload.add_option(top);
     payload.add_option(user);
-    payload.add_option(emojis);
+    payload.add_option(reactions);
+    payload.add_option(duplicates);
     payload.add_option(alias);
     payload.add_option(recompute);
     return payload;
@@ -507,9 +799,13 @@ auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> 
     } else if (focused->name == "emoji" || focused->name == "as") {
         // Emojis: the ones used on replacements here, most used first. The
         // value sent back is the key, so the command never has to guess
-        // which of two same-named emojis was meant.
+        // which of two same-named emojis was meant. Removing an alias is
+        // offered only aliases; anything else only what counts as itself,
+        // since an emoji merged into another is counted as that one.
+        const auto which = subcommand_path(event.command.get_command_interaction()) == "alias remove" ? events::emoji_listing::aliases
+                                                                                                      : events::emoji_listing::counted;
         if (filter.size() > 2 && filter.starts_with(':') && filter.ends_with(':')) filter = filter.substr(1, filter.size() - 2);
-        for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices)) {
+        for (const events::emoji_tally& known : store_->known_emojis(event.command.guild_id, filter, emoji_choices, which)) {
             // A custom emoji cannot be drawn in a choice, so it shows by name.
             const std::string label = known.emoji.key.starts_with("c:") ? std::format(":{}: ({})", known.emoji.name, known.count)
                                                                         : std::format("{} ({})", known.emoji.name, known.count);
@@ -547,8 +843,12 @@ auto linkstats_command::execute(const dpp::slashcommand_t& event) -> dpp::task<v
         co_await this->top(event);
     } else if (subcommand == "user") {
         co_await this->user(event);
-    } else if (subcommand == "emojis") {
-        co_await event.co_reply(result(event, render_duplicates(*store_, event.command.guild_id)));
+    } else if (subcommand == "reactions") {
+        co_await this->reactions(event);
+    } else if (subcommand == "duplicates") {
+        // The menus to merge them are only for those who could use them.
+        const bool can_merge = invoker_permissions(event).can(dpp::p_manage_guild);
+        co_await event.co_reply(result(event, render_similar(*store_, event.command.guild_id, 0, {}, can_merge)));
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
@@ -591,6 +891,19 @@ auto linkstats_command::user(const dpp::slashcommand_t& event) -> dpp::task<void
     co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
 }
 
+auto linkstats_command::reactions(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    events::stat_query query;
+    if (const auto problem = read_window(event, query)) {
+        co_await event.co_reply(refusal(event, *problem));
+        co_return;
+    }
+
+    const board chosen = string_option(event, "side") == "given" ? board::emoji_given : board::emoji;
+    query.kind = kind_for(chosen);
+    query.user_id = snowflake_option(event, "user");
+    co_await event.co_reply(result(event, render_board(*store_, event.command.guild_id, chosen, query)));
+}
+
 auto linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
 
@@ -621,6 +934,15 @@ auto linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view
     const auto canonical = resolve_emoji(*store_, guild, string_option(event, "as"));
     if (!canonical) {
         co_await event.co_reply(refusal(event, "i don't know the emoji to count it as; pick one from the list as you type"));
+        co_return;
+    }
+
+    // Already merged into something: moving it quietly would undo that
+    // merge, so it has to be taken back first, on purpose.
+    if (const std::string current = store_->canonical(guild, emoji->key); current != emoji->key) {
+        co_await event.co_reply(
+            refusal(event, std::format("{} is already aliased to {}; `/linkstats alias remove` it first to change that",
+                                       events::display_emoji(*emoji), events::display_emoji(store_->describe(current)))));
         co_return;
     }
 
@@ -732,11 +1054,23 @@ auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp
     recompute_.service->end(guild);
 
     dpp::message final_report = post(event, dpp::message(channel, render_backfill(report, request, true)));
+    dpp::snowflake report_id = progress_id;
     if (progress_id.empty()) {
-        co_await discord.send_message(final_report);
+        const auto sent = co_await discord.send_message(final_report);
+        if (sent.ok()) report_id = sent.value().id;
     } else {
         final_report.id = progress_id;
         co_await show_progress(discord, final_report);
+    }
+
+    // Then a reply to the report that pings whoever started it, since the
+    // report is far up the channel by now. Posted as the others are, but
+    // not silently: telling them is its whole point.
+    dpp::message done = post(event, backfill_done_reply(report, request, channel, report_id, event.command.get_issuing_user().id));
+    done.flags = static_cast<discord::message_flags>(done.flags & ~static_cast<discord::message_flags>(dpp::m_suppress_notifications));
+    if (const auto sent = co_await discord.send_message(std::move(done)); !sent.ok()) {
+        util::log().warn("could not tell {} the link stats recompute in guild {} is over: {}",
+                         describe_user(event.command.get_issuing_user()), guild, sent.error().message);
     }
 }
 

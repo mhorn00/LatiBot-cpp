@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <charconv>
 #include <format>
+#include <functional>
 #include <map>
+#include <numeric>
 #include <set>
 #include <utility>
 
@@ -147,6 +149,41 @@ auto display_emoji(const emoji_ref& emoji) -> std::string {
                            emoji.key.substr(custom_prefix.size()));
     }
     return emoji.name.empty() ? emoji.key.substr(std::min(emoji.key.size(), unicode_prefix.size())) : emoji.name;
+}
+
+auto names_look_alike(std::string_view first, std::string_view second) -> bool {
+    const std::string one = util::to_lower(first);
+    const std::string two = util::to_lower(second);
+    if (one == two) return true;
+
+    const std::size_t shorter = std::min(one.size(), two.size());
+    std::size_t allowed = 2;
+    if (shorter <= 3) {
+        allowed = 0;
+    } else if (shorter <= 5) {
+        allowed = 1;
+    }
+    const std::size_t apart = one.size() > two.size() ? one.size() - two.size() : two.size() - one.size();
+    if (allowed == 0 || apart > allowed) return false;
+
+    // Levenshtein distance, a row at a time, giving up once every way through
+    // the row is already further apart than allowed. Names are at most 32
+    // letters, so the rows are small.
+    std::vector<std::size_t> previous(two.size() + 1);
+    std::vector<std::size_t> current(two.size() + 1);
+    std::iota(previous.begin(), previous.end(), std::size_t{0});
+    for (std::size_t row = 1; row <= one.size(); ++row) {
+        current[0] = row;
+        std::size_t best = current[0];
+        for (std::size_t column = 1; column <= two.size(); ++column) {
+            const std::size_t swapped = previous[column - 1] + (one[row - 1] == two[column - 1] ? 0 : 1);
+            current[column] = std::min({previous[column] + 1, current[column - 1] + 1, swapped});
+            best = std::min(best, current[column]);
+        }
+        if (best > allowed) return false;
+        std::swap(previous, current);
+    }
+    return previous[two.size()] <= allowed;
 }
 
 auto to_string(stat_kind kind) noexcept -> std::string_view {
@@ -320,6 +357,7 @@ auto reaction_store::set_alias(dpp::snowflake guild_id, std::string_view emoji_k
 
     const std::string target = canonical(guild_id, canonical_key);
     if (target == emoji_key) return std::string("that one already counts as this one; remove that alias first");
+    if (canonical(guild_id, emoji_key) != emoji_key) return std::string("that one is already an alias; remove that alias first");
 
     db::transaction tx(*db_);
     db_->prepare(
@@ -439,18 +477,43 @@ auto reaction_store::emoji_breakdown(dpp::snowflake guild_id, const stat_query& 
     return breakdown;
 }
 
-auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit) const -> std::vector<emoji_tally> {
+auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filter, std::size_t limit, emoji_listing which) const
+    -> std::vector<emoji_tally> {
     // The names come back with the counts, rather than one lookup per emoji:
     // this runs on every keystroke of an autocomplete, and a filter that
     // matched little used to look up every emoji the guild had ever used.
     // The filter stays here, since a Unicode emoji with no row is named by
     // its key, which SQL cannot see.
-    auto statement = db_->prepare(
-        "SELECT r.emoji_key, COUNT(*) AS n, e.name, e.animated FROM reactions r "
-        "JOIN replacement_messages m ON m.message_id = r.message_id "
-        "LEFT JOIN emojis e ON e.emoji_key = r.emoji_key "
-        "WHERE m.guild_id = ? GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key",
-        guild_id);
+    std::string_view sql;
+    switch (which) {
+    case emoji_listing::counted:
+        // Grouped by what each reaction counts as, so an alias's reactions
+        // are the one it was merged into's, and it has no row of its own.
+        sql =
+            "SELECT COALESCE(a.canonical_key, r.emoji_key) AS k, COUNT(*) AS n, e.name, e.animated FROM reactions r "
+            "JOIN replacement_messages m ON m.message_id = r.message_id "
+            "LEFT JOIN emoji_aliases a ON a.guild_id = m.guild_id AND a.emoji_key = r.emoji_key "
+            "LEFT JOIN emojis e ON e.emoji_key = COALESCE(a.canonical_key, r.emoji_key) "
+            "WHERE m.guild_id = ?1 GROUP BY k ORDER BY n DESC, k";
+        break;
+    case emoji_listing::aliases:
+        // From the aliases themselves, since one can be set for an emoji that
+        // has never been reacted with here.
+        sql =
+            "SELECT a.emoji_key, (SELECT COUNT(*) FROM reactions r JOIN replacement_messages m ON m.message_id = r.message_id "
+            "WHERE m.guild_id = ?1 AND r.emoji_key = a.emoji_key) AS n, e.name, e.animated FROM emoji_aliases a "
+            "LEFT JOIN emojis e ON e.emoji_key = a.emoji_key "
+            "WHERE a.guild_id = ?1 ORDER BY n DESC, a.emoji_key";
+        break;
+    case emoji_listing::every:
+        sql =
+            "SELECT r.emoji_key, COUNT(*) AS n, e.name, e.animated FROM reactions r "
+            "JOIN replacement_messages m ON m.message_id = r.message_id "
+            "LEFT JOIN emojis e ON e.emoji_key = r.emoji_key "
+            "WHERE m.guild_id = ?1 GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key";
+        break;
+    }
+    auto statement = db_->prepare(sql, guild_id);
 
     const std::string wanted = util::to_lower(util::trim(filter));
     std::vector<emoji_tally> found;
@@ -464,18 +527,61 @@ auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filt
     return found;
 }
 
-auto reaction_store::likely_duplicates(dpp::snowflake guild_id) const -> std::vector<std::vector<emoji_tally>> {
-    std::map<std::string, std::vector<emoji_tally>> by_name;
-    for (emoji_tally& tally : known_emojis(guild_id, {}, static_cast<std::size_t>(-1))) {
-        if (tally.emoji.key.starts_with(custom_prefix) && !tally.emoji.name.empty()) {
-            by_name[util::to_lower(tally.emoji.name)].push_back(std::move(tally));
+auto reaction_store::similar_emojis(dpp::snowflake guild_id) const -> std::vector<std::vector<emoji_tally>> {
+    std::vector<emoji_tally> custom;
+    for (emoji_tally& tally : known_emojis(guild_id, {}, static_cast<std::size_t>(-1), emoji_listing::counted)) {
+        if (tally.emoji.key.starts_with(custom_prefix) && !tally.emoji.name.empty()) custom.push_back(std::move(tally));
+    }
+
+    // Grouped by whether any two are alike, so "kekw", "KEKW" and "kekw2"
+    // are one group. Compared in order of length, since names more than two
+    // letters apart in length can never be alike.
+    std::vector<std::string> lowered;
+    lowered.reserve(custom.size());
+    for (const emoji_tally& tally : custom) {
+        lowered.push_back(util::to_lower(tally.emoji.name));
+    }
+    std::vector<std::size_t> by_length(custom.size());
+    std::iota(by_length.begin(), by_length.end(), std::size_t{0});
+    std::ranges::stable_sort(by_length, {}, [&](std::size_t index) { return lowered[index].size(); });
+
+    std::vector<std::size_t> parent(custom.size());
+    std::iota(parent.begin(), parent.end(), std::size_t{0});
+    const auto root = [&](std::size_t index) {
+        while (parent[index] != index) {
+            parent[index] = parent[parent[index]];
+            index = parent[index];
+        }
+        return index;
+    };
+
+    for (std::size_t at = 0; at < by_length.size(); ++at) {
+        const std::string& name = lowered[by_length[at]];
+        for (std::size_t next = at + 1; next < by_length.size(); ++next) {
+            const std::string& other = lowered[by_length[next]];
+            if (other.size() > name.size() + 2) break;
+            if (names_look_alike(name, other)) parent[root(by_length[next])] = root(by_length[at]);
         }
     }
 
+    // `custom` is most used first, so each group comes out that way too.
+    std::map<std::size_t, std::vector<emoji_tally>> grouped;
+    for (std::size_t index = 0; index < custom.size(); ++index) {
+        grouped[root(index)].push_back(std::move(custom[index]));
+    }
+
     std::vector<std::vector<emoji_tally>> groups;
-    for (auto& [name, group] : by_name) {
+    for (auto& [first, group] : grouped) {
         if (group.size() > 1) groups.push_back(std::move(group));
     }
+    const auto uses = [](const std::vector<emoji_tally>& group) {
+        std::int64_t total = 0;
+        for (const emoji_tally& tally : group) {
+            total += tally.count;
+        }
+        return total;
+    };
+    std::ranges::stable_sort(groups, std::ranges::greater{}, uses);
     return groups;
 }
 

@@ -6,8 +6,10 @@
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
 #include "core/ui/paginator.hpp"
+#include "core/util/text.hpp"
 
 #include "support/discord_limits.hpp"
+#include "support/panel_harness.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -22,6 +24,7 @@ using latibot::commands::board;
 using latibot::commands::parse_day;
 using latibot::events::reaction_emoji;
 using latibot::events::stat_kind;
+using latibot::testing::panel_harness;
 
 namespace {
 
@@ -66,7 +69,7 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     const dpp::permission administrator(dpp::p_administrator);
     const dpp::permission moderator(dpp::p_manage_messages);
 
-    for (const std::string_view open : {"top", "user", "emojis", "alias list"}) {
+    for (const std::string_view open : {"top", "user", "reactions", "duplicates", "alias list"}) {
         INFO(open);
         CHECK_FALSE(linkstats_refusal(open, nobody).has_value());
     }
@@ -83,16 +86,89 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     CHECK(linkstats_refusal("recompute start", nobody) == "recomputing link stats needs Manage Server");
 }
 
-TEST_CASE("custom emojis that share a name are listed as likely duplicates", "[commands]") {
+TEST_CASE("custom emojis with names alike are listed a group at a time", "[commands]") {
     fixture test;
-    CHECK(latibot::commands::render_duplicates(test.reactions, guild).starts_with("No two custom emojis here share a name"));
+    CHECK(latibot::commands::render_similar(test.reactions, guild, 0, {}, true)
+              .content.starts_with("No two custom emojis here have names alike"));
 
-    // A second emote called skull, as when one is uploaded twice.
-    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "skull"), day_one);
+    // A second emote called skull, as when one is uploaded twice, and a
+    // third a letter off.
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "Skull"), day_one);
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{79}, "skul"), day_one);
 
-    const std::string text = latibot::commands::render_duplicates(test.reactions, guild);
-    CHECK(text.find("- **skull**: ") != std::string::npos);
-    CHECK(text.find("/linkstats alias add") != std::string::npos);
+    SECTION("to anybody, as a list") {
+        const dpp::message shown = latibot::commands::render_similar(test.reactions, guild, 0, {}, false);
+        CHECK(shown.content.find("1. <:skull:77> `skull` 1") != std::string::npos);
+        CHECK(shown.content.find("<:Skull:78>") != std::string::npos);
+        CHECK(shown.content.find("<:skul:79>") != std::string::npos);
+        CHECK(shown.content.find("Manage Server") != std::string::npos);
+        CHECK(shown.content.find("Group 1 of 1") != std::string::npos);
+        CHECK(shown.components.empty());
+    }
+
+    SECTION("to somebody who can merge them, with a menu to pick the one to keep") {
+        const dpp::message shown = latibot::commands::render_similar(test.reactions, guild, 0, {}, true);
+        REQUIRE(shown.components.size() == 1);
+        CHECK(shown.components[0].components[0].options.size() == 3);
+        latibot::testing::check_message_fits(shown);
+    }
+
+    SECTION("and once one is picked, a menu of what to merge into it") {
+        const dpp::message shown = latibot::commands::render_similar(test.reactions, guild, 0, "c:77", true);
+        REQUIRE(shown.components.size() == 2);
+        CHECK(shown.content.find("Keeping <:skull:77>") != std::string::npos);
+        const auto& merge = shown.components[1].components[0].options;
+        REQUIRE(merge.size() == 3);
+        CHECK(merge[0].value == latibot::commands::merge_everything);
+        CHECK(merge[1].value == "c:78");
+        CHECK(merge[2].value == "c:79");
+        latibot::testing::check_message_fits(shown);
+    }
+}
+
+TEST_CASE("emojis alike are merged from the list by somebody with Manage Server", "[commands]") {
+    fixture test;
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "Skull"), day_one);
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{79}, "skul"), day_one);
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{80}, "catjam"), day_one);
+    test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{81}, "catJAM"), day_one);
+
+    panel_harness discord{[&](const auto& event, const auto& state, const std::string& chosen) {
+                              return latibot::commands::on_linkstats_component(test.reactions, event, state, chosen);
+                          },
+                          [](const auto&, const auto&) { return false; }};
+    discord.permissions = dpp::p_manage_guild;
+    discord.open(latibot::commands::render_similar(test.reactions, guild, 0, {}, true));
+
+    SECTION("one at a time") {
+        CHECK(panel_harness::is_update(discord.choose("c:77")));
+        CHECK(discord.content().find("Keeping <:skull:77>") != std::string::npos);
+
+        CHECK(panel_harness::is_update(discord.choose("c:79", latibot::commands::merge_view)));
+        CHECK(test.reactions.canonical(guild, "c:79") == "c:77");
+        CHECK(test.reactions.canonical(guild, "c:78") == "c:78");
+        CHECK(discord.content().find("Merged <:skul:79> into <:skull:77>.") != std::string::npos);
+        // Still keeping the same one, for what is left of the group.
+        CHECK(discord.content().find("Keeping <:skull:77>") != std::string::npos);
+    }
+
+    SECTION("all at once, and the next group takes its place") {
+        discord.choose("c:77");
+        CHECK(panel_harness::is_update(discord.choose(latibot::commands::merge_everything, latibot::commands::merge_view)));
+        CHECK(test.reactions.canonical(guild, "c:78") == "c:77");
+        CHECK(test.reactions.canonical(guild, "c:79") == "c:77");
+        CHECK(discord.content().find("<:catjam:80>") != std::string::npos);
+        CHECK(discord.content().find("Group 1 of 1") != std::string::npos);
+    }
+
+    SECTION("not by somebody who has lost Manage Server since") {
+        discord.choose("c:77");
+        discord.permissions = 0;
+        const auto answer = discord.choose("c:78", latibot::commands::merge_view);
+        CHECK(panel_harness::is_private_note(answer));
+        CHECK(panel_harness::text_of(answer) == "merging emojis needs Manage Server");
+        CHECK(test.reactions.canonical(guild, "c:78") == "c:78");
+    }
 }
 
 TEST_CASE("aliases are listed as what counts as what, within Discord's limit", "[commands]") {
@@ -240,16 +316,40 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
     report.attributed = 50;
     report.unattributed = 6;
     report.reactions = 789;
-    report.unparsed = {dpp::snowflake{111}, dpp::snowflake{222}};
-    report.problems = {"could not read channel 3: Missing Access"};
+    report.unparsed = {{.channel_id = dpp::snowflake{1}, .message_id = dpp::snowflake{111}},
+                       {.channel_id = dpp::snowflake{2}, .message_id = dpp::snowflake{222}}};
+    report.problems = {"could not read <#3>: Missing Access"};
 
     const std::string text = latibot::commands::render_backfill(report, request, true);
     CHECK(text.starts_with("**Link stats recomputed since 2021-01-01 until 2021-12-31**"));
     CHECK(text.find("Messages scanned: 1234") != std::string::npos);
     CHECK(text.find("Replacements found: 56 (50 credited to whoever posted the link, 6 not)") != std::string::npos);
-    CHECK(text.find("Not understood: 2 `111` `222`") != std::string::npos);
+    // Linked, so a click shows each one.
+    CHECK(text.find("Not understood: in no replacement format known: 2\n"
+                    "- https://discord.com/channels/1000/1/111\n"
+                    "- https://discord.com/channels/1000/2/222\n") != std::string::npos);
     CHECK(text.find("Missing Access") != std::string::npos);
     CHECK(text.size() <= 2000);
+
+    SECTION("with more to look at than a message has room for") {
+        for (std::uint64_t index = 0; index < 500; ++index) {
+            const latibot::events::message_place place{.channel_id = dpp::snowflake{1234567890123456789ULL},
+                                                       .message_id = dpp::snowflake{1234567890123456789ULL + index}};
+            report.unparsed.push_back(place);
+            report.mismatched.push_back(place);
+            report.unread.push_back(place);
+        }
+        for (int index = 0; index < 20; ++index) {
+            report.learned_mirrors.emplace_back(std::format("mirror-number-{}.example", index), "x.com");
+            report.problems.push_back(std::format("could not read <#{}>: Missing Access", 1234567890123456789ULL));
+        }
+        const std::string crowded = latibot::commands::render_backfill(report, request, true);
+        CHECK(latibot::util::character_count(crowded) <= 2000);
+        CHECK(crowded.find("Old mirrors recognised: ") != std::string::npos);
+        CHECK(crowded.find(" and 17 more") != std::string::npos);
+        CHECK(crowded.find("Not credited: after a link that is not the one it replaced: 500") != std::string::npos);
+        CHECK(crowded.find("Reactions not read: their old counts are kept: 500") != std::string::npos);
+    }
 
     SECTION("while it runs") {
         report.channels_done = 1;
@@ -380,4 +480,131 @@ TEST_CASE("what a leaderboard ranks is read from its option", "[commands]") {
     CHECK(latibot::commands::board_from_string("self") == board::self);
     CHECK(latibot::commands::board_from_string("emoji") == board::emoji);
     CHECK_FALSE(latibot::commands::board_from_string("bogus").has_value());
+}
+
+TEST_CASE("a finished recompute is answered with a ping to whoever started it", "[commands]") {
+    const latibot::events::backfill_request request{.guild_id = guild,
+                                                    .channel_ids = {dpp::snowflake{1}},
+                                                    .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
+                                                    .until = std::nullopt,
+                                                    .bot_id = dpp::snowflake{42},
+                                                    .fresh = false};
+    latibot::events::backfill_report report;
+    report.replacements = 56;
+    report.reactions = 1;
+
+    const dpp::snowflake channel{3000};
+    const dpp::snowflake progress{7000};
+
+    SECTION("a reply to the report, pinging them and nobody else") {
+        const dpp::message reply = latibot::commands::backfill_done_reply(report, request, channel, progress, alice);
+        CHECK(reply.channel_id == channel);
+        CHECK(reply.content == "<@11> the link stats recompute since 2021-01-01 is done: 56 replacements found, 1 reaction recorded.");
+        CHECK(reply.message_reference.message_id == progress);
+
+        const auto sent = nlohmann::json::parse(reply.build_json());
+        CHECK(sent["allowed_mentions"]["users"] == nlohmann::json::array({"11"}));
+        CHECK(sent["allowed_mentions"]["parse"].empty());
+        CHECK(reply.file_data.empty());
+    }
+
+    SECTION("with every message worth a look in a file") {
+        report.cancelled = true;
+        report.mismatched = {{.channel_id = dpp::snowflake{1}, .message_id = dpp::snowflake{111}}};
+        report.unread = {{.channel_id = dpp::snowflake{2}, .message_id = dpp::snowflake{222}}};
+
+        const dpp::message reply = latibot::commands::backfill_done_reply(report, request, channel, progress, alice);
+        CHECK(reply.content.find("since 2021-01-01 stopped:") != std::string::npos);
+        CHECK(reply.content.ends_with("2 messages to look at, linked in the file."));
+        REQUIRE(reply.file_data.size() == 1);
+        CHECK(reply.file_data[0].name == "recompute-issues.txt");
+        CHECK(reply.file_data[0].content ==
+              "Link stats recompute since 2021-01-01\n\n"
+              "Not credited: after a link that is not the one it replaced (1)\n"
+              "https://discord.com/channels/1000/1/111\n"
+              "\nReactions not read: their old counts are kept (1)\n"
+              "https://discord.com/channels/1000/2/222\n");
+    }
+
+    SECTION("not as a reply when the report could not be posted") {
+        const dpp::message reply = latibot::commands::backfill_done_reply(report, request, channel, {}, alice);
+        CHECK(reply.message_reference.message_id.empty());
+    }
+}
+
+TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands]") {
+    fixture test;
+    // A link of Bob's, which Alice reacted to.
+    test.replacements.record({.message_id = dpp::snowflake{502},
+                              .guild_id = guild,
+                              .channel_id = dpp::snowflake{2},
+                              .original_message_id = std::nullopt,
+                              .original_author_id = bob,
+                              .state = latibot::events::replacement_state::ok,
+                              .created_at = day_one,
+                              .retried_at = std::nullopt,
+                              .links = {}});
+    test.reactions.add(dpp::snowflake{502}, alice, reaction_emoji({}, "🔥"), day_one);
+
+    SECTION("everyone's, received") {
+        const std::string text =
+            latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
+        CHECK(text.starts_with("**Most used reactions received on replaced links**"));
+        CHECK(text.find("_3 reactions with 3 different emojis_") != std::string::npos);
+    }
+
+    SECTION("what one person received") {
+        const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
+        const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, alices).content;
+        CHECK(text.starts_with("**Reactions <@11> received on replaced links**"));
+        CHECK(text.find("💀 1") != std::string::npos);
+        CHECK(text.find("<:skull:77> 1") != std::string::npos);
+        CHECK(text.find("🔥") == std::string::npos);
+    }
+
+    SECTION("what one person gave") {
+        const latibot::events::stat_query alices{.kind = stat_kind::given, .user_id = alice};
+        const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji_given, alices).content;
+        CHECK(text.starts_with("**Reactions <@11> gave on replaced links**"));
+        CHECK(text.find("🔥 1") != std::string::npos);
+        // Her laugh at her own link is neither.
+        CHECK(text.find("😂") == std::string::npos);
+    }
+}
+
+TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
+    fixture test;
+    // Thirty emojis from Bob on Alice's link: two pages.
+    for (std::uint64_t index = 0; index < 30; ++index) {
+        test.reactions.add(dpp::snowflake{501}, bob, reaction_emoji(dpp::snowflake{900 + index}, std::format("e{}", index)), day_one);
+    }
+
+    const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
+    const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::emoji, alices);
+    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
+    CHECK(first.content.find("20. ") != std::string::npos);
+    CHECK(first.content.find("21. ") == std::string::npos);
+    latibot::testing::check_message_fits(first);
+    REQUIRE(first.components.size() == 1);
+
+    const auto state = latibot::ui::decode(first.components[0].components[1].custom_id);
+    REQUIRE(state.has_value());
+    const auto decoded = latibot::commands::decode_board(state->argument);
+    REQUIRE(decoded.has_value());
+    CHECK(decoded->first == board::emoji);
+    CHECK(decoded->second.user_id == alice);
+
+    const dpp::message second = latibot::commands::render_board(test.reactions, guild, decoded->first, decoded->second, state->page);
+    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
+    CHECK(second.content.find("32. ") != std::string::npos);
+}
+
+TEST_CASE("a board's buttons from before people could be named still page", "[commands]") {
+    const auto old = latibot::commands::decode_board("g;c:77;x.com;20089;");
+    REQUIRE(old.has_value());
+    CHECK(old->first == board::given);
+    CHECK_FALSE(old->second.user_id.has_value());
+
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;not-a-person").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;;").has_value());
 }

@@ -76,8 +76,15 @@ struct legacy_match {
         not_ours,
         /// A webhook replacement, counted and skipped.
         webhook,
-        /// The bot's, with a mirror link, in one of the known formats.
+        /// The bot's, in one of the known formats, and either linking to a
+        /// known mirror or in one of the `[.]` / `[_]` shapes nothing else
+        /// the bot writes has.
         recognised,
+        /// The bot's copy of a message, as a reply or not, whose links are
+        /// on no mirror any rule remembers. A replacement only if it answers
+        /// an earlier link with the same path on another host, which
+        /// `replaced_links` decides once that link is found.
+        unconfirmed,
         /// The bot's, with a mirror link, in no known format: reported by id
         /// rather than guessed at.
         unrecognised,
@@ -86,17 +93,36 @@ struct legacy_match {
     kind what = kind::not_ours;
     legacy_format format = legacy_format::link_underscore;
 
-    /// The mirror links in it, in order.
+    /// The mirror links in it, in order: the links on known mirrors, or,
+    /// when none are, every link in it, since any of them may be one.
     std::vector<std::string> mirror_urls;
 };
 
 /// Recognises the bot's old replacements (plan §9.7).
 ///
-/// A message counts when the bot wrote it and it contains a link to a known
-/// mirror, current or historical. That holds across every format, since each
-/// one contains the replaced link; the format then says where to look for
-/// the original.
+/// A message counts when the bot wrote it and it is in one of the shapes a
+/// replacement has had. The URL rules are no help with the oldest: mirrors
+/// break and are swapped for others, and a mirror dropped before this
+/// database existed is in no rule. So a link to a known mirror settles it,
+/// and without one the shape has to: the masked `[.](link)` shapes are only
+/// ever replacements, and a copy of a message is one only when it answers a
+/// link (`kind::unconfirmed`). The format then says where to look for the
+/// original.
 [[nodiscard]] auto classify(const history_message& message, dpp::snowflake bot_id, const mirror_map& mirrors) -> legacy_match;
+
+/// One link a replacement put in place of another.
+struct replaced_link {
+    /// As the bot posted it.
+    std::string mirror_url;
+
+    /// The link it stood in for.
+    std::string original_url;
+};
+
+/// The links in `original` that `match` stood in for: the same path, on
+/// another host. A link to a site's front page proves nothing and is never
+/// matched.
+[[nodiscard]] auto replaced_links(const legacy_match& match, std::string_view original) -> std::vector<replaced_link>;
 
 /// Who a replacement was for.
 struct attribution {
@@ -114,6 +140,11 @@ struct attribution {
     /// Earlier links were there but none matched, so the message is left
     /// unattributed rather than credited to the wrong person. Reported.
     bool mismatched = false;
+
+    /// What it replaced in the original, when the original was in hand:
+    /// what confirms an `unconfirmed` match, and what says which site an
+    /// unknown mirror stood in for.
+    std::vector<replaced_link> replaced;
 };
 
 /// How many earlier messages with links are looked at before giving up.
@@ -128,7 +159,9 @@ inline constexpr std::size_t attribution_candidates = 10;
 /// which covers somebody chatting in between. The link's path has to match
 /// one of ours: a replacement for somebody else's link that happened to come
 /// first would otherwise take the credit, so a mismatch keeps looking and,
-/// failing that, leaves the message unattributed rather than guessed.
+/// failing that, leaves the message unattributed rather than guessed. The
+/// host has to differ as well (`replaced_links`), which is all that tells an
+/// `unconfirmed` replacement from the bot repeating a link.
 ///
 /// `older` is the channel before `message`, newest first.
 [[nodiscard]] auto attribute(const history_message& message, const legacy_match& match, std::span<const history_message> older,

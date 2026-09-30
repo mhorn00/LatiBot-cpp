@@ -150,7 +150,7 @@ flowchart TB
     subgraph deciders["Features that decide"]
         direction LR
         registry["commands::registry<br/>22 commands"]
-        panels["panel routers<br/>trigger_panel, url_panel,<br/>voice_lab, llm_panels"]
+        panels["panel routers<br/>trigger_panel, url_panel,<br/>voice_lab, llm_panels,<br/>on_linkstats_component"]
         pipeline["events::pipeline<br/>goodbye, url replacement,<br/>triggers, language model"]
         scheduler["midnight_scheduler"]
         autoleave["auto_leave"]

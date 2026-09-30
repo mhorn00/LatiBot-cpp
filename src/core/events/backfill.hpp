@@ -18,6 +18,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace latibot::db {
@@ -47,6 +48,18 @@ struct backfill_request {
     bool fresh = false;
 };
 
+/// A message and the channel it is in: enough to link to it.
+struct message_place {
+    dpp::snowflake channel_id;
+    dpp::snowflake message_id;
+
+    friend auto operator==(const message_place&, const message_place&) -> bool = default;
+};
+
+/// The link Discord's "Copy Message Link" gives, which opens the message in
+/// its channel.
+[[nodiscard]] auto jump_link(dpp::snowflake guild_id, const message_place& place) -> std::string;
+
 /// What a backfill found. Also its progress while it runs.
 struct backfill_report {
     std::int64_t scanned = 0;
@@ -56,13 +69,22 @@ struct backfill_report {
 
     /// Of the unattributed: an earlier link was there, but its path did not
     /// match, so it was reported rather than accepted (plan §9.7).
-    std::int64_t mismatched = 0;
+    std::vector<message_place> mismatched;
     std::int64_t webhooks_skipped = 0;
     std::int64_t reactions = 0;
 
     /// Messages that look like the bot's replacements but match no known
-    /// format, by id: counted, never guessed at.
-    std::vector<dpp::snowflake> unparsed;
+    /// format: counted, never guessed at.
+    std::vector<message_place> unparsed;
+
+    /// Replacements whose reactions could not be read, which keep the
+    /// counts they had.
+    std::vector<message_place> unread;
+
+    /// Mirror hosts learned from the replacements found, host then site, in
+    /// the order they were learned: ones no rule remembered, recognised by
+    /// what they answered. Remembered for the next run too.
+    std::vector<std::pair<std::string, std::string>> learned_mirrors;
 
     std::size_t channels_done = 0;
     std::size_t channels_total = 0;
@@ -112,12 +134,15 @@ inline constexpr std::int64_t progress_interval = 500;
 /// each one replaced, and rebuilds its reactions from what Discord shows now.
 /// Re-running is safe: every message's rows are rebuilt, not added to.
 ///
+/// Recognising them does not depend on today's URL rules: a mirror that
+/// broke years ago is in none of them. See `classify`.
+///
 /// One runs per guild at a time. `begin` claims the guild, `cancel` asks a
 /// running one to stop at the next page, and `end` releases it.
 class backfill_service {
 public:
-    backfill_service(ports::discord_gateway& discord, const url_rule_store& rules, replacement_store& replacements,
-                     reaction_store& reactions, backfill_progress_store& progress, ports::clock& clock);
+    backfill_service(ports::discord_gateway& discord, url_rule_store& rules, replacement_store& replacements, reaction_store& reactions,
+                     backfill_progress_store& progress, ports::clock& clock);
 
     /// Called every `progress_interval` messages with the report so far.
     using progress_fn = std::function<dpp::task<void>(const backfill_report&)>;
@@ -139,9 +164,15 @@ private:
     struct channel_scan {
         const backfill_request* request;
         dpp::snowflake channel_id;
-        const mirror_map* mirrors;
+
+        /// Every mirror known, including the ones this run has learned.
+        mirror_map* mirrors;
         flag cancelled;
     };
+
+    /// Remembers the hosts in `replaced` that no rule knew, with the site
+    /// each stood in for.
+    auto learn_mirrors(const channel_scan& scan, const std::vector<replaced_link>& replaced, backfill_report& report) -> void;
 
     auto scan_channel(channel_scan scan, backfill_report& report, const progress_fn& progress, std::int64_t& next_progress)
         -> dpp::task<void>;
@@ -174,7 +205,7 @@ private:
     [[nodiscard]] auto cancel_flag(dpp::snowflake guild_id) const -> flag;
 
     ports::discord_gateway* discord_;
-    const url_rule_store* rules_;
+    url_rule_store* rules_;
     replacement_store* replacements_;
     reaction_store* reactions_;
     backfill_progress_store* progress_;

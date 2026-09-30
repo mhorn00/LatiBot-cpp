@@ -875,17 +875,11 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state.page));
     } else if (state.view == events::url_retry_view) {
         retry_replacement(event, dpp::snowflake(state.argument), who);
-    } else if (state.view == commands::board_view) {
-        // The board's filters ride in the argument, so every page is the
-        // same board as the first. Filters this build cannot read are as
-        // stale as a view it does not know.
-        const auto board = commands::decode_board(state.argument);
-        if (!board) return false;
-        update_panel(event, commands::render_board(reactions_, guild, board->first, board->second, state.page));
     } else {
         // Each panel's router says whether the view was one of its own.
         return trigger_panel_.on_component(event, state, chosen) || url_panel_.on_component(event, state, chosen) ||
-               voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen);
+               voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen) ||
+               commands::on_linkstats_component(reactions_, event, state, chosen);
     }
     return true;
 }

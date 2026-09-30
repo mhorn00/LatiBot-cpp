@@ -112,9 +112,8 @@ TEST_CASE("the mirror links are collected whatever the format", "[events]") {
 // What is not a replacement, and what is not understood
 // --------------------------------------------------------------------------
 
-TEST_CASE("only the bot's messages with a known mirror count", "[events]") {
+TEST_CASE("only the bot's own messages with links count", "[events]") {
     CHECK(classify(from_bot("no links"), bot, mirrors()).what == legacy_match::kind::not_ours);
-    CHECK(classify(from_bot("https://example.com/a"), bot, mirrors()).what == legacy_match::kind::not_ours);
     CHECK(classify(from_person(alice, "https://fxtwitter.com/a/status/1", dpp::snowflake{1}), bot, mirrors()).what ==
           legacy_match::kind::not_ours);
 
@@ -133,6 +132,67 @@ TEST_CASE("a shape nobody wrote down is reported, not guessed at", "[events]") {
     // One link masked and one bare.
     CHECK(classify(from_bot("[.](https://fxtwitter.com/a/status/1) https://vxtwitter.com/b/status/2"), bot, mirrors()).what ==
           legacy_match::kind::unrecognised);
+}
+
+// --------------------------------------------------------------------------
+// Mirrors no rule remembers
+// --------------------------------------------------------------------------
+
+TEST_CASE("the masked shapes are replacements whatever their mirror", "[events]") {
+    // Mirrors break and are swapped for others; one dropped before any rule
+    // was written down is in none of them, but the shape is still the bot's.
+    const auto match = classify(from_bot("🔗 [_](https://long-gone.example/a/status/1)"), bot, mirrors());
+    CHECK(match.what == legacy_match::kind::recognised);
+    CHECK(match.format == legacy_format::link_underscore);
+    CHECK(match.mirror_urls == std::vector<std::string>{"https://long-gone.example/a/status/1"});
+
+    CHECK(classify(from_bot("[.](https://long-gone.example/a/status/1)"), bot, mirrors()).format == legacy_format::dot);
+}
+
+TEST_CASE("a copy on no known mirror waits for what it answered", "[events]") {
+    const auto plain = classify(from_bot("look https://oldfixer.com/a/status/1 and https://youtu.be/xyz"), bot, mirrors());
+    CHECK(plain.what == legacy_match::kind::unconfirmed);
+    CHECK(plain.format == legacy_format::plain_copy);
+    // Any of its links may be the mirror.
+    CHECK(plain.mirror_urls.size() == 2);
+
+    auto reply = from_bot("look https://oldfixer.com/a/status/1");
+    reply.replied_to = dpp::snowflake{800};
+    CHECK(classify(reply, bot, mirrors()).what == legacy_match::kind::unconfirmed);
+
+    // Other shapes on no known mirror say nothing about being a replacement,
+    // so they are left alone rather than reported.
+    CHECK(classify(from_bot("here [a tweet](https://oldfixer.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::not_ours);
+}
+
+TEST_CASE("what a replacement replaced is the same path on another host", "[events]") {
+    const auto match = classify(from_bot("look https://oldfixer.com/a/status/1 and https://youtu.be/xyz"), bot, mirrors());
+    const auto replaced =
+        latibot::events::replaced_links(match, "look https://www.x.com/a/status/1/ and https://youtu.be/xyz and https://x.com/b/status/2");
+
+    // The video was left as it was, so it replaced nothing.
+    REQUIRE(replaced.size() == 1);
+    CHECK(replaced[0].mirror_url == "https://oldfixer.com/a/status/1");
+    CHECK(replaced[0].original_url == "https://www.x.com/a/status/1/");
+
+    CHECK(latibot::events::replaced_links(match, "no links here").empty());
+}
+
+TEST_CASE("a copy on no known mirror is credited only by a link it replaced", "[events]") {
+    const auto ours = from_bot("look https://oldfixer.com/a/status/1");
+    const auto match = classify(ours, bot, mirrors());
+
+    const std::vector<history_message> answered{from_person(alice, "look https://x.com/a/status/1", dpp::snowflake{870})};
+    const auto found = attribute(ours, match, answered, bot);
+    CHECK(found.author_id == alice);
+    REQUIRE(found.replaced.size() == 1);
+    CHECK(found.replaced[0].original_url == "https://x.com/a/status/1");
+
+    // The same link on the same site is the bot repeating it.
+    const std::vector<history_message> repeated{from_person(alice, "https://oldfixer.com/a/status/1", dpp::snowflake{870})};
+    const auto not_found = attribute(ours, match, repeated, bot);
+    CHECK_FALSE(not_found.author_id.has_value());
+    CHECK(not_found.replaced.empty());
 }
 
 // --------------------------------------------------------------------------
