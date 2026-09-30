@@ -43,6 +43,7 @@ add_library(latibot_core STATIC
     core/events/goodbye.cpp
     core/events/legacy_replacements.cpp
     core/events/log_channel.cpp
+    core/events/media_posts.cpp
     core/events/message_pipeline.cpp
     core/events/midnight.cpp
     core/events/nickname_import.cpp

@@ -371,3 +371,73 @@ TEST_CASE("the bot's own links are not replacements unless they answered one", "
     CHECK(report.learned_mirrors.empty());
     CHECK(test.rules.known_mirrors(guild).empty());
 }
+
+// --------------------------------------------------------------------------
+// Images and videos (docs/features/Link_Stats.md §9)
+// --------------------------------------------------------------------------
+
+namespace {
+
+auto with_image(dpp::message posted) -> dpp::message {
+    dpp::attachment file(nullptr);
+    file.content_type = "image/png";
+    file.filename = "cat.png";
+    posted.attachments.push_back(file);
+    return posted;
+}
+
+/// A picture of Alice's with Bob's reaction, the bot's own picture, then the
+/// usual history.
+auto history_with_images() -> std::vector<dpp::message> {
+    dpp::message picture = with_image(message(id_at(20s), alice, "look at this"));
+    picture.reactions = {reaction("🔥", 1)};
+    std::vector<dpp::message> page{picture, with_image(message(id_at(15s), bot, "", true))};
+    for (const dpp::message& older : history()) {
+        page.push_back(older);
+    }
+    return page;
+}
+
+} // namespace
+
+TEST_CASE("where images are counted, a recompute finds them and their reactions", "[events][coro]") {
+    fixture test;
+    test.discord.message_pages.emplace_back(history_with_images());
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob});
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob, carol});
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{alice});
+
+    backfill_request wanted = request();
+    wanted.images = true;
+    const backfill_report report = test.run(wanted);
+
+    // Alice's picture; the bot's own is nobody's post.
+    CHECK(report.images == 1);
+    CHECK(report.image_reactions == 1);
+    CHECK(report.replacements == 1);
+    CHECK(report.reactions == 3);
+
+    const auto stored = test.replacements.find(id_at(20s));
+    REQUIRE(stored.has_value());
+    CHECK(stored->original_author_id == alice);
+    CHECK_FALSE(test.replacements.find(id_at(15s)).has_value());
+
+    using latibot::events::stat_source;
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice, .source = stat_source::images}) == 1);
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice, .source = stat_source::links}) == 2);
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice, .source = stat_source::both}) == 3);
+}
+
+TEST_CASE("where images are not counted, a recompute leaves them alone", "[events][coro]") {
+    fixture test;
+    test.discord.message_pages.emplace_back(history_with_images());
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob, carol});
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{alice});
+
+    const backfill_report report = test.run(request());
+    CHECK(report.images == 0);
+    CHECK(report.replacements == 1);
+    CHECK_FALSE(test.replacements.find(id_at(20s)).has_value());
+    // No reactions were asked for on the picture.
+    CHECK(test.discord.reaction_requests.size() == 2);
+}

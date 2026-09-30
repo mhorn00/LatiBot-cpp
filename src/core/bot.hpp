@@ -18,6 +18,7 @@
 #include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/log_channel.hpp"
+#include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
@@ -181,6 +182,7 @@ private:
     events::url_rule_store url_rules_;
     commands::url_panel url_panel_;
     events::replacement_store replacements_;
+    events::media_tracker media_;
     events::reaction_store reactions_;
     events::backfill_progress_store backfill_progress_;
     events::backfill_service backfill_;

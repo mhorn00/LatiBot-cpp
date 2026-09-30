@@ -52,6 +52,17 @@ auto replacement_store::record(const replacement_record& entry) -> void {
     tx.commit();
 }
 
+auto replacement_store::record_image_post(dpp::snowflake message_id, dpp::snowflake guild_id, dpp::snowflake channel_id,
+                                          dpp::snowflake author_id, std::chrono::sys_seconds posted_at) -> bool {
+    const auto guard = db_->lock();
+    db_->prepare(
+           "INSERT OR IGNORE INTO replacement_messages (message_id, guild_id, channel_id, original_message_id, original_author_id, "
+           "state, created_at, retried_at, kind) VALUES (?1, ?2, ?3, ?1, ?4, ?5, ?6, NULL, 'image')",
+           message_id, guild_id, channel_id, author_id, to_string(replacement_state::ok), posted_at)
+        .run();
+    return db_->changes() > 0;
+}
+
 auto replacement_store::find(dpp::snowflake message_id) const -> std::optional<replacement_record> {
     const auto guard = db_->lock();
 

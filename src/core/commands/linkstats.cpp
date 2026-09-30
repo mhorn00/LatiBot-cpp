@@ -1,7 +1,9 @@
 #include "core/commands/linkstats.hpp"
 
 #include "core/commands/options.hpp"
+#include "core/config/guild_settings.hpp"
 #include "core/discord/message_flags.hpp"
+#include "core/events/media_posts.hpp"
 #include "core/ports/discord_gateway.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
@@ -90,6 +92,14 @@ auto domain_option() -> dpp::command_option {
     return dpp::command_option(dpp::co_string, "domain", "Only links to this site, like x.com.", false)
         .set_auto_complete(true)
         .set_max_length(domain_length_limit);
+}
+
+auto source_option() -> dpp::command_option {
+    dpp::command_option source(dpp::co_string, "source", "What to count. Links and images when images are counted here.", false);
+    source.add_choice(dpp::command_option_choice("Links and images", std::string("both")));
+    source.add_choice(dpp::command_option_choice("Replaced links", std::string("links")));
+    source.add_choice(dpp::command_option_choice("Images and videos", std::string("images")));
+    return source;
 }
 
 auto emoji_option(const char* name, const char* description, bool required) -> dpp::command_option {
@@ -191,6 +201,48 @@ auto is_emoji_board(board which) -> bool {
     return which == board::emoji || which == board::emoji_given;
 }
 
+auto source_letter(events::stat_source source) -> char {
+    switch (source) {
+    case events::stat_source::links:
+        return 'l';
+    case events::stat_source::images:
+        return 'i';
+    case events::stat_source::both:
+        break;
+    }
+    return 'b';
+}
+
+/// What a statistic is about, as its title names it: "replaced x.com links",
+/// "images", "links and images".
+auto posts_counted(const events::stat_query& query) -> std::string {
+    // Images have no site, so a site means links alone.
+    if (query.domain) return std::format("replaced {} links", *query.domain);
+    switch (query.source) {
+    case events::stat_source::links:
+        return "replaced links";
+    case events::stat_source::images:
+        return "images";
+    case events::stat_source::both:
+        break;
+    }
+    return "links and images";
+}
+
+/// The same, for somebody's own: "their own links", "their own images".
+auto own_posts(const events::stat_query& query) -> std::string {
+    if (query.domain) return std::format("their own {} links", *query.domain);
+    switch (query.source) {
+    case events::stat_source::links:
+        return "their own links";
+    case events::stat_source::images:
+        return "their own images";
+    case events::stat_source::both:
+        break;
+    }
+    return "their own links and images";
+}
+
 auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
     std::int64_t value = 0;
     const auto [stop, error] = std::from_chars(text.data(), text.data() + text.size(), value);
@@ -200,28 +252,27 @@ auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
 
 auto board_title(const events::reaction_store& store, board which, const events::stat_query& query) -> std::string {
     const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
-    const std::string site = query.domain ? *query.domain + " " : std::string{};
+    const std::string posts = posts_counted(query);
     const std::string window = describe_window(query);
 
     // One person's reactions, by emoji.
     if (is_emoji_board(which) && query.user_id) {
-        return std::format("Reactions <@{}> {} on replaced {}links{}", *query.user_id, which == board::emoji ? "received" : "gave", site,
-                           window);
+        return std::format("Reactions <@{}> {} on {}{}", *query.user_id, which == board::emoji ? "received" : "gave", posts, window);
     }
 
     switch (which) {
     case board::given:
-        return std::format("Most {}given on replaced {}links{}", emoji, site, window);
+        return std::format("Most {}given on {}{}", emoji, posts, window);
     case board::self:
-        return std::format("Most {}on their own {}links{}", emoji, site, window);
+        return std::format("Most {}on {}{}", emoji, own_posts(query), window);
     case board::emoji:
-        return std::format("Most used reactions received on replaced {}links{}", site, window);
+        return std::format("Most used reactions received on {}{}", posts, window);
     case board::emoji_given:
-        return std::format("Most used reactions given on replaced {}links{}", site, window);
+        return std::format("Most used reactions given on {}{}", posts, window);
     case board::received:
         break;
     }
-    return std::format("Most {}received on replaced {}links{}", emoji, site, window);
+    return std::format("Most {}received on {}{}", emoji, posts, window);
 }
 
 } // namespace
@@ -230,15 +281,16 @@ auto encode_board(board which, const events::stat_query& query) -> std::string {
     const auto day = [](const std::optional<std::chrono::sys_seconds>& when) {
         return when ? std::to_string(std::chrono::floor<std::chrono::days>(*when).time_since_epoch().count()) : std::string{};
     };
-    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}", board_separator, board_letter(which), query.emoji_key.value_or(std::string{}),
-                       query.domain.value_or(std::string{}), day(query.since), day(query.until),
-                       query.user_id ? query.user_id->str() : std::string{});
+    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}{0}{7}", board_separator, board_letter(which),
+                       query.emoji_key.value_or(std::string{}), query.domain.value_or(std::string{}), day(query.since), day(query.until),
+                       query.user_id ? query.user_id->str() : std::string{}, source_letter(query.source));
 }
 
 auto decode_board(std::string_view argument) -> std::optional<std::pair<board, events::stat_query>> {
-    // Split on ';' into the six fields `encode_board` writes: board letter,
-    // emoji key, site, since, until and person. Five is a button sent before
-    // the person was added. Anything else was not made here and is refused
+    // Split on ';' into the seven fields `encode_board` writes: board
+    // letter, emoji key, site, since, until, person and kind of post. Five
+    // or six are buttons sent before the last ones were added, which only
+    // ever counted links. Anything else was not made here and is refused
     // whole.
     std::vector<std::string_view> fields;
     while (true) {
@@ -247,7 +299,7 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (cut == std::string_view::npos) break;
         argument.remove_prefix(cut + 1);
     }
-    if ((fields.size() != 5 && fields.size() != 6) || fields[0].size() != 1) return std::nullopt;
+    if (fields.size() < 5 || fields.size() > 7 || fields[0].size() != 1) return std::nullopt;
 
     board which = board::received;
     switch (fields[0].front()) {
@@ -279,9 +331,19 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (!days) return std::nullopt;
         *bound = std::chrono::sys_seconds(std::chrono::sys_days(std::chrono::days(*days)));
     }
-    if (fields.size() == 6 && !fields[5].empty()) {
+    if (fields.size() >= 6 && !fields[5].empty()) {
         query.user_id = util::parse_snowflake(fields[5]);
         if (!query.user_id) return std::nullopt;
+    }
+    query.source = events::stat_source::links;
+    if (fields.size() == 7) {
+        if (fields[6] == "b") {
+            query.source = events::stat_source::both;
+        } else if (fields[6] == "i") {
+            query.source = events::stat_source::images;
+        } else if (fields[6] != "l") {
+            return std::nullopt;
+        }
     }
     return std::pair{which, query};
 }
@@ -347,11 +409,10 @@ auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id
     query.kind = events::stat_kind::self;
     const std::int64_t self = store.total(guild_id, query);
 
-    const std::string site = window.domain ? std::format(" on {} links", *window.domain) : std::string{};
-    std::string text = std::format("**Link stats for <@{}>{}{}**\n", user_id, site, describe_window(window));
+    std::string text = std::format("**Link stats for <@{}> on {}{}**\n", user_id, posts_counted(window), describe_window(window));
     text += std::format("Reactions received: {}{}\n", received, received_top.empty() ? "" : " (" + emoji_list(received_top) + ")");
     text += std::format("Reactions given: {}{}\n", given, given_top.empty() ? "" : " (" + emoji_list(given_top) + ")");
-    text += std::format("Reacted to their own links: {} time{}\n", self, self == 1 ? "" : "s");
+    text += std::format("Reacted to {}: {} time{}\n", own_posts(window), self, self == 1 ? "" : "s");
     text += "_`/linkstats reactions` lists every emoji, for one person or for everyone._\n";
     return text;
 }
@@ -589,12 +650,15 @@ auto issue_lists(const events::backfill_report& report) -> std::array<issue_list
 auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished) -> std::string {
     const std::string range = describe_range(request);
 
+    const std::string images =
+        request.images ? std::format(", {} images and videos with {} reactions", report.images, report.image_reactions) : std::string{};
+
     if (!finished) {
         return std::format(
             "Recomputing link stats {}…\nChannel {} of {}: {} messages scanned, {} replacements found, {} reactions "
-            "recorded.\n`/linkstats recompute cancel` stops it; running it again carries on from here.",
+            "recorded{}.\n`/linkstats recompute cancel` stops it; running it again carries on from here.",
             range, std::min(report.channels_done + 1, report.channels_total), report.channels_total, report.scanned, report.replacements,
-            report.reactions);
+            report.reactions, images);
     }
 
     std::string text = std::format("**Link stats {} {}**\n", report.cancelled ? "recompute stopped" : "recomputed", range);
@@ -604,6 +668,9 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
                         report.unattributed);
     if (report.webhooks_skipped > 0) text += std::format("Webhook replacements skipped: {}\n", report.webhooks_skipped);
     text += std::format("Reactions recorded: {}\n", report.reactions);
+    if (request.images) {
+        text += std::format("Images and videos found: {}, with {} reactions\n", report.images, report.image_reactions);
+    }
 
     if (!report.learned_mirrors.empty()) {
         // Mirrors no rule remembered, found by what they answered.
@@ -658,9 +725,13 @@ auto backfill_done_reply(const events::backfill_report& report, const events::ba
         issues += list.places->size();
     }
 
-    std::string text = std::format("<@{}> the link stats recompute {} {}: {} replacement{} found, {} reaction{} recorded.", starter,
+    const std::string images =
+        request.images ? std::format("; {} image{} and video{} with {} reaction{}", report.images, report.images == 1 ? "" : "s",
+                                     report.images == 1 ? "" : "s", report.image_reactions, report.image_reactions == 1 ? "" : "s")
+                       : std::string{};
+    std::string text = std::format("<@{}> the link stats recompute {} {}: {} replacement{} found, {} reaction{} recorded{}.", starter,
                                    describe_range(request), report.cancelled ? "stopped" : "is done", report.replacements,
-                                   report.replacements == 1 ? "" : "s", report.reactions, report.reactions == 1 ? "" : "s");
+                                   report.replacements == 1 ? "" : "s", report.reactions, report.reactions == 1 ? "" : "s", images);
     if (issues > 0) text += std::format(" {} message{} to look at, linked in the file.", issues, issues == 1 ? "" : "s");
 
     dpp::message reply(channel_id, text);
@@ -683,7 +754,7 @@ auto show_progress(ports::discord_gateway& discord, dpp::message message) -> dpp
 
 } // namespace
 
-linkstats_command::linkstats_command(events::reaction_store& store, recompute_support recompute)
+linkstats_command::linkstats_command(events::reaction_store& store, recompute_support recompute, config::guild_settings* settings)
     : info_{.name = "linkstats",
             .description = "Who gets the most reactions on the links the bot replaced.",
             .aliases = {},
@@ -700,9 +771,12 @@ linkstats_command::linkstats_command(events::reaction_store& store, recompute_su
                                      {"alias add", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"alias remove", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
                                      {"recompute start", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
-                                     {"recompute cancel", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}}},
+                                     {"recompute cancel", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"images on", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}},
+                                     {"images off", {.result = dpp::m_ephemeral, .refusal = std::nullopt, .post = std::nullopt}}}},
       store_(&store),
-      recompute_(std::move(recompute)) {}
+      recompute_(std::move(recompute)),
+      settings_(settings) {}
 
 auto linkstats_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -719,12 +793,14 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     top.add_option(date_option("since", "From this day, YYYY-MM-DD."));
     top.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     top.add_option(domain_option());
+    top.add_option(source_option());
 
     dpp::command_option user(dpp::co_sub_command, "user", "One person's reactions, received and given.");
     user.add_option(dpp::command_option(dpp::co_user, "user", "You, if left out.", false));
     user.add_option(date_option("since", "From this day, YYYY-MM-DD."));
     user.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     user.add_option(domain_option());
+    user.add_option(source_option());
 
     dpp::command_option side(dpp::co_string, "side", "Received if left out.", false);
     side.add_choice(dpp::command_option_choice("Reactions received", std::string("received")));
@@ -736,6 +812,7 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     reactions.add_option(date_option("since", "From this day, YYYY-MM-DD."));
     reactions.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     reactions.add_option(domain_option());
+    reactions.add_option(source_option());
 
     const dpp::command_option duplicates(dpp::co_sub_command, "duplicates",
                                          "Custom emojis with the same or nearly the same name, to merge into one.");
@@ -772,8 +849,13 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     payload.add_option(user);
     payload.add_option(reactions);
     payload.add_option(duplicates);
+    dpp::command_option images(dpp::co_sub_command_group, "images", "Count reactions on the images and videos people post, too.");
+    images.add_option(dpp::command_option(dpp::co_sub_command, "on", "Count them here. Needs Manage Server."));
+    images.add_option(dpp::command_option(dpp::co_sub_command, "off", "Stop counting them here. Needs Manage Server."));
+
     payload.add_option(alias);
     payload.add_option(recompute);
+    payload.add_option(images);
     return payload;
 }
 
@@ -824,6 +906,7 @@ auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> 
     // Reading years of history is a lot of API calls; this one is for the
     // people who run the server (plan §9.7).
     if (subcommand.starts_with("recompute ")) return "recomputing link stats needs Manage Server";
+    if (subcommand.starts_with("images ")) return "choosing whether images are counted needs Manage Server";
     return std::nullopt;
 }
 
@@ -839,6 +922,8 @@ auto linkstats_command::execute(const dpp::slashcommand_t& event) -> dpp::task<v
         co_await this->alias(event, subcommand);
     } else if (subcommand.starts_with("recompute ")) {
         co_await this->recompute(event, subcommand);
+    } else if (subcommand.starts_with("images ")) {
+        co_await this->images(event, subcommand == "images on");
     } else if (subcommand == "top") {
         co_await this->top(event);
     } else if (subcommand == "user") {
@@ -864,11 +949,13 @@ auto linkstats_command::top(const dpp::slashcommand_t& event) -> dpp::task<void>
         co_return;
     }
 
+    query.source = source_for(event);
+
     const std::string typed = string_option(event, "emoji");
     if (!typed.empty()) {
         const auto emoji = resolve_emoji(*store_, guild, typed);
         if (!emoji) {
-            co_await event.co_reply(refusal(event, std::format("nobody has reacted with \"{}\" on a replaced link here", typed)));
+            co_await event.co_reply(refusal(event, std::format("nobody has reacted with \"{}\" on anything counted here", typed)));
             co_return;
         }
         query.emoji_key = emoji->key;
@@ -886,6 +973,7 @@ auto linkstats_command::user(const dpp::slashcommand_t& event) -> dpp::task<void
         co_return;
     }
 
+    window.source = source_for(event);
     const dpp::snowflake subject = snowflake_option(event, "user").value_or(event.command.get_issuing_user().id);
 
     co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
@@ -901,7 +989,50 @@ auto linkstats_command::reactions(const dpp::slashcommand_t& event) -> dpp::task
     const board chosen = string_option(event, "side") == "given" ? board::emoji_given : board::emoji;
     query.kind = kind_for(chosen);
     query.user_id = snowflake_option(event, "user");
+    query.source = source_for(event);
     co_await event.co_reply(result(event, render_board(*store_, event.command.guild_id, chosen, query)));
+}
+
+auto linkstats_command::counts_images(dpp::snowflake guild_id) const -> bool {
+    return settings_ != nullptr && events::images_enabled(*settings_, guild_id);
+}
+
+auto linkstats_command::source_for(const dpp::slashcommand_t& event) const -> events::stat_source {
+    const std::string chosen = string_option(event, "source");
+    if (chosen == "links") return events::stat_source::links;
+    if (chosen == "images") return events::stat_source::images;
+    if (chosen == "both") return events::stat_source::both;
+    // Left out: what the server counts. One that never turned images on
+    // has none, and its boards read as they always have.
+    return counts_images(event.command.guild_id) ? events::stat_source::both : events::stat_source::links;
+}
+
+auto linkstats_command::images(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void> {
+    // Manage Server has been checked by execute.
+    if (settings_ == nullptr) {
+        co_await event.co_reply(refusal(event, "counting images isn't available in this build"));
+        co_return;
+    }
+
+    const dpp::snowflake guild = event.command.guild_id;
+    const bool was = counts_images(guild);
+    events::set_images_enabled(*settings_, guild, enabled);
+    if (was != enabled) {
+        util::log().info("reactions on images are {} counted in guild {}, set by {}", enabled ? "now" : "no longer", guild,
+                         describe_user(event.command.get_issuing_user()));
+    }
+
+    if (enabled) {
+        co_await event.co_reply(
+            result(event, std::format("{}Reactions on the images and videos people post here are counted, credited to whoever posted "
+                                      "them. `/linkstats recompute` counts the ones already posted.",
+                                      was ? "Already on. " : "")));
+    } else {
+        co_await event.co_reply(
+            result(event, std::format("{}Reactions on images and videos here are no longer counted. Those already counted are kept, and "
+                                      "`source:Images and videos` still shows them.",
+                                      was ? "" : "Already off. ")));
+    }
 }
 
 auto linkstats_command::alias(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void> {
@@ -1000,6 +1131,7 @@ auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp
                                      .fresh = false};
 
     request.fresh = bool_option(event, "fresh").value_or(false);
+    request.images = counts_images(guild);
 
     if (const auto channel = snowflake_option(event, "channel")) {
         request.channel_ids.push_back(*channel);

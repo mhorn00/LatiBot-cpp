@@ -25,6 +25,7 @@
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
+#include "core/util/url_scan.hpp"
 #include "core/version.hpp"
 
 #include <algorithm>
@@ -203,6 +204,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       url_rules_(database_),
       url_panel_(url_rules_),
       replacements_(database_),
+      media_(replacements_, guild_settings_, clock_),
       reactions_(database_),
       backfill_progress_(database_),
       backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
@@ -349,10 +351,12 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::chat_command>(speech, raw_));
     commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_, voices_, voice_lab_));
     commands_.add(std::make_unique<commands::linkstats_command>(
-        reactions_, commands::recompute_support{.service = &backfill_,
-                                                .discord = &gateway_,
-                                                .channels_of = [](dpp::snowflake guild) { return text_channels(guild); },
-                                                .bot_id = [this] { return settings_.recompute_bot_id.value_or(cluster_.me.id); }}));
+        reactions_,
+        commands::recompute_support{.service = &backfill_,
+                                    .discord = &gateway_,
+                                    .channels_of = [](dpp::snowflake guild) { return text_channels(guild); },
+                                    .bot_id = [this] { return settings_.recompute_bot_id.value_or(cluster_.me.id); }},
+        &guild_settings_));
 }
 
 auto bot::register_stages() -> void {
@@ -440,8 +444,19 @@ auto bot::register_events() -> void {
     // Every message: reduce it to plain data, let the stages decide, then do
     // what they asked. Handlers run on DPP's thread pool, so two messages
     // can be in here at once.
-    cluster_.on_message_create(
-        [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg, event.raw_event))); });
+    cluster_.on_message_create([this](const dpp::message_create_t& event) {
+        carry_out(pipeline_.run(describe(event.msg, event.raw_event)));
+        // Somebody's image or video, in a server that counts reactions on
+        // them (docs/features/Link_Stats.md 9).
+        const dpp::message& message = event.msg;
+        media_.on_message({.message_id = message.id,
+                           .guild_id = message.guild_id,
+                           .channel_id = message.channel_id,
+                           .author_id = message.author.id,
+                           .from_person = !message.author.is_bot() && message.webhook_id.empty(),
+                           .has_media = events::has_media(message),
+                           .has_links = !util::find_links(message.content).empty()});
+    });
 
     // Discord adds link previews by updating the message a moment after it
     // was posted, which is how the embed tracker learns that a mirror worked
@@ -450,6 +465,8 @@ auto bot::register_events() -> void {
     cluster_.on_message_update([this](const dpp::message_update_t& event) {
         const std::vector<std::string> urls = embed_urls_of(event.msg);
         carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
+        // The preview that shows a link was an image arrives here too.
+        media_.on_update(event.msg.id, events::has_media(event.msg));
     });
     cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
 

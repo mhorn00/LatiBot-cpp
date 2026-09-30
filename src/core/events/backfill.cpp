@@ -40,6 +40,13 @@ auto links_of(const legacy_match& match, const mirror_map& mirrors) -> std::vect
     return links;
 }
 
+/// Somebody's own image or video, in a guild that counts them. Never one of
+/// the bot's replacements, which are the bot's messages.
+auto counts_as_image(const backfill_request& request, const history_message& message) -> bool {
+    const bool from_person = !message.author_is_bot && message.webhook_id.empty() && !message.is_system;
+    return request.images && from_person && message.has_media;
+}
+
 /// How the reactions endpoint wants an emoji: itself, or `name:id`.
 auto emoji_for_api(const history_message::reaction_count& reaction) -> std::string {
     if (reaction.emoji_id.empty()) return reaction.emoji_name;
@@ -145,9 +152,10 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
 
     util::log().info(
         "link stats recompute in guild {} {}: {} scanned, {} replacements ({} attributed, {} not), {} unparsed, {} reactions, {} "
-        "mirror host(s) learned",
+        "mirror host(s) learned, {} image post(s) with {} reactions",
         request.guild_id, report.cancelled ? "stopped" : "finished", report.scanned, report.replacements, report.attributed,
-        report.unattributed, report.unparsed.size(), report.reactions, report.learned_mirrors.size());
+        report.unattributed, report.unparsed.size(), report.reactions, report.learned_mirrors.size(), report.images,
+        report.image_reactions);
     co_return report;
 }
 
@@ -263,6 +271,12 @@ auto backfill_service::scan_channel(channel_scan scan, backfill_report& report, 
 auto backfill_service::consider(const channel_scan& scan, const history_message& message, std::span<const history_message> older,
                                 backfill_report& report) -> dpp::task<void> {
     const backfill_request& request = *scan.request;
+
+    if (counts_as_image(request, message)) {
+        co_await consider_image(scan, message, report);
+        co_return;
+    }
+
     const legacy_match match = classify(message, request.bot_id, *scan.mirrors);
 
     switch (match.what) {
@@ -345,14 +359,28 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
     }
 
     // Finally the reactions, rebuilt to match what Discord shows now.
+    if (const auto counted = co_await rebuild_reactions(scan, message, report)) report.reactions += *counted;
+}
+
+auto backfill_service::consider_image(const channel_scan& scan, const history_message& message, backfill_report& report)
+    -> dpp::task<void> {
+    // Recorded whether or not anybody has reacted yet, so that reactions
+    // added from now on are counted as they happen.
+    replacements_->record_image_post(message.id, scan.request->guild_id, scan.channel_id, message.author_id, created_at(message.id));
+    ++report.images;
+    if (const auto counted = co_await rebuild_reactions(scan, message, report)) report.image_reactions += *counted;
+}
+
+auto backfill_service::rebuild_reactions(const channel_scan& scan, const history_message& message, backfill_report& report)
+    -> dpp::task<std::optional<std::int64_t>> {
     const auto seen = co_await reactors(scan.channel_id, message);
     if (!seen) {
         util::log().warn("link stats recompute: could not read the reactions on message {} in channel {}; its old counts are kept",
                          message.id, scan.channel_id);
         report.unread.push_back({.channel_id = scan.channel_id, .message_id = message.id});
-        co_return;
+        co_return std::nullopt;
     }
-    report.reactions += reactions_->replace_for_message(message.id, *seen);
+    co_return reactions_->replace_for_message(message.id, *seen);
 }
 
 auto backfill_service::learn_mirrors(const channel_scan& scan, const std::vector<replaced_link>& replaced, backfill_report& report)

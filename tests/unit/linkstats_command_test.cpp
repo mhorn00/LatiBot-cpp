@@ -26,6 +26,10 @@ using latibot::events::reaction_emoji;
 using latibot::events::stat_kind;
 using latibot::testing::panel_harness;
 
+/// What every server counted before images could be: a board worded as
+/// before.
+constexpr auto links_only = latibot::events::stat_source::links;
+
 namespace {
 
 constexpr dpp::snowflake guild{1000};
@@ -74,7 +78,7 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
         CHECK_FALSE(linkstats_refusal(open, nobody).has_value());
     }
 
-    for (const std::string_view gated : {"alias add", "alias remove", "recompute start", "recompute cancel"}) {
+    for (const std::string_view gated : {"alias add", "alias remove", "recompute start", "recompute cancel", "images on", "images off"}) {
         INFO(gated);
         CHECK(linkstats_refusal(gated, nobody).has_value());
         CHECK(linkstats_refusal(gated, moderator).has_value());
@@ -203,7 +207,9 @@ TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
 
 TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
     const fixture test;
-    const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received}).content;
+    const std::string text =
+        latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received, .source = links_only})
+            .content;
 
     CHECK(text.starts_with("**Most reactions received on replaced links**"));
     CHECK(text.find("1. <@11> 2") != std::string::npos);
@@ -229,7 +235,7 @@ TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
 
 TEST_CASE("a profile shows received, given and self apart", "[commands]") {
     const fixture test;
-    const std::string text = latibot::commands::render_profile(test.reactions, guild, alice, {});
+    const std::string text = latibot::commands::render_profile(test.reactions, guild, alice, {.source = links_only});
 
     CHECK(text.find("Reactions received: 2") != std::string::npos);
     CHECK(text.find("Reactions given: 0") != std::string::npos);
@@ -548,13 +554,14 @@ TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands
 
     SECTION("everyone's, received") {
         const std::string text =
-            latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
+            latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received, .source = links_only})
+                .content;
         CHECK(text.starts_with("**Most used reactions received on replaced links**"));
         CHECK(text.find("_3 reactions with 3 different emojis_") != std::string::npos);
     }
 
     SECTION("what one person received") {
-        const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
+        const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice, .source = links_only};
         const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, alices).content;
         CHECK(text.starts_with("**Reactions <@11> received on replaced links**"));
         CHECK(text.find("💀 1") != std::string::npos);
@@ -563,7 +570,7 @@ TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands
     }
 
     SECTION("what one person gave") {
-        const latibot::events::stat_query alices{.kind = stat_kind::given, .user_id = alice};
+        const latibot::events::stat_query alices{.kind = stat_kind::given, .user_id = alice, .source = links_only};
         const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji_given, alices).content;
         CHECK(text.starts_with("**Reactions <@11> gave on replaced links**"));
         CHECK(text.find("🔥 1") != std::string::npos);
@@ -607,4 +614,99 @@ TEST_CASE("a board's buttons from before people could be named still page", "[co
 
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;not-a-person").has_value());
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;;").has_value());
+}
+
+// --------------------------------------------------------------------------
+// Images and videos (docs/features/Link_Stats.md §9)
+// --------------------------------------------------------------------------
+
+TEST_CASE("a board says what it counts: links, images, or both", "[commands]") {
+    using latibot::events::stat_source;
+    const fixture test;
+    const auto title = [&](board which, stat_source source) {
+        const std::string text =
+            latibot::commands::render_board(test.reactions, guild, which, {.kind = stat_kind::received, .source = source}).content;
+        return text.substr(0, text.find('\n'));
+    };
+
+    CHECK(title(board::received, stat_source::links) == "**Most reactions received on replaced links**");
+    CHECK(title(board::received, stat_source::images) == "**Most reactions received on images**");
+    CHECK(title(board::received, stat_source::both) == "**Most reactions received on links and images**");
+    CHECK(title(board::self, stat_source::images) == "**Most reactions on their own images**");
+
+    // A site is a link's, whatever else was asked for.
+    const std::string site = latibot::commands::render_board(test.reactions, guild, board::received,
+                                                             {.kind = stat_kind::received, .domain = "x.com", .source = stat_source::both})
+                                 .content;
+    CHECK(site.starts_with("**Most reactions received on replaced x.com links**"));
+
+    const std::string profile = latibot::commands::render_profile(test.reactions, guild, alice, {.source = stat_source::both});
+    CHECK(profile.starts_with("**Link stats for <@11> on links and images**"));
+    CHECK(profile.find("Reacted to their own links and images: 1 time") != std::string::npos);
+}
+
+TEST_CASE("what a board counts survives the trip through a button", "[commands]") {
+    using latibot::events::stat_source;
+    for (const stat_source source : {stat_source::both, stat_source::links, stat_source::images}) {
+        const auto decoded = latibot::commands::decode_board(
+            latibot::commands::encode_board(board::emoji, {.kind = stat_kind::received, .user_id = alice, .source = source}));
+        REQUIRE(decoded.has_value());
+        CHECK(decoded->second.source == source);
+        CHECK(decoded->second.user_id == alice);
+    }
+
+    // Buttons from before images counted only links.
+    CHECK(latibot::commands::decode_board("r;;;;")->second.source == stat_source::links);
+    CHECK(latibot::commands::decode_board("e;;;;;11")->second.source == stat_source::links);
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;q").has_value());
+}
+
+TEST_CASE("images are turned on per server, and the boards can ask for them", "[commands]") {
+    fixture test;
+    const latibot::commands::linkstats_command command(test.reactions);
+    const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
+
+    const auto images = std::ranges::find(payload.options, std::string("images"), &dpp::command_option::name);
+    REQUIRE(images != payload.options.end());
+    CHECK(images->type == dpp::co_sub_command_group);
+    REQUIRE(images->options.size() == 2);
+    CHECK(images->options[0].name == "on");
+    CHECK(images->options[1].name == "off");
+
+    for (const char* board_name : {"top", "user", "reactions"}) {
+        INFO(board_name);
+        const auto found = std::ranges::find(payload.options, std::string(board_name), &dpp::command_option::name);
+        REQUIRE(found != payload.options.end());
+        const auto source = std::ranges::find(found->options, std::string("source"), &dpp::command_option::name);
+        REQUIRE(source != found->options.end());
+        CHECK(source->choices.size() == 3);
+    }
+
+    CHECK(command.info().responses_for("images on").result == dpp::m_ephemeral);
+    CHECK(command.info().responses_for("images off").result == dpp::m_ephemeral);
+}
+
+TEST_CASE("a recompute that counts images says what it found", "[commands]") {
+    latibot::events::backfill_request request{.guild_id = guild,
+                                              .channel_ids = {dpp::snowflake{1}},
+                                              .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
+                                              .until = std::nullopt,
+                                              .bot_id = dpp::snowflake{42},
+                                              .fresh = false,
+                                              .images = true};
+    latibot::events::backfill_report report;
+    report.replacements = 2;
+    report.reactions = 5;
+    report.images = 7;
+    report.image_reactions = 30;
+
+    CHECK(latibot::commands::render_backfill(report, request, true).find("Images and videos found: 7, with 30 reactions\n") !=
+          std::string::npos);
+    CHECK(latibot::commands::render_backfill(report, request, false).find("7 images and videos with 30 reactions") != std::string::npos);
+    CHECK(latibot::commands::backfill_done_reply(report, request, dpp::snowflake{3}, dpp::snowflake{4}, alice).content ==
+          "<@11> the link stats recompute since 2021-01-01 is done: 2 replacements found, 5 reactions recorded; 7 images and videos "
+          "with 30 reactions.");
+
+    request.images = false;
+    CHECK(latibot::commands::render_backfill(report, request, true).find("Images") == std::string::npos);
 }

@@ -35,6 +35,9 @@ struct history_message {
 
     std::string content;
 
+    /// It carries an image or a video, attached or linked (`has_media`).
+    bool has_media = false;
+
     struct reaction_count {
         dpp::snowflake emoji_id;
         std::string emoji_name;

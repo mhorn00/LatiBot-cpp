@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 11> all_migrations{{
+constexpr std::array<migration, 13> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -359,6 +359,49 @@ constexpr std::array<migration, 11> all_migrations{{
         );
 
         CREATE INDEX llm_triggers_by_guild ON llm_triggers (guild_id);
+     )sql"},
+    {.version = 12, .name = "media_posts", .sql = R"sql(
+        -- What a row is: one of the bot's link replacements, or an image or
+        -- video a person posted, whose reactions are counted too once a
+        -- server turns that on (docs/features/Link_Stats.md 9). An image
+        -- row is the person's own message: original_message_id is itself,
+        -- original_author_id the poster, and it has no replacement_links.
+        ALTER TABLE replacement_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'link';   -- link | image
+
+        CREATE INDEX replacement_messages_by_kind ON replacement_messages (guild_id, kind);
+     )sql"},
+    {.version = 13, .name = "emoji_copies", .sql = R"sql(
+        -- The bot's own copies of the custom emojis it has seen, as
+        -- application emojis, so a statistic still shows an emote after its
+        -- server deletes it (docs/features/Link_Stats.md 10).
+
+        -- What became of each custom emoji's image.
+        CREATE TABLE emoji_images (
+            emoji_key    TEXT    PRIMARY KEY,   -- c:<id>
+
+            -- fetched | lost (the CDN no longer has it) | too_big | failed
+            state        TEXT    NOT NULL,
+
+            -- SHA-256 of the image, hex; NULL unless fetched. Emojis with
+            -- the same image share one copy.
+            image_sha256 TEXT,
+            animated     INTEGER NOT NULL DEFAULT 0,
+
+            -- Unix seconds: when it was last tried, for retrying the lost
+            -- and failed ones now and then.
+            checked_at   INTEGER NOT NULL
+        ) WITHOUT ROWID;
+
+        CREATE INDEX emoji_images_by_image ON emoji_images (image_sha256);
+
+        -- One application emoji per distinct image.
+        CREATE TABLE emoji_copies (
+            image_sha256 TEXT    PRIMARY KEY,
+            copy_id      INTEGER NOT NULL,
+            name         TEXT    NOT NULL UNIQUE,
+            animated     INTEGER NOT NULL,
+            created_at   INTEGER NOT NULL
+        ) WITHOUT ROWID;
      )sql"},
 }};
 

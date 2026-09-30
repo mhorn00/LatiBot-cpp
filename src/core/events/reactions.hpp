@@ -68,6 +68,10 @@ enum class stat_kind : std::uint8_t {
 [[nodiscard]] auto to_string(stat_kind kind) noexcept -> std::string_view;
 [[nodiscard]] auto stat_kind_from_string(std::string_view name) -> std::optional<stat_kind>;
 
+/// Which posts a statistic counts: the bot's link replacements, people's own
+/// images and videos (docs/features/Link_Stats.md 9), or both.
+enum class stat_source : std::uint8_t { both, links, images };
+
 /// What to count.
 struct stat_query {
     stat_kind kind = stat_kind::received;
@@ -84,8 +88,10 @@ struct stat_query {
     std::optional<std::chrono::sys_seconds> until;
 
     /// Only replacements of links to this site ("x.com"). Nothing for every
-    /// site.
+    /// site. Images have no site, so a site leaves them out.
     std::optional<std::string> domain;
+
+    stat_source source = stat_source::both;
 };
 
 struct person_tally {

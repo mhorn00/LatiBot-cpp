@@ -25,6 +25,7 @@ extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t siz
                                           .is_system = false,
                                           .replied_to = {},
                                           .content = std::string(text.substr(0, split)),
+                                          .has_media = false,
                                           .reactions = {}};
     const std::vector<latibot::events::history_message> older{{.id = dpp::snowflake{800},
                                                                .author_id = dpp::snowflake{11},
@@ -33,6 +34,7 @@ extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t siz
                                                                .is_system = false,
                                                                .replied_to = {},
                                                                .content = std::string(text.substr(split)),
+                                                               .has_media = false,
                                                                .reactions = {}}};
 
     const auto match = latibot::events::classify(ours, bot, mirrors);

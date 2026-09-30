@@ -61,6 +61,14 @@ public:
     /// same message.
     auto record(const replacement_record& entry) -> void;
 
+    /// Records a person's own image or video post, whose reactions are then
+    /// counted as a replacement's are, credited to them
+    /// (docs/features/Link_Stats.md 9). Its row is the post itself, with no
+    /// links. Does nothing to a message already recorded, either way; true
+    /// when it was new.
+    auto record_image_post(dpp::snowflake message_id, dpp::snowflake guild_id, dpp::snowflake channel_id, dpp::snowflake author_id,
+                           std::chrono::sys_seconds posted_at) -> bool;
+
     [[nodiscard]] auto find(dpp::snowflake message_id) const -> std::optional<replacement_record>;
 
     /// Whether a message is one of ours. Asked on every reaction, so it reads

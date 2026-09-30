@@ -38,6 +38,7 @@ auto from_bot(std::string content, dpp::snowflake id = dpp::snowflake{900}) -> h
             .is_system = false,
             .replied_to = {},
             .content = std::move(content),
+            .has_media = false,
             .reactions = {}};
 }
 
@@ -49,6 +50,7 @@ auto from_person(dpp::snowflake who, std::string content, dpp::snowflake id) -> 
             .is_system = false,
             .replied_to = {},
             .content = std::move(content),
+            .has_media = false,
             .reactions = {}};
 }
 

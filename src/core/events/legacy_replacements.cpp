@@ -1,5 +1,6 @@
 #include "core/events/legacy_replacements.hpp"
 
+#include "core/events/media_posts.hpp"
 #include "core/util/url_scan.hpp"
 
 #include <algorithm>
@@ -92,6 +93,7 @@ auto describe_history(const dpp::message& message) -> history_message {
     described.is_system = message.type != dpp::mt_default && message.type != dpp::mt_reply;
     described.replied_to = message.type == dpp::mt_reply ? message.message_reference.message_id : dpp::snowflake{};
     described.content = message.content;
+    described.has_media = has_media(message);
 
     for (const dpp::reaction& reaction : message.reactions) {
         described.reactions.push_back({.emoji_id = reaction.emoji_id, .emoji_name = reaction.emoji_name, .count = reaction.count});

@@ -19,6 +19,10 @@
 #include <utility>
 #include <vector>
 
+namespace latibot::config {
+class guild_settings;
+}
+
 namespace latibot::ports {
 class discord_gateway;
 }
@@ -160,16 +164,17 @@ struct recompute_support {
     std::function<dpp::snowflake()> bot_id;
 };
 
-/// `/linkstats top | user | reactions | duplicates | alias … | recompute …`
-/// (plan §9.6).
+/// `/linkstats top | user | reactions | duplicates | alias … | recompute … |
+/// images …` (plan §9.6).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// which `linkstats_refusal` decides before any subcommand runs.
 class linkstats_command final : public command {
 public:
     /// Without `recompute`, the recompute subcommands say they are not
-    /// available rather than failing.
-    explicit linkstats_command(events::reaction_store& store, recompute_support recompute = {});
+    /// available rather than failing. Without `settings`, nothing counts
+    /// images and `images` says so.
+    explicit linkstats_command(events::reaction_store& store, recompute_support recompute = {}, config::guild_settings* settings = nullptr);
 
     [[nodiscard]] auto info() const -> const command_info& override { return info_; }
     [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
@@ -187,10 +192,20 @@ private:
     auto alias(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void>;
     auto recompute(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void>;
     auto recompute_start(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto images(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void>;
+
+    /// Whether this guild counts reactions on images and videos
+    /// (docs/features/Link_Stats.md 9).
+    [[nodiscard]] auto counts_images(dpp::snowflake guild_id) const -> bool;
+
+    /// The `source` option, or when it is left out, both where images are
+    /// counted and links alone where they are not.
+    [[nodiscard]] auto source_for(const dpp::slashcommand_t& event) const -> events::stat_source;
 
     command_info info_;
     events::reaction_store* store_;
     recompute_support recompute_;
+    config::guild_settings* settings_;
 };
 
 } // namespace latibot::commands

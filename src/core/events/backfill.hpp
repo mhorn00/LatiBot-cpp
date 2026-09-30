@@ -46,6 +46,10 @@ struct backfill_request {
 
     /// Ignore saved progress and scan every channel from the top.
     bool fresh = false;
+
+    /// Also count people's own image and video posts, as a guild that has
+    /// turned that on does (docs/features/Link_Stats.md 9).
+    bool images = false;
 };
 
 /// A message and the channel it is in: enough to link to it.
@@ -71,7 +75,13 @@ struct backfill_report {
     /// match, so it was reported rather than accepted (plan §9.7).
     std::vector<message_place> mismatched;
     std::int64_t webhooks_skipped = 0;
+
+    /// On replacements.
     std::int64_t reactions = 0;
+
+    /// People's image and video posts found, and the reactions on them.
+    std::int64_t images = 0;
+    std::int64_t image_reactions = 0;
 
     /// Messages that look like the bot's replacements but match no known
     /// format: counted, never guessed at.
@@ -197,7 +207,16 @@ private:
     auto consider(const channel_scan& scan, const history_message& message, std::span<const history_message> older, backfill_report& report)
         -> dpp::task<void>;
 
-    /// The reactions on one replacement, as Discord shows them now. Nothing
+    /// Records an image or video post and rebuilds its reactions.
+    auto consider_image(const channel_scan& scan, const history_message& message, backfill_report& report) -> dpp::task<void>;
+
+    /// Rebuilds one message's reactions to match what Discord shows now, and
+    /// says how many it has. Nothing when they could not be read, which is
+    /// noted in the report and leaves the old counts alone.
+    auto rebuild_reactions(const channel_scan& scan, const history_message& message, backfill_report& report)
+        -> dpp::task<std::optional<std::int64_t>>;
+
+    /// The reactions on one message, as Discord shows them now. Nothing
     /// when a page could not be read, so a failed call never erases rows.
     auto reactors(dpp::snowflake channel_id, const history_message& message)
         -> dpp::task<std::optional<std::vector<reaction_store::observed>>>;

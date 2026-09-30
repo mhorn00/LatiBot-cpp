@@ -84,7 +84,8 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
         INFO(board);
         CHECK(stats.responses_for(board).result == dpp::m_suppress_notifications);
     }
-    for (const char* private_answer : {"duplicates", "alias add", "alias remove", "recompute start", "recompute cancel"}) {
+    for (const char* private_answer :
+         {"duplicates", "alias add", "alias remove", "recompute start", "recompute cancel", "images on", "images off"}) {
         INFO(private_answer);
         CHECK(stats.responses_for(private_answer).result == dpp::m_ephemeral);
     }

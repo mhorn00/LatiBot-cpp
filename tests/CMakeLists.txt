@@ -14,6 +14,7 @@ add_executable(latibot_tests
     db/voice_store_test.cpp
     db/guild_settings_test.cpp
     db/llm_store_test.cpp
+    db/media_posts_test.cpp
     db/migrations_test.cpp
     db/midnight_store_test.cpp
     db/nickname_import_test.cpp
