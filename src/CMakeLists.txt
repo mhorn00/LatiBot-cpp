@@ -51,6 +51,7 @@ add_library(latibot_core STATIC
     core/events/reactions.cpp
     core/events/triggers.cpp
     core/events/embed_watch.cpp
+    core/events/emoji_copies.cpp
     core/events/replacements.cpp
     core/events/url_replacer.cpp
     core/events/url_rules.cpp
@@ -85,6 +86,10 @@ target_link_libraries(latibot_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
 # DECtalk (cmake/dectalk.cmake). Its header stays out of ours: only
 # core/audio/dectalk_engine.cpp includes it.
 target_link_libraries(latibot_core PRIVATE dectalk)
+
+# SHA-256 of emoji images, so one image is copied once
+# (core/events/emoji_copies.cpp). DPP links OpenSSL already; this says so.
+target_link_libraries(latibot_core PRIVATE OpenSSL::Crypto)
 
 # crypt32 is the Windows certificate store, read at startup to give OpenSSL
 # the roots it does not ship with (core/util/ca_certificates.cpp).

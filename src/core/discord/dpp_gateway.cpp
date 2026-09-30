@@ -93,4 +93,24 @@ auto dpp_gateway::start_typing(dpp::snowflake channel_id) -> dpp::task<ports::re
     co_return ports::result<void>{};
 }
 
+auto dpp_gateway::create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> {
+    dpp::emoji made(name);
+    try {
+        // DPP refuses an image over Discord's 256 KiB here, before sending.
+        made.load_image(image, animated ? dpp::i_gif : dpp::i_png);
+    } catch (const dpp::exception& error) {
+        co_return ports::api_error{.http_status = 0, .message = error.what()};
+    }
+
+    const auto confirmation = co_await cluster_->co_application_emoji_create(made);
+    if (confirmation.is_error()) co_return to_error(confirmation);
+    co_return std::get<dpp::emoji>(confirmation.value).id;
+}
+
+auto dpp_gateway::delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> {
+    const auto confirmation = co_await cluster_->co_application_emoji_delete(emoji_id);
+    if (confirmation.is_error()) co_return to_error(confirmation);
+    co_return ports::result<void>{};
+}
+
 } // namespace latibot::discord

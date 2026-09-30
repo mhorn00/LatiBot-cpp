@@ -41,5 +41,5 @@ TEST_CASE("an emoji is shown the way Discord draws it", "[events]") {
     CHECK(display_emoji(reaction_emoji(dpp::snowflake{456}, "party", true)) == "<a:party:456>");
 
     // A custom emoji whose name was never seen still draws from its id.
-    CHECK(display_emoji({.key = "c:789", .name = "", .animated = false}) == "<:_:789>");
+    CHECK(display_emoji({.key = "c:789", .name = "", .animated = false, .copy = std::nullopt}) == "<:_:789>");
 }

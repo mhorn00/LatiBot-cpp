@@ -140,6 +140,7 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     SECTION("out of range") {
         REQUIRE_THROWS_AS(bootstrap::from_json(R"({"llm_tool_rounds": 0})"), config_error);
         REQUIRE_THROWS_AS(bootstrap::from_json(R"({"backups_to_keep": -1})"), config_error);
+        REQUIRE_THROWS_AS(bootstrap::from_json(R"({"emoji_copy_min_uses": -1})"), config_error);
     }
 
     SECTION("not JSON at all") {
@@ -169,6 +170,13 @@ TEST_CASE("the model has to be one the bot can price, from the provider named", 
 
     const bootstrap openai = bootstrap::from_json(R"({"llm_provider": "openai", "llm_model": "gpt-6-luna"})");
     CHECK(openai.llm_model == "gpt-6-luna");
+}
+
+TEST_CASE("emoji copies are kept for every emote used, unless the config says otherwise", "[config]") {
+    CHECK(bootstrap::from_json("{}").emoji_copy_min_uses == 1);
+    CHECK(bootstrap::from_json(R"({"emoji_copy_min_uses": 5})").emoji_copy_min_uses == 5);
+    // Nought turns copying off.
+    CHECK(bootstrap::from_json(R"({"emoji_copy_min_uses": 0})").emoji_copy_min_uses == 0);
 }
 
 TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
@@ -319,6 +327,7 @@ TEST_CASE("the written defaults load as the defaults", "[config]") {
     CHECK(written.spend_cap_daily_usd == defaults.spend_cap_daily_usd);
     CHECK(written.spend_cap_monthly_usd == defaults.spend_cap_monthly_usd);
     CHECK(written.llm_tool_rounds == defaults.llm_tool_rounds);
+    CHECK(written.emoji_copy_min_uses == defaults.emoji_copy_min_uses);
 }
 
 TEST_CASE("the example config is exactly what the bot writes", "[config][fs]") {

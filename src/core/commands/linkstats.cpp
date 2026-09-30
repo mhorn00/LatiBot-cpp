@@ -430,10 +430,13 @@ auto similar_line(std::size_t place, const events::emoji_tally& tally) -> std::s
 }
 
 auto option_for(const events::emoji_tally& tally, std::size_t place) -> dpp::select_option {
-    // A custom emoji cannot be drawn in a menu unless the bot can use it, so
-    // each option is its name and number, matching the list above it.
-    return {util::truncate(std::format("{}. {}", place, tally.emoji.name), option_text_limit), tally.emoji.key,
-            util::truncate(std::format("{} reaction{}", tally.count, tally.count == 1 ? "" : "s"), option_text_limit)};
+    // Each option is its name and number, matching the list above it. A
+    // custom emoji can only be drawn in a menu when the bot can use it, which
+    // it can its own copy of it.
+    dpp::select_option option(util::truncate(std::format("{}. {}", place, tally.emoji.name), option_text_limit), tally.emoji.key,
+                              util::truncate(std::format("{} reaction{}", tally.count, tally.count == 1 ? "" : "s"), option_text_limit));
+    if (tally.emoji.copy) option.set_emoji(tally.emoji.copy->name, tally.emoji.copy->id, tally.emoji.copy->animated);
+    return option;
 }
 
 /// The menus that merge `group`: which to keep, and, once `keeper` is one

@@ -17,6 +17,7 @@
 #include "core/discord/raw_api.hpp"
 #include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
+#include "core/events/emoji_copies.hpp"
 #include "core/events/log_channel.hpp"
 #include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
@@ -156,6 +157,10 @@ private:
     /// Runs what the embed tracker decided, without holding up the caller.
     auto carry_out(std::vector<events::embed_action> actions) -> void;
 
+    /// One round of keeping the bot's own copies of emojis
+    /// (docs/features/Link_Stats.md 10).
+    auto copy_emojis() -> dpp::task<void>;
+
     /// The clock's time to the second, which is what the database stores.
     [[nodiscard]] auto now_seconds() const -> std::chrono::sys_seconds;
 
@@ -186,6 +191,8 @@ private:
     events::reaction_store reactions_;
     events::backfill_progress_store backfill_progress_;
     events::backfill_service backfill_;
+    events::emoji_copy_store emoji_copies_;
+    events::emoji_copier emoji_copier_;
     events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 

@@ -10,5 +10,6 @@
   "llm_model": "claude-haiku-4-5",
   "spend_cap_daily_usd": 2.0,
   "spend_cap_monthly_usd": 20.0,
-  "llm_tool_rounds": 4
+  "llm_tool_rounds": 4,
+  "emoji_copy_min_uses": 1
 }

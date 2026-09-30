@@ -208,6 +208,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       reactions_(database_),
       backfill_progress_(database_),
       backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
+      emoji_copies_(database_),
+      emoji_copier_(emoji_copies_, http_, gateway_, clock_, settings_.emoji_copy_min_uses),
       embed_tracker_(replacements_, clock_),
       voice_output_(cluster_),
       speech_(voice_output_),
@@ -625,6 +627,21 @@ auto bot::register_timers() -> void {
                                  }),
                          static_cast<std::uint64_t>(events::auto_leave_tick.count()));
 
+    // The bot's own copies of the emojis it has seen, a few at a time. The
+    // copies belong to the bot's application, which it only knows once
+    // connected.
+    if (emoji_copier_.enabled()) {
+        cluster_.start_timer(guarded("copying emojis",
+                                     [this](dpp::timer) {
+                                         if (!cluster_.me.id.empty()) detach(copy_emojis(), "copying emojis");
+                                     }),
+                             static_cast<std::uint64_t>(events::copy_round_interval.count()));
+        util::log().info("keeping copies of emojis used at least {} time{}", settings_.emoji_copy_min_uses,
+                         settings_.emoji_copy_min_uses == 1 ? "" : "s");
+    } else {
+        util::log().info("copying emojis is off");
+    }
+
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
         return;
@@ -844,6 +861,10 @@ auto bot::settle_stranded_replacements(dpp::snowflake guild_id) -> void {
 
 auto bot::now_seconds() const -> std::chrono::sys_seconds {
     return std::chrono::floor<std::chrono::seconds>(clock_.now());
+}
+
+auto bot::copy_emojis() -> dpp::task<void> {
+    co_await emoji_copier_.run_round();
 }
 
 auto bot::carry_out(std::vector<events::embed_action> actions) -> void {

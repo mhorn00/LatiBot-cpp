@@ -24,6 +24,8 @@ public:
     auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                             std::uint64_t limit) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override;
     auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override;
+    auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> override;
+    auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> override;
 
 private:
     dpp::cluster* cluster_;

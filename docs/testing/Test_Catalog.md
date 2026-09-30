@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-756 test cases across 11 components, including 156 sections.
+772 test cases across 11 components, including 159 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 136 | 16 |
-| [config](#config) | 30 | 19 |
+| [db](#db) | 148 | 19 |
+| [config](#config) | 31 | 19 |
 | [commands](#commands) | 190 | 54 |
-| [events](#events) | 185 | 40 |
+| [events](#events) | 188 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 59 | 8 |
@@ -49,6 +49,18 @@ Database (`src/core/db`)
 | a rollback that fails is logged rather than thrown |  |  | [tests/db/database_test.cpp:180](../../tests/db/database_test.cpp#L180) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:193](../../tests/db/database_test.cpp#L193) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:207](../../tests/db/database_test.cpp#L207) |
+| every emote used enough is copied, most used first |  |  | [tests/db/emoji_copies_test.cpp:112](../../tests/db/emoji_copies_test.cpp#L112) |
+| an emote merged by an alias gets one copy between its emojis |  | 1 | [tests/db/emoji_copies_test.cpp:126](../../tests/db/emoji_copies_test.cpp#L126) |
+| copies nothing wants are pruned, once nothing is left to fetch |  |  | [tests/db/emoji_copies_test.cpp:152](../../tests/db/emoji_copies_test.cpp#L152) |
+| an animated emoji is copied as a GIF, a still one as a PNG | `coro` |  | [tests/db/emoji_copies_test.cpp:177](../../tests/db/emoji_copies_test.cpp#L177) |
+| the same image is copied once, and names stay unique | `coro` |  | [tests/db/emoji_copies_test.cpp:211](../../tests/db/emoji_copies_test.cpp#L211) |
+| an emoji the CDN no longer has is lost, after both hosts are tried | `coro` |  | [tests/db/emoji_copies_test.cpp:236](../../tests/db/emoji_copies_test.cpp#L236) |
+| the media proxy is tried when the CDN refuses | `coro` |  | [tests/db/emoji_copies_test.cpp:253](../../tests/db/emoji_copies_test.cpp#L253) |
+| an image too big even when smaller is not uploaded | `coro` |  | [tests/db/emoji_copies_test.cpp:265](../../tests/db/emoji_copies_test.cpp#L265) |
+| a failed download or upload is tried again the next day | `coro` | 2 | [tests/db/emoji_copies_test.cpp:281](../../tests/db/emoji_copies_test.cpp#L281) |
+| raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:305](../../tests/db/emoji_copies_test.cpp#L305) |
+| with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:323](../../tests/db/emoji_copies_test.cpp#L323) |
+| the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:332](../../tests/db/emoji_copies_test.cpp#L332) |
 | a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:51](../../tests/db/llm_store_test.cpp#L51) |
 | reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:70](../../tests/db/llm_store_test.cpp#L70) |
 | a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:94](../../tests/db/llm_store_test.cpp#L94) |
@@ -186,20 +198,21 @@ Configuration (`src/core/config`)
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:108](../../tests/unit/bootstrap_test.cpp#L108) |
 | a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:115](../../tests/unit/bootstrap_test.cpp#L115) |
 | bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:129](../../tests/unit/bootstrap_test.cpp#L129) |
-| the model has to be one the bot can price, from the provider named |  |  | [tests/unit/bootstrap_test.cpp:159](../../tests/unit/bootstrap_test.cpp#L159) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:185](../../tests/unit/bootstrap_test.cpp#L185) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:193](../../tests/unit/bootstrap_test.cpp#L193) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:201](../../tests/unit/bootstrap_test.cpp#L201) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:235](../../tests/unit/bootstrap_test.cpp#L235) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:264](../../tests/unit/bootstrap_test.cpp#L264) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:291](../../tests/unit/bootstrap_test.cpp#L291) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:303](../../tests/unit/bootstrap_test.cpp#L303) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:324](../../tests/unit/bootstrap_test.cpp#L324) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:333](../../tests/unit/bootstrap_test.cpp#L333) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:342](../../tests/unit/bootstrap_test.cpp#L342) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:354](../../tests/unit/bootstrap_test.cpp#L354) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:367](../../tests/unit/bootstrap_test.cpp#L367) |
+| the model has to be one the bot can price, from the provider named |  |  | [tests/unit/bootstrap_test.cpp:160](../../tests/unit/bootstrap_test.cpp#L160) |
+| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:175](../../tests/unit/bootstrap_test.cpp#L175) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:182](../../tests/unit/bootstrap_test.cpp#L182) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:193](../../tests/unit/bootstrap_test.cpp#L193) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:201](../../tests/unit/bootstrap_test.cpp#L201) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:209](../../tests/unit/bootstrap_test.cpp#L209) |
+| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:243](../../tests/unit/bootstrap_test.cpp#L243) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:272](../../tests/unit/bootstrap_test.cpp#L272) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:299](../../tests/unit/bootstrap_test.cpp#L299) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:311](../../tests/unit/bootstrap_test.cpp#L311) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:333](../../tests/unit/bootstrap_test.cpp#L333) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:342](../../tests/unit/bootstrap_test.cpp#L342) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:351](../../tests/unit/bootstrap_test.cpp#L351) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:363](../../tests/unit/bootstrap_test.cpp#L363) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:376](../../tests/unit/bootstrap_test.cpp#L376) |
 
 ## commands
 
@@ -422,6 +435,9 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | the bot's own links are not replacements unless they answered one | `coro` | 3 | [tests/db/backfill_test.cpp:344](../../tests/db/backfill_test.cpp#L344) |
 | where images are counted, a recompute finds them and their reactions | `coro` |  | [tests/db/backfill_test.cpp:403](../../tests/db/backfill_test.cpp#L403) |
 | where images are not counted, a recompute leaves them alone | `coro` |  | [tests/db/backfill_test.cpp:431](../../tests/db/backfill_test.cpp#L431) |
+| a GIF moves when it has more than one frame |  |  | [tests/db/emoji_copies_test.cpp:90](../../tests/db/emoji_copies_test.cpp#L90) |
+| images are told apart by their SHA-256 |  |  | [tests/db/emoji_copies_test.cpp:96](../../tests/db/emoji_copies_test.cpp#L96) |
+| a copy's name is one Discord accepts |  |  | [tests/db/emoji_copies_test.cpp:101](../../tests/db/emoji_copies_test.cpp#L101) |
 | an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:88](../../tests/db/media_posts_test.cpp#L88) |
 | only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:101](../../tests/db/media_posts_test.cpp#L101) |
 | a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:113](../../tests/db/media_posts_test.cpp#L113) |

@@ -23,6 +23,15 @@ namespace latibot::events {
 // Emoji
 // --------------------------------------------------------------------------
 
+/// The bot's own copy of a custom emoji, an application emoji the bot can
+/// show anywhere, even after the original's server deletes it
+/// (docs/features/Link_Stats.md 10).
+struct emoji_copy {
+    dpp::snowflake id;
+    std::string name;
+    bool animated = false;
+};
+
 /// An emoji as the statistics know it (plan §9.6).
 struct emoji_ref {
     /// "u:💀" for a Unicode emoji, "c:<id>" for a custom one.
@@ -32,6 +41,10 @@ struct emoji_ref {
     std::string name;
 
     bool animated = false;
+
+    /// What is shown in its place, when the bot has a copy of it or of the
+    /// same emote under an alias.
+    std::optional<emoji_copy> copy;
 };
 
 /// The key for a reaction as Discord reports it: an id for a custom emoji, a
@@ -47,7 +60,8 @@ struct emoji_ref {
 /// for blank text.
 [[nodiscard]] auto parse_emoji(std::string_view text) -> std::optional<emoji_ref>;
 
-/// How to show an emoji in a message: itself, or `<:name:id>`.
+/// How to show an emoji in a message: itself, or `<:name:id>`, from the
+/// bot's copy when it has one.
 [[nodiscard]] auto display_emoji(const emoji_ref& emoji) -> std::string;
 
 // --------------------------------------------------------------------------
@@ -162,8 +176,14 @@ public:
     /// is only ever turned on, since a backfill cannot tell.
     auto remember(const emoji_ref& emoji) -> void;
 
-    /// What we know about an emoji, falling back to the key itself.
+    /// What we know about an emoji, falling back to the key itself, with the
+    /// bot's copy to show when there is one.
     [[nodiscard]] auto describe(std::string_view emoji_key) const -> emoji_ref;
+
+    /// The bot's copy to show for a custom emoji: its own, or failing that
+    /// one of the same emote under an alias, since an alias says the two are
+    /// one. Nothing when there is none.
+    [[nodiscard]] auto copy_of(std::string_view emoji_key) const -> std::optional<emoji_copy>;
 
     // -- Aliases ------------------------------------------------------------
 

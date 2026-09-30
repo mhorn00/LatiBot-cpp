@@ -5,6 +5,7 @@
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -55,6 +56,12 @@ struct bootstrap {
     /// (plan §12.5).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
+
+    /// How many reactions an emote needs before the bot keeps its own copy
+    /// of it, as an application emoji (docs/features/Link_Stats.md 10). 0
+    /// turns copying off. Raising it deletes the copies that no longer
+    /// qualify, on the next rounds.
+    std::int64_t emoji_copy_min_uses = 1;
 
     /// The account whose messages `/linkstats recompute` reads as the bot's
     /// replacements, in place of the bot's own.

@@ -138,6 +138,37 @@ public:
         co_return ports::result<void>{};
     }
 
+    /// Application emojis uploaded, and deleted, in order.
+    struct emoji_upload {
+        std::string name;
+        std::string image;
+        bool animated = false;
+    };
+    std::vector<emoji_upload> emoji_uploads;
+    std::vector<dpp::snowflake> emoji_deletes;
+    std::deque<ports::result<dpp::snowflake>> emoji_upload_results;
+    std::deque<ports::result<void>> emoji_delete_results;
+
+    auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> override {
+        emoji_uploads.push_back({.name = std::move(name), .image = std::move(image), .animated = animated});
+        if (!emoji_upload_results.empty()) {
+            auto scripted = std::move(emoji_upload_results.front());
+            emoji_upload_results.pop_front();
+            co_return scripted;
+        }
+        co_return next_id();
+    }
+
+    auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> override {
+        emoji_deletes.push_back(emoji_id);
+        if (!emoji_delete_results.empty()) {
+            auto scripted = std::move(emoji_delete_results.front());
+            emoji_delete_results.pop_front();
+            co_return scripted;
+        }
+        co_return ports::result<void>{};
+    }
+
 private:
     auto next_id() -> dpp::snowflake { return dpp::snowflake{++last_id_}; }
 

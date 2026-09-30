@@ -42,9 +42,9 @@ auto all_digits(std::string_view text) -> bool {
 /// What an emoji looks like, from its row in `emojis` when it has one. One
 /// never seen by name still shows: a Unicode emoji is its own name.
 auto emoji_from(std::string_view key, std::optional<std::string> name, bool animated) -> emoji_ref {
-    if (name) return {.key = std::string(key), .name = std::move(*name), .animated = animated};
+    if (name) return {.key = std::string(key), .name = std::move(*name), .animated = animated, .copy = std::nullopt};
 
-    emoji_ref unknown{.key = std::string(key), .name = {}, .animated = false};
+    emoji_ref unknown{.key = std::string(key), .name = {}, .animated = false, .copy = std::nullopt};
     if (key.starts_with(unicode_prefix)) unknown.name = std::string(key.substr(unicode_prefix.size()));
     return unknown;
 }
@@ -114,9 +114,11 @@ auto kind_column(stat_source source) -> std::optional<std::string_view> {
 // --------------------------------------------------------------------------
 
 auto reaction_emoji(dpp::snowflake custom_id, std::string_view name, bool animated) -> emoji_ref {
-    if (!custom_id.empty()) return {.key = std::string(custom_prefix) + custom_id.str(), .name = std::string(name), .animated = animated};
+    if (!custom_id.empty()) {
+        return {.key = std::string(custom_prefix) + custom_id.str(), .name = std::string(name), .animated = animated, .copy = std::nullopt};
+    }
     const std::string cleaned = without_variation_selectors(name);
-    return {.key = std::string(unicode_prefix) + cleaned, .name = cleaned, .animated = false};
+    return {.key = std::string(unicode_prefix) + cleaned, .name = cleaned, .animated = false, .copy = std::nullopt};
 }
 
 auto parse_emoji(std::string_view text) -> std::optional<emoji_ref> {
@@ -125,7 +127,7 @@ auto parse_emoji(std::string_view text) -> std::optional<emoji_ref> {
 
     // A key, which is what an autocomplete choice carries.
     if (text.starts_with(custom_prefix) && all_digits(text.substr(custom_prefix.size()))) {
-        return emoji_ref{.key = std::string(text), .name = {}, .animated = false};
+        return emoji_ref{.key = std::string(text), .name = {}, .animated = false, .copy = std::nullopt};
     }
     if (text.starts_with(unicode_prefix) && text.size() > unicode_prefix.size()) {
         return reaction_emoji({}, text.substr(unicode_prefix.size()));
@@ -156,6 +158,7 @@ auto parse_emoji(std::string_view text) -> std::optional<emoji_ref> {
 }
 
 auto display_emoji(const emoji_ref& emoji) -> std::string {
+    if (emoji.copy) return std::format("<{}:{}:{}>", emoji.copy->animated ? "a" : "", emoji.copy->name, emoji.copy->id);
     if (emoji.key.starts_with(custom_prefix)) {
         // Discord draws a custom emoji from its id; the name only has to be
         // there, so an unknown one gets a placeholder.
@@ -349,9 +352,33 @@ auto reaction_store::remember(const emoji_ref& emoji) -> void {
 }
 
 auto reaction_store::describe(std::string_view emoji_key) const -> emoji_ref {
-    auto query = db_->prepare("SELECT name, animated FROM emojis WHERE emoji_key = ?", emoji_key);
-    if (query.step()) return emoji_from(emoji_key, query.get<std::string>(0), query.get<bool>(1));
-    return emoji_from(emoji_key, std::nullopt, false);
+    emoji_ref described = emoji_from(emoji_key, std::nullopt, false);
+    {
+        auto query = db_->prepare("SELECT name, animated FROM emojis WHERE emoji_key = ?", emoji_key);
+        if (query.step()) described = emoji_from(emoji_key, query.get<std::string>(0), query.get<bool>(1));
+    }
+    described.copy = copy_of(emoji_key);
+    return described;
+}
+
+auto reaction_store::copy_of(std::string_view emoji_key) const -> std::optional<emoji_copy> {
+    if (!emoji_key.starts_with(custom_prefix)) return std::nullopt;
+
+    // Its own image first, then what it counts as, then anything merged into
+    // either: the same emote, whichever of them the bot could copy.
+    auto query = db_->prepare(
+        "SELECT c.copy_id, c.name, c.animated FROM emoji_images i JOIN emoji_copies c ON c.image_sha256 = i.image_sha256 "
+        "WHERE i.emoji_key = ?1 "
+        "OR i.emoji_key IN (SELECT canonical_key FROM emoji_aliases WHERE emoji_key = ?1) "
+        "OR i.emoji_key IN (SELECT emoji_key FROM emoji_aliases WHERE canonical_key = ?1) "
+        "OR i.emoji_key IN (SELECT b.emoji_key FROM emoji_aliases a JOIN emoji_aliases b "
+        "                   ON b.guild_id = a.guild_id AND b.canonical_key = a.canonical_key WHERE a.emoji_key = ?1) "
+        "ORDER BY i.emoji_key = ?1 DESC, "
+        "         i.emoji_key IN (SELECT canonical_key FROM emoji_aliases WHERE emoji_key = ?1) DESC, i.emoji_key "
+        "LIMIT 1",
+        emoji_key);
+    if (!query.step()) return std::nullopt;
+    return emoji_copy{.id = query.get<dpp::snowflake>(0), .name = query.get<std::string>(1), .animated = query.get<bool>(2)};
 }
 
 // --------------------------------------------------------------------------
@@ -535,6 +562,7 @@ auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filt
         emoji_ref emoji = emoji_from(statement.get<std::string>(0), statement.get<std::optional<std::string>>(2),
                                      statement.get<std::optional<std::int64_t>>(3).value_or(0) != 0);
         if (wanted.empty() || util::to_lower(emoji.name).find(wanted) != std::string::npos) {
+            emoji.copy = copy_of(emoji.key);
             found.push_back({.emoji = std::move(emoji), .count = statement.get<std::int64_t>(1)});
         }
     }

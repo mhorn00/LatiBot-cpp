@@ -7,6 +7,7 @@ add_executable(latibot_tests
     db/backup_test.cpp
     db/bot_allowlist_test.cpp
     db/database_test.cpp
+    db/emoji_copies_test.cpp
     db/trigger_store_test.cpp
     db/reaction_store_test.cpp
     db/replacement_store_test.cpp

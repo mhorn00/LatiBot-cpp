@@ -52,6 +52,13 @@ public:
     /// Shows "LatiBot is typing…" in a channel for ten seconds, or until the
     /// bot posts there (plan §14.7).
     virtual auto start_typing(dpp::snowflake channel_id) -> dpp::task<result<void>> = 0;
+
+    /// Uploads an emoji the bot's application owns, which the bot can use in
+    /// any server (docs/features/Link_Stats.md 10). `image` is a PNG or,
+    /// when `animated`, a GIF, of at most 256 KiB. Gives the new emoji's id.
+    virtual auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<result<dpp::snowflake>> = 0;
+
+    virtual auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<result<void>> = 0;
 };
 
 } // namespace latibot::ports
