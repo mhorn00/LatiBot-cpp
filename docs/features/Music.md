@@ -407,11 +407,27 @@ as before, signed out.
 4. **Read the startup log.** It says how many cookies it found, and how
    many for youtube.com, never what they are. A file it cannot read, a JSON
    export, or one with no cookies in it is a warning, and music fetches
-   signed out; one with no youtube.com cookies is a warning too.
+   signed out; one with no youtube.com cookies is a warning too. So is one
+   with no youtube.com `SAPISID` or `__Secure-3PAPISID` cookie: yt-dlp only
+   signs in with one of those, and a file without them was exported
+   signed out.
 
-When age-restricted videos stop playing, and yt-dlp's reason asks to sign
-in to confirm your age, the session has ended: export a fresh file the same
-way.
+**When it does not work.** An age-restricted video still refused with "Sign
+in to confirm your age" means YouTube saw yt-dlp as signed out. When the
+signed-in try fails, the log has a warning, `yt-dlp could not read ...
+signed in either`, with everything yt-dlp said. Signed-in runs keep yt-dlp's
+own warnings, which signed-out runs leave out, so that warning shows why:
+
+- **"The provided YouTube account cookies are no longer valid"**: the
+  session was rotated, usually because it was used in a browser after the
+  export, or exported from an ordinary window. Export again, as in step 2.
+- **No such warning**, and the startup log warned about `SAPISID`: the file
+  was exported signed out. Export again while signed in.
+- **A warning that no JavaScript runtime was found**: recent yt-dlp wants
+  one, such as Deno, for YouTube (§5). Install it where the bot runs.
+
+When age-restricted videos that played stop playing, the session has
+ended: export a fresh file the same way.
 
 **Only when it is needed.** yt-dlp always tries signed out first. When it
 fails, and what it says is that it must sign in (`needs_sign_in`: "Sign in
@@ -596,6 +612,7 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | 2026-10-01 | Signed out first; signed in only when yt-dlp says it must, retried at once without telling anyone, and only the retry's failure told | The owner's request, so the account is used only where it is needed. It replaced signing every run in, built earlier the same day |
 | 2026-10-01 | Links read signed in are remembered, with their tracks, until a restart | So a track already known to need it is not refused once more when it plays |
 | 2026-10-01 | A track is fetched again only if nothing of it had played | Starting a track over partway would be worse than its failure |
+| 2026-10-01 | Signed-in runs keep yt-dlp's warnings; a signed-in failure is a logged warning; startup checks for `SAPISID` | The owner's first try was refused signed in, and `--no-warnings` had hidden yt-dlp's reason |
 | 2026-10-01 | A file that cannot be used is a warning, and music fetches signed out | Music, and so its account, is optional (the 2026-09-30 decision in Operations.md) |
 
 ## 9. The owner's answers

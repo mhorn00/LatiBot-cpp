@@ -37,9 +37,12 @@ auto path_of(const std::optional<cookie_copy>& cookies) -> std::optional<std::fi
 }
 
 /// `--cookies` and the file, second, after `--ignore-config`: the `--` and
-/// the link stay last.
+/// the link stay last. Signed in, yt-dlp's warnings are kept: they are what
+/// say the cookies are no longer valid, and only a failure's are logged.
 auto with_cookies(std::vector<std::string> arguments, const std::optional<std::filesystem::path>& cookies) -> std::vector<std::string> {
-    if (cookies) arguments.insert(arguments.begin() + 1, {"--cookies", cookies->string()});
+    if (!cookies) return arguments;
+    std::erase(arguments, "--no-warnings");
+    arguments.insert(arguments.begin() + 1, {"--cookies", cookies->string()});
     return arguments;
 }
 
@@ -260,7 +263,14 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
                                            std::chrono::duration_cast<std::chrono::seconds>(timeout_)));
         }
         if (ran.exit_code != 0) {
-            util::log().debug("yt-dlp could not read {}: {}", url, ran.errors);
+            // A warning when signed in: the owner set the cookies up for
+            // this, and yt-dlp's warnings above its error say why they did
+            // not work.
+            if (signed_in) {
+                util::log().warn("yt-dlp could not read {} signed in either: {}", url, ran.errors);
+            } else {
+                util::log().debug("yt-dlp could not read {}: {}", url, ran.errors);
+            }
             return media_error(describe_failure(ran.errors));
         }
         auto lookup = parse_lookup(ran.output, max_items);

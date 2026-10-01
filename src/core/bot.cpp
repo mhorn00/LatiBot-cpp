@@ -942,6 +942,11 @@ auto bot::log_music_account() const -> void {
                      cookies.found.youtube);
     if (cookies.found.youtube == 0) {
         util::log().warn("{} has no youtube.com cookies, so YouTube will see music as signed out; export them from youtube.com", file);
+    } else if (!cookies.found.youtube_sign_in) {
+        util::log().warn(
+            "{} has no youtube.com SAPISID or __Secure-3PAPISID cookie, which yt-dlp needs to sign in; "
+            "it was likely exported signed out, so export it again signed in (docs/features/Music.md §4.9)",
+            file);
     }
     if (cookies.found.malformed > 0) {
         util::log().warn("{} line(s) of {} are not cookies in the Netscape format, and yt-dlp will skip them", cookies.found.malformed,

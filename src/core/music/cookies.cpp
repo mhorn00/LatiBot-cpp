@@ -70,7 +70,15 @@ auto check_cookie_file(std::string_view text) -> cookie_file_check {
             continue;
         }
         ++found.cookies;
-        if (is_youtube(line.substr(0, line.find('\t')))) ++found.youtube;
+        if (!is_youtube(line.substr(0, line.find('\t')))) continue;
+        ++found.youtube;
+        // The name is the sixth field.
+        std::string_view name = line;
+        for (int skip = 0; skip < 5; ++skip) {
+            name.remove_prefix(name.find('\t') + 1);
+        }
+        name = name.substr(0, name.find('\t'));
+        if (name == "SAPISID" || name == "__Secure-3PAPISID") found.youtube_sign_in = true;
     }
     return found;
 }

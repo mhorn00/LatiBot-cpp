@@ -26,6 +26,10 @@ struct cookie_file_check {
     std::size_t cookies = 0;
     /// Of those, the ones for youtube.com.
     std::size_t youtube = 0;
+    /// Whether one of those is `SAPISID` or `__Secure-3PAPISID`, which yt-dlp
+    /// needs to sign in at all: without one, it goes signed out whatever
+    /// else the file holds. Missing when the file was exported signed out.
+    bool youtube_sign_in = false;
     /// Lines that are neither cookies, comments nor blank; yt-dlp skips them.
     std::size_t malformed = 0;
     /// Exported as JSON, which yt-dlp refuses: it reads Netscape's

@@ -134,6 +134,15 @@ TEST_CASE("a cookies file saved on Windows, with a byte order mark, reads the sa
     CHECK(found.malformed == 0);
 }
 
+TEST_CASE("a file yt-dlp can sign in with has a youtube.com SAPISID", "[music]") {
+    CHECK_FALSE(check_cookie_file(exported).youtube_sign_in);
+    CHECK(check_cookie_file(".youtube.com\tTRUE\t/\tTRUE\t0\tSAPISID\tnot-a-real-value\n").youtube_sign_in);
+    CHECK(check_cookie_file("#HttpOnly_.youtube.com\tTRUE\t/\tTRUE\t0\t__Secure-3PAPISID\tnot-a-real-value\n").youtube_sign_in);
+    // Google's own, or one named alike elsewhere, is not YouTube's.
+    CHECK_FALSE(check_cookie_file(".google.com\tTRUE\t/\tTRUE\t0\tSAPISID\tnot-a-real-value\n").youtube_sign_in);
+    CHECK_FALSE(check_cookie_file(".youtube.com\tTRUE\t/\tTRUE\t0\tSAPISIDX\tnot-a-real-value\n").youtube_sign_in);
+}
+
 TEST_CASE("only youtube.com and its subdomains count as YouTube's", "[music]") {
     const auto found = check_cookie_file(
         "www.YouTube.com\tFALSE\t/\tTRUE\t0\ta\tb\n"
@@ -252,9 +261,12 @@ TEST_CASE("yt-dlp is given the cookies before the --, and the link stays last", 
         CHECK(*(flag + 1) == cookies.string());
         CHECK(arguments.back() == "--exec calc");
         CHECK(arguments[arguments.size() - 2] == "--");
+        // Signed in, its warnings say whether the cookies still work.
+        CHECK(std::ranges::find(arguments, "--no-warnings") == arguments.end());
     }
     for (const auto& arguments : {lookup_arguments("https://x.com/a", 100), fetch_arguments("https://x.com/a", std::nullopt)}) {
         CHECK(std::ranges::find(arguments, "--cookies") == arguments.end());
+        CHECK(std::ranges::find(arguments, "--no-warnings") != arguments.end());
     }
 }
 
