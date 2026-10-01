@@ -22,3 +22,6 @@ java-reference/
 
 # golden-test output: what a mismatching phrase actually sounded like
 tests/golden/*.wav
+
+ffmpeg.exe
+yt-dlp.exe
