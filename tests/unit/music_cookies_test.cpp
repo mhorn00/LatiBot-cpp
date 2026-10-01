@@ -134,6 +134,35 @@ TEST_CASE("a cookies file saved on Windows, with a byte order mark, reads the sa
     CHECK(found.malformed == 0);
 }
 
+TEST_CASE("yt-dlp is told where Deno is, before the --, and the link stays last", "[music]") {
+    const std::filesystem::path deno = R"(C:\bot\deno.exe)";
+    const std::filesystem::path cookies = R"(C:\bot\data\yt-dlp-runs\cookies-1.txt)";
+    for (const auto& arguments :
+         {lookup_arguments("--exec calc", 100, std::nullopt, deno), fetch_arguments("--exec calc", "ff.exe", std::nullopt, deno),
+          lookup_arguments("--exec calc", 100, cookies, deno), fetch_arguments("--exec calc", "ff.exe", cookies, deno)}) {
+        CHECK(arguments.front() == "--ignore-config");
+        const auto flag = std::ranges::find(arguments, "--js-runtimes");
+        REQUIRE(flag != arguments.end());
+        CHECK(*(flag + 1) == "deno:" + deno.string());
+        CHECK(arguments.back() == "--exec calc");
+        CHECK(arguments[arguments.size() - 2] == "--");
+    }
+    for (const auto& arguments : {lookup_arguments("https://x.com/a", 100), fetch_arguments("https://x.com/a", std::nullopt)}) {
+        CHECK(std::ranges::find(arguments, "--js-runtimes") == arguments.end());
+    }
+}
+
+TEST_CASE("the resolver hands Deno on, signed in or not", "[music][threads]") {
+    const temp_directory folder;
+    write(folder.file("cookies.txt"), exported);
+    const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source(folder.file("cookies.txt"), folder.file("runs")),
+                                  std::filesystem::path(R"(C:\bot\deno.exe)"));
+    // The stand-in finds --cookies wherever it is, so the retry still signs in.
+    const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
+    REQUIRE(lookup.ok());
+    CHECK(lookup.value().items[0].title == "signed in");
+}
+
 TEST_CASE("a file yt-dlp can sign in with has a youtube.com SAPISID", "[music]") {
     CHECK_FALSE(check_cookie_file(exported).youtube_sign_in);
     CHECK(check_cookie_file(".youtube.com\tTRUE\t/\tTRUE\t0\tSAPISID\tnot-a-real-value\n").youtube_sign_in);

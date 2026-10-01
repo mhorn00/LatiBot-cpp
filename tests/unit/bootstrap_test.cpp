@@ -182,6 +182,13 @@ TEST_CASE("emoji copies are kept for every emote used, unless the config says ot
     CHECK(bootstrap::from_json(R"({"emoji_copy_min_uses": 0})").emoji_copy_min_uses == 0);
 }
 
+TEST_CASE("music's programs are looked for unless the config names them", "[config]") {
+    const bootstrap defaults = bootstrap::from_json("{}");
+    CHECK(defaults.deno_path.empty());
+    CHECK(bootstrap::from_json(R"({"deno_path": "C:/tools/deno.exe"})").deno_path == std::filesystem::path("C:/tools/deno.exe"));
+    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"deno_path": 5})"), config_error);
+}
+
 TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
     // This is the one setting that decides which gateway intents are asked
     // for, so a wrong value is the difference between connecting and being

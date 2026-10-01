@@ -31,6 +31,7 @@
 
 #include <shellapi.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -141,12 +142,14 @@ auto child_main() -> int {
         }
         if (link.find("hang") != std::string::npos) return hang();
         std::string title = "A song";
-        if (args.size() > 3 && args[2] == "--cookies") {
-            std::ifstream cookies(args[3], std::ios::binary);
+        const auto flag = std::ranges::find(args, std::string("--cookies"));
+        if (flag != args.end() && flag + 1 != args.end()) {
+            const std::string& file = *(flag + 1);
+            std::ifstream cookies(file, std::ios::binary);
             const std::string held((std::istreambuf_iterator<char>(cookies)), std::istreambuf_iterator<char>());
             if (held.find("youtube.com\t") != std::string::npos) title = "signed in";
             cookies.close();
-            std::ofstream(args[3], std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
+            std::ofstream(file, std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
         }
         if (link.find("adult") != std::string::npos && title != "signed in") {
             const std::string line =

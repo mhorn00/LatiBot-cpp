@@ -67,6 +67,10 @@ struct bootstrap {
     /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
     std::filesystem::path ytdlp_path;
     std::filesystem::path ffmpeg_path;
+    /// Where Deno is, which yt-dlp solves YouTube's JavaScript challenges
+    /// with (docs/features/Music.md §5). Empty: `deno.exe` beside the bot,
+    /// then on PATH.
+    std::filesystem::path deno_path;
 
     /// The account whose messages `/linkstats recompute` reads as the bot's
     /// replacements, in place of the bot's own.

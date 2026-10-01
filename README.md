@@ -274,8 +274,11 @@ For music, add [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [ffmpeg](https://ffmpeg.org/) as `yt-dlp.exe` and `ffmpeg.exe` in the same
 folder, or anywhere on `PATH` (`winget install yt-dlp.yt-dlp Gyan.FFmpeg`
 puts both there). Without them everything else works, and `/music play`
-says what is missing. Keep yt-dlp current with `yt-dlp -U`: sites change,
-and an old one stops working with them. For age-restricted videos, music
+says what is missing. YouTube also needs [Deno](https://deno.com/) 2.3 or
+newer, beside the bot or on `PATH` (`winget install DenoLand.Deno`), which
+yt-dlp solves YouTube's JavaScript challenges with; without it the bot
+warns, and some videos fail. Keep yt-dlp current with `yt-dlp -U`: sites
+change, and an old one stops working with them. For age-restricted videos, music
 can sign in to a YouTube account with a cookies file named by
 `LATIBOT_YTDLP_COOKIES`; [Music.md §4.9](docs/features/Music.md#49-signing-in-to-youtube)
 says how to export one.
@@ -336,6 +339,7 @@ put your own user ID in `trusted_users`:
 | `llm_tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1 |
 | `ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
 | `ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
+| `deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
 | `emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number

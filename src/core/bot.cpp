@@ -211,9 +211,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
                  {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
       ytdlp_(util::locate_program("yt-dlp", settings_.ytdlp_path)),
       ffmpeg_(util::locate_program("ffmpeg", settings_.ffmpeg_path)),
+      deno_(util::locate_program("deno", settings_.deno_path)),
       ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, settings_.database_path.parent_path() / "yt-dlp-runs")),
-      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source),
-      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source),
+      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source, deno_),
+      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source, deno_),
       music_(music_opener_, mixer_,
              {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
               .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
@@ -904,22 +905,34 @@ auto bot::log_music_tools() -> void {
     const std::filesystem::path ytdlp = *ytdlp_;
     const std::filesystem::path ffmpeg = *ffmpeg_;
     util::log().info("music uses yt-dlp at {} and ffmpeg at {}", ytdlp.string(), ffmpeg.string());
+    // A warning, not a reason to turn music off: most sites need no
+    // JavaScript, and yt-dlp gets some of YouTube without it.
+    if (deno_) {
+        util::log().info("yt-dlp solves YouTube's JavaScript challenges with Deno at {}", deno_->string());
+    } else {
+        util::log().warn(
+            "Deno was not found, so yt-dlp cannot solve YouTube's JavaScript challenges, and some YouTube videos will fail, "
+            "age-restricted ones above all. Install Deno 2.3 or newer (winget install DenoLand.Deno), beside the bot or on PATH, "
+            "or name it in config.json (deno_path)");
+    }
     log_music_account();
     // Which versions, off the startup path: an old yt-dlp is the usual
     // reason a site stops working, and asking takes a second or two.
     // Only the log call in the catch could still throw, as in main(), and
     // there is nowhere left to report that.
     // NOLINTNEXTLINE(bugprone-exception-escape)
-    music_versions_ = std::jthread([ytdlp, ffmpeg] {
+    std::vector<std::pair<std::filesystem::path, const char*>> programs{{ytdlp, "--version"}, {ffmpeg, "-version"}};
+    if (deno_) programs.emplace_back(*deno_, "--version");
+    music_versions_ = std::jthread([programs = std::move(programs)] {
         // Everything inside the try: a thread must let nothing out.
         try {
-            for (const auto& [program, flag] : {std::pair{ytdlp, "--version"}, std::pair{ffmpeg, "-version"}}) {
+            for (const auto& [program, flag] : programs) {
                 const auto ran = util::run({.path = program, .arguments = {flag}}, std::chrono::seconds{20});
                 const auto first_line = util::lines(ran.output);
                 util::log().info("{}: {}", program.stem().string(), first_line.empty() ? "no version given" : first_line.front());
             }
         } catch (const std::exception& error) {
-            util::log().warn("could not ask yt-dlp or ffmpeg its version: {}", error.what());
+            util::log().warn("could not ask yt-dlp, ffmpeg or Deno its version: {}", error.what());
         } catch (...) { // NOLINT(bugprone-empty-catch)
         }
     });

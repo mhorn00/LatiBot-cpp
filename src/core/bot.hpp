@@ -241,6 +241,9 @@ private:
     // at startup; without them the music commands say so and nothing plays.
     std::optional<std::filesystem::path> ytdlp_;
     std::optional<std::filesystem::path> ffmpeg_;
+    /// Optional: without it yt-dlp cannot solve YouTube's JavaScript
+    /// challenges, and some of YouTube, age-restricted videos above all, fails.
+    std::optional<std::filesystem::path> deno_;
     /// The account yt-dlp signs in as, if the owner gave one (§4.9).
     music::cookie_status ytdlp_cookies_;
     music::ytdlp_resolver music_resolver_;

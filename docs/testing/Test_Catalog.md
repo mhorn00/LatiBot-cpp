@@ -5,18 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-910 test cases across 12 components, including 195 sections.
+913 test cases across 12 components, including 195 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 155 | 21 |
-| [config](#config) | 36 | 20 |
+| [config](#config) | 37 | 20 |
 | [commands](#commands) | 198 | 55 |
 | [events](#events) | 196 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
-| [music](#music) | 86 | 25 |
+| [music](#music) | 88 | 25 |
 | [llm](#llm) | 58 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
@@ -208,19 +208,20 @@ Configuration (`src/core/config`)
 | bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:131](../../tests/unit/bootstrap_test.cpp#L131) |
 | the model has to be one the bot can price, from the provider named |  |  | [tests/unit/bootstrap_test.cpp:162](../../tests/unit/bootstrap_test.cpp#L162) |
 | emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:178](../../tests/unit/bootstrap_test.cpp#L178) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:185](../../tests/unit/bootstrap_test.cpp#L185) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:212](../../tests/unit/bootstrap_test.cpp#L212) |
-| secrets come from the environment |  | 4 | [tests/unit/bootstrap_test.cpp:246](../../tests/unit/bootstrap_test.cpp#L246) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:289](../../tests/unit/bootstrap_test.cpp#L289) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:316](../../tests/unit/bootstrap_test.cpp#L316) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:328](../../tests/unit/bootstrap_test.cpp#L328) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:350](../../tests/unit/bootstrap_test.cpp#L350) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:359](../../tests/unit/bootstrap_test.cpp#L359) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:368](../../tests/unit/bootstrap_test.cpp#L368) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:380](../../tests/unit/bootstrap_test.cpp#L380) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:393](../../tests/unit/bootstrap_test.cpp#L393) |
+| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:185](../../tests/unit/bootstrap_test.cpp#L185) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:192](../../tests/unit/bootstrap_test.cpp#L192) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:203](../../tests/unit/bootstrap_test.cpp#L203) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:211](../../tests/unit/bootstrap_test.cpp#L211) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:219](../../tests/unit/bootstrap_test.cpp#L219) |
+| secrets come from the environment |  | 4 | [tests/unit/bootstrap_test.cpp:253](../../tests/unit/bootstrap_test.cpp#L253) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:296](../../tests/unit/bootstrap_test.cpp#L296) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:323](../../tests/unit/bootstrap_test.cpp#L323) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:335](../../tests/unit/bootstrap_test.cpp#L335) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:357](../../tests/unit/bootstrap_test.cpp#L357) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:375](../../tests/unit/bootstrap_test.cpp#L375) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:387](../../tests/unit/bootstrap_test.cpp#L387) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:400](../../tests/unit/bootstrap_test.cpp#L400) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -763,22 +764,24 @@ Music (`src/core/music`)
 | the music command registers, with m as its alias |  |  | [tests/unit/music_command_test.cpp:218](../../tests/unit/music_command_test.cpp#L218) |
 | a Netscape cookies file is counted, HttpOnly cookies included |  |  | [tests/unit/music_cookies_test.cpp:117](../../tests/unit/music_cookies_test.cpp#L117) |
 | a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [tests/unit/music_cookies_test.cpp:125](../../tests/unit/music_cookies_test.cpp#L125) |
-| a file yt-dlp can sign in with has a youtube.com SAPISID |  |  | [tests/unit/music_cookies_test.cpp:137](../../tests/unit/music_cookies_test.cpp#L137) |
-| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:146](../../tests/unit/music_cookies_test.cpp#L146) |
-| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:155](../../tests/unit/music_cookies_test.cpp#L155) |
-| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:164](../../tests/unit/music_cookies_test.cpp#L164) |
-| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:170](../../tests/unit/music_cookies_test.cpp#L170) |
-| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:208](../../tests/unit/music_cookies_test.cpp#L208) |
-| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:220](../../tests/unit/music_cookies_test.cpp#L220) |
-| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:247](../../tests/unit/music_cookies_test.cpp#L247) |
-| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:255](../../tests/unit/music_cookies_test.cpp#L255) |
-| what yt-dlp says when signing in would help |  |  | [tests/unit/music_cookies_test.cpp:273](../../tests/unit/music_cookies_test.cpp#L273) |
-| the links that needed signing in are shared, and kept to a limit |  |  | [tests/unit/music_cookies_test.cpp:286](../../tests/unit/music_cookies_test.cpp#L286) |
-| the resolver reads signed out, and signs in only when yt-dlp asks to | `threads` | 4 | [tests/unit/music_cookies_test.cpp:301](../../tests/unit/music_cookies_test.cpp#L301) |
-| refused signed in as well, the second refusal is what is told | `threads` |  | [tests/unit/music_cookies_test.cpp:341](../../tests/unit/music_cookies_test.cpp#L341) |
-| without cookies, an age-restricted link is refused as YouTube refused it | `threads` |  | [tests/unit/music_cookies_test.cpp:351](../../tests/unit/music_cookies_test.cpp#L351) |
-| a track refused for want of signing in is fetched again, signed in | `threads` | 4 | [tests/unit/music_cookies_test.cpp:358](../../tests/unit/music_cookies_test.cpp#L358) |
-| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:398](../../tests/unit/music_cookies_test.cpp#L398) |
+| yt-dlp is told where Deno is, before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:137](../../tests/unit/music_cookies_test.cpp#L137) |
+| the resolver hands Deno on, signed in or not | `threads` |  | [tests/unit/music_cookies_test.cpp:155](../../tests/unit/music_cookies_test.cpp#L155) |
+| a file yt-dlp can sign in with has a youtube.com SAPISID |  |  | [tests/unit/music_cookies_test.cpp:166](../../tests/unit/music_cookies_test.cpp#L166) |
+| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:175](../../tests/unit/music_cookies_test.cpp#L175) |
+| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:184](../../tests/unit/music_cookies_test.cpp#L184) |
+| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:193](../../tests/unit/music_cookies_test.cpp#L193) |
+| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:199](../../tests/unit/music_cookies_test.cpp#L199) |
+| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:237](../../tests/unit/music_cookies_test.cpp#L237) |
+| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:249](../../tests/unit/music_cookies_test.cpp#L249) |
+| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:276](../../tests/unit/music_cookies_test.cpp#L276) |
+| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:284](../../tests/unit/music_cookies_test.cpp#L284) |
+| what yt-dlp says when signing in would help |  |  | [tests/unit/music_cookies_test.cpp:302](../../tests/unit/music_cookies_test.cpp#L302) |
+| the links that needed signing in are shared, and kept to a limit |  |  | [tests/unit/music_cookies_test.cpp:315](../../tests/unit/music_cookies_test.cpp#L315) |
+| the resolver reads signed out, and signs in only when yt-dlp asks to | `threads` | 4 | [tests/unit/music_cookies_test.cpp:330](../../tests/unit/music_cookies_test.cpp#L330) |
+| refused signed in as well, the second refusal is what is told | `threads` |  | [tests/unit/music_cookies_test.cpp:370](../../tests/unit/music_cookies_test.cpp#L370) |
+| without cookies, an age-restricted link is refused as YouTube refused it | `threads` |  | [tests/unit/music_cookies_test.cpp:380](../../tests/unit/music_cookies_test.cpp#L380) |
+| a track refused for want of signing in is fetched again, signed in | `threads` | 4 | [tests/unit/music_cookies_test.cpp:387](../../tests/unit/music_cookies_test.cpp#L387) |
+| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:427](../../tests/unit/music_cookies_test.cpp#L427) |
 | an http or https link is taken as it is |  |  | [tests/unit/music_links_test.cpp:16](../../tests/unit/music_links_test.cpp#L16) |
 | text that is not a link is refused, with the reason |  |  | [tests/unit/music_links_test.cpp:22](../../tests/unit/music_links_test.cpp#L22) |
 | a link that looks like an option is still a link or nothing |  |  | [tests/unit/music_links_test.cpp:31](../../tests/unit/music_links_test.cpp#L31) |

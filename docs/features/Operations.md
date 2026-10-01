@@ -133,11 +133,12 @@ Three layers, separated by how often each changes and who changes it:
 The README's [configuration table](../../README.md#configuration) is the
 reference for every key.
 
-**Other programs.** Music runs yt-dlp and ffmpeg
-([Music.md §5](Music.md#5-dependencies-and-running-it)). Each is looked for
-once at startup: at `ytdlp_path` or `ffmpeg_path` in `config.json` if set,
-else beside `LatiBot.exe`, else on `PATH`. Without them the bot starts,
-warns, and `/music play` says what is missing. With them, their versions
+**Other programs.** Music runs yt-dlp and ffmpeg, and yt-dlp uses Deno for
+YouTube ([Music.md §5](Music.md#5-dependencies-and-running-it)). Each is
+looked for once at startup: at `ytdlp_path`, `ffmpeg_path` or `deno_path` in
+`config.json` if set, else beside `LatiBot.exe`, else on `PATH`. Without
+yt-dlp or ffmpeg the bot starts, warns, and `/music play` says what is
+missing; without Deno it warns, and music plays what it can. Their versions
 are logged, asked on a thread of its own so startup does not wait.
 
 **Secrets.** Secrets come from the environment only:

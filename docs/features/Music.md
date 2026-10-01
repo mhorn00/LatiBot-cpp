@@ -18,8 +18,8 @@ and [Speech.md](Speech.md).
 | **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
 | **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
-| **Config** | `ytdlp_path`, `ffmpeg_path` in `config.json`; `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
-| **Runtime** | `yt-dlp.exe` and `ffmpeg.exe`, beside the bot or on `PATH` |
+| **Config** | `ytdlp_path`, `ffmpeg_path`, `deno_path` in `config.json`; `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
+| **Runtime** | `yt-dlp.exe` and `ffmpeg.exe`, beside the bot or on `PATH`; `deno.exe` too, for YouTube (§5) |
 | **Plan** | Replaces plan §15, and the mixer half of §13 |
 | **Status** | Built on 2026-09-30. **Not yet run in Discord, or against the real yt-dlp and ffmpeg**: see §7 |
 
@@ -310,6 +310,10 @@ to deal with what sites need: signed URLs, headers, fragmented streams. It
 is also given ffmpeg's location, since it uses ffmpeg itself for live
 streams and some sites.
 
+Both are given `--js-runtimes deno:<path>` before the `--` when the bot
+found Deno (§5), so yt-dlp uses the one the bot found rather than looking
+on `PATH` alone.
+
 When the owner has signed music in to an account (§4.9), a run that fails
 because yt-dlp must sign in is run again with `--cookies` and a copy of the
 cookies, straight after `--ignore-config`.
@@ -423,8 +427,22 @@ own warnings, which signed-out runs leave out, so that warning shows why:
   export, or exported from an ordinary window. Export again, as in step 2.
 - **No such warning**, and the startup log warned about `SAPISID`: the file
   was exported signed out. Export again while signed in.
-- **A warning that no JavaScript runtime was found**: recent yt-dlp wants
-  one, such as Deno, for YouTube (§5). Install it where the bot runs.
+- **"n challenge solving failed"**, or a warning that no JavaScript runtime
+  was found: yt-dlp cannot solve YouTube's JavaScript challenges without
+  Deno (§5), and the clients that would play an age-restricted video signed
+  in are among those that need it. Install Deno where the bot runs; startup
+  warns when it is missing.
+- **"web_creator client https formats require a GVS PO Token"**: one client
+  yt-dlp tries needs a PO token, and its formats are skipped. On its own
+  this is not the failure: yt-dlp's PO Token guide lists clients, `tv`
+  among them, that need none and take an account's cookies, and with Deno
+  yt-dlp can use them. A PO token provider plugin is the next step only if
+  videos still fail with Deno installed (§8).
+- **"Sorry, this content is age-restricted"**, signed in, after the above:
+  YouTube saw the account, and the clients yt-dlp could use would not play
+  it. Install Deno first. If it still fails, check in a browser, signed in
+  as the account, that the video plays there: YouTube may want the account
+  itself age-verified, and nothing the bot does gets past that.
 
 When age-restricted videos that played stop playing, the session has
 ended: export a fresh file the same way.
@@ -483,8 +501,14 @@ written to.
   and `/music play` says the same. Nothing else is affected.
 - **Startup logs the versions**, asked on a thread of its own so startup
   does not wait: an old yt-dlp is the usual reason a site stops working, and
-  `yt-dlp -U` updates it. Recent yt-dlp may also need a JavaScript runtime
-  (such as Deno) for YouTube; check when installing.
+  `yt-dlp -U` updates it.
+- **Deno**, 2.3 or newer, for YouTube: yt-dlp solves YouTube's JavaScript
+  challenges with it, and without it some of YouTube fails, age-restricted
+  videos above all. It is looked for like the others: `deno_path` in
+  `config.json`, beside the bot, then `PATH`
+  (`winget install DenoLand.Deno`). The official `yt-dlp.exe` carries the
+  challenge scripts itself (yt-dlp's EJS wiki). Without Deno, startup warns
+  and music still plays what it can.
 - **Conan's `ffmpeg` package** (libav\*) was the alternative: native, with no
   extra executable, but a much larger build for no practical gain, and
   yt-dlp is external either way.
@@ -571,6 +595,8 @@ People type the links, so everything passed to yt-dlp is untrusted:
 - an age-restricted video playing with the owner's cookies, from a link
   and from a playlist, and the startup log's count of them;
 - that `needs_sign_in` matches what YouTube says today, which can change;
+- that `--js-runtimes deno:<path>` with a Windows path, which has a
+  colon of its own, is read as yt-dlp's documentation says;
 - how long an exported session lasts with copies that are never written
   back.
 
@@ -613,6 +639,9 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | 2026-10-01 | Links read signed in are remembered, with their tracks, until a restart | So a track already known to need it is not refused once more when it plays |
 | 2026-10-01 | A track is fetched again only if nothing of it had played | Starting a track over partway would be worse than its failure |
 | 2026-10-01 | Signed-in runs keep yt-dlp's warnings; a signed-in failure is a logged warning; startup checks for `SAPISID` | The owner's first try was refused signed in, and `--no-warnings` had hidden yt-dlp's reason |
+| 2026-10-01 | Deno is looked for like ffmpeg, handed to yt-dlp with `--js-runtimes`, and warned about when missing | The owner's second try failed solving YouTube's JavaScript challenge, with no runtime installed; yt-dlp's EJS wiki makes Deno the default |
+| 2026-10-01 | No PO token provider plugin yet | yt-dlp's PO Token guide lists clients that need no token and take cookies (`tv`); a provider (a plugin with a server of its own) is worth it only if Deno is not enough |
+| 2026-10-01 | No playing YouTube in a browser and capturing its audio | Considered at the owner's suggestion. It needs a browser per playing server, plays ads to the channel without Premium, plays only in real time where the mixer reads ahead and rewinds, breaks with YouTube's page, and would still meet an account YouTube will not show the video to |
 | 2026-10-01 | A file that cannot be used is a warning, and music fetches signed out | Music, and so its account, is optional (the 2026-09-30 decision in Operations.md) |
 
 ## 9. The owner's answers
