@@ -442,3 +442,70 @@ TEST_CASE("where images are not counted, a recompute leaves them alone", "[event
     // No reactions were asked for on the picture.
     CHECK(test.discord.reaction_requests.size() == 2);
 }
+
+// --------------------------------------------------------------------------
+// Emotes sent as reactions (docs/features/Link_Stats.md §12)
+// --------------------------------------------------------------------------
+
+namespace {
+
+auto reply(dpp::snowflake id, dpp::snowflake author, const std::string& content, dpp::snowflake to) -> dpp::message {
+    dpp::message made = message(id, author, content);
+    made.type = dpp::mt_reply;
+    made.message_reference.message_id = to;
+    return made;
+}
+
+} // namespace
+
+TEST_CASE("a recompute counts emotes sent after a replacement as reactions to it", "[events][coro]") {
+    fixture test;
+    std::vector<dpp::message> page{
+        reply(id_at(40s), alice, "👀", id_at(10s)),
+        message(id_at(25s), bob, "🔥"),
+        message(id_at(20s), carol, "💀 🔥"),
+        message(id_at(15s), bob, "😂"),
+    };
+    for (dpp::message& older : history()) {
+        page.push_back(std::move(older));
+    }
+
+    for (int run = 0; run < 2; ++run) {
+        INFO("run " << run);
+        test.discord.message_pages.emplace_back(page);
+        test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob, carol});
+        test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{alice});
+        const backfill_report report = test.run(request(/*fresh=*/true));
+
+        // Bob's laugh, Carol's skull and fire, and Alice's eyes in a reply.
+        // Bob's fire came after his first message, so it is not one.
+        CHECK(report.emote_reactions == 4);
+
+        // Carol's skull is one with the skull she reacted with; Alice's
+        // eyes are on her own link.
+        CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice}) == 4);
+        CHECK(test.reactions.total(guild, {.kind = stat_kind::self, .user_id = alice}) == 2);
+    }
+}
+
+TEST_CASE("the messages after a post are carried across a page of history", "[events][coro]") {
+    fixture test;
+
+    // A full page, its oldest message Bob's skull just after the
+    // replacement, which is on the next page.
+    std::vector<dpp::message> newest;
+    for (int index = 99; index > 0; --index) {
+        newest.push_back(message(id_at(std::chrono::seconds{100 + index}), dpp::snowflake{50}, "beep", /*is_bot=*/true));
+    }
+    newest.push_back(message(id_at(11s), bob, "💀"));
+    REQUIRE(newest.size() == latibot::events::history_page_size);
+
+    test.discord.message_pages.emplace_back(std::move(newest));
+    test.discord.message_pages.emplace_back(history());
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{carol});
+    test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{});
+
+    const backfill_report report = test.run(request());
+    CHECK(report.emote_reactions == 1);
+    CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice}) == 2);
+}

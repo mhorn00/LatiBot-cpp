@@ -83,7 +83,7 @@ auto sql_for(stat_kind kind) -> kind_sql {
 auto from_where(stat_kind kind) -> std::string {
     const kind_sql parts = sql_for(kind);
     return std::format(
-        " FROM reactions r"
+        " FROM counted_reactions r"
         " JOIN replacement_messages m ON m.message_id = r.message_id"
         " LEFT JOIN emoji_aliases a ON a.guild_id = m.guild_id AND a.emoji_key = r.emoji_key"
         " WHERE m.guild_id = ?1"
@@ -342,6 +342,71 @@ auto reaction_store::replace_for_message(dpp::snowflake message_id, std::span<co
     return static_cast<int>(wanted.size());
 }
 
+auto reaction_store::add_emotes(dpp::snowflake post, std::span<const emote_reaction> found) -> std::size_t {
+    const auto guard = db_->lock();
+    db::transaction tx(*db_);
+
+    std::size_t added = 0;
+    for (const emote_reaction& emote : found) {
+        // Only on our posts, asked in the insert as `add` does.
+        db_->prepare(
+               "INSERT OR IGNORE INTO emote_reactions (message_id, user_id, emoji_key, source_id) "
+               "SELECT ?1, ?2, ?3, ?4 WHERE EXISTS (SELECT 1 FROM replacement_messages WHERE message_id = ?1)",
+               post, emote.user_id, emote.emoji.key, emote.source_id)
+            .run();
+        if (db_->changes() == 0) continue;
+        remember(emote.emoji);
+        ++added;
+    }
+
+    tx.commit();
+    return added;
+}
+
+auto reaction_store::replace_emotes(dpp::snowflake post, std::span<const emote_reaction> found, std::optional<dpp::snowflake> unseen_from)
+    -> std::size_t {
+    const auto guard = db_->lock();
+    db::transaction tx(*db_);
+
+    std::set<std::pair<std::uint64_t, std::string>> wanted;
+    for (const emote_reaction& emote : found) {
+        wanted.emplace(static_cast<std::uint64_t>(emote.user_id), emote.emoji.key);
+    }
+
+    std::vector<std::pair<std::uint64_t, std::string>> stale;
+    {
+        auto query = db_->prepare("SELECT user_id, emoji_key FROM emote_reactions WHERE message_id = ?1 AND (?2 IS NULL OR source_id < ?2)",
+                                  post, unseen_from);
+        while (query.step()) {
+            std::pair<std::uint64_t, std::string> existing{query.get<std::uint64_t>(0), query.get<std::string>(1)};
+            if (!wanted.contains(existing)) stale.push_back(std::move(existing));
+        }
+    }
+    for (const auto& [user_id, emoji_key] : stale) {
+        db_->prepare("DELETE FROM emote_reactions WHERE message_id = ? AND user_id = ? AND emoji_key = ?", post, user_id, emoji_key).run();
+    }
+
+    // The message it was sent in is the one found now: the earliest, which
+    // is what a live count kept too.
+    for (const emote_reaction& emote : found) {
+        db_->prepare(
+               "INSERT INTO emote_reactions (message_id, user_id, emoji_key, source_id) VALUES (?, ?, ?, ?) "
+               "ON CONFLICT (message_id, user_id, emoji_key) DO UPDATE SET source_id = excluded.source_id",
+               post, emote.user_id, emote.emoji.key, emote.source_id)
+            .run();
+        remember(emote.emoji);
+    }
+
+    tx.commit();
+    return wanted.size();
+}
+
+auto reaction_store::remove_emotes_from(dpp::snowflake source_id) -> std::size_t {
+    const auto guard = db_->lock();
+    db_->prepare("DELETE FROM emote_reactions WHERE source_id = ?", source_id).run();
+    return static_cast<std::size_t>(db_->changes());
+}
+
 auto reaction_store::remember(const emoji_ref& emoji) -> void {
     if (emoji.key.empty()) return;
     const std::string name = emoji.name.empty() ? display_emoji(emoji) : emoji.name;
@@ -532,7 +597,7 @@ auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filt
         // Grouped by what each reaction counts as, so an alias's reactions
         // are the one it was merged into's, and it has no row of its own.
         sql =
-            "SELECT COALESCE(a.canonical_key, r.emoji_key) AS k, COUNT(*) AS n, e.name, e.animated FROM reactions r "
+            "SELECT COALESCE(a.canonical_key, r.emoji_key) AS k, COUNT(*) AS n, e.name, e.animated FROM counted_reactions r "
             "JOIN replacement_messages m ON m.message_id = r.message_id "
             "LEFT JOIN emoji_aliases a ON a.guild_id = m.guild_id AND a.emoji_key = r.emoji_key "
             "LEFT JOIN emojis e ON e.emoji_key = COALESCE(a.canonical_key, r.emoji_key) "
@@ -542,14 +607,14 @@ auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filt
         // From the aliases themselves, since one can be set for an emoji that
         // has never been reacted with here.
         sql =
-            "SELECT a.emoji_key, (SELECT COUNT(*) FROM reactions r JOIN replacement_messages m ON m.message_id = r.message_id "
+            "SELECT a.emoji_key, (SELECT COUNT(*) FROM counted_reactions r JOIN replacement_messages m ON m.message_id = r.message_id "
             "WHERE m.guild_id = ?1 AND r.emoji_key = a.emoji_key) AS n, e.name, e.animated FROM emoji_aliases a "
             "LEFT JOIN emojis e ON e.emoji_key = a.emoji_key "
             "WHERE a.guild_id = ?1 ORDER BY n DESC, a.emoji_key";
         break;
     case emoji_listing::every:
         sql =
-            "SELECT r.emoji_key, COUNT(*) AS n, e.name, e.animated FROM reactions r "
+            "SELECT r.emoji_key, COUNT(*) AS n, e.name, e.animated FROM counted_reactions r "
             "JOIN replacement_messages m ON m.message_id = r.message_id "
             "LEFT JOIN emojis e ON e.emoji_key = r.emoji_key "
             "WHERE m.guild_id = ?1 GROUP BY r.emoji_key ORDER BY n DESC, r.emoji_key";

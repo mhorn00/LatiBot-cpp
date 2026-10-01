@@ -124,6 +124,16 @@ struct emoji_alias {
     emoji_ref canonical;
 };
 
+/// One emoji somebody sent as a message of its own, just after a post or as a
+/// reply to it, which counts as a reaction (docs/features/Link_Stats.md §12).
+struct emote_reaction {
+    dpp::snowflake user_id;
+    emoji_ref emoji;
+
+    /// The message it was sent in, which also dates it.
+    dpp::snowflake source_id;
+};
+
 /// Which emojis `reaction_store::known_emojis` lists.
 enum class emoji_listing : std::uint8_t {
     /// Every emoji as it was reacted with, aliases and all.
@@ -142,7 +152,12 @@ enum class emoji_listing : std::uint8_t {
 /// most of it: none up to 3 letters, one up to 5, two from 6.
 [[nodiscard]] auto names_look_alike(std::string_view first, std::string_view second) -> bool;
 
-/// `reactions`, `reaction_log`, `emojis` and `emoji_aliases`.
+/// `reactions`, `emote_reactions`, `reaction_log`, `emojis` and
+/// `emoji_aliases`.
+///
+/// Every statistic reads `counted_reactions`: the reactions, and the emotes
+/// sent as reactions that the same person did not also react with, so one
+/// person's emoji on one post counts once however they gave it.
 class reaction_store {
 public:
     explicit reaction_store(db::database& db) : db_(&db) {}
@@ -173,6 +188,22 @@ public:
     /// were seen being added; new ones have none. Returns how many reactions
     /// the message has afterwards.
     auto replace_for_message(dpp::snowflake message_id, std::span<const observed> reactions) -> int;
+
+    /// Emotes sent as reactions, as they arrive. Kept only on one of our
+    /// posts; an emoji a person was already counted for stays as it was.
+    /// Returns how many were new.
+    auto add_emotes(dpp::snowflake post, std::span<const emote_reaction> found) -> std::size_t;
+
+    /// Makes one post's emote reactions what a recompute found. Rows sent in
+    /// a message at or after `unseen_from`, which the recompute did not
+    /// read, are kept; nothing means it read everything after the post.
+    /// Returns how many it found.
+    auto replace_emotes(dpp::snowflake post, std::span<const emote_reaction> found, std::optional<dpp::snowflake> unseen_from)
+        -> std::size_t;
+
+    /// A message was deleted: the emotes counted from it go. Returns how
+    /// many.
+    auto remove_emotes_from(dpp::snowflake source_id) -> std::size_t;
 
     /// Remembers what an emoji looks like. The newest name wins; `animated`
     /// is only ever turned on, since a backfill cannot tell.

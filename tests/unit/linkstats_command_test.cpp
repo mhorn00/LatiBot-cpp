@@ -1,4 +1,4 @@
-// /linkstats: leaderboards, profiles and aliases
+// /linkstats: leaderboards, emoji lists and aliases
 // (docs/features/Link_Stats.md §1).
 
 #include "core/commands/linkstats.hpp"
@@ -75,7 +75,7 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     const dpp::permission administrator(dpp::p_administrator);
     const dpp::permission moderator(dpp::p_manage_messages);
 
-    for (const std::string_view open : {"top", "user", "reactions", "duplicates", "alias list"}) {
+    for (const std::string_view open : {"top", "reactions", "duplicates", "alias list"}) {
         INFO(open);
         CHECK_FALSE(linkstats_refusal(open, nobody).has_value());
     }
@@ -235,15 +235,6 @@ TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
     CHECK(text.find("/linkstats recompute") != std::string::npos);
 }
 
-TEST_CASE("a profile shows received, given and self apart", "[commands]") {
-    const fixture test;
-    const std::string text = latibot::commands::render_profile(test.reactions, guild, alice, {.source = links_only});
-
-    CHECK(text.find("Reactions received: 2") != std::string::npos);
-    CHECK(text.find("Reactions given: 0") != std::string::npos);
-    CHECK(text.find("Reacted to their own links: 1 time\n") != std::string::npos);
-}
-
 TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
     const fixture test;
     const latibot::events::stat_query query{.kind = stat_kind::received,
@@ -324,6 +315,7 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
     report.attributed = 50;
     report.unattributed = 6;
     report.reactions = 789;
+    report.emote_reactions = 12;
     report.unparsed = {{.channel_id = dpp::snowflake{1}, .message_id = dpp::snowflake{111}},
                        {.channel_id = dpp::snowflake{2}, .message_id = dpp::snowflake{222}}};
     report.problems = {"could not read <#3>: Missing Access"};
@@ -331,6 +323,7 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
     const std::string text = latibot::commands::render_backfill(report, request, true);
     CHECK(text.starts_with("**Link stats recomputed since 2021-01-01 until 2021-12-31**"));
     CHECK(text.find("Messages scanned: 1234") != std::string::npos);
+    CHECK(text.find("Emotes sent as reactions: 12\n") != std::string::npos);
     CHECK(text.find("Replacements found: 56 (50 credited to whoever posted the link, 6 not)") != std::string::npos);
     // Linked, so a click shows each one.
     CHECK(text.find("Not understood: in no replacement format known: 2\n"
@@ -424,10 +417,11 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
     CHECK(state->view == latibot::commands::board_view);
     const auto decoded = latibot::commands::decode_board(state->argument);
     REQUIRE(decoded.has_value());
-    CHECK(decoded->first == board::received);
-    CHECK(decoded->second.emoji_key == "u:💀");
+    CHECK(decoded->which == board::received);
+    CHECK(decoded->query.emoji_key == "u:💀");
 
-    const dpp::message second = latibot::commands::render_board(test.reactions, guild, decoded->first, decoded->second, state->page);
+    const dpp::message second =
+        latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
     CHECK(second.content.find("Page 2 of 2") != std::string::npos);
     CHECK(second.content.find("11. ") != std::string::npos);
     CHECK(second.content.find("13. ") != std::string::npos);
@@ -447,12 +441,12 @@ TEST_CASE("a board's filters survive the trip through a button", "[commands]") {
 
     const auto unpacked = latibot::commands::decode_board(packed);
     REQUIRE(unpacked.has_value());
-    CHECK(unpacked->first == board::given);
-    CHECK(unpacked->second.kind == stat_kind::given);
-    CHECK(unpacked->second.emoji_key == "c:77");
-    CHECK(unpacked->second.domain == "x.com");
-    CHECK(unpacked->second.since == query.since);
-    CHECK(unpacked->second.until == query.until);
+    CHECK(unpacked->which == board::given);
+    CHECK(unpacked->query.kind == stat_kind::given);
+    CHECK(unpacked->query.emoji_key == "c:77");
+    CHECK(unpacked->query.domain == "x.com");
+    CHECK(unpacked->query.since == query.since);
+    CHECK(unpacked->query.until == query.until);
 
     CHECK_FALSE(latibot::commands::decode_board("nonsense").has_value());
     CHECK_FALSE(latibot::commands::decode_board("q;;;;").has_value());
@@ -600,10 +594,11 @@ TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
     REQUIRE(state.has_value());
     const auto decoded = latibot::commands::decode_board(state->argument);
     REQUIRE(decoded.has_value());
-    CHECK(decoded->first == board::emoji);
-    CHECK(decoded->second.user_id == alice);
+    CHECK(decoded->which == board::emoji);
+    CHECK(decoded->query.user_id == alice);
 
-    const dpp::message second = latibot::commands::render_board(test.reactions, guild, decoded->first, decoded->second, state->page);
+    const dpp::message second =
+        latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
     CHECK(second.content.find("Page 2 of 2") != std::string::npos);
     CHECK(second.content.find("32. ") != std::string::npos);
 }
@@ -611,8 +606,8 @@ TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
 TEST_CASE("a board's buttons from before people could be named still page", "[commands]") {
     const auto old = latibot::commands::decode_board("g;c:77;x.com;20089;");
     REQUIRE(old.has_value());
-    CHECK(old->first == board::given);
-    CHECK_FALSE(old->second.user_id.has_value());
+    CHECK(old->which == board::given);
+    CHECK_FALSE(old->query.user_id.has_value());
 
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;not-a-person").has_value());
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;;").has_value());
@@ -641,10 +636,6 @@ TEST_CASE("a board says what it counts: links, images, or both", "[commands]") {
                                                              {.kind = stat_kind::received, .domain = "x.com", .source = stat_source::both})
                                  .content;
     CHECK(site.starts_with("**Most reactions received on replaced x.com links**"));
-
-    const std::string profile = latibot::commands::render_profile(test.reactions, guild, alice, {.source = stat_source::both});
-    CHECK(profile.starts_with("**Link stats for <@11> on links and images**"));
-    CHECK(profile.find("Reacted to their own links and images: 1 time") != std::string::npos);
 }
 
 TEST_CASE("what a board counts survives the trip through a button", "[commands]") {
@@ -653,13 +644,13 @@ TEST_CASE("what a board counts survives the trip through a button", "[commands]"
         const auto decoded = latibot::commands::decode_board(
             latibot::commands::encode_board(board::emoji, {.kind = stat_kind::received, .user_id = alice, .source = source}));
         REQUIRE(decoded.has_value());
-        CHECK(decoded->second.source == source);
-        CHECK(decoded->second.user_id == alice);
+        CHECK(decoded->query.source == source);
+        CHECK(decoded->query.user_id == alice);
     }
 
     // Buttons from before images counted only links.
-    CHECK(latibot::commands::decode_board("r;;;;")->second.source == stat_source::links);
-    CHECK(latibot::commands::decode_board("e;;;;;11")->second.source == stat_source::links);
+    CHECK(latibot::commands::decode_board("r;;;;")->query.source == stat_source::links);
+    CHECK(latibot::commands::decode_board("e;;;;;11")->query.source == stat_source::links);
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;q").has_value());
 }
 
@@ -675,7 +666,7 @@ TEST_CASE("images are turned on per server, and the boards can ask for them", "[
     CHECK(images->options[0].name == "on");
     CHECK(images->options[1].name == "off");
 
-    for (const char* board_name : {"top", "user", "reactions"}) {
+    for (const char* board_name : {"top", "reactions"}) {
         INFO(board_name);
         const auto found = std::ranges::find(payload.options, std::string(board_name), &dpp::command_option::name);
         REQUIRE(found != payload.options.end());
@@ -711,4 +702,111 @@ TEST_CASE("a recompute that counts images says what it found", "[commands]") {
 
     request.images = false;
     CHECK(latibot::commands::render_backfill(report, request, true).find("Images") == std::string::npos);
+}
+
+// --------------------------------------------------------------------------
+// Page size
+// --------------------------------------------------------------------------
+
+TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[commands]") {
+    fixture test;
+    for (std::uint64_t index = 0; index < 30; ++index) {
+        test.reactions.add(dpp::snowflake{501}, bob, reaction_emoji(dpp::snowflake{900 + index}, std::format("e{}", index)), day_one);
+    }
+
+    const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
+    const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::emoji, alices, 0, 25);
+    CHECK(first.content.find("25. ") != std::string::npos);
+    CHECK(first.content.find("26. ") == std::string::npos);
+    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
+    REQUIRE(first.components.size() == 1);
+
+    const auto state = latibot::ui::decode(first.components[0].components[1].custom_id);
+    REQUIRE(state.has_value());
+    const auto decoded = latibot::commands::decode_board(state->argument);
+    REQUIRE(decoded.has_value());
+    CHECK(decoded->per_page == 25);
+
+    const dpp::message second =
+        latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
+    CHECK(second.content.find("26. ") != std::string::npos);
+    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
+
+    // All of them on one page: no buttons at all.
+    CHECK(latibot::commands::render_board(test.reactions, guild, board::emoji, alices, 0, 100).components.empty());
+}
+
+TEST_CASE("a page size is only as big as fits in a message", "[commands]") {
+    fixture test;
+    // 150 emojis with the longest names Discord allows.
+    for (std::uint64_t index = 0; index < 150; ++index) {
+        const std::string name = std::format("{:_<32}", std::format("emote{}", index));
+        test.reactions.add(dpp::snowflake{501}, bob, reaction_emoji(dpp::snowflake{1234567890123456000ULL + index}, name), day_one);
+    }
+    const latibot::events::stat_query everyone{.kind = stat_kind::received};
+
+    const std::size_t fits = latibot::commands::largest_page(test.reactions, guild, board::emoji, everyone, 100);
+    CHECK(fits > 20);
+    CHECK(fits < 100);
+    CHECK(latibot::commands::largest_page(test.reactions, guild, board::emoji, everyone, 5) == 5);
+
+    // Every page at that size fits.
+    for (int page = 0; page < 10; ++page) {
+        INFO("page " << page);
+        latibot::testing::check_message_fits(latibot::commands::render_board(test.reactions, guild, board::emoji, everyone, page, fits));
+    }
+
+    SECTION("and a page that has outgrown it shows what fits, and says so") {
+        const dpp::message crowded = latibot::commands::render_board(test.reactions, guild, board::emoji, everyone, 0, 100);
+        latibot::testing::check_message_fits(crowded);
+        CHECK(crowded.content.find("more that do not fit in a message_") != std::string::npos);
+        CHECK(crowded.content.ends_with("_Page 1 of 2_"));
+    }
+}
+
+TEST_CASE("a page size survives the trip through a button, and nothing else passes for one", "[commands]") {
+    const latibot::events::stat_query query{.kind = stat_kind::received, .user_id = alice, .source = latibot::events::stat_source::both};
+    CHECK(latibot::commands::decode_board(latibot::commands::encode_board(board::emoji, query, 60))->per_page == 60);
+    CHECK(latibot::commands::decode_board(latibot::commands::encode_board(board::emoji, query))->per_page == 0);
+
+    // Buttons from before the page size could be chosen.
+    CHECK(latibot::commands::decode_board("e;;;;;11;b")->per_page == 0);
+
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;b;0").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;b;201").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;b;ten").has_value());
+    CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;b;20;").has_value());
+
+    // The widest board, at the largest page size, still fits in a button.
+    const latibot::events::stat_query widest{.kind = stat_kind::given,
+                                             .emoji_key = "c:1234567890123456789",
+                                             .user_id = {},
+                                             .since = std::chrono::sys_days{std::chrono::year{2025} / 1 / 1},
+                                             .until = std::chrono::sys_days{std::chrono::year{2025} / 7 / 1},
+                                             .domain = std::string(latibot::commands::domain_length_limit, 'x')};
+    CHECK(latibot::ui::encode({.view = std::string(latibot::commands::board_view),
+                               .page = 999,
+                               .argument = latibot::commands::encode_board(board::given, widest, latibot::commands::max_page_size)})
+              .has_value());
+}
+
+TEST_CASE("top and reactions take a page size, and there is no user subcommand", "[commands]") {
+    fixture test;
+    const latibot::commands::linkstats_command command(test.reactions);
+    const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
+
+    // `/linkstats reactions user:` shows what it did, and more.
+    CHECK(std::ranges::find(payload.options, std::string("user"), &dpp::command_option::name) == payload.options.end());
+
+    for (const char* name : {"top", "reactions"}) {
+        INFO(name);
+        const auto found = std::ranges::find(payload.options, std::string(name), &dpp::command_option::name);
+        REQUIRE(found != payload.options.end());
+        const auto per_page = std::ranges::find(found->options, std::string("per_page"), &dpp::command_option::name);
+        REQUIRE(per_page != found->options.end());
+        CHECK(per_page->type == dpp::co_integer);
+        CHECK_FALSE(per_page->required);
+        CHECK(std::get<std::int64_t>(per_page->min_value) == 1);
+        CHECK(std::cmp_equal(std::get<std::int64_t>(per_page->max_value), latibot::commands::max_page_size));
+    }
 }

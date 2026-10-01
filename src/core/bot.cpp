@@ -195,6 +195,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       replacements_(database_),
       media_(replacements_, guild_settings_, clock_),
       reactions_(database_),
+      emotes_(replacements_, reactions_),
       backfill_progress_(database_),
       backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
       emoji_copies_(database_),
@@ -468,6 +469,9 @@ auto bot::register_events() -> void {
                            .from_person = !message.author.is_bot() && message.webhook_id.empty(),
                            .has_media = events::has_media(message),
                            .has_links = !util::find_links(message.content).empty()});
+        // Emotes sent as a message of their own after a post, which count
+        // as reactions to it (docs/features/Link_Stats.md §12).
+        if (!message.guild_id.empty()) emotes_.on_message(message.channel_id, events::as_emote_message(events::describe_history(message)));
     });
 
     // Discord adds link previews by updating the message a moment after it
@@ -478,10 +482,14 @@ auto bot::register_events() -> void {
     cluster_.on_message_update([this](const dpp::message_update_t& event) {
         const std::vector<std::string> urls = embed_urls_of(event.msg);
         carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
-        // The preview that shows a link was an image arrives here too.
-        media_.on_update(event.msg.id, events::has_media(event.msg));
+        // The preview that shows a link was an image arrives here too, and
+        // emotes already sent after it are counted then.
+        if (media_.on_update(event.msg.id, events::has_media(event.msg))) emotes_.on_post(event.msg.channel_id, event.msg.id);
     });
-    cluster_.on_message_delete([this](const dpp::message_delete_t& event) { embed_tracker_.forget(event.id); });
+    cluster_.on_message_delete([this](const dpp::message_delete_t& event) {
+        embed_tracker_.forget(event.id);
+        emotes_.on_delete(event.channel_id, event.id);
+    });
 
     // Reaction statistics (docs/features/Link_Stats.md §3). Every reaction in
     // every channel arrives here; the store counts the ones on our

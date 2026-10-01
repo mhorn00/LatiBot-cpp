@@ -33,17 +33,17 @@ struct page_state;
 
 namespace latibot::commands {
 
-/// How many places a leaderboard of people shows.
+/// How many places a leaderboard of people shows, unless `per_page` says.
 inline constexpr std::size_t leaderboard_size = 10;
 
-/// How many emojis a page of `/linkstats reactions` shows. More than a
-/// leaderboard, since a server's every emoji is a long list and each line is
-/// short.
+/// How many emojis a page of `/linkstats reactions` shows, unless `per_page`
+/// says. More than a leaderboard, since a server's every emoji is a long list
+/// and each line is short.
 inline constexpr std::size_t emoji_page_size = 20;
 
-/// How many emojis a profile lists per side: "your top 3 reactions"
-/// (docs/features/Link_Stats.md §1).
-inline constexpr std::size_t profile_emojis = 3;
+/// The most `per_page` takes. Whether that many fit in a message is checked
+/// when it is asked for (`largest_page`); this only keeps the option sane.
+inline constexpr std::size_t max_page_size = 200;
 
 /// A day typed as YYYY-MM-DD, in UTC. Nothing when it is not a real date.
 [[nodiscard]] auto parse_day(std::string_view text) -> std::optional<std::chrono::sys_days>;
@@ -84,25 +84,42 @@ inline constexpr std::string_view merge_everything = "*";
 /// sequences can still crowd it. Real sites are far shorter.
 inline constexpr std::uint32_t domain_length_limit = 40;
 
-/// A board's filters, packed into its buttons' custom_id so a page reached
-/// by paging is the same board: `r;<emoji>;<site>;<since>;<until>;<user>`,
-/// with the dates as days since 1970. Buttons sent before `<user>` existed
-/// have five fields, and still decode.
-[[nodiscard]] auto encode_board(board which, const events::stat_query& query) -> std::string;
-[[nodiscard]] auto decode_board(std::string_view argument) -> std::optional<std::pair<board, events::stat_query>>;
+/// How many a page of `which` holds when nobody said: `leaderboard_size`
+/// people or `emoji_page_size` emojis.
+[[nodiscard]] auto default_page_size(board which) -> std::size_t;
 
-/// `/linkstats top` or `/linkstats reactions`, at `page`, with ◀ / ▶ when
-/// there is more than one.
+/// A board as its buttons remember it.
+struct board_spec {
+    board which = board::received;
+    events::stat_query query;
+
+    /// How many to a page; 0 for `default_page_size`.
+    std::size_t per_page = 0;
+};
+
+/// A board's filters, packed into its buttons' custom_id so a page reached
+/// by paging is the same board:
+/// `r;<emoji>;<site>;<since>;<until>;<user>;<source>;<per page>`, with the
+/// dates as days since 1970. Buttons sent before the last three existed
+/// have five to seven fields, and still decode.
+[[nodiscard]] auto encode_board(board which, const events::stat_query& query, std::size_t per_page = 0) -> std::string;
+[[nodiscard]] auto decode_board(std::string_view argument) -> std::optional<board_spec>;
+
+/// `/linkstats top` or `/linkstats reactions`, at `page`, `per_page` to a
+/// page (0 for `default_page_size`), with ◀ / ▶ when there is more than one.
 ///
 /// Public, and anybody can page it, the way `/nicknames` works: a
 /// leaderboard is something a room reads together. An emoji board with
-/// `query.user_id` set is one person's reactions.
+/// `query.user_id` set is one person's reactions. A page that has outgrown
+/// a message since its size was checked shows what fits and says so.
 [[nodiscard]] auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
-                                int page = 0) -> dpp::message;
+                                int page = 0, std::size_t per_page = 0) -> dpp::message;
 
-/// `/linkstats user`: received, given and self-reactions for one person.
-[[nodiscard]] auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id,
-                                  const events::stat_query& window) -> std::string;
+/// The most to a page, up to `wanted`, with which every page of the board
+/// fits in a message of Discord's 2,000 characters. 0 when not even one
+/// does.
+[[nodiscard]] auto largest_page(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
+                                std::size_t wanted) -> std::size_t;
 
 /// `/linkstats duplicates`: one group of custom emojis whose names look
 /// alike (`events::names_look_alike`) per page.
@@ -165,8 +182,8 @@ struct recompute_support {
     std::function<dpp::snowflake()> bot_id;
 };
 
-/// `/linkstats top | user | reactions | duplicates | alias … | recompute … |
-/// images …` (docs/features/Link_Stats.md §1).
+/// `/linkstats top | reactions | duplicates | alias … | recompute … | images …`
+/// (docs/features/Link_Stats.md §1).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// which `linkstats_refusal` decides before any subcommand runs.
@@ -188,7 +205,6 @@ public:
 
 private:
     auto top(const dpp::slashcommand_t& event) -> dpp::task<void>;
-    auto user(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto reactions(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto alias(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void>;
     auto recompute(const dpp::slashcommand_t& event, std::string_view subcommand) -> dpp::task<void>;
@@ -202,6 +218,11 @@ private:
     /// The `source` option, or when it is left out, both where images are
     /// counted and links alone where they are not.
     [[nodiscard]] auto source_for(const dpp::slashcommand_t& event) const -> events::stat_source;
+
+    /// The `per_page` option into `per_page`, 0 when it was left out. Says
+    /// why not when that many to a page would not fit in a message.
+    [[nodiscard]] auto read_page_size(const dpp::slashcommand_t& event, board which, const events::stat_query& query,
+                                      std::size_t& per_page) const -> std::optional<std::string>;
 
     command_info info_;
     events::reaction_store* store_;

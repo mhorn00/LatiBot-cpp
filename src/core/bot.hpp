@@ -19,6 +19,7 @@
 #include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/emoji_copies.hpp"
+#include "core/events/emote_reactions.hpp"
 #include "core/events/log_channel.hpp"
 #include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
@@ -208,6 +209,7 @@ private:
     events::replacement_store replacements_;
     events::media_tracker media_;
     events::reaction_store reactions_;
+    events::emote_tracker emotes_;
     events::backfill_progress_store backfill_progress_;
     events::backfill_service backfill_;
     events::emoji_copy_store emoji_copies_;

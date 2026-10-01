@@ -897,15 +897,22 @@ people post in a server that counts them. See
 The views answer **publicly**, and nobody is pinged by appearing in one.
 `duplicates` answers privately.
 
-`top`, `user` and `reactions` also take `source`: **Links and images**,
+`top` and `reactions` also take `source`: **Links and images**,
 **Replaced links**, or **Images and videos**. Left out, it is links and images
 in a server that counts images, and links alone in one that does not. Titles
 say which: "on replaced links", "on images", "on links and images". A
 `domain` means links alone, since an image has no site.
 
+Both take `per_page` too, from 1 to 200: how many people or emojis a page
+shows. A number whose pages would not fit in one Discord message (2,000
+characters) is **refused privately**, saying the most that fits, so `100` works
+for a list of short Unicode emojis and not for one of long custom emoji names.
+The ◀ / ▶ buttons keep the size.
+
 #### `/linkstats top`
 
-A leaderboard, ten a page with ◀ / ▶ that anybody can use.
+A leaderboard, ten a page (twenty for **Most used emojis**) with ◀ / ▶ that
+anybody can use.
 
 | Option | Meaning |
 |---|---|
@@ -913,23 +920,12 @@ A leaderboard, ten a page with ◀ / ▶ that anybody can use.
 | `emoji` | Only this emoji. Autocompleted from the ones used here; typing a name like `skull` also works |
 | `since` / `until` | `YYYY-MM-DD`, in UTC. `until` includes the day typed |
 | `domain` | Only links to this site. Autocompleted |
+| `per_page` | How many to a page |
 
 ```
 Most 💀 received on replaced x.com links since 2025-01-01
 1. @worm 42
 2. @latios 17
-```
-
-#### `/linkstats user`
-
-One person — you, unless `user` names somebody — with the same date and site
-filters:
-
-```
-Link stats for @worm
-Reactions received: 120 (💀 40, 😂 30, 🔥 12)
-Reactions given: 80 (💀 25, 😭 20, 👀 9)
-Reacted to their own links: 5 times
 ```
 
 #### `/linkstats reactions`
@@ -942,6 +938,7 @@ and different emojis there are in all.
 | `user` | Only this person's. Everyone's if left out |
 | `side` | **Reactions received** (default), or **Reactions given** |
 | `since` / `until` / `domain` | As for `top` |
+| `per_page` | How many emojis to a page |
 
 ```
 Reactions @worm received on replaced links
@@ -953,7 +950,8 @@ Reactions @worm received on replaced links
 
 Received counts the reactions on links somebody posted, leaving out their own.
 Given counts every reaction somebody added, apart from on their own links,
-including on replacements nobody could be credited with.
+including on replacements nobody could be credited with. What one person
+reacted to their own links is `top by:Reactions to your own links`.
 
 #### `/linkstats duplicates`
 
@@ -996,15 +994,17 @@ reactions rather than from the day the bot began counting.
 | `cancel` | none |
 
 In a server that counts images, it also finds the images and videos people
-posted, and their reactions.
+posted, and their reactions. Everywhere, it also counts the
+[emotes sent as reactions](#reaction-statistics) after each post, from the
+messages it reads anyway.
 
 It replies `Started. Progress goes in this channel.` and posts a progress
 message there, updated every five hundred messages; an interaction's reply
 stops being editable after fifteen minutes, and a recompute can take hours.
 The finished message reports channels, messages scanned, replacements found,
 how many were credited to whoever posted the link and how many were not, any
-webhook replacements skipped, reactions recorded, any old mirrors it
-recognised, and any channel it could not read. Messages worth a look — ones it
+webhook replacements skipped, reactions recorded, emotes sent as reactions,
+any old mirrors it recognised, and any channel it could not read. Messages worth a look — ones it
 did not understand, ones it would not credit, ones whose reactions it could not
 read — are **linked**, so a click jumps to each.
 
@@ -1391,6 +1391,19 @@ keyboard typed it. Custom emojis that should count as one can be merged with
 **Images.** In a server that has run [`/linkstats images on`](#linkstats-images),
 people's own image and video posts are counted the same three ways, credited
 to whoever posted them.
+
+**Emotes as reactions.** Some emotes get sent as a message of their own just
+after a post rather than as a reaction to it. Those count as reactions too:
+
+- a message of **nothing but emojis**, custom or Unicode, that is somebody's
+  **first message** after a replacement or an image post, within the next 25
+  messages and before the next such post;
+- a **reply** to the post that is nothing but emojis, however much later.
+
+Each different emoji in the message counts once. Somebody who both reacted
+with an emoji and sent it is counted once for it. A message that is a reply to
+something else, or has any words, a mention, a file or a sticker in it, does
+not count. Deleting the message takes its emotes back off the count.
 
 **Emoji copies.** The bot keeps its own copy of every custom emoji used here,
 as an emoji its application owns, so the statistics can still show an emote

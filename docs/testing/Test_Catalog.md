@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-873 test cases across 12 components, including 178 sections.
+892 test cases across 12 components, including 181 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 147 | 19 |
+| [db](#db) | 155 | 21 |
 | [config](#config) | 36 | 19 |
-| [commands](#commands) | 195 | 54 |
-| [events](#events) | 188 | 40 |
+| [commands](#commands) | 198 | 55 |
+| [events](#events) | 196 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
@@ -62,6 +62,14 @@ Database (`src/core/db`)
 | raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:306](../../tests/db/emoji_copies_test.cpp#L306) |
 | with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:324](../../tests/db/emoji_copies_test.cpp#L324) |
 | the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:333](../../tests/db/emoji_copies_test.cpp#L333) |
+| an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [tests/db/emote_reactions_test.cpp:190](../../tests/db/emote_reactions_test.cpp#L190) |
+| an emote is dated by the message it was sent in |  |  | [tests/db/emote_reactions_test.cpp:221](../../tests/db/emote_reactions_test.cpp#L221) |
+| a recompute's emotes replace what was there, but not what it did not read |  |  | [tests/db/emote_reactions_test.cpp:231](../../tests/db/emote_reactions_test.cpp#L231) |
+| emotes after a post are counted as they arrive |  |  | [tests/db/emote_reactions_test.cpp:257](../../tests/db/emote_reactions_test.cpp#L257) |
+| the next post, or 25 messages, ends a post's window |  | 2 | [tests/db/emote_reactions_test.cpp:277](../../tests/db/emote_reactions_test.cpp#L277) |
+| a reply to a post is counted however late it comes |  |  | [tests/db/emote_reactions_test.cpp:302](../../tests/db/emote_reactions_test.cpp#L302) |
+| a link shown to be an image later counts the emotes sent before that |  |  | [tests/db/emote_reactions_test.cpp:316](../../tests/db/emote_reactions_test.cpp#L316) |
+| a deleted message is no longer counted as a reaction |  |  | [tests/db/emote_reactions_test.cpp:327](../../tests/db/emote_reactions_test.cpp#L327) |
 | a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:51](../../tests/db/llm_store_test.cpp#L51) |
 | reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:70](../../tests/db/llm_store_test.cpp#L70) |
 | a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:94](../../tests/db/llm_store_test.cpp#L94) |
@@ -269,25 +277,28 @@ Command framework (`src/core/commands`)
 | the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:210](../../tests/unit/linkstats_command_test.cpp#L210) |
 | the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:222](../../tests/unit/linkstats_command_test.cpp#L222) |
 | an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:231](../../tests/unit/linkstats_command_test.cpp#L231) |
-| a profile shows received, given and self apart |  |  | [tests/unit/linkstats_command_test.cpp:238](../../tests/unit/linkstats_command_test.cpp#L238) |
-| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:247](../../tests/unit/linkstats_command_test.cpp#L247) |
-| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:256](../../tests/unit/linkstats_command_test.cpp#L256) |
-| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:272](../../tests/unit/linkstats_command_test.cpp#L272) |
-| the longest site filter still leaves room for a board's paging |  |  | [tests/unit/linkstats_command_test.cpp:285](../../tests/unit/linkstats_command_test.cpp#L285) |
-| a recompute's report says what it found and what it could not read |  | 3 | [tests/unit/linkstats_command_test.cpp:311](../../tests/unit/linkstats_command_test.cpp#L311) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:377](../../tests/unit/linkstats_command_test.cpp#L377) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:396](../../tests/unit/linkstats_command_test.cpp#L396) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:437](../../tests/unit/linkstats_command_test.cpp#L437) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:462](../../tests/unit/linkstats_command_test.cpp#L462) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:485](../../tests/unit/linkstats_command_test.cpp#L485) |
-| a finished recompute is answered with a ping to whoever started it |  | 3 | [tests/unit/linkstats_command_test.cpp:493](../../tests/unit/linkstats_command_test.cpp#L493) |
-| every reaction, by emoji, for everyone or for one person |  | 3 | [tests/unit/linkstats_command_test.cpp:543](../../tests/unit/linkstats_command_test.cpp#L543) |
-| a page of one person's reactions stays theirs |  |  | [tests/unit/linkstats_command_test.cpp:584](../../tests/unit/linkstats_command_test.cpp#L584) |
-| a board's buttons from before people could be named still page |  |  | [tests/unit/linkstats_command_test.cpp:611](../../tests/unit/linkstats_command_test.cpp#L611) |
-| a board says what it counts: links, images, or both |  |  | [tests/unit/linkstats_command_test.cpp:625](../../tests/unit/linkstats_command_test.cpp#L625) |
-| what a board counts survives the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:650](../../tests/unit/linkstats_command_test.cpp#L650) |
-| images are turned on per server, and the boards can ask for them |  |  | [tests/unit/linkstats_command_test.cpp:666](../../tests/unit/linkstats_command_test.cpp#L666) |
-| a recompute that counts images says what it found |  |  | [tests/unit/linkstats_command_test.cpp:691](../../tests/unit/linkstats_command_test.cpp#L691) |
+| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:238](../../tests/unit/linkstats_command_test.cpp#L238) |
+| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:247](../../tests/unit/linkstats_command_test.cpp#L247) |
+| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:263](../../tests/unit/linkstats_command_test.cpp#L263) |
+| the longest site filter still leaves room for a board's paging |  |  | [tests/unit/linkstats_command_test.cpp:276](../../tests/unit/linkstats_command_test.cpp#L276) |
+| a recompute's report says what it found and what it could not read |  | 3 | [tests/unit/linkstats_command_test.cpp:302](../../tests/unit/linkstats_command_test.cpp#L302) |
+| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:370](../../tests/unit/linkstats_command_test.cpp#L370) |
+| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:389](../../tests/unit/linkstats_command_test.cpp#L389) |
+| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:431](../../tests/unit/linkstats_command_test.cpp#L431) |
+| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:456](../../tests/unit/linkstats_command_test.cpp#L456) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:479](../../tests/unit/linkstats_command_test.cpp#L479) |
+| a finished recompute is answered with a ping to whoever started it |  | 3 | [tests/unit/linkstats_command_test.cpp:487](../../tests/unit/linkstats_command_test.cpp#L487) |
+| every reaction, by emoji, for everyone or for one person |  | 3 | [tests/unit/linkstats_command_test.cpp:537](../../tests/unit/linkstats_command_test.cpp#L537) |
+| a page of one person's reactions stays theirs |  |  | [tests/unit/linkstats_command_test.cpp:578](../../tests/unit/linkstats_command_test.cpp#L578) |
+| a board's buttons from before people could be named still page |  |  | [tests/unit/linkstats_command_test.cpp:606](../../tests/unit/linkstats_command_test.cpp#L606) |
+| a board says what it counts: links, images, or both |  |  | [tests/unit/linkstats_command_test.cpp:620](../../tests/unit/linkstats_command_test.cpp#L620) |
+| what a board counts survives the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:641](../../tests/unit/linkstats_command_test.cpp#L641) |
+| images are turned on per server, and the boards can ask for them |  |  | [tests/unit/linkstats_command_test.cpp:657](../../tests/unit/linkstats_command_test.cpp#L657) |
+| a recompute that counts images says what it found |  |  | [tests/unit/linkstats_command_test.cpp:682](../../tests/unit/linkstats_command_test.cpp#L682) |
+| per_page sets how many to a page, and the buttons remember it |  |  | [tests/unit/linkstats_command_test.cpp:711](../../tests/unit/linkstats_command_test.cpp#L711) |
+| a page size is only as big as fits in a message |  | 1 | [tests/unit/linkstats_command_test.cpp:739](../../tests/unit/linkstats_command_test.cpp#L739) |
+| a page size survives the trip through a button, and nothing else passes for one |  |  | [tests/unit/linkstats_command_test.cpp:767](../../tests/unit/linkstats_command_test.cpp#L767) |
+| top and reactions take a page size, and there is no user subcommand |  |  | [tests/unit/linkstats_command_test.cpp:793](../../tests/unit/linkstats_command_test.cpp#L793) |
 | the personality is open to everyone until an admin narrows it to a role |  |  | [tests/unit/llm_command_test.cpp:67](../../tests/unit/llm_command_test.cpp#L67) |
 | a document is cut into form parts between lines, and joins back the same |  |  | [tests/unit/llm_command_test.cpp:78](../../tests/unit/llm_command_test.cpp#L78) |
 | a document too long for a form has no form, and a line longer than a part is cut |  |  | [tests/unit/llm_command_test.cpp:98](../../tests/unit/llm_command_test.cpp#L98) |
@@ -445,9 +456,17 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | the bot's own links are not replacements unless they answered one | `coro` | 3 | [tests/db/backfill_test.cpp:345](../../tests/db/backfill_test.cpp#L345) |
 | where images are counted, a recompute finds them and their reactions | `coro` |  | [tests/db/backfill_test.cpp:404](../../tests/db/backfill_test.cpp#L404) |
 | where images are not counted, a recompute leaves them alone | `coro` |  | [tests/db/backfill_test.cpp:432](../../tests/db/backfill_test.cpp#L432) |
+| a recompute counts emotes sent after a replacement as reactions to it | `coro` |  | [tests/db/backfill_test.cpp:461](../../tests/db/backfill_test.cpp#L461) |
+| the messages after a post are carried across a page of history | `coro` |  | [tests/db/backfill_test.cpp:491](../../tests/db/backfill_test.cpp#L491) |
 | a GIF moves when it has more than one frame |  |  | [tests/db/emoji_copies_test.cpp:91](../../tests/db/emoji_copies_test.cpp#L91) |
 | images are told apart by their SHA-256 |  |  | [tests/db/emoji_copies_test.cpp:97](../../tests/db/emoji_copies_test.cpp#L97) |
 | a copy's name is one Discord accepts |  |  | [tests/db/emoji_copies_test.cpp:102](../../tests/db/emoji_copies_test.cpp#L102) |
+| a message of nothing but emojis is read as its emojis |  |  | [tests/db/emote_reactions_test.cpp:96](../../tests/db/emote_reactions_test.cpp#L96) |
+| joined emojis, skin tones, flags and keycaps are one emoji each |  |  | [tests/db/emote_reactions_test.cpp:112](../../tests/db/emote_reactions_test.cpp#L112) |
+| anything else in a message makes it not a reaction |  |  | [tests/db/emote_reactions_test.cpp:129](../../tests/db/emote_reactions_test.cpp#L129) |
+| each person's first message after a post counts, when it is all emotes |  |  | [tests/db/emote_reactions_test.cpp:141](../../tests/db/emote_reactions_test.cpp#L141) |
+| only the first 25 messages after a post are looked at |  |  | [tests/db/emote_reactions_test.cpp:154](../../tests/db/emote_reactions_test.cpp#L154) |
+| a reply to the post counts wherever it is, and a reply to anything else does not |  |  | [tests/db/emote_reactions_test.cpp:169](../../tests/db/emote_reactions_test.cpp#L169) |
 | an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:89](../../tests/db/media_posts_test.cpp#L89) |
 | only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:102](../../tests/db/media_posts_test.cpp#L102) |
 | a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:114](../../tests/db/media_posts_test.cpp#L114) |

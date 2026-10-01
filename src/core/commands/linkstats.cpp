@@ -75,15 +75,6 @@ auto read_window(const dpp::slashcommand_t& event, events::stat_query& query) ->
     return std::nullopt;
 }
 
-auto emoji_list(std::span<const events::emoji_tally> tallies) -> std::string {
-    std::string text;
-    for (const events::emoji_tally& tally : tallies) {
-        if (!text.empty()) text += ", ";
-        text += std::format("{} {}", events::display_emoji(tally.emoji), tally.count);
-    }
-    return text;
-}
-
 auto date_option(const char* name, const char* description) -> dpp::command_option {
     return dpp::command_option(dpp::co_string, name, description, false).set_max_length(10);
 }
@@ -104,6 +95,12 @@ auto source_option() -> dpp::command_option {
 
 auto emoji_option(const char* name, const char* description, bool required) -> dpp::command_option {
     return dpp::command_option(dpp::co_string, name, description, required).set_auto_complete(true).set_max_length(100);
+}
+
+auto page_size_option(const char* description) -> dpp::command_option {
+    return dpp::command_option(dpp::co_integer, "per_page", description, false)
+        .set_min_value(1)
+        .set_max_value(static_cast<std::int64_t>(max_page_size));
 }
 
 } // namespace
@@ -250,6 +247,12 @@ auto whole_number(std::string_view text) -> std::optional<std::int64_t> {
     return value;
 }
 
+/// Discord's limit on a message, in characters.
+constexpr std::size_t message_limit = 2000;
+
+/// Kept for "…and 12 more that do not fit" when a page has outgrown that.
+constexpr std::size_t cut_note_room = 60;
+
 auto board_title(const events::reaction_store& store, board which, const events::stat_query& query) -> std::string {
     const std::string emoji = query.emoji_key ? events::display_emoji(store.describe(*query.emoji_key)) + " " : std::string("reactions ");
     const std::string posts = posts_counted(query);
@@ -275,23 +278,75 @@ auto board_title(const events::reaction_store& store, board which, const events:
     return std::format("Most {}received on {}{}", emoji, posts, window);
 }
 
+/// How many people or emojis a board has, for paging it.
+auto board_total(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query)
+    -> std::size_t {
+    return static_cast<std::size_t>(
+        std::max<std::int64_t>(0, is_emoji_board(which) ? store.emojis(guild_id, query) : store.people(guild_id, query)));
+}
+
+/// What every page starts with: the title, and on an emoji board how many in
+/// all, since that is the one number a list of emojis does not show.
+auto board_header(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
+                  std::size_t total) -> std::string {
+    std::string text = std::format("**{}**\n", board_title(store, which, query));
+    if (is_emoji_board(which) && total > 0) {
+        const std::int64_t reactions = store.total(guild_id, query);
+        text +=
+            std::format("_{} reaction{} with {} different emoji{}_\n", reactions, reactions == 1 ? "" : "s", total, total == 1 ? "" : "s");
+    }
+    return text;
+}
+
+/// `count` places from `offset`, a line each, numbered from 1.
+auto board_lines(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
+                 std::size_t count, std::size_t offset) -> std::vector<std::string> {
+    std::vector<std::string> lines;
+    std::size_t place = offset;
+    if (is_emoji_board(which)) {
+        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, count, offset)) {
+            lines.push_back(std::format("{}. {} {}\n", ++place, events::display_emoji(tally.emoji), tally.count));
+        }
+    } else {
+        for (const events::person_tally& tally : store.leaderboard(guild_id, query, count, offset)) {
+            lines.push_back(std::format("{}. <@{}> {}\n", ++place, tally.user_id, tally.count));
+        }
+    }
+    return lines;
+}
+
+/// "Page 2 of 7" under a board with more than one page.
+auto board_footer(int page, std::size_t total, std::size_t per_page) -> std::string {
+    return total > per_page ? std::format("\n_{}_", ui::page_label(page, total, per_page)) : std::string{};
+}
+
+/// A board's `per_page`, or its own when that is 0.
+auto page_size_or_default(board which, std::size_t per_page) -> std::size_t {
+    return per_page == 0 ? default_page_size(which) : per_page;
+}
+
 } // namespace
 
-auto encode_board(board which, const events::stat_query& query) -> std::string {
+auto default_page_size(board which) -> std::size_t {
+    return is_emoji_board(which) ? emoji_page_size : leaderboard_size;
+}
+
+auto encode_board(board which, const events::stat_query& query, std::size_t per_page) -> std::string {
     const auto day = [](const std::optional<std::chrono::sys_seconds>& when) {
         return when ? std::to_string(std::chrono::floor<std::chrono::days>(*when).time_since_epoch().count()) : std::string{};
     };
-    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}{0}{7}", board_separator, board_letter(which),
+    return std::format("{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}{0}{7}{0}{8}", board_separator, board_letter(which),
                        query.emoji_key.value_or(std::string{}), query.domain.value_or(std::string{}), day(query.since), day(query.until),
-                       query.user_id ? query.user_id->str() : std::string{}, source_letter(query.source));
+                       query.user_id ? query.user_id->str() : std::string{}, source_letter(query.source),
+                       per_page == 0 ? std::string{} : std::to_string(per_page));
 }
 
-auto decode_board(std::string_view argument) -> std::optional<std::pair<board, events::stat_query>> {
-    // Split on ';' into the seven fields `encode_board` writes: board
-    // letter, emoji key, site, since, until, person and kind of post. Five
-    // or six are buttons sent before the last ones were added, which only
-    // ever counted links. Anything else was not made here and is refused
-    // whole.
+auto decode_board(std::string_view argument) -> std::optional<board_spec> {
+    // Split on ';' into the eight fields `encode_board` writes: board
+    // letter, emoji key, site, since, until, person, kind of post and page
+    // size. Five to seven are buttons sent before the last ones were added;
+    // those before the kind of post only ever counted links. Anything else
+    // was not made here and is refused whole.
     std::vector<std::string_view> fields;
     while (true) {
         const std::size_t cut = argument.find(board_separator);
@@ -299,7 +354,7 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (cut == std::string_view::npos) break;
         argument.remove_prefix(cut + 1);
     }
-    if (fields.size() < 5 || fields.size() > 7 || fields[0].size() != 1) return std::nullopt;
+    if (fields.size() < 5 || fields.size() > 8 || fields[0].size() != 1) return std::nullopt;
 
     board which = board::received;
     switch (fields[0].front()) {
@@ -336,7 +391,7 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
         if (!query.user_id) return std::nullopt;
     }
     query.source = events::stat_source::links;
-    if (fields.size() == 7) {
+    if (fields.size() >= 7) {
         if (fields[6] == "b") {
             query.source = events::stat_source::both;
         } else if (fields[6] == "i") {
@@ -345,76 +400,84 @@ auto decode_board(std::string_view argument) -> std::optional<std::pair<board, e
             return std::nullopt;
         }
     }
-    return std::pair{which, query};
+
+    std::size_t per_page = 0;
+    if (fields.size() == 8 && !fields[7].empty()) {
+        const auto size = whole_number(fields[7]);
+        if (!size || *size < 1 || std::cmp_greater(*size, max_page_size)) return std::nullopt;
+        per_page = static_cast<std::size_t>(*size);
+    }
+    return board_spec{.which = which, .query = query, .per_page = per_page};
 }
 
-auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query, int page)
-    -> dpp::message {
-    const bool by_emoji = is_emoji_board(which);
-    const std::size_t per_page = by_emoji ? emoji_page_size : leaderboard_size;
-    const auto total =
-        static_cast<std::size_t>(std::max<std::int64_t>(0, by_emoji ? store.emojis(guild_id, query) : store.people(guild_id, query)));
-    const int current = ui::clamp_page(page, total, per_page);
-    const ui::page_range window = ui::range_for(current, total, per_page);
+auto render_board(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query, int page,
+                  std::size_t per_page) -> dpp::message {
+    const std::size_t size = page_size_or_default(which, per_page);
+    const std::size_t total = board_total(store, guild_id, which, query);
+    const int current = ui::clamp_page(page, total, size);
+    const ui::page_range window = ui::range_for(current, total, size);
 
-    std::string text = std::format("**{}**\n", board_title(store, which, query));
-    std::size_t place = window.begin;
+    std::string text = board_header(store, guild_id, which, query, total);
+    const std::string footer = board_footer(current, total, size);
 
-    if (by_emoji) {
-        // How many in all, since that is the one number a list of emojis
-        // does not show.
-        if (total > 0) {
-            const std::int64_t reactions = store.total(guild_id, query);
-            text += std::format("_{} reaction{} with {} different emoji{}_\n", reactions, reactions == 1 ? "" : "s", total,
-                                total == 1 ? "" : "s");
-        }
-        for (const events::emoji_tally& tally : store.emoji_breakdown(guild_id, query, per_page, window.begin)) {
-            text += std::format("{}. {} {}\n", ++place, events::display_emoji(tally.emoji), tally.count);
-        }
-    } else {
-        for (const events::person_tally& tally : store.leaderboard(guild_id, query, per_page, window.begin)) {
-            text += std::format("{}. <@{}> {}\n", ++place, tally.user_id, tally.count);
-        }
+    // Every line, unless the board has grown since its page size was
+    // checked (a longer name, a bigger number): then as many as fit beside
+    // a note of how many did not.
+    const std::vector<std::string> lines = board_lines(store, guild_id, which, query, size, window.begin);
+    std::size_t used = util::character_count(text) + util::character_count(footer);
+    std::size_t needed = used;
+    for (const std::string& line : lines) {
+        needed += util::character_count(line);
     }
+    const std::size_t room = needed <= message_limit ? message_limit : message_limit - cut_note_room;
+    std::size_t shown = 0;
+    while (shown < lines.size() && used + util::character_count(lines[shown]) <= room) {
+        used += util::character_count(lines[shown]);
+        text += lines[shown++];
+    }
+    if (shown < lines.size()) text += std::format("_…and {} more that do not fit in a message_\n", lines.size() - shown);
 
     if (total == 0) {
         text +=
             "Nothing counted yet. Reactions are counted from when the bot first saw them; `/linkstats recompute` fills in "
             "older ones.";
-    } else if (total > per_page) {
-        text += std::format("\n_{}_", ui::page_label(current, total, per_page));
     }
+    text += footer;
 
     dpp::message reply(text);
-    if (const auto row =
-            ui::controls({.view = std::string(board_view), .page = current, .argument = encode_board(which, query)}, total, per_page)) {
+    if (const auto row = ui::controls({.view = std::string(board_view), .page = current, .argument = encode_board(which, query, per_page)},
+                                      total, size)) {
         reply.add_component(*row);
     }
     return reply;
 }
 
-auto render_profile(const events::reaction_store& store, dpp::snowflake guild_id, dpp::snowflake user_id, const events::stat_query& window)
-    -> std::string {
-    events::stat_query query = window;
-    query.user_id = user_id;
+auto largest_page(const events::reaction_store& store, dpp::snowflake guild_id, board which, const events::stat_query& query,
+                  std::size_t wanted) -> std::size_t {
+    const std::size_t total = board_total(store, guild_id, which, query);
+    if (total == 0) return wanted;
 
-    query.kind = events::stat_kind::received;
-    const std::int64_t received = store.total(guild_id, query);
-    const auto received_top = store.emoji_breakdown(guild_id, query, profile_emojis);
+    // Every line once, measured, then each page size tried from the one
+    // asked for down: a page is its header, its lines and its footer.
+    const std::size_t header = util::character_count(board_header(store, guild_id, which, query, total));
+    std::vector<std::size_t> lengths;
+    for (const std::string& line : board_lines(store, guild_id, which, query, total, 0)) {
+        lengths.push_back(util::character_count(line));
+    }
 
-    query.kind = events::stat_kind::given;
-    const std::int64_t given = store.total(guild_id, query);
-    const auto given_top = store.emoji_breakdown(guild_id, query, profile_emojis);
-
-    query.kind = events::stat_kind::self;
-    const std::int64_t self = store.total(guild_id, query);
-
-    std::string text = std::format("**Link stats for <@{}> on {}{}**\n", user_id, posts_counted(window), describe_window(window));
-    text += std::format("Reactions received: {}{}\n", received, received_top.empty() ? "" : " (" + emoji_list(received_top) + ")");
-    text += std::format("Reactions given: {}{}\n", given, given_top.empty() ? "" : " (" + emoji_list(given_top) + ")");
-    text += std::format("Reacted to {}: {} time{}\n", own_posts(window), self, self == 1 ? "" : "s");
-    text += "_`/linkstats reactions` lists every emoji, for one person or for everyone._\n";
-    return text;
+    for (std::size_t size = wanted; size > 0; --size) {
+        bool fits = true;
+        for (std::size_t begin = 0; fits && begin < lengths.size(); begin += size) {
+            const int page = static_cast<int>(begin / size);
+            std::size_t length = header + util::character_count(board_footer(page, total, size));
+            for (std::size_t index = begin; index < std::min(begin + size, lengths.size()); ++index) {
+                length += lengths[index];
+            }
+            fits = length <= message_limit;
+        }
+        if (fits) return size;
+    }
+    return 0;
 }
 
 namespace {
@@ -578,7 +641,7 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
         // stale as a view it does not know.
         const auto board = decode_board(state.argument);
         if (!board) return false;
-        ui::update_panel(event, render_board(store, guild, board->first, board->second, state.page));
+        ui::update_panel(event, render_board(store, guild, board->which, board->query, state.page, board->per_page));
         return true;
     }
 
@@ -606,7 +669,7 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
 
 auto render_aliases(const events::reaction_store& store, dpp::snowflake guild_id) -> std::string {
     const auto aliases = store.aliases(guild_id);
-    if (aliases.empty()) return "No emoji aliases here. `/linkstats emojis` lists likely candidates.";
+    if (aliases.empty()) return "No emoji aliases here. `/linkstats duplicates` lists likely candidates.";
 
     std::string text = "**Emoji aliases**\n";
     for (const events::emoji_alias& alias : aliases) {
@@ -674,6 +737,7 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
     if (request.images) {
         text += std::format("Images and videos found: {}, with {} reactions\n", report.images, report.image_reactions);
     }
+    text += std::format("Emotes sent as reactions: {}\n", report.emote_reactions);
 
     if (!report.learned_mirrors.empty()) {
         // Mirrors no rule remembered, found by what they answered.
@@ -798,13 +862,7 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     top.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     top.add_option(domain_option());
     top.add_option(source_option());
-
-    dpp::command_option user(dpp::co_sub_command, "user", "One person's reactions, received and given.");
-    user.add_option(dpp::command_option(dpp::co_user, "user", "You, if left out.", false));
-    user.add_option(date_option("since", "From this day, YYYY-MM-DD."));
-    user.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
-    user.add_option(domain_option());
-    user.add_option(source_option());
+    top.add_option(page_size_option("How many to a page: 10 people, or 20 emojis, if left out."));
 
     dpp::command_option side(dpp::co_string, "side", "Received if left out.", false);
     side.add_choice(dpp::command_option_choice("Reactions received", std::string("received")));
@@ -817,6 +875,7 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     reactions.add_option(date_option("until", "Up to and including this day, YYYY-MM-DD."));
     reactions.add_option(domain_option());
     reactions.add_option(source_option());
+    reactions.add_option(page_size_option("How many emojis to a page: 20 if left out."));
 
     const dpp::command_option duplicates(dpp::co_sub_command, "duplicates",
                                          "Custom emojis with the same or nearly the same name, to merge into one.");
@@ -850,7 +909,6 @@ auto linkstats_command::build(const std::string& name, dpp::snowflake applicatio
     recompute.add_option(cancel);
 
     payload.add_option(top);
-    payload.add_option(user);
     payload.add_option(reactions);
     payload.add_option(duplicates);
     dpp::command_option images(dpp::co_sub_command_group, "images", "Count reactions on the images and videos people post, too.");
@@ -930,8 +988,6 @@ auto linkstats_command::execute(const dpp::slashcommand_t& event) -> dpp::task<v
         co_await this->images(event, subcommand == "images on");
     } else if (subcommand == "top") {
         co_await this->top(event);
-    } else if (subcommand == "user") {
-        co_await this->user(event);
     } else if (subcommand == "reactions") {
         co_await this->reactions(event);
     } else if (subcommand == "duplicates") {
@@ -967,20 +1023,13 @@ auto linkstats_command::top(const dpp::slashcommand_t& event) -> dpp::task<void>
 
     const board chosen = which.value_or(board::received);
     query.kind = kind_for(chosen);
-    co_await event.co_reply(result(event, render_board(*store_, guild, chosen, query)));
-}
 
-auto linkstats_command::user(const dpp::slashcommand_t& event) -> dpp::task<void> {
-    events::stat_query window;
-    if (const auto problem = read_window(event, window)) {
+    std::size_t per_page = 0;
+    if (const auto problem = read_page_size(event, chosen, query, per_page)) {
         co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
-
-    window.source = source_for(event);
-    const dpp::snowflake subject = snowflake_option(event, "user").value_or(event.command.get_issuing_user().id);
-
-    co_await event.co_reply(result(event, render_profile(*store_, event.command.guild_id, subject, window)));
+    co_await event.co_reply(result(event, render_board(*store_, guild, chosen, query, 0, per_page)));
 }
 
 auto linkstats_command::reactions(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -994,7 +1043,33 @@ auto linkstats_command::reactions(const dpp::slashcommand_t& event) -> dpp::task
     query.kind = kind_for(chosen);
     query.user_id = snowflake_option(event, "user");
     query.source = source_for(event);
-    co_await event.co_reply(result(event, render_board(*store_, event.command.guild_id, chosen, query)));
+
+    std::size_t per_page = 0;
+    if (const auto problem = read_page_size(event, chosen, query, per_page)) {
+        co_await event.co_reply(refusal(event, *problem));
+        co_return;
+    }
+    co_await event.co_reply(result(event, render_board(*store_, event.command.guild_id, chosen, query, 0, per_page)));
+}
+
+auto linkstats_command::read_page_size(const dpp::slashcommand_t& event, board which, const events::stat_query& query,
+                                       std::size_t& per_page) const -> std::optional<std::string> {
+    const auto asked = int_option(event, "per_page");
+    if (!asked) return std::nullopt;
+    if (*asked < 1 || std::cmp_greater(*asked, max_page_size)) {
+        return std::format("per_page can be 1 to {}", max_page_size);
+    }
+
+    // Every page is measured now, so none of them is refused by Discord
+    // later for being too long.
+    const auto wanted = static_cast<std::size_t>(*asked);
+    const std::size_t fits = largest_page(*store_, event.command.guild_id, which, query, wanted);
+    if (fits < wanted) {
+        return std::format("{} to a page would make a page longer than Discord's 2,000 characters; {} here", wanted,
+                           fits == 0 ? std::string("not even one fits") : std::format("{} is the most that fits", fits));
+    }
+    per_page = wanted;
+    return std::nullopt;
 }
 
 auto linkstats_command::counts_images(dpp::snowflake guild_id) const -> bool {

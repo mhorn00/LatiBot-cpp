@@ -80,7 +80,7 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
 
     const latibot::commands::linkstats_command linkstats(all.reactions);
     const command_info& stats = linkstats.info();
-    for (const char* board : {"top", "user", "reactions", "alias list"}) {
+    for (const char* board : {"top", "reactions", "alias list"}) {
         INFO(board);
         CHECK(stats.responses_for(board).result == dpp::m_suppress_notifications);
     }

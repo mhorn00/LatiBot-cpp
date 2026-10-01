@@ -46,6 +46,7 @@ add_library(latibot_core STATIC
     core/discord/voice_state.cpp
     core/events/backfill.cpp
     core/events/bot_allowlist.cpp
+    core/events/emote_reactions.cpp
     core/events/goodbye.cpp
     core/events/legacy_replacements.cpp
     core/events/log_channel.cpp

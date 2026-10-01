@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 13> all_migrations{{
+constexpr std::array<migration, 14> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -402,6 +402,37 @@ constexpr std::array<migration, 13> all_migrations{{
             animated     INTEGER NOT NULL,
             created_at   INTEGER NOT NULL
         ) WITHOUT ROWID;
+     )sql"},
+    {.version = 14, .name = "emote_reactions", .sql = R"sql(
+        -- Emojis somebody sent as a message of their own just after a post,
+        -- or as a reply to it, which count as reactions to it
+        -- (docs/features/Link_Stats.md 12). Apart from reactions, which a
+        -- recompute reads back from Discord's reaction lists; these only the
+        -- messages say.
+        CREATE TABLE emote_reactions (
+            message_id INTEGER NOT NULL REFERENCES replacement_messages (message_id),
+            user_id    INTEGER NOT NULL,
+            emoji_key  TEXT    NOT NULL,
+
+            -- The message the emoji was sent in, which also dates it.
+            source_id  INTEGER NOT NULL,
+
+            PRIMARY KEY (message_id, user_id, emoji_key)
+        ) WITHOUT ROWID;
+
+        CREATE INDEX emote_reactions_by_source ON emote_reactions (source_id);
+
+        -- What every statistic counts: the reactions, and the emotes sent as
+        -- reactions that the same person did not also react with, so one
+        -- person's emoji on one post counts once however it was given. An
+        -- emote is dated by its message: a snowflake's top bits are
+        -- milliseconds since 2015, Discord's epoch.
+        CREATE VIEW counted_reactions AS
+            SELECT message_id, user_id, emoji_key, reacted_at FROM reactions
+            UNION ALL
+            SELECT e.message_id, e.user_id, e.emoji_key, ((e.source_id >> 22) + 1420070400000) / 1000 FROM emote_reactions e
+            WHERE NOT EXISTS (SELECT 1 FROM reactions r
+                              WHERE r.message_id = e.message_id AND r.user_id = e.user_id AND r.emoji_key = e.emoji_key);
      )sql"},
 }};
 

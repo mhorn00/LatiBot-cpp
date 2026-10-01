@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/events/emote_reactions.hpp"
 #include "core/events/legacy_replacements.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
@@ -11,6 +12,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -84,6 +86,10 @@ struct backfill_report {
     std::int64_t images = 0;
     std::int64_t image_reactions = 0;
 
+    /// Emojis sent as messages of their own after a post, or as replies to
+    /// it, counted as reactions to it (docs/features/Link_Stats.md §12).
+    std::int64_t emote_reactions = 0;
+
     /// Messages that look like the bot's replacements but match no known
     /// format: counted, never guessed at.
     std::vector<message_place> unparsed;
@@ -143,7 +149,8 @@ inline constexpr std::int64_t progress_interval = 500;
 ///
 /// Walks each channel backwards a page at a time, recognises the bot's
 /// replacements in any of their six historical formats, works out whose link
-/// each one replaced, and rebuilds its reactions from what Discord shows now.
+/// each one replaced, and rebuilds its reactions from what Discord shows now,
+/// and the emotes sent as reactions from the messages after it (§12).
 /// Re-running is safe: every message's rows are rebuilt, not added to.
 ///
 /// Recognising them does not depend on today's URL rules: a mirror that
@@ -173,6 +180,23 @@ public:
 private:
     using flag = std::shared_ptr<std::atomic<bool>>;
 
+    /// What counting emote reactions needs from the messages a walk has
+    /// already passed in one channel (docs/features/Link_Stats.md §12).
+    struct emote_scan {
+        /// The messages just after where the walk is, nearest first, each
+        /// with whether it is a post: at most `emote_window`.
+        std::deque<std::pair<emote_message, bool>> newer;
+
+        /// Replies of nothing but emotes, by the message they answer, until
+        /// the walk reaches it.
+        std::map<dpp::snowflake, std::vector<emote_message>> replies;
+
+        /// The first message this run does not read, where the walk
+        /// started; nothing when it started at the newest. Emotes sent from
+        /// there on are kept as they were.
+        std::optional<dpp::snowflake> unseen_from;
+    };
+
     struct channel_scan {
         const backfill_request* request;
         dpp::snowflake channel_id;
@@ -180,6 +204,7 @@ private:
         /// Every mirror known, including the ones this run has learned.
         mirror_map* mirrors;
         flag cancelled;
+        emote_scan* emotes;
     };
 
     /// Remembers the hosts in `replaced` that no rule knew, with the site
@@ -208,6 +233,10 @@ private:
 
     auto consider(const channel_scan& scan, const history_message& message, std::span<const history_message> older, backfill_report& report)
         -> dpp::task<void>;
+
+    /// Rebuilds a post's emote reactions from the messages after it, then
+    /// remembers `message` for the posts before it.
+    auto count_emotes(const channel_scan& scan, const history_message& message, backfill_report& report) -> void;
 
     /// Records an image or video post and rebuilds its reactions.
     auto consider_image(const channel_scan& scan, const history_message& message, backfill_report& report) -> dpp::task<void>;

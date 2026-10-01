@@ -38,6 +38,10 @@ struct history_message {
     /// It carries an image or a video, attached or linked (`has_media`).
     bool has_media = false;
 
+    /// It carries a file or a sticker of any kind, which makes it more than
+    /// emotes (docs/features/Link_Stats.md §12).
+    bool has_files = false;
+
     struct reaction_count {
         dpp::snowflake emoji_id;
         std::string emoji_name;

@@ -144,18 +144,19 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
             break;
         }
 
-        co_await scan_channel({.request = &request, .channel_id = channel, .mirrors = &mirrors, .cancelled = cancelled}, report, progress,
-                              next_progress);
+        emote_scan emotes;
+        co_await scan_channel({.request = &request, .channel_id = channel, .mirrors = &mirrors, .cancelled = cancelled, .emotes = &emotes},
+                              report, progress, next_progress);
         if (report.cancelled) break;
         ++report.channels_done;
     }
 
     util::log().info(
         "link stats recompute in guild {} {}: {} scanned, {} replacements ({} attributed, {} not), {} unparsed, {} reactions, {} "
-        "mirror host(s) learned, {} image post(s) with {} reactions",
+        "mirror host(s) learned, {} image post(s) with {} reactions, {} emote(s) sent as reactions",
         request.guild_id, report.cancelled ? "stopped" : "finished", report.scanned, report.replacements, report.attributed,
-        report.unattributed, report.unparsed.size(), report.reactions, report.learned_mirrors.size(), report.images,
-        report.image_reactions);
+        report.unattributed, report.unparsed.size(), report.reactions, report.learned_mirrors.size(), report.images, report.image_reactions,
+        report.emote_reactions);
     co_return report;
 }
 
@@ -223,6 +224,7 @@ auto backfill_service::scan_page(const channel_scan& scan, std::vector<history_m
         }
         ++report.scanned;
         co_await consider(scan, window[index], window.subspan(index + 1), report);
+        count_emotes(scan, window[index], report);
     }
 
     // Saved after every page, so a cancel or a restart loses at most one
@@ -240,6 +242,9 @@ auto backfill_service::scan_channel(channel_scan scan, backfill_report& report, 
         util::log().debug("link stats recompute: channel {} was finished by an earlier run", scan.channel_id);
         co_return;
     }
+
+    // Emotes sent after where the walk starts are not read this time.
+    if (!start->empty()) scan.emotes->unseen_from = *start;
 
     auto first = co_await page_before(scan.channel_id, *start, report);
     if (!first) co_return;
@@ -361,6 +366,33 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
 
     // Finally the reactions, rebuilt to match what Discord shows now.
     if (const auto counted = co_await rebuild_reactions(scan, message, report)) report.reactions += *counted;
+}
+
+auto backfill_service::count_emotes(const channel_scan& scan, const history_message& message, backfill_report& report) -> void {
+    emote_scan& emotes = *scan.emotes;
+
+    // A post, which may be one this run found or one recorded before:
+    // either way its reactions count, so its emotes do too.
+    const bool post = replacements_->contains(message.id);
+    if (post) {
+        std::vector<emote_message> after;
+        for (const auto& [later, is_post] : emotes.newer) {
+            if (is_post) break;
+            after.push_back(later);
+        }
+        const auto replies = emotes.replies.find(message.id);
+        const std::span<const emote_message> answers =
+            replies == emotes.replies.end() ? std::span<const emote_message>{} : std::span<const emote_message>(replies->second);
+        const auto found = emote_reactions(message.id, after, answers);
+        report.emote_reactions += static_cast<std::int64_t>(reactions_->replace_emotes(message.id, found, emotes.unseen_from));
+    }
+    // Nothing older can be what a reply to this answers.
+    emotes.replies.erase(message.id);
+
+    emote_message passed = as_emote_message(message);
+    if (!passed.emotes.empty() && !passed.replied_to.empty()) emotes.replies[passed.replied_to].push_back(passed);
+    emotes.newer.emplace_front(std::move(passed), post);
+    if (emotes.newer.size() > emote_window) emotes.newer.pop_back();
 }
 
 auto backfill_service::consider_image(const channel_scan& scan, const history_message& message, backfill_report& report)

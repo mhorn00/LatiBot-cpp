@@ -757,7 +757,7 @@ any order of edits and timeouts without a connection.
 
 ## 8. Link stats and the recompute
 
-`src/core/events/{reactions,backfill,legacy_replacements}.hpp`,
+`src/core/events/{reactions,backfill,legacy_replacements,emote_reactions}.hpp`,
 `src/core/commands/linkstats.hpp`
 
 Reactions to the bot's reposts are counted, for `/linkstats`.
@@ -773,6 +773,8 @@ classDiagram
         +add(message, user, emoji_ref, at) bool
         +remove(message, user, emoji_key, at) bool
         +replace_for_message(message, observed) int
+        +add_emotes(post, emote_reaction) size_t
+        +replace_emotes(post, emote_reaction, unseen_from) size_t
         +set_alias(guild, emoji_key, canonical) optional~string~
         +leaderboard(guild, stat_query, limit, offset) vector~person_tally~
         +emoji_breakdown(guild, stat_query, ...) vector~emoji_tally~
@@ -815,6 +817,7 @@ classDiagram
         +running(guild) bool
         -scan_channel(...) task
         -consider(scan, message, older, report) task
+        -count_emotes(scan, message, report)
     }
     class backfill_request {
         <<struct>>
@@ -828,6 +831,7 @@ classDiagram
         <<struct>>
         +scanned, replacements, attributed : int64
         +reactions, images, image_reactions : int64
+        +emote_reactions : int64
         +unparsed, mismatched, unread : vector~message_place~
         +learned_mirrors : host and site pairs
         +channels_done, channels_total
@@ -846,7 +850,7 @@ classDiagram
     class history_message {
         <<struct>>
         +id, author_id, webhook_id, replied_to
-        +author_is_bot, is_system : bool
+        +author_is_bot, is_system, has_media, has_files : bool
         +content : string
         +reactions : vector~reaction_count~
     }
@@ -862,6 +866,18 @@ classDiagram
         +on_message(posted) bool
         +on_update(message, has_media) bool
     }
+    class emote_tracker {
+        -recent_ : map~channel, last 26 emote_message~
+        +on_message(channel, emote_message) size_t
+        +on_post(channel, post) size_t
+        +on_delete(channel, message)
+    }
+    class emote_message {
+        <<struct>>
+        +id, author_id, replied_to
+        +from_person : bool
+        +emotes : vector~emoji_ref~
+    }
     class emoji_copy_store {
         +plan(min_uses, now) copy_plan
         +record_image(key, state, sha256, animated, now)
@@ -874,6 +890,9 @@ classDiagram
     }
 
     media_tracker o-- replacement_store : records image posts in
+    emote_tracker o-- reaction_store : records emote reactions in
+    emote_tracker ..> emote_message
+    backfill_service ..> emote_message : keeps the newest 25
     emoji_copier o-- emoji_copy_store
     emoji_copier o-- http_client : downloads from the CDN
     emoji_copier o-- discord_gateway : uploads and deletes
@@ -917,7 +936,11 @@ A server that has run `/linkstats images on` also has people's own image and
 video posts counted: `media_tracker` records them as they arrive, and the
 recompute as it reads history. They are rows in `replacement_messages` with
 `kind = 'image'`, so every statistic reads them the same way, filtered by
-`stat_query::source`. `emoji_copier` keeps the bot's own copies of the custom
+`stat_query::source`. A message of nothing but emojis just after a post, or a
+reply to it, counts as reactions to it: `emote_tracker` as messages arrive,
+and `backfill_service::count_emotes` from history, with
+`emote_reactions` deciding which messages count. Statistics read them
+through the `counted_reactions` view. `emoji_copier` keeps the bot's own copies of the custom
 emojis it has seen, as application emojis, which `display_emoji` then
 prefers. See
 [docs/features/Link_Stats.md](../features/Link_Stats.md) for the whole

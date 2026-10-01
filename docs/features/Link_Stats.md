@@ -2,8 +2,9 @@
 
 `/linkstats` counts the reactions on the bot's link replacements, and in a
 server that turns it on, on the images and videos people post: who gets the
-most, who gives the most, and with which emojis. It can also read years of
-channel history back into those counts, and it keeps its own copy of every
+most, who gives the most, and with which emojis. Emotes sent as a message of
+their own just after a post count as reactions to it. It can also read years
+of channel history back into those counts, and it keeps its own copy of every
 custom emoji it counts.
 
 This is the feature's working document. It records how the feature works,
@@ -13,9 +14,9 @@ draws its classes.
 
 | | |
 |---|---|
-| **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements,media_posts,emoji_copies}.*` |
-| **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies}_test.cpp` |
-| **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies` |
+| **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements,media_posts,emoji_copies,emote_reactions}.*` |
+| **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies,emote_reactions}_test.cpp` |
+| **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `emote_reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies`; the view `counted_reactions` |
 | **Config** | `emoji_copy_min_uses` in `config.json`; `linkstats_images` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.6, §9.7 and §21.12 |
 | **Status** | Built and tested offline. Not yet run against real Discord. |
@@ -33,22 +34,29 @@ draws its classes.
 9. [Reactions on images](#9-reactions-on-images)
 10. [The bot's own copies of emojis](#10-the-bots-own-copies-of-emojis)
 11. [Still to check in Discord](#11-still-to-check-in-discord)
+12. [Emotes sent as reactions](#12-emotes-sent-as-reactions)
+13. [Requests of 2026-10-01](#13-requests-of-2026-10-01)
 
 ## 1. The commands
 
 | Subcommand | What it shows or does | Who | Answer |
 |---|---|---|---|
 | `top` | A leaderboard of people: reactions received, given, or on their own links; or of emojis | everyone | public, paged |
-| `user` | One person's received, given and self counts, with their top three emojis each way | everyone | public |
 | `reactions` | Every emoji and how often, for everyone or one person, received or given | everyone | public, paged |
 | `duplicates` | Custom emojis with names alike, a group at a time, with menus to merge them | everyone looks; Manage Server merges | private, paged |
 | `alias add` / `remove` / `list` | Count one emoji as another, in all history | Manage Server for add and remove | private (`list` public) |
 | `recompute start` / `cancel` | Read channel history back into the counts | Manage Server | private, then posts in the channel |
 | `images on` / `off` | Count reactions on the images and videos people post here, or stop | Manage Server | private |
 
-`top`, `user` and `reactions` take the same filters: `since` and `until`
+`top` and `reactions` take the same filters: `since` and `until`
 (inclusive, `YYYY-MM-DD`, UTC), `domain` (only replacements of links to one
-site) and `source` (links, images, or both; §9.4).
+site) and `source` (links, images, or both; §9.4). Both take `per_page` too
+(§6).
+
+There was a `user` subcommand: one person's received, given and self counts,
+with their top three emojis each way. It was removed on 2026-10-01, since
+`reactions user:` lists all of that person's emojis either way, and `top
+by:self` the self-reactions.
 
 ## 2. What is stored
 
@@ -56,6 +64,7 @@ site) and `source` (links, images, or both; §9.4).
 erDiagram
     replacement_messages ||--o{ replacement_links : "carried"
     replacement_messages ||--o{ reactions : "received"
+    replacement_messages ||--o{ emote_reactions : "followed by"
     reactions }o--|| emojis : "shown as"
     emoji_aliases }o--|| emojis : "counts as"
     known_mirrors }o..o{ replacement_links : "recognises"
@@ -83,6 +92,12 @@ erDiagram
         int user_id "who reacted"
         text emoji_key "u:emoji or c:id"
         int reacted_at "NULL when read from history"
+    }
+    emote_reactions {
+        int message_id FK "the post"
+        int user_id "who sent it"
+        text emoji_key
+        int source_id "the message it was in, which dates it"
     }
     emojis {
         text emoji_key PK
@@ -128,6 +143,9 @@ erDiagram
 - An image post is a row in `replacement_messages` with `kind = 'image'`
   (§9). `emoji_images` and `emoji_copies` are the bot's copies of emojis
   (§10).
+- `emote_reactions` are emojis sent as a message of their own after a post
+  (§12). Every statistic reads the view `counted_reactions`, which is
+  `reactions` and those of them the same person did not also react with.
 
 ## 3. Counting reactions as they happen
 
@@ -137,15 +155,17 @@ image post, §9), and asks that in the
 same `INSERT`, so a reaction on any other message costs one statement and
 leaves nothing behind. Removals, and a moderator clearing one emoji or all of
 them, remove rows the same way. Emoji keys drop U+FE0F, so `❤` and `❤️` are
-the same heart whichever keyboard typed it.
+the same heart whichever keyboard typed it. Emotes sent as messages are
+counted as they arrive too (§12.3).
 
 ## 4. The recompute
 
 `/linkstats recompute start since:YYYY-MM-DD` walks each text channel
 backwards a page (100 messages) at a time. For each of the bot's replacements
 it finds whose link it was, then rebuilds that message's reactions to match
-what Discord shows now. Rebuilding, rather than adding, is what makes it safe
-to run again. Progress is saved per channel after every page, so a run that
+what Discord shows now, and its emotes sent as reactions from the messages
+after it (§12.4). Rebuilding, rather than adding, is what makes it safe to run
+again. Progress is saved per channel after every page, so a run that
 was cancelled or cut off by a restart carries on where it stopped;
 `fresh:true` starts every channel over.
 
@@ -292,14 +312,24 @@ A board's filters are packed into its ◀ / ▶ buttons' `custom_id`, so a page
 reached by paging is the same board, even after a restart:
 
 ```
-linkboard:<page>:<board>;<emoji>;<site>;<since>;<until>;<user>;<source>
+linkboard:<page>:<board>;<emoji>;<site>;<since>;<until>;<user>;<source>;<per page>
 ```
 
 `<board>` is `r`, `g`, `s` (people received, given, self) or `e`, `f` (emojis
 received, given). Dates are days since 1970. `<source>` is `b`, `l` or `i`:
-both, links, images. Buttons sent before `<user>` or `<source>` existed have
-five or six fields and still work, counting links, which is all there was. The `custom_id` holds 100
-characters, which is why `domain` is capped at 40.
+both, links, images. `<per page>` is empty for the board's own, ten people or
+twenty emojis, or 1 to 200. Buttons sent before `<user>`, `<source>` or `<per
+page>` existed have five to seven fields and still work; those without
+`<source>` count links, which is all there was. The `custom_id` holds 100
+characters, which is why `domain` is capped at 40; the widest board, at 200 to
+a page and on page 999, takes 97.
+
+`per_page` sets the page size on `top` and `reactions`. A message holds 2,000
+characters, so when it is given, every page of the board is measured
+(`largest_page`) and a size whose longest page would not fit is refused,
+saying the most that does. A board can grow after that, with a longer name or
+a bigger number; a page that no longer fits shows the lines that do, and says
+how many it left off, rather than being refused by Discord.
 
 ## 7. Decisions
 
@@ -327,6 +357,13 @@ characters, which is why `domain` is capped at 40.
 | 2026-09-30 | Copying starts on its own, a round a minute | The owner's answer. A recompute run again fills in what it finds |
 | 2026-09-30 | One copy per image, by SHA-256, and one per emote, by alias | Two servers' copies of one emote, or a re-upload, need no second copy |
 | 2026-09-30 | Lost images are tried again weekly, on two hosts | The owner wants as many lost emotes back as can be had |
+| 2026-10-01 | A message of nothing but emojis after a post counts as reactions to it: each person's first message, in the next 25 or up to the next post, and a reply to the post however late | The owner's request: some emotes are sent as a message rather than as a reaction, and mean the same, "emphasized". 25 is from their "20 to 30" |
+| 2026-10-01 | Only each person's first message after the post | The owner's words. What somebody says after "lol" may be about anything |
+| 2026-10-01 | A first message that replies to something else is about that, and does not count | A reply says what it answers |
+| 2026-10-01 | One person's emoji on one post counts once, whether reacted, sent, or both | It is one reaction said twice, as Discord counts a reaction once a person |
+| 2026-10-01 | Emote reactions are a table of their own, read through a view | A recompute rebuilds `reactions` from Discord's lists, which do not have them, and taking a reaction back must not take the emote with it |
+| 2026-10-01 | `/linkstats user` removed | The owner's request: `reactions user:` shows the same and more |
+| 2026-10-01 | `per_page` on `top` and `reactions`, refused when a page would pass 2,000 characters | The owner's request. On `top` it sizes the people boards too, since one option that only worked for some of its boards would surprise |
 
 ## 8. Requests of 2026-09-30
 
@@ -476,4 +513,81 @@ None of this has met real Discord history yet:
 - a recompute with images on, and its report;
 - the first rounds of emoji copies: uploads, a GIF that still moves, the log's
   "lost" count, and the copies showing in a board and in the duplicates menus;
-- raising `emoji_copy_min_uses` and seeing copies deleted.
+- raising `emoji_copy_min_uses` and seeing copies deleted;
+- emotes sent after a replacement and after an image counting, a reply to one
+  from much later counting, and a deleted one coming off;
+- a recompute's "Emotes sent as reactions" line, against a channel where it is
+  easy to count by eye;
+- `per_page:100` on `reactions`, and the refusal on a list of long custom
+  emoji names.
+
+## 12. Emotes sent as reactions
+
+Some emotes are sent as a message of their own straight after a post, rather
+than as a reaction on it. The owner sees these as reactions, "emphasized"
+ones, so the statistics count them as reactions to the post.
+
+### 12.1 What counts
+
+A post is a replacement, or an image post where images are counted (§9). For
+each one (`emote_reactions`):
+
+- **The window** is the 25 messages after it (`emote_window`), or fewer when
+  the next post comes sooner. Every message counts towards the 25, bots'
+  included.
+- In it, **each person's first message** counts when it is nothing but emojis
+  (`message_emotes`): custom ones, `<:name:id>` and `<a:name:id>`, and Unicode
+  ones, joined sequences, skin tones, flags and keycaps included, with any
+  spacing between. Any words, a mention, a file or a sticker, and it is not.
+  A first message that replies to something else is about that, and does not
+  count. Either way, that person's later messages in the window do not.
+- **A reply to the post** that is nothing but emojis counts, however much
+  later.
+- Each different emoji counts once per person: two in one message are two
+  reactions, and the same one sent twice is one, from the first message it
+  was in.
+
+The post's own author sending one is a self-reaction, as reacting would be.
+
+### 12.2 Stored as
+
+`emote_reactions` (migration 14): the post, the person, the emoji, and the
+message it was sent in, `source_id`, which dates it. They are kept apart from
+`reactions`: a recompute rebuilds those from Discord's reaction lists, which
+know nothing of these, and taking a reaction back must not take an emote with
+it.
+
+Every statistic reads the view `counted_reactions`: every reaction, and every
+emote reaction whose person did not also react with that emoji, so one
+person's emoji on one post counts once however they gave it. The emoji copies
+(§10) count them as uses too.
+
+### 12.3 As it happens
+
+`emote_tracker`, called from `on_message_create`, keeps each channel's last
+26 messages in memory. A message of emojis is matched to the nearest post
+among them, when it is its author's first message since; a reply is matched
+to what it answers, from the database. A link that Discord later shows to be
+an image (§9.3) has the messages after it looked at again. A deleted message
+takes its emotes with it. Edits are not looked at.
+
+After a restart the bot knows no channel's recent messages, so emotes after a
+post from before the restart are counted only as replies, until a recompute.
+
+### 12.4 The recompute
+
+The recompute reads every message anyway, so this costs it no API calls.
+Walking back, it keeps the 25 messages newer than where it is, across pages,
+and the emoji-only replies by what they answer, and rebuilds each post's emote
+reactions from them (`reaction_store::replace_emotes`). Emotes in messages it
+did not read, after where it started when it carried on from an earlier run
+or was given `until`, are left as they were. The report counts "Emotes sent as
+reactions".
+
+## 13. Requests of 2026-10-01
+
+| # | Request | Status |
+|---|---|---|
+| 1 | Count a message of only emotes after a post, or a reply to it, as reactions to it | **Done.** §12 |
+| 2 | Remove `/linkstats user`, which `reactions` covers | **Done.** §1 |
+| 3 | An option for how many to a page, refused past Discord's 2,000 characters | **Done.** `per_page`, §6 |

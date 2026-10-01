@@ -94,6 +94,7 @@ auto describe_history(const dpp::message& message) -> history_message {
     described.replied_to = message.type == dpp::mt_reply ? message.message_reference.message_id : dpp::snowflake{};
     described.content = message.content;
     described.has_media = has_media(message);
+    described.has_files = !message.attachments.empty() || !message.stickers.empty();
 
     for (const dpp::reaction& reaction : message.reactions) {
         described.reactions.push_back({.emoji_id = reaction.emoji_id, .emoji_name = reaction.emoji_name, .count = reaction.count});

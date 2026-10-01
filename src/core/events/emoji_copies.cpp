@@ -53,10 +53,11 @@ private:
     std::atomic<bool>* flag_;
 };
 
-/// Every custom emoji's reactions, in every guild.
+/// Every custom emoji's reactions, in every guild, emotes sent as reactions
+/// included.
 auto reactions_by_emoji(db::database& db) -> std::map<std::string, std::int64_t, std::less<>> {
     std::map<std::string, std::int64_t, std::less<>> uses;
-    auto query = db.prepare("SELECT emoji_key, COUNT(*) FROM reactions WHERE emoji_key LIKE 'c:%' GROUP BY emoji_key");
+    auto query = db.prepare("SELECT emoji_key, COUNT(*) FROM counted_reactions WHERE emoji_key LIKE 'c:%' GROUP BY emoji_key");
     while (query.step()) {
         uses.emplace(query.get<std::string>(0), query.get<std::int64_t>(1));
     }
