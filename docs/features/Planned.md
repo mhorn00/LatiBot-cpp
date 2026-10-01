@@ -19,13 +19,6 @@ Command names, option names and reply wording are all proposals.
 
 ## Later, unscheduled
 
-**Music.** The Java bot played from YouTube and direct links through LavaPlayer,
-which has no C++ equivalent. The rebuild will use yt-dlp and ffmpeg, with the
-queue redesigned, and music pausing while the bot speaks and resuming
-afterwards. Its draft spec, with the questions still open, is
-[Music.md](Music.md). The commands stay **unregistered** until it works, so
-the slash menu is not full of things that reply "not implemented".
-
 **Emote statistics.** Which custom emoji actually get used. The Java version
 re-read every message in every channel on each run, which is why it was slow;
 this one will scan incrementally and remember where it got to.

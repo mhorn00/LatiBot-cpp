@@ -30,6 +30,7 @@ $components = [ordered]@{
     'ui'       = 'Panels and paging (`src/core/ui`)'
     'discord'  = 'Discord plumbing (`src/core/discord`)'
     'audio'    = 'Speech and voice (`src/core/audio`)'
+    'music'    = 'Music (`src/core/music`)'
     'llm'      = 'The language model (`src/core/llm`)'
     'ports'    = 'Ports and mocks (`src/core/ports`, `tests/mocks`)'
     'log'      = 'Logging (`src/core/util/log`)'
@@ -42,7 +43,7 @@ $traits = @{
     'threads' = 'runs several threads'
     'fs'      = 'touches real files'
     'golden'  = 'compares against a stored reference'
-    'live'    = 'needs a real Discord connection'
+    'live'    = 'needs something real: Discord, yt-dlp, ffmpeg'
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')

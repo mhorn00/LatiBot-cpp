@@ -2,6 +2,7 @@
 
 #include <dpp/snowflake.h>
 
+#include <chrono>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -27,8 +28,9 @@ public:
     [[nodiscard]] virtual auto ready(dpp::snowflake guild) -> bool = 0;
 
     /// Queues 48 kHz stereo PCM, then a marker named `marker`, which is
-    /// reported back through the speech queue's `on_marker` once playback
-    /// passes it. False when there is no connection to queue it on.
+    /// reported back once playback passes it. An empty `marker` queues none,
+    /// and empty `audio` only the marker. False when there is no connection
+    /// to queue it on.
     virtual auto play(dpp::snowflake guild, std::span<const std::int16_t> audio, const std::string& marker) -> bool = 0;
 
     /// Drops what is queued up to and including the next marker.
@@ -36,6 +38,9 @@ public:
 
     /// Drops everything queued.
     virtual auto stop(dpp::snowflake guild) -> void = 0;
+
+    /// How much audio is queued and not yet played, in whole 20 ms packets.
+    [[nodiscard]] virtual auto remaining(dpp::snowflake guild) -> std::chrono::milliseconds = 0;
 };
 
 } // namespace latibot::ports

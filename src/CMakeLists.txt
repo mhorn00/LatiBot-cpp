@@ -4,6 +4,7 @@ add_library(latibot_core STATIC
     core/audio/dectalk_sanitizer.cpp
     core/audio/pcm.cpp
     core/audio/speech_queue.cpp
+    core/audio/voice_mixer.cpp
     core/audio/voice_params.cpp
     core/audio/voice_store.cpp
     core/audio/wav.cpp
@@ -25,6 +26,7 @@ add_library(latibot_core STATIC
     core/commands/bots.cpp
     core/commands/chat.cpp
     core/commands/midnight.cpp
+    core/commands/music.cpp
     core/commands/nickname.cpp
     core/commands/trigger.cpp
     core/commands/urlrepl.cpp
@@ -74,12 +76,17 @@ add_library(latibot_core STATIC
     core/llm/spend.cpp
     core/llm/stage.cpp
     core/llm/tools.cpp
+    core/music/links.cpp
+    core/music/music_player.cpp
+    core/music/music_queue.cpp
+    core/music/yt_dlp.cpp
     core/ports/clock.cpp
     core/ui/interaction.cpp
     core/ui/paginator.cpp
     core/util/ca_certificates.cpp
     core/util/env.cpp
     core/util/log.cpp
+    core/util/process.cpp
     core/util/text.cpp
     core/util/url_scan.cpp
 )
@@ -99,6 +106,12 @@ target_link_libraries(latibot_core PRIVATE OpenSSL::Crypto)
 # the roots it does not ship with (core/util/ca_certificates.cpp).
 if(WIN32)
     target_link_libraries(latibot_core PRIVATE crypt32)
+endif()
+
+# ws2_32 resolves a music link's host, to refuse one into a private network
+# (core/music/links.cpp).
+if(WIN32)
+    target_link_libraries(latibot_core PRIVATE ws2_32)
 endif()
 
 latibot_target_warnings(latibot_core)

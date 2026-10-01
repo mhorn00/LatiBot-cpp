@@ -270,6 +270,13 @@ kept together in one folder:
 | `dectalk.dll` | the speech engine |
 | `dtalk_us.dic` | DECtalk's dictionary, which has to stay beside `dectalk.dll` |
 
+For music, add [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
+[ffmpeg](https://ffmpeg.org/) as `yt-dlp.exe` and `ffmpeg.exe` in the same
+folder, or anywhere on `PATH` (`winget install yt-dlp.yt-dlp Gyan.FFmpeg`
+puts both there). Without them everything else works, and `/music play`
+says what is missing. Keep yt-dlp current with `yt-dlp -U`: sites change,
+and an old one stops working with them.
+
 The machine also needs the **Microsoft Visual C++ Redistributable** (x64), for
 `MSVCP140.dll` and `VCRUNTIME140.dll`. Without it Windows refuses to start the
 bot and names a missing DLL. It has to be at least as new as the compiler, so
@@ -324,6 +331,8 @@ put your own user ID in `trusted_users`:
 | `spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
 | `spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
 | `llm_tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1 |
+| `ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
+| `ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
 | `emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
@@ -429,7 +438,7 @@ type is one specialisation of `log_style`.
 
 Phases 1 to 5 are done: the framework, the features that keep records, URL
 replacement with its reaction statistics, DECtalk speech, and the language
-model.
+model. Music followed, through yt-dlp and ffmpeg.
 [docs/features/](docs/features/README.md) documents all of this properly —
 options, replies and edge cases — and each feature has a
 [spec](docs/features/README.md#feature-specs) of its own: what it is for, how
@@ -445,6 +454,7 @@ it is built, and what was decided and why.
 | `/tts` | `stop`, `skip`, `limits` — speech, and how long it may run |
 | `/voice` | `start`, `stop`, `grace`, `lab`, `list`, `delete` — voice sessions and custom voices |
 | `/chat` | say something as a voice message |
+| `/music`, `/m` | play music from a link, with a queue; speech pauses it |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
 | `/logs` | `set`, `level`, `off`, `show` — post the bot's log in one channel |
@@ -499,8 +509,8 @@ is a document anyone can edit, with every version kept. It switches itself off
 at $2 in a day or $20 in a month, worked out from the tokens it actually used.
 
 **Still to come**, unscheduled — [the plan](docs/porting/Porting_Plan_Final.md), and
-[what each feature should do](docs/features/Planned.md): music, emote
-statistics and appearance tracking.
+[what each feature should do](docs/features/Planned.md): emote statistics
+and appearance tracking.
 
 ## Testing
 

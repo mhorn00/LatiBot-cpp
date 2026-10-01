@@ -52,4 +52,10 @@ namespace latibot::util {
 /// std::stoull would give.
 [[nodiscard]] auto parse_snowflake(std::string_view text) -> std::optional<dpp::snowflake>;
 
+/// Text from outside, such as a track's title, made safe to put in a
+/// message: markdown characters escaped so they show as themselves, line
+/// breaks made spaces, and every `@` followed by a zero-width space, so
+/// `@everyone` or a mention in it can never ping anyone.
+[[nodiscard]] auto plain_text(std::string_view text) -> std::string;
+
 } // namespace latibot::util

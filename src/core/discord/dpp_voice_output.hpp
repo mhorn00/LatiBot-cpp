@@ -20,6 +20,7 @@ public:
     auto play(dpp::snowflake guild, std::span<const std::int16_t> audio, const std::string& marker) -> bool override;
     auto skip(dpp::snowflake guild) -> void override;
     auto stop(dpp::snowflake guild) -> void override;
+    [[nodiscard]] auto remaining(dpp::snowflake guild) -> std::chrono::milliseconds override;
 
 private:
     dpp::cluster* cluster_;

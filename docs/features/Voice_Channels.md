@@ -31,9 +31,9 @@ and what was decided and why. [The user guide](README.md#join--leave) has
 ## 1. Intent
 
 In the Java bot, speech was a `.wav` queued as a music track on LavaPlayer,
-and the bot stayed in a channel until told to leave. The port has no music
-yet, so speech is the only thing that plays, and it is queued straight onto
-DPP's voice connection. A voice session exists so that a conversation with
+and the bot stayed in a channel until told to leave. The port keeps speech
+and [music](Music.md) apart: both go through a **mixer**, which is the only
+thing that writes to the connection, and speech always comes first. A voice session exists so that a conversation with
 the bot can happen in text and be heard in voice, without anyone having to
 be in the right text channel to use `/speak`. Auto-leave exists because a
 bot sitting alone in a channel for hours looks broken.
@@ -90,8 +90,17 @@ guild. `discord/voice_state` answers "which channel is this member in" from
 the cache, and `plan_join(target, bot_channel)` decides connect, move,
 already there, or nobody to follow, as plain data.
 
+**The mixer.** `audio::voice_mixer` sits between everything that plays and
+DPP's connection. Music is fed to it a few seconds at a time; when speech
+arrives, the music not yet heard is taken back and the speech plays at once,
+and the music resumes afterwards from exactly where it stopped. DPP keeps one
+queue per connection, so it only ever holds one of the two.
+[Music.md §4.2](Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this)
+has the detail. Towards speech, the mixer is a `voice_output`, so the speech
+queue below did not change when music arrived.
+
 **The speech queue.** `audio::speech_queue` holds each server's utterances,
-behind the `voice_output` port (`dpp_voice_output` for real, `mock_voice` in
+behind the `voice_output` port (the mixer in the bot, `mock_voice` in
 tests):
 
 - An utterance is queued on the connection **whole**, followed by a DPP
@@ -107,6 +116,8 @@ tests):
   played.
 - `forget` clears a server whose connection went away, without asking the
   connection to stop.
+- **Leaving** also empties the server's music queue, and the mixer forgets
+  it.
 
 **Sessions** are `events::voice_sessions`, in memory, at most one per
 server: `{guild, voice_channel, text_channel, started_by}`. `moved` follows
@@ -138,13 +149,12 @@ reach them.
 | 2026-09-26 | Tickets taken before synthesizing | `/tts stop` must also stop what is still being made |
 | 2026-09-26 | Auto-leave applies after `/join` and `/speak`, not only sessions | The bot should never sit alone in a channel |
 | 2026-09-26 | Leaving by any route ends the session and drops speech | The bot's own voice state is the one signal every route shares |
+| 2026-09-30 | A mixer between speech, music and the connection; leaving also empties the music queue | Music arrived; DPP's one queue per connection cannot hold both (Music.md §4.2) |
 
 ## 5. Limits, and what is still to check
 
 - Sessions and grace timers live in memory. A restart leaves the voice
   channel and forgets the session.
-- The mixer that pauses music for speech arrives with music
-  ([Planned.md](Planned.md)).
 - The wiring is untested by design: that DPP's voice-ready, track-marker and
   voice-state events reach the queue and sessions, that the bot's own voice
   state ends a session, and that `dpp_voice_output` queues audio DPP plays.

@@ -6,6 +6,7 @@
 #include "core/commands/linkstats.hpp"
 #include "core/commands/logs.hpp"
 #include "core/commands/midnight.hpp"
+#include "core/commands/music.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/speak.hpp"
@@ -26,6 +27,8 @@
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
+#include "core/util/process.hpp"
+#include "core/util/text.hpp"
 #include "core/util/url_scan.hpp"
 #include "core/version.hpp"
 
@@ -198,12 +201,27 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       emoji_copier_(emoji_copies_, http_, gateway_, clock_, settings_.emoji_copy_min_uses),
       embed_tracker_(replacements_, clock_),
       voice_output_(cluster_),
-      speech_(voice_output_),
+      mixer_(voice_output_),
+      speech_(mixer_),
       auto_leave_(clock_),
       voices_(database_),
       voice_drafts_(clock_),
       voice_lab_(voice_drafts_, voices_, clock_,
                  {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
+      ytdlp_(util::locate_program("yt-dlp", settings_.ytdlp_path)),
+      ffmpeg_(util::locate_program("ffmpeg", settings_.ffmpeg_path)),
+      music_resolver_(ytdlp_.value_or("yt-dlp.exe")),
+      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe")),
+      music_(music_opener_, mixer_,
+             {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
+              .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
+              .notify =
+                  [this](dpp::snowflake channel, std::string text) {
+                      carry_out({events::send_message{.channel_id = channel,
+                                                      .content = std::move(text),
+                                                      .flags = dpp::m_suppress_notifications,
+                                                      .what = "a note about a track"}});
+                  }}),
       llm_usage_(database_),
       llm_documents_(database_),
       llm_memories_(database_),
@@ -279,6 +297,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
                          settings_.spend_cap_monthly_usd);
     }
 
+    // Music plays through the mixer, which reads it from the player.
+    mixer_.set_music(&music_);
+    log_music_tools();
+
     // As soon as the setting can be read, so the rest of starting up is in
     // the channel too. It is posted once the connection is up.
     if (const auto destination = log_destinations_.find()) {
@@ -339,6 +361,8 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::tts_command>(speech));
     commands_.add(std::make_unique<commands::chat_command>(speech, raw_));
     commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_, voices_, voice_lab_));
+    commands_.add(std::make_unique<commands::music_command>(commands::music_services{
+        .player = &music_, .resolver = &music_resolver_, .settings = &guild_settings_, .unavailable = music_unavailable()}));
     commands_.add(std::make_unique<commands::linkstats_command>(
         reactions_,
         commands::recompute_support{.service = &backfill_,
@@ -513,11 +537,17 @@ auto bot::register_events() -> void {
 
     // Speech waits for the connection to be ready, and is told when each
     // utterance finishes playing (docs/features/Voice_Channels.md §3).
+    // The mixer first on both: a new connection has lost what the old one
+    // queued, and music's markers are the mixer's to hand on.
     cluster_.on_voice_ready([this](const dpp::voice_ready_t& event) {
-        if (event.voice_client != nullptr) speech_.on_ready(event.voice_client->server_id);
+        if (event.voice_client == nullptr) return;
+        mixer_.on_ready(event.voice_client->server_id);
+        speech_.on_ready(event.voice_client->server_id);
     });
     cluster_.on_voice_track_marker([this](const dpp::voice_track_marker_t& event) {
-        if (event.voice_client != nullptr) speech_.on_marker(event.voice_client->server_id, event.track_meta);
+        if (event.voice_client == nullptr) return;
+        mixer_.on_marker(event.voice_client->server_id, event.track_meta);
+        speech_.on_marker(event.voice_client->server_id, event.track_meta);
     });
     cluster_.on_voice_state_update([this](const dpp::voice_state_update_t& event) { on_voice_state(event.state); });
 }
@@ -591,6 +621,10 @@ auto bot::register_timers() -> void {
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
     cluster_.start_timer(guarded("the preview tracker's tick", [this](dpp::timer) { carry_out(embed_tracker_.tick()); }), 1);
+
+    // Keeps a few seconds of music queued on each connection playing it
+    // (docs/features/Music.md §4.2). Most ticks find nothing to do.
+    cluster_.start_timer(guarded("feeding music", [this](dpp::timer) { mixer_.tick(); }), 1);
 
     // Posts what has been logged since the last tick, if a channel is set.
     // A tick with nothing waiting, or no channel, costs a coroutine that
@@ -773,6 +807,9 @@ auto bot::on_voice_state(const dpp::voicestate& state) -> void {
         // disconnected by a moderator, or the connection dropping.
         if (voice_sessions_.end(guild)) util::log().info("voice session in guild {} ended", guild);
         speech_.forget(guild);
+        // Leaving takes the music queue with it (docs/features/Music.md §3.4).
+        music_.forget(guild);
+        mixer_.forget(guild);
         auto_leave_.forget(guild);
         return;
     }
@@ -850,6 +887,45 @@ auto bot::settle_stranded_replacements(dpp::snowflake guild_id) -> void {
            "settling replacements the last run left unfinished");
 }
 
+auto bot::log_music_tools() -> void {
+    if (!ytdlp_ || !ffmpeg_) {
+        util::log().warn("music is off: {}", music_unavailable());
+        return;
+    }
+    const std::filesystem::path ytdlp = *ytdlp_;
+    const std::filesystem::path ffmpeg = *ffmpeg_;
+    util::log().info("music uses yt-dlp at {} and ffmpeg at {}", ytdlp.string(), ffmpeg.string());
+    // Which versions, off the startup path: an old yt-dlp is the usual
+    // reason a site stops working, and asking takes a second or two.
+    // Only the log call in the catch could still throw, as in main(), and
+    // there is nowhere left to report that.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
+    music_versions_ = std::jthread([ytdlp, ffmpeg] {
+        // Everything inside the try: a thread must let nothing out.
+        try {
+            for (const auto& [program, flag] : {std::pair{ytdlp, "--version"}, std::pair{ffmpeg, "-version"}}) {
+                const auto ran = util::run({.path = program, .arguments = {flag}}, std::chrono::seconds{20});
+                const auto first_line = util::lines(ran.output);
+                util::log().info("{}: {}", program.stem().string(), first_line.empty() ? "no version given" : first_line.front());
+            }
+        } catch (const std::exception& error) {
+            util::log().warn("could not ask yt-dlp or ffmpeg its version: {}", error.what());
+        } catch (...) { // NOLINT(bugprone-empty-catch)
+        }
+    });
+}
+
+auto bot::music_unavailable() const -> std::string {
+    if (ytdlp_ && ffmpeg_) return {};
+    std::string missing = "yt-dlp and ffmpeg";
+    if (ytdlp_) missing = "ffmpeg";
+    if (ffmpeg_) missing = "yt-dlp";
+    return std::format(
+        "i can't play music: {} isn't installed where i can find it. Put it beside the bot or on PATH, or name it in "
+        "config.json (ytdlp_path, ffmpeg_path)",
+        missing);
+}
+
 auto bot::now_seconds() const -> std::chrono::sys_seconds {
     return std::chrono::floor<std::chrono::seconds>(clock_.now());
 }
@@ -908,7 +984,7 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         // Each panel's router says whether the view was one of its own.
         return trigger_panel_.on_component(event, state, chosen) || url_panel_.on_component(event, state, chosen) ||
                voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen) ||
-               commands::on_linkstats_component(reactions_, event, state, chosen);
+               commands::on_linkstats_component(reactions_, event, state, chosen) || commands::on_music_component(music_, event, state);
     }
     return true;
 }

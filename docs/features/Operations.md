@@ -82,6 +82,8 @@ explicitly set `SSL_CERT_FILE` still wins.
 **Timers.** Once running, the bot's work on a clock is cluster timers:
 
 - the embed tracker, every second;
+- feeding music to each voice connection playing it, every second
+  ([Music.md §4.2](Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this));
 - the log channel, every 2 s;
 - auto-leave, every 5 s;
 - midnight, every 30 s;
@@ -130,6 +132,13 @@ Three layers, separated by how often each changes and who changes it:
 
 The README's [configuration table](../../README.md#configuration) is the
 reference for every key.
+
+**Other programs.** Music runs yt-dlp and ffmpeg
+([Music.md §5](Music.md#5-dependencies-and-running-it)). Each is looked for
+once at startup: at `ytdlp_path` or `ffmpeg_path` in `config.json` if set,
+else beside `LatiBot.exe`, else on `PATH`. Without them the bot starts,
+warns, and `/music play` says what is missing. With them, their versions
+are logged, asked on a thread of its own so startup does not wait.
 
 **Secrets.** Secrets come from the environment only:
 
@@ -249,6 +258,7 @@ shows no preview, which looks exactly like a broken mirror.
 | 2026-09-25 | `db::statement` binds snowflakes and times; `db/` may use `dpp::snowflake` (cleanup decision 5) | Every store converted by hand |
 | 2026-09-27 | A missing `config.json` is written with the defaults; `config.example.json` kept identical by a test | A release is only the executable |
 | 2026-09-30 | A command line: a config path and `--unregister-commands`; anything else refused | A mistyped option must not be read as a config file |
+| 2026-09-30 | yt-dlp and ffmpeg are optional: missing, they cost music and nothing else | A bot that will not start over a music tool would be worse than one without music |
 
 ## 8. Limits
 

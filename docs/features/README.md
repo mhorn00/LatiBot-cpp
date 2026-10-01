@@ -27,6 +27,7 @@ stays as the record of how the port was designed.
 | 🔊 | [`/tts`](#tts) | Stop or skip speech, and set its limits | [Speech](Speech.md) |
 | 🔊 | [`/voice`](#voice) | Voice sessions, and custom voices from the [voice lab](#voice-lab) | [Voice channels](Voice_Channels.md), [Speech](Speech.md#3-custom-voices-and-the-voice-lab) |
 | 🔊 | [`/chat`](#chat) | Say something as a voice message | [Speech](Speech.md) |
+| 🎵 | [`/music`, `/m`](#music) | Play music from a link, with a queue | [Music](Music.md) |
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot | [Basic commands](Basic_Commands.md) |
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | [Basic commands](Basic_Commands.md) |
 | 📋 | [`/logs`](#logs) | Post the bot's log in one channel | [Log channel](Log_Channel.md) |
@@ -56,8 +57,9 @@ message; [`/nicknames`](#nicknames) and the [`/linkstats`](#linkstats) views
 answer publicly, because those are things a room reads together;
 [`/join`, `/leave`](#join--leave), [`/voice start` and `stop`](#voice) and
 [`/shutdown`](#shutdown) answer publicly, because the room sees the bot come
-and go and should see why; and [`/chat`](#chat) answers with its voice
-message, which is the point of it.
+and go and should see why; [`/music`](#music) answers publicly, since the
+room hears it; and [`/chat`](#chat) answers with its voice message, which is
+the point of it.
 
 Each command decides this for three kinds of message, per subcommand where
 they differ: its **result** (the answer it exists to give), a **refusal**
@@ -103,7 +105,7 @@ as subsections, rather than renumbering.
 | [Log channel](Log_Channel.md) | `/logs` |
 | [Commands and panels](Commands_and_Panels.md) | What every command and panel shares: registration, flags, `custom_id` state, forms, `--unregister-commands` |
 | [Running the bot](Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
-| [Music](Music.md) | **Draft, not built.** `/play` and the queue, yt-dlp and ffmpeg, and the mixer that pauses music for speech |
+| [Music](Music.md) | `/music` and `/m`, the queue, yt-dlp and ffmpeg, and the mixer that pauses music for speech |
 
 Features designed but not built are in [Planned.md](Planned.md).
 
@@ -397,6 +399,67 @@ Discord refusing the upload.
 The waveform is the audio's own. The Java version averaged the raw bytes of
 the whole file, header included, which comes out close to zero everywhere, so
 the shape it showed meant nothing.
+
+### `/music`
+
+Plays music in the voice channel, from a link. `/m` is the same command, so
+`/m play` works too. How it all works is in [Music.md](Music.md).
+
+| | |
+|---|---|
+| **Subcommands** | `play` · `queue` · `nowplaying` · `pause` · `skip` · `repeat` · `shuffle` · `clear` · `stop` · `remove` · `volume` · `limit` |
+| **Who** | Speak, by default, from anywhere in the server; changing `volume` or `limit` needs Manage Server |
+| **Where** | servers only |
+| **Bot needs** | Connect, Speak; and yt-dlp and ffmpeg on the machine it runs on |
+
+**`play link [position]`** plays a link to a song, a video or a playlist,
+from YouTube, SoundCloud, Bandcamp, a direct link to an audio file, or any of
+the other sites yt-dlp knows. Only links: plain text is not searched for.
+`position` is **At the end** (the default), **Next**, or **Now**, which plays
+it at once and puts what was playing straight after it, to start over. The
+bot plays wherever it already is; if it is in no voice channel it joins
+yours, and you can queue music into its channel without being in it.
+
+A playlist queues its first 100 tracks. The queue holds 500. A track longer
+than this server's limit (an hour, unless `limit` says otherwise) is left
+out; live streams have no limit and play until skipped.
+
+| Subcommand | Does |
+|---|---|
+| `queue` | What is playing and how far in, then the queue, ten a page with ◀ / ▶ |
+| `nowplaying` | The current track, its link, how far in, who queued it, and what is next |
+| `pause` | Pauses, or carries on |
+| `skip` | Skips to the next track, even when the track is repeating |
+| `repeat [mode]` | **Off**, **This track** or **The whole queue**; left out, the next one in turn |
+| `shuffle` | Shuffles the queue; the current track plays on |
+| `clear` | Empties the queue; the current track plays on |
+| `stop` | Stops the music and empties the queue |
+| `remove position` | Takes the track at that number in `queue` out |
+| `volume [percent]` | Shows the volume, or sets it, 0–200 %; 50 to begin with |
+| `limit [minutes]` | Shows the longest a track may be, or sets it; 0 for no limit |
+
+| Situation | Reply |
+|---|---|
+| Playing | `playing **Song** (3:20)` |
+| Queued | `queued **Song** (3:20)`, or `playing **Song** (3:20) next` |
+| A playlist | `queued 42 tracks from **Mix**`, and what was left out and why |
+| Not a link | `that isn't a link; i only play links for now, starting with https://` |
+| A link into a private network | `that link points into a private network, which i won't fetch from` |
+| The site says no | `couldn't play that: ` and yt-dlp's reason |
+| Neither the bot nor you are in voice | `i'm not in a voice channel, and neither are you` |
+| yt-dlp or ffmpeg is missing | says which, and where to put it |
+| A track fails while its turn comes | `couldn't play **Song**: ` and the reason, in the channel it was queued from; the next track plays |
+
+Replies are public and silent; refusals are private. Nothing is posted when
+a track starts: `nowplaying` says what is on.
+
+**Speech comes first.** When the bot speaks, from `/speak`, the language
+model in a voice session, or the voice lab's ▶ Test, the music stops at
+once, the speech plays, and the music carries on from exactly where it was.
+`/tts stop` and `/tts skip` stop speech, never the music.
+
+**Leaving empties the queue**: `/leave`, `/voice stop`, being disconnected,
+or leaving an empty channel. The queue is not kept across a restart either.
 
 ### `/shutdown`
 
@@ -1566,8 +1629,8 @@ Nothing is posted to Discord — this goes to the bot's own log.
 Not user-facing, but worth knowing when something looks wrong.
 
 **Settings are per server.** The goodbye phrase, triggers, the bot allowlist,
-URL rules, opt-outs, emoji aliases, speech limits, custom voices, and the
-language model's switch, model, settings, documents, memories, advanced
+URL rules, opt-outs, emoji aliases, speech limits, custom voices, the music
+volume and track limit, and the language model's switch, model, settings, documents, memories, advanced
 triggers and blacklist are all stored per server, in a SQLite database at `data/bot.db`. Two servers never
 see each other's anything.
 
@@ -1625,5 +1688,5 @@ when that happens.
 
 ## What is coming
 
-Unscheduled, with the detail in [Planned.md](Planned.md): music, emote
-statistics and appearance tracking.
+Unscheduled, with the detail in [Planned.md](Planned.md): emote statistics
+and appearance tracking.

@@ -63,6 +63,11 @@ struct bootstrap {
     /// qualify, on the next rounds.
     std::int64_t emoji_copy_min_uses = 1;
 
+    /// Where yt-dlp and ffmpeg are, for music (docs/features/Music.md §5).
+    /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
+    std::filesystem::path ytdlp_path;
+    std::filesystem::path ffmpeg_path;
+
     /// The account whose messages `/linkstats recompute` reads as the bot's
     /// replacements, in place of the bot's own.
     ///

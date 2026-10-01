@@ -69,7 +69,8 @@ grouped by; the traits are for filtering.
 | `[events]` | `src/core/events`: the message pipeline and its stages (goodbye, triggers, URL replacement), the embed tracker, reactions, nicknames, midnight and the backfill |
 | `[ui]` | `src/core/ui`: paging and panel primitives |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
-| `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV |
+| `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV, the mixer |
+| `[music]` | `src/core/music` and `/music`: the queue, the player, links, yt-dlp and ffmpeg |
 | `[llm]` | `src/core/llm`: the providers, the tool loop, memory, documents, spending, guards, the prompt, the responder and its pipeline stage |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
 | `[log]` | `src/core/util/log` |
@@ -87,7 +88,7 @@ time.
 | `[threads]` | starts threads | the slowest and the most order-dependent |
 | `[fs]` | writes real files | needs a writable temp directory |
 | `[golden]` | compares against stored output | updated deliberately, never blindly |
-| `[live]` | needs a real Discord connection | excluded from every preset; see below |
+| `[live]` | needs something real: Discord, yt-dlp, ffmpeg | hidden as well, with `[.]`; see below |
 
 `tools/Update-TestCatalog.ps1` fails if a test has no component tag, two
 component tags, or a tag nobody recognises. That is the guard against the
@@ -192,9 +193,15 @@ CTest nor a plain run of the binary includes them. Run one by name or tag:
 .\build\bin\Release\latibot_tests.exe "[!benchmark]"
 ```
 
-**Live tests** do not exist yet. When they do, they will be tagged `[live]`,
-excluded by every test preset, and need `LATIBOT_TEST_TOKEN` plus a test
-server. They will cover only what real Discord can answer: modal behaviour,
+**Live tests** are tagged `[live]` **and** `[.]`. The presets filter by test
+*name*, and ctest's names do not include tags, so `[live]` alone would not
+keep them out; Catch2 never runs or lists a test tagged `[.]` unless asked
+by name or tag. Run them with `latibot_tests.exe "[live]"`.
+
+The first are music's (`tests/unit/yt_dlp_live_test.cpp`): real yt-dlp and
+ffmpeg on a stable, freely licensed file, skipped when either program is
+not installed. Discord ones will need `LATIBOT_TEST_TOKEN` plus a test
+server, and cover only what real Discord can answer: modal behaviour,
 audit-log timing, whether embeds actually appear.
 
 ---

@@ -2,6 +2,7 @@
 
 #include "core/audio/dectalk_engine.hpp"
 #include "core/audio/speech_queue.hpp"
+#include "core/audio/voice_mixer.hpp"
 #include "core/audio/voice_store.hpp"
 #include "core/commands/llm.hpp"
 #include "core/commands/registry.hpp"
@@ -37,14 +38,19 @@
 #include "core/llm/spend.hpp"
 #include "core/llm/stage.hpp"
 #include "core/llm/tools.hpp"
+#include "core/music/music_player.hpp"
+#include "core/music/yt_dlp.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
 
 #include <dpp/dpp.h>
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -78,6 +84,14 @@ private:
     /// midnight messages, the embed tracker's one-second tick and the
     /// database backups (docs/features/Operations.md §2).
     auto register_timers() -> void;
+
+    /// Why music cannot play, when yt-dlp or ffmpeg was not found; empty
+    /// when both were.
+    [[nodiscard]] auto music_unavailable() const -> std::string;
+
+    /// Says at startup whether music can play, and asks yt-dlp and ffmpeg
+    /// their versions, for the log.
+    auto log_music_tools() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot
@@ -206,12 +220,24 @@ private:
     // cluster is.
     audio::dectalk_engine tts_;
     discord::dpp_voice_output voice_output_;
+
+    /// The only writer to a voice connection: speech and music both go
+    /// through it (docs/features/Music.md §4.2).
+    audio::voice_mixer mixer_;
     audio::speech_queue speech_;
     events::voice_sessions voice_sessions_;
     events::auto_leave auto_leave_;
     audio::voice_store voices_;
     commands::voice_drafts voice_drafts_;
     commands::voice_lab voice_lab_;
+
+    // Music (docs/features/Music.md). yt-dlp and ffmpeg are looked for once,
+    // at startup; without them the music commands say so and nothing plays.
+    std::optional<std::filesystem::path> ytdlp_;
+    std::optional<std::filesystem::path> ffmpeg_;
+    music::ytdlp_resolver music_resolver_;
+    music::ytdlp_opener music_opener_;
+    music::music_player music_;
 
     // The language model (docs/features/Language_Model.md). A provider exists
     // only when its key is set; the stage and the commands ask `provider_for`
@@ -239,6 +265,10 @@ private:
     /// one this run is still watching.
     std::mutex stranded_mutex_;
     std::map<dpp::snowflake, std::vector<events::replacement_record>> stranded_;
+
+    /// Asks yt-dlp and ffmpeg their versions at startup, for the log, without
+    /// holding startup up.
+    std::jthread music_versions_;
 
     /// The pause between the goodbye and shutting down. Last, so it is
     /// joined first when the bot is destroyed, while the cluster it shuts

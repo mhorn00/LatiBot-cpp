@@ -74,10 +74,11 @@ auto require_bool(const json& object, std::string_view key) -> bool {
 /// reported instead of silently doing nothing. A key added here belongs in
 /// `bootstrap::default_json` too, at its default.
 auto reject_unknown_keys(const json& parsed) -> void {
-    static constexpr std::array<std::string_view, 14> known_keys{
+    static constexpr std::array<std::string_view, 16> known_keys{
         "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
         "track_nicknames", "llm_provider",   "llm_model",        "spend_cap_daily_usd", "spend_cap_monthly_usd",
-        "llm_tool_rounds", "trusted_guilds", "trusted_users",    "emoji_copy_min_uses",
+        "llm_tool_rounds", "trusted_guilds", "trusted_users",    "emoji_copy_min_uses", "ytdlp_path",
+        "ffmpeg_path",
     };
 
     for (const auto& [key, unused] : parsed.items()) {
@@ -189,6 +190,9 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
         if (config.emoji_copy_min_uses < 0) throw config_error(R"(config key "emoji_copy_min_uses" cannot be negative)");
     }
 
+    if (parsed.contains("ytdlp_path")) config.ytdlp_path = require_string(parsed, "ytdlp_path");
+    if (parsed.contains("ffmpeg_path")) config.ffmpeg_path = require_string(parsed, "ffmpeg_path");
+
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
     if (parsed.contains("trusted_users")) config.trusted_users = require_snowflakes(parsed, "trusted_users");
 
@@ -212,6 +216,8 @@ auto bootstrap::default_json() -> std::string {
     file["spend_cap_monthly_usd"] = defaults.spend_cap_monthly_usd;
     file["llm_tool_rounds"] = defaults.llm_tool_rounds;
     file["emoji_copy_min_uses"] = defaults.emoji_copy_min_uses;
+    file["ytdlp_path"] = defaults.ytdlp_path.generic_string();
+    file["ffmpeg_path"] = defaults.ffmpeg_path.generic_string();
     return file.dump(2) + "\n";
 }
 

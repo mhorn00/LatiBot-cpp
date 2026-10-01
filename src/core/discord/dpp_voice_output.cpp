@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 
 namespace latibot::discord {
@@ -41,7 +42,7 @@ auto dpp_voice_output::play(dpp::snowflake guild, std::span<const std::int16_t> 
                                    [](std::int16_t sample) { return static_cast<std::uint16_t>(sample); });
             client->send_audio_raw(packet.data(), count * sizeof(std::int16_t));
         }
-        client->insert_marker(marker);
+        if (!marker.empty()) client->insert_marker(marker);
     } catch (const dpp::exception& error) {
         util::log().error("could not queue audio in guild {}: {}", guild, error.what());
         return false;
@@ -55,6 +56,14 @@ auto dpp_voice_output::skip(dpp::snowflake guild) -> void {
 
 auto dpp_voice_output::stop(dpp::snowflake guild) -> void {
     if (dpp::discord_voice_client* client = ready_voice_client(*cluster_, guild)) client->stop_audio();
+}
+
+auto dpp_voice_output::remaining(dpp::snowflake guild) -> std::chrono::milliseconds {
+    dpp::discord_voice_client* client = ready_voice_client(*cluster_, guild);
+    if (client == nullptr) return std::chrono::milliseconds{0};
+    // DPP adds up the queued packets' durations: always whole 20 ms packets,
+    // since the music is queued a packet at a time.
+    return std::chrono::milliseconds{std::lround(client->get_secs_remaining() * 1000.0F)};
 }
 
 } // namespace latibot::discord

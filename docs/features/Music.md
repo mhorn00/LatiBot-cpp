@@ -1,26 +1,27 @@
 # Music
 
-The bot plays music in a voice channel: `/play` a link (or, if §9 says so,
-a search), and it joins, queues the track, and plays the queue in order,
-with the usual skip, pause, repeat, shuffle and clear. Speech keeps working
-alongside it: when the bot has something to say, the music **pauses**, the
-speech plays, and the music **resumes where it stopped**.
+The bot plays music in a voice channel. `/music play` takes a link, the bot
+joins, queues the track, and plays the queue in order, with skip, pause,
+repeat, shuffle, remove, clear and stop. `/m` is the same command, for
+short. Speech keeps working alongside it: when the bot has something to say,
+the music **pauses at once**, the speech plays, and the music **resumes
+from exactly where it stopped**.
 
-This is the feature's spec: what it is for, how it should behave, how it is
-to be built, and what has been decided and why. It is a **draft for review**:
-nothing here is built yet, and §9 lists the questions to answer before it
-is. What it builds on is in [Voice_Channels.md](Voice_Channels.md) (joining,
-leaving, the speech queue) and [Speech.md](Speech.md).
+This is the feature's spec: what it is for, how it behaves, how it is
+built, and what was decided and why. [The user guide](README.md#music) has
+the subcommands and replies. What it builds on is in
+[Voice_Channels.md](Voice_Channels.md) (joining, leaving, the speech queue)
+and [Speech.md](Speech.md).
 
 | | |
 |---|---|
-| **Code** (planned) | `src/core/audio/voice_mixer.*`, `src/core/music/{track,music_queue,music_player,resolver,decoder}.*`, `src/core/commands/music.*`, `src/core/ports/{media_resolver,pcm_stream}.hpp`, `src/core/util/process.*` |
-| **Tests** (planned) | `tests/unit/{voice_mixer,music_queue,music_player,music_command,resolver}_test.cpp`, `tests/mocks/{mock_resolver,mock_pcm_stream}.hpp`, `[live]` tests against real yt-dlp and ffmpeg |
-| **Tables** | none planned: the queue lives in memory (§9, Q7); per-server settings as `music_*` rows in `guild_settings` |
-| **Config** (proposed) | `ytdlp_path`, `ffmpeg_path` in `config.json` |
+| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
+| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
+| **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
+| **Config** | `ytdlp_path`, `ffmpeg_path` in `config.json` |
 | **Runtime** | `yt-dlp.exe` and `ffmpeg.exe`, beside the bot or on `PATH` |
 | **Plan** | Replaces plan §15, and the mixer half of §13 |
-| **Status** | **Designed, not built.** Draft of 2026-09-30, waiting on the owner's review |
+| **Status** | Built on 2026-09-30. **Not yet run in Discord, or against the real yt-dlp and ffmpeg**: see §7 |
 
 ## Contents
 
@@ -32,15 +33,15 @@ leaving, the speech queue) and [Speech.md](Speech.md).
 6. [Security](#6-security)
 7. [Testing](#7-testing)
 8. [Decisions](#8-decisions)
-9. [Open questions](#9-open-questions)
+9. [The owner's answers](#9-the-owners-answers)
 10. [Build order](#10-build-order)
-11. [What changes elsewhere](#11-what-changes-elsewhere)
+11. [What changed elsewhere](#11-what-changed-elsewhere)
 
 ## 1. Intent
 
 The Java bot was a music bot as much as anything, through LavaPlayer, and
-the owner wants that back. It is not the most important feature, which is
-why it waited until everything else was built. It has to be a **redesign,
+the owner wanted that back. It is not the most important feature, which is
+why it waited until everything else was built. It had to be a **redesign,
 not a port**, for two reasons:
 
 - **LavaPlayer has no C++ equivalent.** It resolved YouTube and other
@@ -76,78 +77,86 @@ Every reply was deleted after 10 seconds (60 for `/queue` and errors), and
 remote ones: YouTube, SoundCloud, Bandcamp, Vimeo, Twitch, and direct HTTP
 links. There was no search: text that was not a link found nothing.
 
-What went wrong, from `TrackManager.java` and the commands:
+What went wrong, from `TrackManager.java` and the commands. Each of these
+has a test now (§7):
 
-| Problem | Why |
-|---|---|
-| **One queue for the whole bot** | The player and the `TrackManager` were statics on `LatiBot`, so two servers shared one queue and one player |
-| **Speech threw away the current song** | `/speak` used `queueNow`, which pushed the speech to the front and *skipped* the song. It never came back |
-| **`play now` lost the current song too** | The same `queueNow`: the interrupted track was skipped, not resumed |
-| **`play next` with a playlist reversed it** | Each track went in with `addFirst`, so the last track ended up first |
-| **`/skip` did nothing with repeat on** | A skip ends the track as `STOPPED`, and with repeat on, the end handler replays the current track |
-| **A broken track with repeat on looped for ever** | `LOAD_FAILED` was handled like `FINISHED`, so repeat retried it endlessly |
-| **`/queue` hid the current track when nothing was queued after it** | It checked for an empty queue before showing the current track |
-| **The queue outlived leaving** | The `TrackManager` was never reset, so the next `/play` added to an old queue |
-| **Replies vanished** | Everything was deleted after 10 seconds, including errors worth reading |
-| **No limits** | Any length, any playlist size, any number of tracks |
+| Problem | Why | Now |
+|---|---|---|
+| **One queue for the whole bot** | The player and the `TrackManager` were statics on `LatiBot` | A queue per server |
+| **Speech threw away the current song** | `/speak` used `queueNow`, which *skipped* the song | Speech pauses music, which resumes where it was |
+| **`play now` lost the current song too** | The same `queueNow` | The interrupted track comes back after, from its start |
+| **`play next` with a playlist reversed it** | Each track went in with `addFirst` | A playlist keeps its order |
+| **`/skip` did nothing with repeat on** | The end handler replayed a stopped track | Skip always moves on |
+| **A broken track with repeat on looped for ever** | `LOAD_FAILED` was handled like `FINISHED` | A failed track never repeats |
+| **`/queue` hid the current track when nothing was queued after it** | It checked for an empty queue first | The current track is always shown |
+| **The queue outlived leaving** | The `TrackManager` was never reset | Leaving empties it |
+| **Replies vanished** | Everything was deleted after 10 seconds | Nothing is deleted |
+| **No limits** | Any length, any playlist size | 500 in a queue, 100 from a playlist, an hour a track |
 
 ## 3. Behaviour
 
-What follows is the **proposal**. Command names, option names and replies
-are open until §9 is answered; where a choice is still open, the proposal
-states it and marks it with the question number.
-
 ### 3.1 The commands
 
-The Java names are kept for muscle memory (Q1), as top-level commands, and
-two are added. All need **Speak** by default, as in Java, and all are for
-servers only.
+`/music`, or `/m`, with a subcommand. All need **Speak** by default, as in
+Java, and all are for servers only.
 
-| Command | Does |
+| Subcommand | Does |
 |---|---|
-| `/play query [position]` | Queues a link, or with Q3 a search, and starts playing if nothing is. `position` is **end** (the default), **next**, or **now**. The bot joins your channel first if it is not in one |
-| `/queue` (alias `/q`) | What is playing, with the time into it, then the queue, ten a page with ◀ / ▶, and the total time |
-| `/nowplaying` (alias `/np`) | The current track: title, link, time into it and length, who queued it, and whether repeat is on |
-| `/pause` | Pauses, or resumes if paused |
-| `/skip` | Skips the current track, **even with repeat on** |
-| `/repeat [mode]` | **off**, **track** or **queue** (Q6); without `mode`, cycles through them |
-| `/shuffle` | Shuffles what is queued, never the current track |
-| `/clear` | Empties the queue. The current track keeps playing; `/stop` ends that too |
-| `/stop` | *New.* Stops the music and empties the queue, staying in the channel |
-| `/remove position` | *New.* Takes one track out of the queue, by its number in `/queue` |
+| `play link [position]` | Queues a link, and starts playing if nothing is. `position` is **At the end** (the default), **Next**, or **Now**. The bot joins your channel first if it is in none |
+| `queue` | What is playing and how far in, then the queue, ten a page with ◀ / ▶, and its total time |
+| `nowplaying` | The current track: title, link, how far in and how long, who queued it, whether paused or repeating, and what is next |
+| `pause` | Pauses, or resumes if paused |
+| `skip` | Skips the current track, **even with repeat on**, and says what plays now |
+| `repeat [mode]` | **Off**, **This track** or **The whole queue**; without `mode`, the next of those in turn |
+| `shuffle` | Shuffles what is queued, never the current track |
+| `clear` | Empties the queue. The current track plays on; `stop` ends that too |
+| `stop` | Stops the music and empties the queue, staying in the channel |
+| `remove position` | Takes one track out of the queue, by its number in `queue` |
+| `volume [percent]` | Shows the music's volume, or with **Manage Server**, sets it: 0–200 %, 50 by default |
+| `limit [minutes]` | Shows the longest a track may play, or with **Manage Server**, sets it: 60 by default, 0 for none |
 
-**Who may use them.** Anyone with Speak, as in Java. The controls that
-change what everyone hears (`skip`, `pause`, `stop`, `clear`, `shuffle`,
-`remove`, and `play now`) also need the caller to be **in the bot's voice
-channel**, or to have Manage Server (Q5).
+**Who may use them.** Anyone with Speak, **from anywhere in the server**:
+queueing a song into a channel you are not in is allowed on purpose. There
+are no votes. Only the two settings that stay, volume and the track limit,
+need Manage Server to change.
 
-**Replies** are public and silent for what the room hears: queued, skipped,
-paused, stopped. Refusals are private. Nothing is deleted after a delay, and
-the `silent` option goes (Q8).
+**Replies** are public and silent: what the room hears, the room is told,
+without a ping. Refusals are private. Nothing is deleted after a delay, and
+no "now playing" message is posted when a track starts; `nowplaying` answers
+that on request. Titles come from the site, and are shown with markdown
+escaped and mentions broken, so a title can neither format a reply nor
+ping anyone.
 
 ### 3.2 Playing
 
-- **Where.** In the channel the bot is in, whether it got there by `/join`,
-  `/voice start` or `/play`. If it is in no channel, `/play` joins yours.
-  If you are in none, `/play` is refused.
-- **Order.** `end` adds to the back. `next` puts the track straight after
-  the current one; a playlist added with `next` keeps its own order. `now`
-  puts the track next and skips to it, and the interrupted track goes back
-  to the **front of the queue, at the point it was stopped** (Q4).
-- **Playlists.** A playlist link queues its tracks in order, up to a limit
-  (Q9). The reply says how many were queued, and how many were left out.
-- **Metadata.** Each track keeps its title, length, link, uploader and who
-  queued it. Titles are taken as given, with mentions and markdown made
-  harmless before they are shown.
+- **What.** A link, `http://` or `https://`, to anything yt-dlp can play:
+  well over a thousand sites. Plain text is refused ("i only play links for
+  now"): there is no search. A link into a private or loopback network is
+  refused (§6).
+- **Where.** In the channel the bot is in, however it got there. If it is in
+  none, `play` joins yours. If you are in none either, `play` is refused.
+- **Order.** **At the end** adds to the back. **Next** puts the tracks
+  straight after the current one, a playlist in its own order. **Now** puts
+  them first and plays at once; the interrupted track goes back into the
+  queue straight after them and **starts over** when it plays again.
+- **Playlists.** A playlist link queues its first 100 tracks, in order. The
+  reply says how many were queued, and how many were left out and why.
 - **A track that fails** (removed, private, region-locked, a download that
-  breaks mid-way) is skipped with a note in the channel, and the next one
-  plays. It never repeats, even with repeat on.
-- **Resolved when played, not when queued.** Stream URLs expire (YouTube's
-  after a few hours), so queueing only reads the metadata, and the audio is
-  fetched when the track's turn comes. A track that was fine when queued can
-  still fail then.
-- **Live streams** (Q10) play until skipped, and show *live* in place of a
+  breaks mid-way) is skipped with a note in the channel it was queued from,
+  and the next one plays. It never repeats, whatever repeat says. What had
+  already been heard of it stays heard.
+- **Fetched when played, not when queued.** Stream URLs expire (YouTube's
+  after a few hours), so queueing only reads the details. The audio is
+  fetched when the track's turn comes: in fact a few seconds before, while
+  the one before it finishes, so the next track starts without a wait.
+- **Live streams** play until skipped, and show *live* in place of a
   length.
+- **The track limit.** A track known to be longer than the server's limit is
+  left out when queued, with a note in the reply. One whose length the site
+  did not give is cut off at the limit, with a note. Live streams have no
+  limit.
+- **Loudness** is evened out between tracks, and the server's volume is
+  applied on top.
 
 ### 3.3 Speech and music together
 
@@ -155,35 +164,36 @@ Speech always wins, and music loses nothing by it:
 
 1. The bot has something to say: `/speak`, a spoken model reply, the voice
    lab's ▶ Test.
-2. The music **stops at once**, where it is. It is not faded out, and it
-   does not play out what had been buffered first.
+2. The music **stops at once**, where it is. It is not faded out, and what
+   had been queued of it does not play out first.
 3. The speech plays, all of it, including speech queued after it.
-4. The music **resumes from where it stopped**.
+4. The music **resumes from exactly where it stopped**.
 
-`/tts stop` and `/tts skip` stop speech only; the music then resumes.
-`/pause`, `/skip` and `/stop` act on music only. Ducking (music quieter
-under speech) and playing over it are possible later, as a per-server
-choice, since the mixer handles the samples itself (§4.2). Pausing was
-chosen to start with, in plan v1.
+`/tts stop` and `/tts skip` stop speech only; the music then resumes, and
+with no speech playing they leave the music alone. `pause`, `skip` and
+`stop` act on music only. Ducking (music quieter under speech) and playing
+over it are possible later, as a per-server choice, since the mixer holds
+the samples itself (§4.2).
 
 ### 3.4 Leaving
 
-The music stops and the queue is **cleared** whenever the bot leaves the
+The music stops and the queue is **emptied** whenever the bot leaves the
 channel: `/leave`, `/voice stop`, being disconnected, or leaving because it
 was alone ([Voice_Channels.md §2.3](Voice_Channels.md#23-leaving-an-empty-channel)).
-Auto-leave works as it does now: music does not keep the bot in an empty
-channel. Moving to another channel with `/join` keeps the queue, and the
-current track carries on from where it was.
+Music does not keep the bot in an empty channel. Moving to another channel
+with `/join` keeps the queue; the current track carries on, less up to three
+seconds that were queued on the old connection (§4.2).
 
 ### 3.5 Limits
 
-| Limit | Proposed | Why |
+| Limit | Value | Why |
 |---|---|---|
-| Tracks in a server's queue | 500 | A queue past that is a mistake |
-| Tracks added from one playlist | 100 | Fetching a playlist's metadata takes time; a huge one should not hold `/play` up |
-| Longest track | none, or a per-server cap (Q10) | |
-| Resolving a link | 30 s, then refused | yt-dlp can hang on an unreachable site |
-| Volume | 50 % by default, 0–200 %, per server (Q11) | Music at full scale drowns speech |
+| Tracks in a server's queue | 500, the one playing included | A queue past that is a mistake |
+| Tracks added from one playlist | 100 | Reading a playlist's details takes time |
+| Longest track | 60 minutes by default, per server, 0 for none; live streams never | The owner's choice |
+| Reading a link | 30 s, then refused | yt-dlp can hang on an unreachable site |
+| A track producing no audio | 30 s, then it has failed | A fetch that stalls should not hold the queue |
+| Volume | 50 % by default, 0–200 %, per server | Music at full scale drowns speech |
 
 ## 4. How it works
 
@@ -191,218 +201,254 @@ current track carries on from where it was.
 
 ```mermaid
 flowchart LR
-    play["/play and the other<br/>music commands"] --> player["music_player<br/>(per server: queue, current track)"]
-    player --> resolver["resolver<br/>yt-dlp: metadata, and the audio"]
-    resolver --> decoder["decoder<br/>ffmpeg: to 48 kHz stereo PCM"]
-    decoder --> mixer["voice_mixer<br/>(per server)"]
+    play["/music and /m"] --> player["music_player<br/>(per server: queue, current track)"]
+    play --> resolver["ytdlp_resolver<br/>yt-dlp reads the link"]
+    player --> opener["ytdlp_opener<br/>yt-dlp | ffmpeg, as a process_stream"]
+    player --> mixer["voice_mixer<br/>(per server)"]
     speak["/speak, spoken replies,<br/>▶ Test"] --> speech["speech_queue"]
     speech --> mixer
-    mixer --> output["voice_output<br/>(DPP's voice client)"]
+    mixer --> output["dpp_voice_output<br/>(DPP's voice client)"]
     output -. "track markers" .-> mixer
 ```
 
-- **`music_player`** holds each server's queue and current track, and
-  decides what plays next: the plain-data logic, tested without any process
-  or connection.
-- **`resolver`** runs yt-dlp. **`decoder`** runs ffmpeg on what yt-dlp
-  fetches. Both sit behind ports (`media_resolver`, `pcm_stream`), so the
-  player is tested against mocks.
+- **`music_queue`** is the queue's rules as plain functions over a
+  `guild_queue`: add, advance, peek, shuffle, remove, clear. The Java bugs of
+  §2 are tests of these.
+- **`music_player`** holds each server's queue, the current track's stream,
+  and the next track's, fetched ahead. It is the mixer's **music source**.
+- **`ytdlp_resolver`** reads links with yt-dlp, and **`ytdlp_opener`** starts
+  `yt-dlp | ffmpeg` for a track. Both sit behind `ports::media_resolver` and
+  `ports::stream_opener`, with mocks in the tests.
 - **`voice_mixer`** is the only thing that writes to a server's voice
-  connection. Speech and music are its two sources.
+  connection.
 
 ### 4.2 The mixer, and why `pause_audio` cannot do this
 
-The plans said music would pause for speech with DPP's `pause_audio` and
-track markers. **Reading DPP 10.1.6 shows that cannot work**:
+The plans said music would pause for speech with DPP's `pause_audio`.
+**DPP 10.1.6 shows that cannot work**: a `discord_voice_client` has **one**
+outgoing queue, played in order. `pause_audio` pauses all of it,
+`stop_audio` clears all of it, and `skip_to_next_marker` drops everything up
+to the next marker, speech or music.
 
-- A `discord_voice_client` has **one** outgoing buffer, `outbuf`, played in
-  order. Speech and music would both be in it.
-- `pause_audio(true)` pauses the **whole** buffer, so speech queued behind
-  paused music would wait with it.
-- `stop_audio()` clears the **whole** buffer, speech included.
-- `skip_to_next_marker()` drops everything up to the next marker, whatever
-  it belongs to.
+So the connection only ever holds one of the two:
 
-So DPP's buffer can only ever hold one thing at a time. The mixer keeps
-music **out** of it except for a short **lookahead**, and speech goes
-straight in:
+- **Music is fed a little at a time.** The mixer keeps **three seconds** of
+  music queued (`voice_output::remaining`, DPP's `get_secs_remaining`), in
+  whole 20 ms packets, topped up by a one-second cluster timer: DPP's timers
+  tick in whole seconds, so three seconds leaves two in hand. A track is
+  never queued whole; four minutes is 46 MB of samples.
+- **It remembers what it sent**: the last six seconds of music, packet by
+  packet, with the markers among them.
+- **When speech arrives** (`play`, from the speech queue), the mixer works
+  out from the connection's queued time exactly which samples have not been
+  heard, takes them back, clears the connection with `stop_audio`, and
+  queues the speech. The speech starts within a packet.
+- **When the last speech marker passes**, the music taken back is queued
+  first, then the player is read again. Nothing is lost and nothing plays
+  twice. `/tts skip` and `/tts stop` end speech the same way, and do
+  nothing to the connection when no speech is queued.
+- **`pause`** takes the music back the same way and stops feeding;
+  resuming feeds it again. **`skip`** and **`stop`** drop it
+  (`drop_music`), clearing the connection only when it holds music.
+- **A new connection** (a move, or a reconnect) has lost what the old one
+  queued. Speech waiting is queued again by the speech queue. A track's end
+  marker that was still due is sent again, so the player still moves on; the
+  up to three seconds of music queued before it are lost.
 
-- **Music is fed a little at a time.** The mixer keeps about **two
-  seconds** of music queued in DPP's buffer (`get_secs_remaining`), topping
-  it up from the decoder on a short timer. That is enough to ride out timer
-  jitter, and small enough to hold little in memory. A track is never
-  queued whole: four minutes is 46 MB of PCM.
-- **The mixer remembers what it sent.** It keeps the last lookahead's worth
-  of music samples it queued. DPP's buffer holds 20 ms packets, so the
-  number of seconds remaining says exactly which samples have not been
-  heard yet.
-- **When speech arrives**, the mixer:
-  1. reads how much music is still unplayed;
-  2. calls `stop_audio()`, which leaves the buffer empty;
-  3. keeps the unplayed samples to replay first;
-  4. queues the speech, whole, with its markers, as the speech queue does
-     today.
-
-  The speech starts within one 20 ms packet.
-- **When the last speech marker passes**, the mixer feeds the kept samples,
-  then the decoder again. Nothing is lost, and nothing plays twice.
-- **Music commands** act on the mixer, not DPP. `/pause` stops feeding and
-  clears the lookahead, keeping it, so the pause is immediate and resuming
-  loses nothing. `/skip` clears the lookahead and moves to the next track.
-- **The same rewind handles a move.** Changing channel sets the voice
-  connection up again, and DPP's buffer is not expected to survive that (to
-  confirm when built). Either way, the mixer replays its kept samples once
-  the connection is ready.
-
-The mixer implements `ports::voice_output` towards the speech queue, which
-therefore does not change, and uses a `voice_output` of its own, extended
-with `remaining`, towards DPP. Since the mixer holds the samples before DPP
-sees them, a later **duck** or **overlay** mode is sample arithmetic on the
-lookahead, with no change to the design.
+Towards the speech queue the mixer is a `ports::voice_output`, so speech
+did not change. Since the mixer holds the samples before DPP sees them, a
+later **duck** or **overlay** mode is arithmetic on the samples, with no
+change to the design.
 
 ### 4.3 Tracks and markers
 
-The plans wanted DPP's track markers to own the playback position, instead
-of the Java `SongQueue`'s bookkeeping. In the lookahead design:
-
-- The mixer inserts a marker **after the last packet of each track**, named
-  `music:<track id>`. Speech markers keep their own prefix, so each source
-  sees only its own.
+- The mixer queues a marker **after the last packet of each track**, named
+  `music:<playback>`, where the playback number is new every time a track
+  starts, a repeat included. Speech markers start `tts:`, so each source
+  sees only its own. A track's last packet is padded with silence, at most
+  20 ms.
 - `on_voice_track_marker` for a music marker means the track **finished
   playing**, not merely finished decoding. That is when the player moves on
-  and repeat is applied. The decoder may have finished seconds earlier.
-- **Time into the track** is the samples fed, minus what DPP has not played
-  yet. It needs no clock, and it stays right across pauses and speech.
-
-The queue itself is plain data: a `std::deque<track>` per server with the
-current track separate, the operations of §3.1, and every rule of §2
-written as a test first.
+  and repeat is applied. A marker from a playback since skipped or
+  restarted is ignored.
+- **Fetching ahead.** When the current track has finished decoding, the
+  player opens the stream of whatever plays next (`peek_next`), so its audio
+  is ready when the marker comes; the mixer feeds it straight away. A change
+  to the queue before then (shuffle, remove, repeat) re-picks it.
+- **Time into the track** is the samples the player handed over, less what
+  the mixer says is not heard yet. It needs no clock, and stays right
+  across pauses and speech.
 
 ### 4.4 Resolving: yt-dlp
 
-yt-dlp is run once to **read** a link, and once more to **fetch** a track
-when its turn comes:
+`ytdlp_resolver` runs yt-dlp on two worker threads of its own, completing a
+DPP promise, since a read takes seconds:
 
-- **Reading** (at `/play`):
-  `yt-dlp --ignore-config --no-warnings --flat-playlist --dump-single-json -- <link>`
-  gives a single track's metadata, or a playlist's entries without fetching
-  each one. With Q3, text that is not a link becomes `ytsearch1:<text>`.
-- **Fetching** (at play time): `yt-dlp --ignore-config --no-playlist
-  -f bestaudio/best -o - -- <link>` writes the audio to stdout, which is
-  connected straight to ffmpeg's stdin.
+```
+yt-dlp --ignore-config --no-warnings --no-playlist --flat-playlist
+       --dump-single-json --playlist-end 100 --encoding utf-8 -- <link>
+```
+
+- `--no-playlist` makes a video link that also names a playlist the video; a
+  playlist link is still the playlist.
+- `--flat-playlist` lists a playlist's entries without fetching each one.
+- `parse_lookup` reads the JSON: title, the page to fetch from, uploader,
+  length, and whether it is live. Entries with no usable link, and upcoming
+  streams, are left out. yt-dlp's `ERROR:` line becomes the reply when it
+  fails.
+
+**Fetching**, when a track plays, writes the audio to stdout, which is
+connected straight to ffmpeg's stdin:
+
+```
+yt-dlp --ignore-config --no-warnings --no-playlist --quiet --no-progress
+       --no-part -f bestaudio/best -o - [--ffmpeg-location <ffmpeg>] -- <link>
+```
 
 Piping yt-dlp into ffmpeg, rather than handing ffmpeg a URL, leaves yt-dlp
-to deal with what sites need: signed URLs, headers, fragmented streams,
-cookies. ffmpeg only ever reads a pipe.
+to deal with what sites need: signed URLs, headers, fragmented streams. It
+is also given ffmpeg's location, since it uses ffmpeg itself for live
+streams and some sites.
 
 ### 4.5 Decoding: ffmpeg
 
 ```
-ffmpeg -hide_banner -loglevel error -i pipe:0 -f s16le -ar 48000 -ac 2 pipe:1
+ffmpeg -hide_banner -loglevel error -i pipe:0 -vn
+       -af loudnorm=I=-16:TP=-1.5:LRA=11 -f s16le -ar 48000 -ac 2 pipe:1
 ```
 
-The decoder reads its stdout into 20 ms frames of 48 kHz stereo 16-bit
-samples, which is what DPP takes, and applies the server's volume in
-software, as `/speak` does. Speech needs no ffmpeg at all; it is a
-music-only dependency, as plan v1 found.
+- **`loudnorm`** evens loudness out in one pass, as the audio arrives, at
+  -16 LUFS.
+- **`process_stream`** reads the output on a thread of its own into a
+  buffer of ten seconds, and waits when it is full, so the programs never run
+  further ahead than that.
+- **The volume** is applied by the player in software, as `/speak` does, and
+  a change applies at once.
+- **A failure** is the first program in the pipe to exit non-zero, and its
+  last stderr line is the reason given: yt-dlp failing leaves ffmpeg with
+  nothing, and it fails too.
 
-Loudness varies from track to track. ffmpeg's `loudnorm` filter can even
-it out in one pass (Q11).
+Speech needs no ffmpeg at all; it is a music-only dependency, as plan v1
+found.
 
 ### 4.6 Running programs
 
-Nothing in the bot runs another program yet. Windows needs `CreateProcess`
-with pipes for stdin, stdout and stderr, and a way to kill the process tree
-on `/skip`. That goes behind a small port (`util/process`, or a library,
-Q2), so tests never start a process:
+`util::process` is a small Win32 wrapper:
 
-- **Arguments are passed as a list**, never through a shell, so nothing in a
-  link is ever interpreted by one.
-- **stderr is drained** on its own thread and logged at `debug`, since a
-  full stderr pipe blocks the process.
-- **Every process is killed** when its track ends, is skipped or stopped,
-  or the bot leaves. A server holds at most one fetch and one decode at a
-  time, plus a read while `/play` runs.
-- **Timeouts:** reading a link gives up after 30 s. Fetching has no
-  overall limit, since a track plays for as long as it plays, but a decoder
-  that produces nothing for 30 s is treated as a failed track.
+- **Arguments are a list**, quoted with `quote_argument` so that
+  `CommandLineToArgvW` reads back exactly what was given, and never pass
+  through a shell.
+- **One job object per pipeline**, with kill-on-close. Every process is
+  started suspended, put in the job, then resumed, so nothing it starts can
+  escape. Killing the pipeline (a skip, a stop, leaving) ends yt-dlp,
+  ffmpeg, and anything yt-dlp started.
+- **Inherited handles are listed explicitly**
+  (`PROC_THREAD_ATTRIBUTE_HANDLE_LIST`). Another server's music may be
+  starting at the same moment, and a pipe end leaking into the wrong process
+  would keep that pipe open after its owner finished.
+- **stderr is drained** line by line on a thread per program, and logged at
+  `debug`, since a full stderr pipe stops a program.
+- **`run`** runs one program to its end with a watchdog, for reading links
+  and asking versions. **`pipeline`** chains them for fetching.
+- `locate_program` finds each program: the `config.json` path if given,
+  else beside the bot's executable, else on `PATH`.
 
 ### 4.7 Threads
 
-- The decoder reads on a thread per playing server.
-- Topping up DPP's buffer runs on a cluster timer, about every 200 ms, as
-  the other timers do, and never blocks: it takes what the decoder has.
-- `send_audio_raw` Opus-encodes on the calling thread, so 200 ms of audio is
-  encoded per top-up, per server: small.
-- The player and the mixer are called from commands, voice events and
-  timers, so both lock, as the speech queue does.
+- **The feeding timer** runs on DPP's timer thread once a second, and never
+  waits: it takes what the streams have.
+- **Each stream** reads on a thread of its own; **each program** in it has a
+  stderr reader; **the resolver** has two workers.
+- `send_audio_raw` Opus-encodes on the calling thread: at most three seconds
+  a tick per playing server.
+- **Locks.** The mixer calls the player (`read`) with its own lock held, so
+  the player never calls the mixer with the player's lock held. A skip is
+  two halves: the player marks itself switching, the mixer drops what it
+  had, then the player moves on. Nothing is read in between, so the next
+  track's start is never dropped with the old one's end.
 
 ### 4.8 Storage
 
-The queue is memory only (Q7). Per-server settings are `guild_settings`
-rows: `music_volume`, and later the mixing mode. No migration is needed
-unless Q7 asks for the queue to survive a restart.
+The queue is memory only, and leaves with the bot. Per server,
+`guild_settings` keeps `music_volume` and `music_track_limit_minutes`. No
+migration was needed.
 
 ## 5. Dependencies and running it
 
 - **yt-dlp** and **ffmpeg** are external executables, not linked libraries.
   A release gains two files beside the four it has, or they are found on
-  `PATH`. `config.json` gains `ytdlp_path` and `ffmpeg_path`, empty by
+  `PATH`. `config.json` has `ytdlp_path` and `ffmpeg_path`, empty by
   default, meaning "beside the bot, then `PATH`".
-- **The bot starts without them.** Startup logs a warning naming what is
-  missing, and the music commands say so. Nothing else is affected.
-- **yt-dlp needs updating often.** Sites change, and an old yt-dlp stops
-  working with them, YouTube especially. The log should say which version
-  was found, and a failed read suggests `yt-dlp -U`. Recent yt-dlp may need
-  a JavaScript runtime for YouTube; check the current requirement when this
-  is built.
+- **The bot starts without them.** Startup warns, naming what is missing,
+  and `/music play` says the same. Nothing else is affected.
+- **Startup logs the versions**, asked on a thread of its own so startup
+  does not wait: an old yt-dlp is the usual reason a site stops working, and
+  `yt-dlp -U` updates it. Recent yt-dlp may also need a JavaScript runtime
+  (such as Deno) for YouTube; check when installing.
 - **Conan's `ffmpeg` package** (libav\*) was the alternative: native, with no
-  extra executable, but a much larger build for no practical gain here, and
-  yt-dlp is external either way (Q2).
-- **CI** has neither program. The unit tests use mocks; tests against the
-  real programs are `[live]` (§7).
+  extra executable, but a much larger build for no practical gain, and
+  yt-dlp is external either way.
+- **CI** has neither program, and needs neither: the tests use a stand-in
+  (§7).
 
 ## 6. Security
 
 People type the links, so everything passed to yt-dlp is untrusted:
 
-- **Option injection.** A "link" of `--exec calc` must not become an option.
-  Every link goes after `--`, and a link must be `http://` or `https://`
-  (or a search, with Q3).
+- **Option injection.** Every link goes after `--`, and a link must be
+  `http://` or `https://`, so `--exec calc` is refused before yt-dlp ever
+  runs, and could not be an option if it were not.
 - **Local files.** yt-dlp refuses `file://` unless told otherwise, which it
-  never is. ffmpeg only reads a pipe, so it cannot be pointed at a file.
-- **Config and plugins.** `--ignore-config` on every call, so a
-  `yt-dlp.conf` on the host changes nothing. No `--exec`, no cookies, and
-  no output written to disk.
-- **The local network.** yt-dlp's generic extractor fetches any URL, so a
-  link to `http://192.168.1.1/` makes the host fetch from its own network
-  (SSRF). Refusing private and loopback addresses before resolving is
-  cheap, and so is an allowlist of sites (Q12).
-- **Titles** come from the site, and are shown with mentions and markdown
-  made harmless.
+  never is. ffmpeg only reads a pipe.
+- **Config.** `--ignore-config` on every call, so a `yt-dlp.conf` on the host
+  changes nothing. No `--exec`, no cookies, and nothing written to disk.
+- **The local network.** A link written as a private, loopback, link-local,
+  carrier-NAT, multicast or reserved address, IPv4 or IPv6, or as
+  `localhost`, is refused when typed. A name is resolved first, by the
+  resolver, and refused if any of its addresses is such an address. A site
+  that *redirects* into the host's network is not caught: yt-dlp follows it.
+- **Titles and errors** come from outside, and are shown with markdown
+  escaped and every `@` broken with a zero-width space (`util::plain_text`).
 
 ## 7. Testing
 
-- **The queue and the player**, as plain data: every §3.1 operation, with
-  the Java bugs of §2 written as tests first. Among them: a playlist `next`
-  keeps its order, skip works with repeat on, a failed track never
-  repeats, `now` resumes the interrupted track at its point.
-- **The mixer**, against a `mock_voice` extended with `remaining`:
-  - speech interrupts within one packet, and music resumes at exactly the
-    first unplayed sample;
-  - pause and resume lose nothing;
-  - a move replays the kept samples on the new connection;
-  - markers route to the right source;
-  - the lookahead never passes its size.
-- **The resolver**, against recorded yt-dlp JSON: a track, a playlist, a
-  search, a live stream, errors, and the argument list, including `--` and
-  `--ignore-config`, for links that try to be options.
-- **The decoder and the process port**, against a stand-in program the
-  tests build, which writes known samples and can hang or die on request.
-- **`[live]`**: real yt-dlp and ffmpeg on a known, stable, freely licensed
-  track. Excluded by every preset, like the other live tests.
-- **Commands**: the panel harness for `/queue`'s pages, and the permission
-  checks as pure functions.
+- **The queue**, as plain data: every operation, and each Java bug of §2.
+  `peek_next` is checked against `advance` for every repeat mode and way a
+  track can end.
+- **The player**, against scripted tracks (`mock_media.hpp`), a real mixer
+  and a mock connection: order, fetching ahead, repeat, skip with repeat on,
+  failed tracks before and after audio, `now` and the interrupted track
+  starting over, pause, stop, the track limit and live streams, volume,
+  separate servers, leaving, and speech pausing the music.
+- **The mixer**, against a mock connection that plays its queue forward
+  and records every sample heard. Music is a numbered ramp, so "resumed
+  exactly where it stopped" is checked sample by sample: speech, several
+  utterances, stop and skip, pause and resume, track end markers taken back
+  by speech, dropping, a new connection, and whole packets only.
+- **yt-dlp**, with a stand-in program (`tests/support/test_child.cpp`)
+  that answers as yt-dlp would: tracks, playlists, failures, timeouts, and
+  the argument lists, including `--` and `--ignore-config` for links that
+  try to be options. The JSON reading is tested on its own.
+- **Processes**, with the same stand-in: arguments read back exactly
+  (spaces, quotes, backslashes, `%PATH%`, non-ASCII), three-stage pipes,
+  stderr, exit codes, timeouts, output limits, and killing a program and
+  what it started.
+- **The command**: every reply's wording, the queue's pages against
+  Discord's limits, the settings, and `/m` registering.
+- **`[live]`** (`yt_dlp_live_test.cpp`, hidden with `[.]`): the real yt-dlp
+  and ffmpeg read and play Wikimedia Commons' `Example.ogg`. Skipped when
+  either is not installed; neither was on the machine this was built on.
+
+**Still to check, with the real programs and in Discord:**
+
+- that yt-dlp's JSON for YouTube, SoundCloud and a direct link reads as
+  the tests' does, and that `--playlist-end` and `--no-playlist` behave;
+- that `yt-dlp | ffmpeg` plays, including a live stream, and how long a
+  YouTube track takes to start;
+- that the mixer's timing holds in DPP: no gaps at the one-second tick,
+  speech cutting in cleanly, and music resuming without a click;
+- what DPP does to its queue on a move with `/join`;
+- `/music` registering, and the queue's buttons.
 
 ## 8. Decisions
 
@@ -414,127 +460,68 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | initial analysis | Keep speech and music separate | Speech will do much more, and must not collide with music |
 | plan v1 | One mixer per server owns the connection; speech preempts, music pauses and resumes | One voice connection per server; the owner wants pause first, configurable later |
 | plan v1 | Build on DPP's track markers | They report playback passing a point, which the Java queue did by hand |
-| plan v1 | Don't register music commands until they work | No dead commands in the slash menu |
 | plan v1 | ffmpeg is for music only | Speech is PCM in memory, and needs only resampling |
 | plan v2 | Pause now; duck or overlay as a per-server setting later | Keep it simple to start |
-| 2026-09-30 | The mixer feeds music a short lookahead and rewinds on interruption, rather than using `pause_audio` | DPP's one buffer makes `pause_audio` and `stop_audio` act on speech too (§4.2) |
-| 2026-09-30 | Tracks are fetched when played, not when queued | Stream URLs expire |
+| 2026-09-30 | The mixer feeds music a short lookahead and rewinds on interruption, rather than using `pause_audio` | DPP's one queue makes `pause_audio` and `stop_audio` act on speech too (§4.2) |
+| 2026-09-30 | Three seconds of lookahead, topped up once a second | DPP's timers tick in whole seconds; the rewind means the size costs speech nothing |
+| 2026-09-30 | Tracks are fetched when played, and the next one while the current one finishes | Stream URLs expire; fetching ahead keeps the gap between tracks to milliseconds |
 | 2026-09-30 | yt-dlp pipes into ffmpeg; ffmpeg never takes a URL | yt-dlp handles what sites need, and ffmpeg can never be pointed at a file |
 | 2026-09-30 | A music marker means the track finished playing | Decoding ends seconds before playback does |
+| 2026-09-30 | Subcommands of `/music`, with `/m` as its alias | The owner's answer (Q1) |
+| 2026-09-30 | Our own Win32 process wrapper, with a job object | The owner's answer (Q2); the job ends what yt-dlp starts |
+| 2026-09-30 | Links only, no search | The owner's answer (Q3) |
+| 2026-09-30 | `now` keeps the interrupted track, which starts over | The owner's answer (Q4) |
+| 2026-09-30 | Anyone with Speak, from anywhere, no votes | The owner's answer (Q5): queueing into a channel you are not in is funny |
+| 2026-09-30 | Repeat off, a track, or the queue | The owner's answer (Q6) |
+| 2026-09-30 | The queue lives in memory | The owner's answer (Q7) |
+| 2026-09-30 | Public silent replies, private refusals, no automatic "now playing" | The owner's answer (Q8) |
+| 2026-09-30 | 500 in a queue, 100 from a playlist | The owner's answer (Q9) |
+| 2026-09-30 | A per-server track limit, an hour by default, none for live streams, set with Manage Server | The owner's answer (Q10) |
+| 2026-09-30 | A per-server volume, 50 % by default, and `loudnorm` | The owner's answer (Q11) |
+| 2026-09-30 | Any site yt-dlp supports, but no private or loopback addresses | The owner's answer (Q12) |
+| 2026-09-30 | Changing the volume, like the limit, needs Manage Server | Both are settings that stay for the whole server; pausing and skipping are not |
+| 2026-09-30 | `[live]` tests are hidden with Catch2's `[.]` as well | The presets filter test names, and a tag is not in the name |
 
-## 9. Open questions
+## 9. The owner's answers
 
-For the owner. Each has a recommendation, which is what §3 assumes;
-answering inline under each works, as it did for link stats.
+The draft asked twelve questions; the owner answered them on 2026-09-30,
+and §8 records each as a decision.
 
-**Q1. Command names.** Keep the Java top-level commands (`/play`, `/queue`,
-`/np`, `/skip` …), or group them as `/music play`, `/music skip`, and so on?
-Top-level names are quicker to type and familiar. A group keeps the slash
-menu tidy, and cannot collide with anything later.
-*Recommended:* top-level, as in Java, with `/q` and `/np` kept.
-
-> Answer:
-
-**Q2. How to run yt-dlp and ffmpeg.** (a) The executables, with a small
-Win32 process wrapper of our own. (b) The executables, through a library
-such as `reproc` from Conan. (c) libav\* through Conan's `ffmpeg`, with
-yt-dlp still an executable.
-*Recommended:* (a). It is about 200 lines, and the bot needs nothing a
-library would add.
-
-> Answer:
-
-**Q3. Search.** Should `/play` take plain text and play the first YouTube
-result, or links only, as in Java?
-*Recommended:* search, since it is the most common way people use music
-bots. The reply names what was found, so a wrong match is obvious.
-
-> Answer:
-
-**Q4. `play now`.** When it interrupts a track, should the interrupted
-track come back afterwards, at the point it was stopped, or be dropped as
-in Java?
-*Recommended:* come back, at its point.
-
-> Answer:
-
-**Q5. Who controls the music.** Anyone with Speak, as in Java? Only people
-in the bot's voice channel? A vote to skip?
-*Recommended:* anyone with Speak who is in the bot's voice channel, or
-anyone with Manage Server. No votes.
-
-> Answer:
-
-**Q6. Repeat.** Java repeated the current track only. Add repeating the
-whole queue?
-*Recommended:* off, track and queue.
-
-> Answer:
-
-**Q7. The queue across restarts.** Memory only, lost on restart, as in
-Java? Or stored, so a restart picks up where it was?
-*Recommended:* memory only. A restart also leaves the voice channel, and
-the queue goes when the bot leaves (§3.4).
-
-> Answer:
-
-**Q8. Replies.** Public and silent for what the room hears, private
-refusals, nothing deleted after a delay, and no `silent` option? And
-should the bot post "now playing" in the channel each time a track starts?
-*Recommended:* yes to the first; no automatic "now playing" posts, since
-`/np` answers that on request and a post per track is noise.
-
-> Answer:
-
-**Q9. Limits.** 500 tracks in a queue and 100 from one playlist?
-*Recommended:* those.
-
-> Answer:
-
-**Q10. Long tracks and live streams.** Allow any length, and live streams
-until skipped? Or cap a track's length per server?
-*Recommended:* allow both, with no cap to start. `/skip` ends either.
-
-> Answer:
-
-**Q11. Volume.** A per-server `/volume` (0–200 %, 50 by default)?
-Loudness evened out between tracks with ffmpeg's `loudnorm`?
-*Recommended:* both. Music at full scale drowns the speech it pauses for.
-
-> Answer:
-
-**Q12. Which sites.** Anything yt-dlp supports (well over a thousand
-sites), or a list (YouTube, SoundCloud, Bandcamp, direct audio links)?
-Either way, private and loopback addresses are refused (§6).
-*Recommended:* anything yt-dlp supports, apart from those addresses.
-
-> Answer:
+| # | Question | Answer |
+|---|---|---|
+| Q1 | Command names | Subcommands of `/music`, aliased as `/m` |
+| Q2 | Running yt-dlp and ffmpeg | The executables, through our own process wrapper |
+| Q3 | Search | No: direct links only, for now |
+| Q4 | `play now` | Keep the interrupted track; it starts over when it plays next |
+| Q5 | Who controls the music | Anyone with Speak, even when not in the voice channel; no votes |
+| Q6 | Repeat | A track, or the whole queue |
+| Q7 | The queue across restarts | Memory only |
+| Q8 | Replies | Public and silent; private refusals; no automatic "now playing" |
+| Q9 | Limits | 500 in a queue, 100 from a playlist |
+| Q10 | Long tracks and live streams | A per-server limit set with Manage Server: an hour by default, none on live streams |
+| Q11 | Volume | A per-server volume, 50 % by default, and `loudnorm` |
+| Q12 | Which sites | Anything yt-dlp supports, apart from private and loopback addresses |
 
 ## 10. Build order
 
-Each step ends with its tests passing, as the phases did.
+As built, each step with its tests passing:
 
-1. **The process port** and a stand-in program for its tests.
-2. **The resolver** and **the decoder**, with a `[live]` test against the
-   real programs.
-3. **The mixer**, with speech moved onto it. Speech must behave exactly as
-   it does now, which the existing speech tests check. Nothing new is
-   registered yet.
-4. **The queue and the player**, with every §2 bug as a test.
-5. **The commands**, registered only once steps 1–4 work in Discord.
-6. **Docs**: this spec as built, the user guide's sections, and §11's
-   updates elsewhere.
+1. **The process port**, and the stand-in program for its tests.
+2. **The resolver** and **the stream**, against the stand-in.
+3. **The mixer**, with speech moved onto it. The existing speech tests
+   passed unchanged.
+4. **The queue and the player**.
+5. **The command**, registered now, so it can be tried with a test bot.
+6. **Docs**: this spec, the user guide, and §11.
 
-## 11. What changes elsewhere
-
-When it is built:
+## 11. What changed elsewhere
 
 - **[Voice_Channels.md](Voice_Channels.md)**: the mixer sits between the
-  speech queue and DPP, and leaving clears the music queue.
+  speech queue and DPP, and leaving empties the music queue.
 - **[Speech.md](Speech.md)**: speech pauses music, and `/tts stop` stops
   speech only.
 - **[Operations.md](Operations.md)**: the two executables, their
-  `config.json` keys, and the startup warning.
-- **[Planned.md](Planned.md)**: music leaves it.
-- **The user guide**: the commands, in place of "What is coming".
-- **The root README**: the release files, and the permission list.
+  `config.json` keys, the startup warning, and the music timer.
+- **[Planned.md](Planned.md)**: music left it.
+- **The user guide**: `/music`.
+- **The root README**: the release files and the configuration keys.

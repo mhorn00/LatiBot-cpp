@@ -53,7 +53,8 @@ would let a stranger's server play any `.wav` on the host.
 Speak, by default. It speaks where the bot already is: a voice session's
 channel, or wherever `/join` put it. So it works from any text channel in
 the server. If the bot is not in voice, it joins **your** channel first, as
-the Java bot did.
+the Java bot did. [Music](Music.md) playing there stops for the speech and
+carries on afterwards from where it was.
 
 - `voice`: the ten built-in voices (Paul, Betty, Harry, Frank, Dennis, Kit,
   Ursula, Rita, Wendy, Val), then this server's custom voices. Paul when left
@@ -117,7 +118,7 @@ duration cannot: commands that wait instead of making audio, and a
 
 | Subcommand | Who | Does |
 |---|---|---|
-| `stop` | whoever asked for what is playing, an administrator, or a trusted user | Silences the bot and drops everything waiting, **including speech still being made** |
+| `stop` | whoever asked for what is playing, an administrator, or a trusted user | Silences the bot and drops everything waiting, **including speech still being made**. Music is not touched: it carries on once speech is over ([Music.md §3.3](Music.md#33-speech-and-music-together)) |
 | `skip` | the same | Drops only what is being said now |
 | `limits [characters] [seconds]` | Speak to see; Manage Server to change | Shows or changes §2.3's limits |
 

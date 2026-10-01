@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-781 test cases across 11 components, including 159 sections.
+873 test cases across 12 components, including 178 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -15,11 +15,12 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [events](#events) | 188 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 59 | 8 |
+| [audio](#audio) | 71 | 12 |
+| [music](#music) | 68 | 12 |
 | [llm](#llm) | 58 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
-| [util](#util) | 40 | 19 |
+| [util](#util) | 52 | 22 |
 
 ## db
 
@@ -704,6 +705,18 @@ Speech and voice (`src/core/audio`)
 | stop also stops speech still being synthesized |  |  | [tests/unit/speech_queue_test.cpp:155](../../tests/unit/speech_queue_test.cpp#L155) |
 | stopping one guild leaves another alone |  |  | [tests/unit/speech_queue_test.cpp:169](../../tests/unit/speech_queue_test.cpp#L169) |
 | forgetting a guild drops its speech without touching the connection |  |  | [tests/unit/speech_queue_test.cpp:180](../../tests/unit/speech_queue_test.cpp#L180) |
+| music is kept a few seconds ahead, in whole packets |  |  | [tests/unit/voice_mixer_test.cpp:102](../../tests/unit/voice_mixer_test.cpp#L102) |
+| speech interrupts music at once, and music resumes exactly where it stopped |  |  | [tests/unit/voice_mixer_test.cpp:118](../../tests/unit/voice_mixer_test.cpp#L118) |
+| music waits for every utterance queued, not just the first |  |  | [tests/unit/voice_mixer_test.cpp:141](../../tests/unit/voice_mixer_test.cpp#L141) |
+| stopping or skipping speech lets the music back in |  | 2 | [tests/unit/voice_mixer_test.cpp:157](../../tests/unit/voice_mixer_test.cpp#L157) |
+| stopping speech when there is none leaves the music alone |  |  | [tests/unit/voice_mixer_test.cpp:177](../../tests/unit/voice_mixer_test.cpp#L177) |
+| a track's end marker is reported once it has been heard |  |  | [tests/unit/voice_mixer_test.cpp:187](../../tests/unit/voice_mixer_test.cpp#L187) |
+| a track end taken back by speech is still reported, after the speech |  |  | [tests/unit/voice_mixer_test.cpp:202](../../tests/unit/voice_mixer_test.cpp#L202) |
+| pausing music stops it at once, and resuming loses nothing |  |  | [tests/unit/voice_mixer_test.cpp:217](../../tests/unit/voice_mixer_test.cpp#L217) |
+| dropping music clears it, but never speech |  | 2 | [tests/unit/voice_mixer_test.cpp:233](../../tests/unit/voice_mixer_test.cpp#L233) |
+| a new connection sends a track's end marker again |  |  | [tests/unit/voice_mixer_test.cpp:251](../../tests/unit/voice_mixer_test.cpp#L251) |
+| an idle source is no longer visited until woken |  |  | [tests/unit/voice_mixer_test.cpp:266](../../tests/unit/voice_mixer_test.cpp#L266) |
+| nothing is fed without a connection, or once the guild is forgotten |  |  | [tests/unit/voice_mixer_test.cpp:279](../../tests/unit/voice_mixer_test.cpp#L279) |
 | the built-in voices are found by name, in any case |  |  | [tests/unit/voice_params_test.cpp:11](../../tests/unit/voice_params_test.cpp#L11) |
 | the preamble selects the voice and says only what differs |  |  | [tests/unit/voice_params_test.cpp:19](../../tests/unit/voice_params_test.cpp#L19) |
 | the preamble falls back to Paul and clamps the rate |  |  | [tests/unit/voice_params_test.cpp:26](../../tests/unit/voice_params_test.cpp#L26) |
@@ -713,6 +726,81 @@ Speech and voice (`src/core/audio`)
 | the waveform follows where the sound is |  |  | [tests/unit/wav_test.cpp:56](../../tests/unit/wav_test.cpp#L56) |
 | a waveform of fewer samples than bars has one bar per sample |  |  | [tests/unit/wav_test.cpp:78](../../tests/unit/wav_test.cpp#L78) |
 | the waveform is sent as base64 of its 256 bytes |  |  | [tests/unit/wav_test.cpp:83](../../tests/unit/wav_test.cpp#L83) |
+
+## music
+
+Music (`src/core/music`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| durations read as minutes and seconds, and hours past an hour |  |  | [tests/unit/music_command_test.cpp:52](../../tests/unit/music_command_test.cpp#L52) |
+| a track is named safely, with its length or that it is live |  |  | [tests/unit/music_command_test.cpp:59](../../tests/unit/music_command_test.cpp#L59) |
+| tracks over the limit are left out, and live streams never are |  |  | [tests/unit/music_command_test.cpp:82](../../tests/unit/music_command_test.cpp#L82) |
+| the reply to /music play says what happened |  | 5 | [tests/unit/music_command_test.cpp:99](../../tests/unit/music_command_test.cpp#L99) |
+| now playing shows the track, where it is, and who queued it |  |  | [tests/unit/music_command_test.cpp:153](../../tests/unit/music_command_test.cpp#L153) |
+| the queue pages ten at a time, within Discord's limits, pinging nobody |  |  | [tests/unit/music_command_test.cpp:169](../../tests/unit/music_command_test.cpp#L169) |
+| an empty queue says so, with no buttons |  |  | [tests/unit/music_command_test.cpp:192](../../tests/unit/music_command_test.cpp#L192) |
+| volume and track limit have defaults, and stored values are kept in range |  |  | [tests/unit/music_command_test.cpp:202](../../tests/unit/music_command_test.cpp#L202) |
+| the music command registers, with m as its alias |  |  | [tests/unit/music_command_test.cpp:218](../../tests/unit/music_command_test.cpp#L218) |
+| an http or https link is taken as it is |  |  | [tests/unit/music_links_test.cpp:16](../../tests/unit/music_links_test.cpp#L16) |
+| text that is not a link is refused, with the reason |  |  | [tests/unit/music_links_test.cpp:22](../../tests/unit/music_links_test.cpp#L22) |
+| a link that looks like an option is still a link or nothing |  |  | [tests/unit/music_links_test.cpp:31](../../tests/unit/music_links_test.cpp#L31) |
+| links into the host's own network are refused |  |  | [tests/unit/music_links_test.cpp:37](../../tests/unit/music_links_test.cpp#L37) |
+| the host is read without credentials, port or brackets |  |  | [tests/unit/music_links_test.cpp:48](../../tests/unit/music_links_test.cpp#L48) |
+| private IPv4 ranges |  |  | [tests/unit/music_links_test.cpp:54](../../tests/unit/music_links_test.cpp#L54) |
+| private IPv6 ranges, and IPv4 inside IPv6 |  |  | [tests/unit/music_links_test.cpp:72](../../tests/unit/music_links_test.cpp#L72) |
+| names of the machine itself resolve as private without asking DNS |  |  | [tests/unit/music_links_test.cpp:84](../../tests/unit/music_links_test.cpp#L84) |
+| adding to a quiet server starts playing |  |  | [tests/unit/music_player_test.cpp:85](../../tests/unit/music_player_test.cpp#L85) |
+| the queue plays in order, moving on when each track has been heard |  |  | [tests/unit/music_player_test.cpp:94](../../tests/unit/music_player_test.cpp#L94) |
+| repeating a track plays it again, from a fresh fetch |  |  | [tests/unit/music_player_test.cpp:111](../../tests/unit/music_player_test.cpp#L111) |
+| skip moves on with repeat on |  |  | [tests/unit/music_player_test.cpp:123](../../tests/unit/music_player_test.cpp#L123) |
+| a track that cannot be fetched is noted, and the next one plays |  |  | [tests/unit/music_player_test.cpp:140](../../tests/unit/music_player_test.cpp#L140) |
+| a track that breaks mid-way plays what it had, then moves on, never repeating |  |  | [tests/unit/music_player_test.cpp:155](../../tests/unit/music_player_test.cpp#L155) |
+| play now plays at once, and the interrupted track starts over after it |  |  | [tests/unit/music_player_test.cpp:168](../../tests/unit/music_player_test.cpp#L168) |
+| pausing holds the music, and time into the track with it |  |  | [tests/unit/music_player_test.cpp:185](../../tests/unit/music_player_test.cpp#L185) |
+| pause, skip and stop with nothing playing say so |  |  | [tests/unit/music_player_test.cpp:202](../../tests/unit/music_player_test.cpp#L202) |
+| stop ends the music and empties the queue |  |  | [tests/unit/music_player_test.cpp:209](../../tests/unit/music_player_test.cpp#L209) |
+| clear, shuffle and remove work on what is queued |  |  | [tests/unit/music_player_test.cpp:223](../../tests/unit/music_player_test.cpp#L223) |
+| the track limit cuts a long track off, with a note, but not a live stream |  |  | [tests/unit/music_player_test.cpp:235](../../tests/unit/music_player_test.cpp#L235) |
+| the volume scales the samples |  |  | [tests/unit/music_player_test.cpp:253](../../tests/unit/music_player_test.cpp#L253) |
+| each server has its own queue |  |  | [tests/unit/music_player_test.cpp:268](../../tests/unit/music_player_test.cpp#L268) |
+| leaving forgets the queue |  |  | [tests/unit/music_player_test.cpp:282](../../tests/unit/music_player_test.cpp#L282) |
+| speech pauses the music, which carries on after it |  |  | [tests/unit/music_player_test.cpp:293](../../tests/unit/music_player_test.cpp#L293) |
+| markers are told apart |  |  | [tests/unit/music_player_test.cpp:309](../../tests/unit/music_player_test.cpp#L309) |
+| end adds at the back |  |  | [tests/unit/music_queue_test.cpp:44](../../tests/unit/music_queue_test.cpp#L44) |
+| next keeps a playlist in its own order |  |  | [tests/unit/music_queue_test.cpp:53](../../tests/unit/music_queue_test.cpp#L53) |
+| now keeps the interrupted track, to play again from the start |  |  | [tests/unit/music_queue_test.cpp:61](../../tests/unit/music_queue_test.cpp#L61) |
+| now with nothing playing just plays |  |  | [tests/unit/music_queue_test.cpp:73](../../tests/unit/music_queue_test.cpp#L73) |
+| a full queue takes what fits, and says how many did not |  |  | [tests/unit/music_queue_test.cpp:80](../../tests/unit/music_queue_test.cpp#L80) |
+| the queue limit is 500, and a playlist adds at most 100 |  |  | [tests/unit/music_queue_test.cpp:90](../../tests/unit/music_queue_test.cpp#L90) |
+| moving on with repeat off plays the queue in order, then stops |  |  | [tests/unit/music_queue_test.cpp:95](../../tests/unit/music_queue_test.cpp#L95) |
+| repeating a track plays it again when it finishes |  |  | [tests/unit/music_queue_test.cpp:103](../../tests/unit/music_queue_test.cpp#L103) |
+| skip moves on even when the track repeats |  |  | [tests/unit/music_queue_test.cpp:111](../../tests/unit/music_queue_test.cpp#L111) |
+| a track that failed never repeats |  | 2 | [tests/unit/music_queue_test.cpp:118](../../tests/unit/music_queue_test.cpp#L118) |
+| repeating the queue sends each finished or skipped track to the back |  |  | [tests/unit/music_queue_test.cpp:132](../../tests/unit/music_queue_test.cpp#L132) |
+| peeking at what plays next agrees with moving on |  |  | [tests/unit/music_queue_test.cpp:146](../../tests/unit/music_queue_test.cpp#L146) |
+| remove counts from 1, as the queue is shown |  |  | [tests/unit/music_queue_test.cpp:164](../../tests/unit/music_queue_test.cpp#L164) |
+| clear empties the queue and leaves the current track |  |  | [tests/unit/music_queue_test.cpp:173](../../tests/unit/music_queue_test.cpp#L173) |
+| shuffle keeps every track, and never the current one |  |  | [tests/unit/music_queue_test.cpp:180](../../tests/unit/music_queue_test.cpp#L180) |
+| repeat modes by name, and in turn |  |  | [tests/unit/music_queue_test.cpp:199](../../tests/unit/music_queue_test.cpp#L199) |
+| the running time adds what is known and counts what is not |  |  | [tests/unit/music_queue_test.cpp:209](../../tests/unit/music_queue_test.cpp#L209) |
+| yt-dlp reads a real link, and yt-dlp piped into ffmpeg plays it | `live` |  | [tests/unit/yt_dlp_live_test.cpp:27](../../tests/unit/yt_dlp_live_test.cpp#L27) |
+| the link always follows --, and no config file is read |  |  | [tests/unit/yt_dlp_test.cpp:55](../../tests/unit/yt_dlp_test.cpp#L55) |
+| reading a link asks for JSON, a flat playlist, and at most so many entries |  |  | [tests/unit/yt_dlp_test.cpp:66](../../tests/unit/yt_dlp_test.cpp#L66) |
+| fetching writes the best audio to stdout, and says where ffmpeg is |  |  | [tests/unit/yt_dlp_test.cpp:76](../../tests/unit/yt_dlp_test.cpp#L76) |
+| decoding reads a pipe and writes 48 kHz stereo 16-bit samples |  |  | [tests/unit/yt_dlp_test.cpp:88](../../tests/unit/yt_dlp_test.cpp#L88) |
+| a single track's details |  |  | [tests/unit/yt_dlp_test.cpp:104](../../tests/unit/yt_dlp_test.cpp#L104) |
+| a live stream has no length |  |  | [tests/unit/yt_dlp_test.cpp:119](../../tests/unit/yt_dlp_test.cpp#L119) |
+| a playlist's entries, in order, up to the limit |  |  | [tests/unit/yt_dlp_test.cpp:126](../../tests/unit/yt_dlp_test.cpp#L126) |
+| answers with nothing playable are errors |  |  | [tests/unit/yt_dlp_test.cpp:150](../../tests/unit/yt_dlp_test.cpp#L150) |
+| yt-dlp's error line is what is shown |  |  | [tests/unit/yt_dlp_test.cpp:157](../../tests/unit/yt_dlp_test.cpp#L157) |
+| the resolver runs yt-dlp and reads what it says | `threads`, `coro` | 5 | [tests/unit/yt_dlp_test.cpp:164](../../tests/unit/yt_dlp_test.cpp#L164) |
+| a link yt-dlp takes too long over is given up on | `threads` |  | [tests/unit/yt_dlp_test.cpp:197](../../tests/unit/yt_dlp_test.cpp#L197) |
+| a stream delivers every sample, in order, then finishes | `threads` |  | [tests/unit/yt_dlp_test.cpp:204](../../tests/unit/yt_dlp_test.cpp#L204) |
+| a stream fails with the first program's error | `threads` |  | [tests/unit/yt_dlp_test.cpp:214](../../tests/unit/yt_dlp_test.cpp#L214) |
+| a stream that produces nothing for too long has failed | `threads` |  | [tests/unit/yt_dlp_test.cpp:221](../../tests/unit/yt_dlp_test.cpp#L221) |
+| a stream whose program cannot start has failed at once |  |  | [tests/unit/yt_dlp_test.cpp:228](../../tests/unit/yt_dlp_test.cpp#L228) |
+| dropping a stream mid-way ends its programs | `threads` |  | [tests/unit/yt_dlp_test.cpp:234](../../tests/unit/yt_dlp_test.cpp#L234) |
 
 ## llm
 
@@ -849,6 +937,18 @@ Utilities (`src/core/util`, `src/core/version`)
 | parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
 | parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
 | parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
+| text from outside is made plain |  |  | [tests/unit/music_command_test.cpp:73](../../tests/unit/music_command_test.cpp#L73) |
+| an argument with nothing special is left as it is |  |  | [tests/unit/process_test.cpp:52](../../tests/unit/process_test.cpp#L52) |
+| spaces, quotes and backslashes before them are quoted |  |  | [tests/unit/process_test.cpp:58](../../tests/unit/process_test.cpp#L58) |
+| the command line starts with the program, quoted |  |  | [tests/unit/process_test.cpp:66](../../tests/unit/process_test.cpp#L66) |
+| a program reads back exactly the arguments it was given | `threads` |  | [tests/unit/process_test.cpp:71](../../tests/unit/process_test.cpp#L71) |
+| run collects stdout, stderr and the exit code | `threads` | 3 | [tests/unit/process_test.cpp:85](../../tests/unit/process_test.cpp#L85) |
+| a program that runs too long is killed | `threads` |  | [tests/unit/process_test.cpp:102](../../tests/unit/process_test.cpp#L102) |
+| output past the limit kills the program | `threads` |  | [tests/unit/process_test.cpp:109](../../tests/unit/process_test.cpp#L109) |
+| a program that cannot be found is refused |  |  | [tests/unit/process_test.cpp:114](../../tests/unit/process_test.cpp#L114) |
+| one program's output is the next one's input | `threads` |  | [tests/unit/process_test.cpp:118](../../tests/unit/process_test.cpp#L118) |
+| stderr lines say which program in the pipeline wrote them | `threads` |  | [tests/unit/process_test.cpp:135](../../tests/unit/process_test.cpp#L135) |
+| killing a pipeline ends its programs and what they started | `threads` |  | [tests/unit/process_test.cpp:154](../../tests/unit/process_test.cpp#L154) |
 | count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:11](../../tests/unit/text_test.cpp#L11) |
 | trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:20](../../tests/unit/text_test.cpp#L20) |
 | is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |

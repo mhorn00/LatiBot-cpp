@@ -115,4 +115,44 @@ auto parse_snowflake(std::string_view text) -> std::optional<dpp::snowflake> {
     return dpp::snowflake(value);
 }
 
+auto plain_text(std::string_view text) -> std::string {
+    // U+200B ZERO WIDTH SPACE, in UTF-8.
+    constexpr std::string_view zero_width_space = "\xE2\x80\x8B";
+
+    std::string safe;
+    safe.reserve(text.size() + (text.size() / 8));
+    for (const char character : text) {
+        switch (character) {
+        case '\\':
+        case '*':
+        case '_':
+        case '~':
+        case '`':
+        case '|':
+        case '<':
+        case '>':
+        case '#':
+        case '[':
+        case ']':
+        case '(':
+        case ')':
+            safe += '\\';
+            safe += character;
+            break;
+        case '@':
+            safe += '@';
+            safe += zero_width_space;
+            break;
+        case '\n':
+        case '\r':
+        case '\t':
+            safe += ' ';
+            break;
+        default:
+            safe += character;
+        }
+    }
+    return safe;
+}
+
 } // namespace latibot::util
