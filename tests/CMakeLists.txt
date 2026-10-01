@@ -42,6 +42,7 @@ add_executable(latibot_tests
     unit/midnight_command_test.cpp
     unit/midnight_test.cpp
     unit/music_command_test.cpp
+    unit/music_cookies_test.cpp
     unit/music_links_test.cpp
     unit/music_player_test.cpp
     unit/music_queue_test.cpp

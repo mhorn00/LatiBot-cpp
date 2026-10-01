@@ -132,6 +132,12 @@ struct secrets {
     std::optional<std::string> anthropic_key;
     std::optional<std::string> openai_key;
 
+    /// A cookies file yt-dlp signs in to an account with, so music can play
+    /// age-restricted videos (docs/features/Music.md §4.9). The path, from
+    /// `LATIBOT_YTDLP_COOKIES`; the file is a sign-in, so it stays out of
+    /// `config.json` like the keys.
+    std::optional<std::filesystem::path> ytdlp_cookies;
+
     /// Throws `config_error` when `DISCORD_BOT_TOKEN` is missing or empty.
     [[nodiscard]] static auto from_environment() -> secrets;
 };

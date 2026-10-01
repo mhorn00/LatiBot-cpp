@@ -211,8 +211,9 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
                  {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
       ytdlp_(util::locate_program("yt-dlp", settings_.ytdlp_path)),
       ffmpeg_(util::locate_program("ffmpeg", settings_.ffmpeg_path)),
-      music_resolver_(ytdlp_.value_or("yt-dlp.exe")),
-      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe")),
+      ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, settings_.database_path.parent_path() / "yt-dlp-runs")),
+      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source),
+      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source),
       music_(music_opener_, mixer_,
              {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
               .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
@@ -903,6 +904,7 @@ auto bot::log_music_tools() -> void {
     const std::filesystem::path ytdlp = *ytdlp_;
     const std::filesystem::path ffmpeg = *ffmpeg_;
     util::log().info("music uses yt-dlp at {} and ffmpeg at {}", ytdlp.string(), ffmpeg.string());
+    log_music_account();
     // Which versions, off the startup path: an old yt-dlp is the usual
     // reason a site stops working, and asking takes a second or two.
     // Only the log call in the catch could still throw, as in main(), and
@@ -921,6 +923,30 @@ auto bot::log_music_tools() -> void {
         } catch (...) { // NOLINT(bugprone-empty-catch)
         }
     });
+}
+
+auto bot::log_music_account() const -> void {
+    const music::cookie_status& cookies = ytdlp_cookies_;
+    const std::string file = cookies.file.generic_string();
+    if (cookies.file.empty()) {
+        util::log().debug("music fetches signed out: LATIBOT_YTDLP_COOKIES is not set");
+        return;
+    }
+    // A warning: the owner set it to sign in, and it will not.
+    if (!cookies.source) {
+        util::log().warn("music fetches signed out: LATIBOT_YTDLP_COOKIES names {}, which {}", file, cookies.problem);
+        return;
+    }
+    // Counts only. The cookies are a sign-in, and never logged.
+    util::log().info("music fetches signed in, with the {} cookie(s) in {}, {} of them for youtube.com", cookies.found.cookies, file,
+                     cookies.found.youtube);
+    if (cookies.found.youtube == 0) {
+        util::log().warn("{} has no youtube.com cookies, so YouTube will see music as signed out; export them from youtube.com", file);
+    }
+    if (cookies.found.malformed > 0) {
+        util::log().warn("{} line(s) of {} are not cookies in the Netscape format, and yt-dlp will skip them", cookies.found.malformed,
+                         file);
+    }
 }
 
 auto bot::music_unavailable() const -> std::string {

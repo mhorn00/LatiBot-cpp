@@ -31,6 +31,18 @@ auto is_http(std::string_view url) -> bool {
     return url.starts_with("https://") || url.starts_with("http://");
 }
 
+auto path_of(const std::optional<cookie_copy>& cookies) -> std::optional<std::filesystem::path> {
+    if (!cookies) return std::nullopt;
+    return cookies->path();
+}
+
+/// `--cookies` and the file, second, after `--ignore-config`: the `--` and
+/// the link stay last.
+auto with_cookies(std::vector<std::string> arguments, const std::optional<std::filesystem::path>& cookies) -> std::vector<std::string> {
+    if (cookies) arguments.insert(arguments.begin() + 1, {"--cookies", cookies->string()});
+    return arguments;
+}
+
 /// One track, from a single video's details or a flat playlist's entry.
 /// Nothing when it has no link to fetch it by, or cannot be played yet.
 auto item_from(const nlohmann::json& entry) -> std::optional<ports::media_item> {
@@ -96,25 +108,29 @@ auto read_playlist(const nlohmann::json& document, std::size_t max_items) -> por
 // Arguments
 // --------------------------------------------------------------------------
 
-auto lookup_arguments(const std::string& url, std::size_t max_items) -> std::vector<std::string> {
-    return {
-        "--ignore-config",
-        "--no-warnings",
-        // A video link that also names a playlist is the video; a playlist
-        // link is still the playlist.
-        "--no-playlist",
-        "--flat-playlist",
-        "--dump-single-json",
-        "--playlist-end",
-        std::to_string(max_items),
-        "--encoding",
-        "utf-8",
-        "--",
-        url,
-    };
+auto lookup_arguments(const std::string& url, std::size_t max_items, const std::optional<std::filesystem::path>& cookies)
+    -> std::vector<std::string> {
+    return with_cookies(
+        {
+            "--ignore-config",
+            "--no-warnings",
+            // A video link that also names a playlist is the video; a playlist
+            // link is still the playlist.
+            "--no-playlist",
+            "--flat-playlist",
+            "--dump-single-json",
+            "--playlist-end",
+            std::to_string(max_items),
+            "--encoding",
+            "utf-8",
+            "--",
+            url,
+        },
+        cookies);
 }
 
-auto fetch_arguments(const std::string& url, const std::optional<std::filesystem::path>& ffmpeg) -> std::vector<std::string> {
+auto fetch_arguments(const std::string& url, const std::optional<std::filesystem::path>& ffmpeg,
+                     const std::optional<std::filesystem::path>& cookies) -> std::vector<std::string> {
     std::vector<std::string> arguments{
         "--ignore-config", "--no-warnings", "--no-playlist", "--quiet", "--no-progress", "--no-part", "-f", "bestaudio/best", "-o", "-",
     };
@@ -126,7 +142,7 @@ auto fetch_arguments(const std::string& url, const std::optional<std::filesystem
     }
     arguments.emplace_back("--");
     arguments.push_back(url);
-    return arguments;
+    return with_cookies(std::move(arguments), cookies);
 }
 
 auto decode_arguments(bool even_loudness) -> std::vector<std::string> {
@@ -189,8 +205,9 @@ struct ytdlp_resolver::job {
     dpp::promise<ports::result<ports::media_lookup>> done;
 };
 
-ytdlp_resolver::ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout, int workers)
-    : ytdlp_(std::move(ytdlp)), timeout_(timeout) {
+ytdlp_resolver::ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout, int workers,
+                               std::optional<cookie_source> cookies)
+    : ytdlp_(std::move(ytdlp)), timeout_(timeout), cookies_(std::move(cookies)) {
     for (int i = 0; i < std::max(workers, 1); ++i) {
         workers_.emplace_back([this](const std::stop_token& stopping) { work(stopping); });
     }
@@ -230,7 +247,9 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
     if (resolves_to_private(host_of(url))) return media_error("that link points into a private network, which i won't fetch from");
 
     try {
-        const util::run_result ran = util::run({.path = ytdlp_, .arguments = lookup_arguments(url, max_items)}, timeout_);
+        // Removed as this returns, once yt-dlp has ended: `run` waits for it.
+        const std::optional<cookie_copy> cookies = cookies_ ? cookies_->copy() : std::nullopt;
+        const util::run_result ran = util::run({.path = ytdlp_, .arguments = lookup_arguments(url, max_items, path_of(cookies))}, timeout_);
         if (ran.timed_out) {
             return media_error(std::format("reading that link took more than {}; the site may be down",
                                            std::chrono::duration_cast<std::chrono::seconds>(timeout_)));
@@ -266,12 +285,14 @@ auto ytdlp_resolver::work(const std::stop_token& stopping) -> void {
 // Streams
 // --------------------------------------------------------------------------
 
-process_stream::process_stream(std::vector<util::program> programs, std::chrono::milliseconds stall_limit, std::size_t buffer_samples)
+process_stream::process_stream(std::vector<util::program> programs, std::chrono::milliseconds stall_limit, std::size_t buffer_samples,
+                               std::optional<cookie_copy> cookies)
     : programs_(std::move(programs)),
       stall_limit_(stall_limit),
       buffer_limit_(std::max<std::size_t>(buffer_samples, 1)),
       last_data_(std::chrono::steady_clock::now()),
-      errors_(programs_.size()) {
+      errors_(programs_.size()),
+      cookies_(std::move(cookies)) {
     try {
         pipeline_ = std::make_unique<util::pipeline>(programs_, [this](std::size_t index, std::string_view line) {
             util::log().debug("{}: {}", programs_.at(index).path.filename().string(), line);
@@ -379,15 +400,18 @@ auto process_stream::error() const -> std::string {
     return {};
 }
 
-ytdlp_opener::ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness)
-    : ytdlp_(std::move(ytdlp)), ffmpeg_(std::move(ffmpeg)), even_loudness_(even_loudness) {}
+ytdlp_opener::ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness,
+                           std::optional<cookie_source> cookies)
+    : ytdlp_(std::move(ytdlp)), ffmpeg_(std::move(ffmpeg)), even_loudness_(even_loudness), cookies_(std::move(cookies)) {}
 
 auto ytdlp_opener::open(const std::string& url) -> std::unique_ptr<ports::pcm_stream> {
+    std::optional<cookie_copy> cookies = cookies_ ? cookies_->copy() : std::nullopt;
     std::vector<util::program> programs{
-        {.path = ytdlp_, .arguments = fetch_arguments(url, ffmpeg_)},
+        {.path = ytdlp_, .arguments = fetch_arguments(url, ffmpeg_, path_of(cookies))},
         {.path = ffmpeg_, .arguments = decode_arguments(even_loudness_)},
     };
-    return std::make_unique<process_stream>(std::move(programs));
+    return std::make_unique<process_stream>(std::move(programs), std::chrono::seconds{30}, process_stream::default_buffer,
+                                            std::move(cookies));
 }
 
 } // namespace latibot::music

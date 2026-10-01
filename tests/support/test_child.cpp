@@ -15,7 +15,9 @@
 // Started with `--ignore-config`, as yt-dlp is to read a link, it answers
 // as yt-dlp would, going by the link, its last argument: one with "fail" in
 // it fails, one with "hang" hangs, one with "list" is a playlist of three,
-// and anything else is one track.
+// and anything else is one track. Given `--cookies FILE` next, as yt-dlp
+// signs in, the track is titled "signed in" when FILE holds a youtube.com
+// cookie, and FILE is then written over as yt-dlp writes its cookies back.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -32,6 +34,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -134,6 +138,14 @@ auto child_main() -> int {
             return 1;
         }
         if (link.find("hang") != std::string::npos) return hang();
+        std::string title = "A song";
+        if (args.size() > 3 && args[2] == "--cookies") {
+            std::ifstream cookies(args[3], std::ios::binary);
+            const std::string held((std::istreambuf_iterator<char>(cookies)), std::istreambuf_iterator<char>());
+            if (held.find("youtube.com\t") != std::string::npos) title = "signed in";
+            cookies.close();
+            std::ofstream(args[3], std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
+        }
         std::string json;
         if (link.find("list") != std::string::npos) {
             json = R"({"_type": "playlist", "title": "Three songs", "playlist_count": 3, "entries": [)"
@@ -141,7 +153,7 @@ auto child_main() -> int {
                    R"({"url": "https://example.com/2", "title": "Two", "duration": 120.4},)"
                    R"({"url": "https://example.com/3", "title": "Three"}]})";
         } else {
-            json = R"({"title": "A song", "webpage_url": ")" + link + R"(", "duration": 61, "uploader": "tester"})";
+            json = R"({"title": ")" + title + R"(", "webpage_url": ")" + link + R"(", "duration": 61, "uploader": "tester"})";
         }
         json += "\n";
         write_all(out, json.data(), json.size());

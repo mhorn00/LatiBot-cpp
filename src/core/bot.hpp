@@ -94,6 +94,10 @@ private:
     /// their versions, for the log.
     auto log_music_tools() -> void;
 
+    /// Says whether yt-dlp signs in, and with how many cookies, never what
+    /// they are (docs/features/Music.md §4.9).
+    auto log_music_account() const -> void;
+
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot
     /// (docs/features/Operations.md §6).
@@ -237,6 +241,8 @@ private:
     // at startup; without them the music commands say so and nothing plays.
     std::optional<std::filesystem::path> ytdlp_;
     std::optional<std::filesystem::path> ffmpeg_;
+    /// The account yt-dlp signs in as, if the owner gave one (§4.9).
+    music::cookie_status ytdlp_cookies_;
     music::ytdlp_resolver music_resolver_;
     music::ytdlp_opener music_opener_;
     music::music_player music_;

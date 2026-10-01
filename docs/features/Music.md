@@ -15,10 +15,10 @@ and [Speech.md](Speech.md).
 
 | | |
 |---|---|
-| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
-| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
+| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
+| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
-| **Config** | `ytdlp_path`, `ffmpeg_path` in `config.json` |
+| **Config** | `ytdlp_path`, `ffmpeg_path` in `config.json`; `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
 | **Runtime** | `yt-dlp.exe` and `ffmpeg.exe`, beside the bot or on `PATH` |
 | **Plan** | Replaces plan §15, and the mixer half of §13 |
 | **Status** | Built on 2026-09-30. **Not yet run in Discord, or against the real yt-dlp and ffmpeg**: see §7 |
@@ -310,6 +310,9 @@ to deal with what sites need: signed URLs, headers, fragmented streams. It
 is also given ffmpeg's location, since it uses ffmpeg itself for live
 streams and some sites.
 
+When the owner has signed music in to an account (§4.9), both commands also
+get `--cookies` and a copy of the cookies, straight after `--ignore-config`.
+
 ### 4.5 Decoding: ffmpeg
 
 ```
@@ -373,6 +376,65 @@ The queue is memory only, and leaves with the bot. Per server,
 `guild_settings` keeps `music_volume` and `music_track_limit_minutes`. No
 migration was needed.
 
+### 4.9 Signing in to YouTube
+
+YouTube plays an age-restricted video only to an account that is signed in
+and old enough. yt-dlp cannot sign in to YouTube with a password, so it is
+given the cookies of a browser that is signed in, as a `cookies.txt` file.
+Added on 2026-10-01, for the owner's instance; an instance without it works
+as before, signed out.
+
+**Setting it up**, with an account kept for the bot:
+
+1. **Check the account.** Signed in as it in a browser, an age-restricted
+   video should play without asking for an age. If YouTube asks to verify
+   it, do that there first.
+2. **Export from a private window.** Open a new private window, sign in to
+   YouTube, and in that same tab go to `https://www.youtube.com/robots.txt`.
+   Export the cookies for youtube.com in the Netscape `cookies.txt` format,
+   with a browser extension that is allowed to run in private windows. Then
+   close the private window **without signing out**.
+
+   YouTube rotates the cookies of a session that stays open in a browser,
+   which signs out every copy exported before; a session nobody opens again
+   stays as it was exported. Signing out ends it everywhere, the bot's copy
+   included.
+3. **Put the file where the bot runs**, in `data/`, which git ignores: say
+   `data/youtube-cookies.txt`. Add `LATIBOT_YTDLP_COOKIES=data/youtube-cookies.txt`
+   to `.env`; a relative path is from the bot's working directory. Restart
+   the bot.
+4. **Read the startup log.** It says how many cookies it found, and how
+   many for youtube.com, never what they are. A file it cannot read, a JSON
+   export, or one with no cookies in it is a warning, and music fetches
+   signed out; one with no youtube.com cookies is a warning too.
+
+When age-restricted videos stop playing, and yt-dlp's reason asks to sign
+in to confirm your age, the session has ended: export a fresh file the same
+way.
+
+**How it is used** (`music::cookie_source`). Every run of yt-dlp, reading a
+link or fetching a track, gets a copy of the file of its own, in
+`data/yt-dlp-runs/`, removed once that run has ended. yt-dlp writes its
+cookies back to the file it was given as it ends, truncating and rewriting
+it, and up to four run at once: one rewriting a shared file while another
+reads it would leave that one signed out, or the file spoilt. Copies left
+behind by a crash are removed at the next start. The owner's file is never
+written to.
+
+**What it means.**
+
+- Everyone who can use `/music` fetches as that account. What they queue is
+  in its YouTube history, and anything it can see can be queued by link, its
+  private playlists included.
+- The file is a sign-in. Whoever has it is signed in as the account until
+  the session ends, so it stays in `data/` beside the database, and is never
+  logged.
+- YouTube may limit or suspend an account used through yt-dlp, which yt-dlp's
+  own documentation warns of. Use an account that can be lost.
+- Signed in, yt-dlp asks YouTube for videos in other ways than signed out.
+  If YouTube stops working once the cookies are added, update yt-dlp first
+  (`yt-dlp -U`), and see its wiki's pages on YouTube.
+
 ## 5. Dependencies and running it
 
 - **yt-dlp** and **ffmpeg** are external executables, not linked libraries.
@@ -390,6 +452,8 @@ migration was needed.
   yt-dlp is external either way.
 - **CI** has neither program, and needs neither: the tests use a stand-in
   (§7).
+- **An account**, for age-restricted videos, is optional: a cookies file
+  named by `LATIBOT_YTDLP_COOKIES` (§4.9).
 
 ## 6. Security
 
@@ -401,7 +465,11 @@ People type the links, so everything passed to yt-dlp is untrusted:
 - **Local files.** yt-dlp refuses `file://` unless told otherwise, which it
   never is. ffmpeg only reads a pipe.
 - **Config.** `--ignore-config` on every call, so a `yt-dlp.conf` on the host
-  changes nothing. No `--exec`, no cookies, and nothing written to disk.
+  changes nothing. No `--exec`, and nothing written to disk but the copies
+  of the cookies, when the owner signed music in.
+- **The account** (§4.9). Its cookies come only from the file the owner
+  names, are never logged, and are copied only into `data/yt-dlp-runs/`,
+  for as long as a run lasts. Anyone who can queue fetches as that account.
 - **The local network.** A link written as a private, loopback, link-local,
   carrier-NAT, multicast or reserved address, IPv4 or IPv6, or as
   `localhost`, is refused when typed. A name is resolved first, by the
@@ -435,6 +503,12 @@ People type the links, so everything passed to yt-dlp is untrusted:
   what it started.
 - **The command**: every reply's wording, the queue's pages against
   Discord's limits, the settings, and `/m` registering.
+- **The cookies** (`music_cookies_test.cpp`): counting a `cookies.txt`, with
+  `#HttpOnly_` lines, CRLF and a byte order mark; JSON and empty files
+  refused; a copy per run, removed when the run is done, and leftovers
+  cleared at start; `--cookies` before the `--`. The stand-in, given
+  `--cookies`, says whether it was signed in and writes the file back as
+  yt-dlp does, so the tests check the owner's file is left as exported.
 - **`[live]`** (`yt_dlp_live_test.cpp`, hidden with `[.]`): the real yt-dlp
   and ffmpeg read and play Wikimedia Commons' `Example.ogg`. Skipped when
   either is not installed; neither was on the machine this was built on.
@@ -448,7 +522,11 @@ People type the links, so everything passed to yt-dlp is untrusted:
 - that the mixer's timing holds in DPP: no gaps at the one-second tick,
   speech cutting in cleanly, and music resuming without a click;
 - what DPP does to its queue on a move with `/join`;
-- `/music` registering, and the queue's buttons.
+- `/music` registering, and the queue's buttons;
+- an age-restricted video playing with the owner's cookies, and the startup
+  log's count of them;
+- how long an exported session lasts with copies that are never written
+  back.
 
 ## 8. Decisions
 
@@ -481,6 +559,12 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | 2026-09-30 | Any site yt-dlp supports, but no private or loopback addresses | The owner's answer (Q12) |
 | 2026-09-30 | Changing the volume, like the limit, needs Manage Server | Both are settings that stay for the whole server; pausing and skipping are not |
 | 2026-09-30 | `[live]` tests are hidden with Catch2's `[.]` as well | The presets filter test names, and a tag is not in the name |
+| 2026-10-01 | An account for yt-dlp, as a cookies file named by `LATIBOT_YTDLP_COOKIES` | The owner's request, for age-restricted videos. yt-dlp cannot sign in to YouTube with a password; a cookies file is the way its documentation gives. The file is a sign-in, so it is named where the secrets are, not in `config.json` |
+| 2026-10-01 | Exported from a private window, then closed without signing out | A session left open in a browser has its cookies rotated, which signs out the exported copy (yt-dlp's wiki) |
+| 2026-10-01 | A file, not `--cookies-from-browser` | The bot runs unattended; a browser on the host would keep rotating the session, and Chromium browsers on Windows encrypt their cookies where yt-dlp often cannot read them |
+| 2026-10-01 | Each run of yt-dlp gets a copy of its own, removed when it ends | yt-dlp rewrites its cookie file as it ends, and up to four run at once |
+| 2026-10-01 | Every run signs in, not only after YouTube refuses | One way to fetch, so what works is what was tried; retrying would read every age-restricted link twice |
+| 2026-10-01 | A file that cannot be used is a warning, and music fetches signed out | Music, and so its account, is optional (the 2026-09-30 decision in Operations.md) |
 
 ## 9. The owner's answers
 
@@ -518,6 +602,8 @@ As built, each step with its tests passing:
 
 - **[Voice_Channels.md](Voice_Channels.md)**: the mixer sits between the
   speech queue and DPP, and leaving empties the music queue.
+- **[Operations.md §4](Operations.md#4-configuration)** and `.env.example`:
+  `LATIBOT_YTDLP_COOKIES`, from 2026-10-01.
 - **[Speech.md](Speech.md)**: speech pauses music, and `/tts stop` stops
   speech only.
 - **[Operations.md](Operations.md)**: the two executables, their

@@ -147,9 +147,12 @@ are logged, asked on a thread of its own so startup does not wait.
 | `DISCORD_BOT_TOKEN` | always |
 | `ANTHROPIC_API_KEY` | for Claude models |
 | `OPENAI_API_KEY` | for GPT models |
+| `LATIBOT_YTDLP_COOKIES` | to sign music in to YouTube, for age-restricted videos: the path of a `cookies.txt` ([Music.md §4.9](Music.md#49-signing-in-to-youtube)) |
 
 `.env.example` lists them. They are masked in anything the
-[log channel](Log_Channel.md) posts. `LATIBOT_LOG_LEVEL`,
+[log channel](Log_Channel.md) posts. `LATIBOT_YTDLP_COOKIES` names a file
+rather than holding a secret: the startup log gives its path and how many
+cookies it holds, never their values. `LATIBOT_LOG_LEVEL`,
 `LATIBOT_LOG_COLOR` and `NO_COLOR` shape the log. In a Debug build,
 `LATIBOT_DEBUG_RECOMPUTE_BOT_ID` points link stats' recompute at another
 account's replacements; a Release build ignores it, and says so.

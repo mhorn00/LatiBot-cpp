@@ -255,11 +255,25 @@ TEST_CASE("secrets come from the environment", "[config]") {
         const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
         const scoped_env anthropic("ANTHROPIC_API_KEY", nullptr);
         const scoped_env openai("OPENAI_API_KEY", nullptr);
+        const scoped_env cookies("LATIBOT_YTDLP_COOKIES", nullptr);
 
         const secrets loaded = secrets::from_environment();
         CHECK(loaded.discord_token == "test-token");
         CHECK_FALSE(loaded.anthropic_key.has_value());
         CHECK_FALSE(loaded.openai_key.has_value());
+        CHECK_FALSE(loaded.ytdlp_cookies.has_value());
+    }
+
+    SECTION("the file yt-dlp signs in with, when one is named") {
+        const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
+        {
+            const scoped_env cookies("LATIBOT_YTDLP_COOKIES", "data/youtube-cookies.txt");
+            const secrets loaded = secrets::from_environment();
+            REQUIRE(loaded.ytdlp_cookies.has_value());
+            CHECK(*loaded.ytdlp_cookies == std::filesystem::path("data/youtube-cookies.txt"));
+        }
+        const scoped_env empty("LATIBOT_YTDLP_COOKIES", "");
+        CHECK_FALSE(secrets::from_environment().ytdlp_cookies.has_value());
     }
 
     SECTION("keys are picked up when present") {

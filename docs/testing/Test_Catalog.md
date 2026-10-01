@@ -5,18 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-892 test cases across 12 components, including 181 sections.
+904 test cases across 12 components, including 189 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 155 | 21 |
-| [config](#config) | 36 | 19 |
+| [config](#config) | 36 | 20 |
 | [commands](#commands) | 198 | 55 |
 | [events](#events) | 196 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
-| [music](#music) | 68 | 12 |
+| [music](#music) | 80 | 19 |
 | [llm](#llm) | 58 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
@@ -212,15 +212,15 @@ Configuration (`src/core/config`)
 | the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
 | the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
 | trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:212](../../tests/unit/bootstrap_test.cpp#L212) |
-| secrets come from the environment |  | 3 | [tests/unit/bootstrap_test.cpp:246](../../tests/unit/bootstrap_test.cpp#L246) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:275](../../tests/unit/bootstrap_test.cpp#L275) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:302](../../tests/unit/bootstrap_test.cpp#L302) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:314](../../tests/unit/bootstrap_test.cpp#L314) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:336](../../tests/unit/bootstrap_test.cpp#L336) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:345](../../tests/unit/bootstrap_test.cpp#L345) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:354](../../tests/unit/bootstrap_test.cpp#L354) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:379](../../tests/unit/bootstrap_test.cpp#L379) |
+| secrets come from the environment |  | 4 | [tests/unit/bootstrap_test.cpp:246](../../tests/unit/bootstrap_test.cpp#L246) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:289](../../tests/unit/bootstrap_test.cpp#L289) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:316](../../tests/unit/bootstrap_test.cpp#L316) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:328](../../tests/unit/bootstrap_test.cpp#L328) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:350](../../tests/unit/bootstrap_test.cpp#L350) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:359](../../tests/unit/bootstrap_test.cpp#L359) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:368](../../tests/unit/bootstrap_test.cpp#L368) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:380](../../tests/unit/bootstrap_test.cpp#L380) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:393](../../tests/unit/bootstrap_test.cpp#L393) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -761,6 +761,18 @@ Music (`src/core/music`)
 | an empty queue says so, with no buttons |  |  | [tests/unit/music_command_test.cpp:192](../../tests/unit/music_command_test.cpp#L192) |
 | volume and track limit have defaults, and stored values are kept in range |  |  | [tests/unit/music_command_test.cpp:202](../../tests/unit/music_command_test.cpp#L202) |
 | the music command registers, with m as its alias |  |  | [tests/unit/music_command_test.cpp:218](../../tests/unit/music_command_test.cpp#L218) |
+| a Netscape cookies file is counted, HttpOnly cookies included |  |  | [tests/unit/music_cookies_test.cpp:63](../../tests/unit/music_cookies_test.cpp#L63) |
+| a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [tests/unit/music_cookies_test.cpp:71](../../tests/unit/music_cookies_test.cpp#L71) |
+| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:83](../../tests/unit/music_cookies_test.cpp#L83) |
+| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:92](../../tests/unit/music_cookies_test.cpp#L92) |
+| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:101](../../tests/unit/music_cookies_test.cpp#L101) |
+| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:107](../../tests/unit/music_cookies_test.cpp#L107) |
+| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:145](../../tests/unit/music_cookies_test.cpp#L145) |
+| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:157](../../tests/unit/music_cookies_test.cpp#L157) |
+| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:184](../../tests/unit/music_cookies_test.cpp#L184) |
+| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:192](../../tests/unit/music_cookies_test.cpp#L192) |
+| the resolver signs in with a copy, and the owner's file is left as exported | `threads` | 2 | [tests/unit/music_cookies_test.cpp:207](../../tests/unit/music_cookies_test.cpp#L207) |
+| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:229](../../tests/unit/music_cookies_test.cpp#L229) |
 | an http or https link is taken as it is |  |  | [tests/unit/music_links_test.cpp:16](../../tests/unit/music_links_test.cpp#L16) |
 | text that is not a link is refused, with the reason |  |  | [tests/unit/music_links_test.cpp:22](../../tests/unit/music_links_test.cpp#L22) |
 | a link that looks like an option is still a link or nothing |  |  | [tests/unit/music_links_test.cpp:31](../../tests/unit/music_links_test.cpp#L31) |

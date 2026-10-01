@@ -420,6 +420,10 @@ it at once and puts what was playing straight after it, to start over. The
 bot plays wherever it already is; if it is in no voice channel it joins
 yours, and you can queue music into its channel without being in it.
 
+Age-restricted videos play only when whoever runs the bot has signed music
+in to a YouTube account ([Music.md §4.9](Music.md#49-signing-in-to-youtube));
+otherwise YouTube's refusal is the reply.
+
 A playlist queues its first 100 tracks. The queue holds 500. A track longer
 than this server's limit (an hour, unless `limit` says otherwise) is left
 out; live streams have no limit and play until skipped.

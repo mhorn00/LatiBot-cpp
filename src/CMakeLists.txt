@@ -77,6 +77,7 @@ add_library(latibot_core STATIC
     core/llm/spend.cpp
     core/llm/stage.cpp
     core/llm/tools.cpp
+    core/music/cookies.cpp
     core/music/links.cpp
     core/music/music_player.cpp
     core/music/music_queue.cpp

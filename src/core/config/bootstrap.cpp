@@ -298,6 +298,8 @@ auto secrets::from_environment() -> secrets {
 
     if (const auto key = util::env_var("ANTHROPIC_API_KEY"); key && !key->empty()) loaded.anthropic_key = *key;
     if (const auto key = util::env_var("OPENAI_API_KEY"); key && !key->empty()) loaded.openai_key = *key;
+    if (const auto file = util::env_var("LATIBOT_YTDLP_COOKIES"); file && !file->empty())
+        loaded.ytdlp_cookies = std::filesystem::path(*file);
 
     return loaded;
 }

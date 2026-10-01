@@ -275,7 +275,10 @@ For music, add [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 folder, or anywhere on `PATH` (`winget install yt-dlp.yt-dlp Gyan.FFmpeg`
 puts both there). Without them everything else works, and `/music play`
 says what is missing. Keep yt-dlp current with `yt-dlp -U`: sites change,
-and an old one stops working with them.
+and an old one stops working with them. For age-restricted videos, music
+can sign in to a YouTube account with a cookies file named by
+`LATIBOT_YTDLP_COOKIES`; [Music.md §4.9](docs/features/Music.md#49-signing-in-to-youtube)
+says how to export one.
 
 The machine also needs the **Microsoft Visual C++ Redistributable** (x64), for
 `MSVCP140.dll` and `VCRUNTIME140.dll`. Without it Windows refuses to start the

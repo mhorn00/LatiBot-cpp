@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/music/cookies.hpp"
 #include "core/ports/media.hpp"
 #include "core/util/process.hpp"
 
@@ -29,10 +30,13 @@ namespace latibot::music {
 ///
 /// `--ignore-config` keeps a `yt-dlp.conf` on the host out of it, and `--`
 /// keeps a link that looks like an option from being read as one.
-[[nodiscard]] auto lookup_arguments(const std::string& url, std::size_t max_items) -> std::vector<std::string>;
+/// `cookies`, when given, is the file yt-dlp signs in with (§4.9).
+[[nodiscard]] auto lookup_arguments(const std::string& url, std::size_t max_items,
+                                    const std::optional<std::filesystem::path>& cookies = std::nullopt) -> std::vector<std::string>;
 
 /// yt-dlp's arguments to write a track's audio to stdout, for ffmpeg.
-[[nodiscard]] auto fetch_arguments(const std::string& url, const std::optional<std::filesystem::path>& ffmpeg) -> std::vector<std::string>;
+[[nodiscard]] auto fetch_arguments(const std::string& url, const std::optional<std::filesystem::path>& ffmpeg,
+                                   const std::optional<std::filesystem::path>& cookies = std::nullopt) -> std::vector<std::string>;
 
 /// ffmpeg's arguments to decode stdin to 48 kHz stereo 16-bit samples on
 /// stdout, evening out loudness when `even_loudness` is set.
@@ -55,9 +59,11 @@ namespace latibot::music {
 ///
 /// Before yt-dlp is run, the link's host is resolved, and a link into a
 /// private or loopback network is refused (docs/features/Music.md §6).
+/// With `cookies`, each run is signed in with a copy of its own (§4.9).
 class ytdlp_resolver final : public ports::media_resolver {
 public:
-    explicit ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout = std::chrono::seconds{30}, int workers = 2);
+    explicit ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout = std::chrono::seconds{30}, int workers = 2,
+                            std::optional<cookie_source> cookies = std::nullopt);
 
     /// Fails anything still waiting, then waits for the workers.
     ~ytdlp_resolver() override;
@@ -78,6 +84,7 @@ private:
 
     std::filesystem::path ytdlp_;
     std::chrono::milliseconds timeout_;
+    std::optional<cookie_source> cookies_;
 
     std::mutex mutex_;
     std::condition_variable_any wake_;
@@ -97,13 +104,16 @@ private:
 /// A thread reads the pipeline into a buffer of at most `buffer_samples`,
 /// waiting when it is full, so a program never gets further ahead than
 /// that. A stream that produces nothing for `stall_limit` has failed.
+///
+/// `cookies`, a copy the first program signs in with, is kept until every
+/// program has ended, and then removed.
 class process_stream final : public ports::pcm_stream {
 public:
     /// How much is read ahead: ten seconds of 48 kHz stereo.
     static constexpr std::size_t default_buffer = std::size_t{48000} * 2 * 10;
 
     process_stream(std::vector<util::program> programs, std::chrono::milliseconds stall_limit = std::chrono::seconds{30},
-                   std::size_t buffer_samples = default_buffer);
+                   std::size_t buffer_samples = default_buffer, std::optional<cookie_copy> cookies = std::nullopt);
 
     /// Kills the programs, and waits for the reader.
     ~process_stream() override;
@@ -136,16 +146,21 @@ private:
     /// for the reason a failure is given.
     std::vector<std::string> errors_;
 
+    /// Before the pipeline, so it is removed after the programs have ended:
+    /// yt-dlp writes it back as it ends.
+    std::optional<cookie_copy> cookies_;
+
     std::unique_ptr<util::pipeline> pipeline_;
 
     /// Last, so it stops before anything it uses goes.
     std::jthread reader_;
 };
 
-/// Opens tracks as `yt-dlp | ffmpeg`.
+/// Opens tracks as `yt-dlp | ffmpeg`, signed in with `cookies` when given.
 class ytdlp_opener final : public ports::stream_opener {
 public:
-    ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness = true);
+    ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness = true,
+                 std::optional<cookie_source> cookies = std::nullopt);
 
     auto open(const std::string& url) -> std::unique_ptr<ports::pcm_stream> override;
 
@@ -153,6 +168,7 @@ private:
     std::filesystem::path ytdlp_;
     std::filesystem::path ffmpeg_;
     bool even_loudness_;
+    std::optional<cookie_source> cookies_;
 };
 
 } // namespace latibot::music
