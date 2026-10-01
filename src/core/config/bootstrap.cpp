@@ -74,15 +74,29 @@ auto require_bool(const json& object, std::string_view key) -> bool {
 /// reported instead of silently doing nothing. A key added here belongs in
 /// `bootstrap::default_json` too, at its default.
 auto reject_unknown_keys(const json& parsed) -> void {
-    static constexpr std::array<std::string_view, 17> known_keys{
-        "log_level",       "database_path",  "backup_directory", "backups_to_keep",     "backup_interval_minutes",
-        "track_nicknames", "llm_provider",   "llm_model",        "spend_cap_daily_usd", "spend_cap_monthly_usd",
-        "llm_tool_rounds", "trusted_guilds", "trusted_users",    "emoji_copy_min_uses", "ytdlp_path",
-        "ffmpeg_path",     "deno_path",
+    static constexpr std::array<std::string_view, 19> known_keys{
+        "log_level",       "database_path",  "backup_directory",  "backups_to_keep",     "backup_interval_minutes",
+        "track_nicknames", "llm_provider",   "llm_model",         "spend_cap_daily_usd", "spend_cap_monthly_usd",
+        "llm_tool_rounds", "trusted_guilds", "trusted_users",     "emoji_copy_min_uses", "ytdlp_path",
+        "ffmpeg_path",     "deno_path",      "pot_provider_path", "pot_provider_port",
     };
 
     for (const auto& [key, unused] : parsed.items()) {
         if (std::ranges::find(known_keys, key) == known_keys.end()) throw config_error("unknown config key \"" + key + "\"");
+    }
+}
+
+/// Where music's programs are (docs/features/Music.md §5, §4.10).
+auto read_music_keys(const json& parsed, bootstrap& config) -> void {
+    if (parsed.contains("ytdlp_path")) config.ytdlp_path = require_string(parsed, "ytdlp_path");
+    if (parsed.contains("ffmpeg_path")) config.ffmpeg_path = require_string(parsed, "ffmpeg_path");
+    if (parsed.contains("deno_path")) config.deno_path = require_string(parsed, "deno_path");
+    if (parsed.contains("pot_provider_path")) config.pot_provider_path = require_string(parsed, "pot_provider_path");
+    if (parsed.contains("pot_provider_port")) {
+        config.pot_provider_port = require_int(parsed, "pot_provider_port");
+        if (config.pot_provider_port < 1 || config.pot_provider_port > 65535) {
+            throw config_error(R"(config key "pot_provider_port" must be a port, 1 to 65535)");
+        }
     }
 }
 
@@ -190,9 +204,7 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
         if (config.emoji_copy_min_uses < 0) throw config_error(R"(config key "emoji_copy_min_uses" cannot be negative)");
     }
 
-    if (parsed.contains("ytdlp_path")) config.ytdlp_path = require_string(parsed, "ytdlp_path");
-    if (parsed.contains("ffmpeg_path")) config.ffmpeg_path = require_string(parsed, "ffmpeg_path");
-    if (parsed.contains("deno_path")) config.deno_path = require_string(parsed, "deno_path");
+    read_music_keys(parsed, config);
 
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
     if (parsed.contains("trusted_users")) config.trusted_users = require_snowflakes(parsed, "trusted_users");
@@ -220,6 +232,8 @@ auto bootstrap::default_json() -> std::string {
     file["ytdlp_path"] = defaults.ytdlp_path.generic_string();
     file["ffmpeg_path"] = defaults.ffmpeg_path.generic_string();
     file["deno_path"] = defaults.deno_path.generic_string();
+    file["pot_provider_path"] = defaults.pot_provider_path.generic_string();
+    file["pot_provider_port"] = defaults.pot_provider_port;
     return file.dump(2) + "\n";
 }
 
@@ -300,6 +314,9 @@ auto secrets::from_environment() -> secrets {
 
     if (const auto key = util::env_var("ANTHROPIC_API_KEY"); key && !key->empty()) loaded.anthropic_key = *key;
     if (const auto key = util::env_var("OPENAI_API_KEY"); key && !key->empty()) loaded.openai_key = *key;
+    if (const auto profile = util::env_var("LATIBOT_YTDLP_FIREFOX_PROFILE"); profile && !profile->empty()) {
+        loaded.ytdlp_firefox_profile = std::filesystem::path(*profile);
+    }
     if (const auto file = util::env_var("LATIBOT_YTDLP_COOKIES"); file && !file->empty()) {
         loaded.ytdlp_cookies = std::filesystem::path(*file);
     }

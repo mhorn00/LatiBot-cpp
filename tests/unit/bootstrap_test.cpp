@@ -187,6 +187,14 @@ TEST_CASE("music's programs are looked for unless the config names them", "[conf
     CHECK(defaults.deno_path.empty());
     CHECK(bootstrap::from_json(R"({"deno_path": "C:/tools/deno.exe"})").deno_path == std::filesystem::path("C:/tools/deno.exe"));
     REQUIRE_THROWS_AS(bootstrap::from_json(R"({"deno_path": 5})"), config_error);
+
+    CHECK(defaults.pot_provider_path.empty());
+    CHECK(defaults.pot_provider_port == 4416);
+    const bootstrap provider = bootstrap::from_json(R"({"pot_provider_path": "C:/bgutil/server", "pot_provider_port": 8080})");
+    CHECK(provider.pot_provider_path == std::filesystem::path("C:/bgutil/server"));
+    CHECK(provider.pot_provider_port == 8080);
+    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"pot_provider_port": 0})"), config_error);
+    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"pot_provider_port": 70000})"), config_error);
 }
 
 TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
@@ -263,12 +271,14 @@ TEST_CASE("secrets come from the environment", "[config]") {
         const scoped_env anthropic("ANTHROPIC_API_KEY", nullptr);
         const scoped_env openai("OPENAI_API_KEY", nullptr);
         const scoped_env cookies("LATIBOT_YTDLP_COOKIES", nullptr);
+        const scoped_env profile("LATIBOT_YTDLP_FIREFOX_PROFILE", nullptr);
 
         const secrets loaded = secrets::from_environment();
         CHECK(loaded.discord_token == "test-token");
         CHECK_FALSE(loaded.anthropic_key.has_value());
         CHECK_FALSE(loaded.openai_key.has_value());
         CHECK_FALSE(loaded.ytdlp_cookies.has_value());
+        CHECK_FALSE(loaded.ytdlp_firefox_profile.has_value());
     }
 
     SECTION("the file yt-dlp signs in with, when one is named") {
@@ -281,6 +291,14 @@ TEST_CASE("secrets come from the environment", "[config]") {
         }
         const scoped_env empty("LATIBOT_YTDLP_COOKIES", "");
         CHECK_FALSE(secrets::from_environment().ytdlp_cookies.has_value());
+    }
+
+    SECTION("the Firefox profile yt-dlp signs in with, when one is named") {
+        const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
+        const scoped_env profile("LATIBOT_YTDLP_FIREFOX_PROFILE", "data/firefox-profile");
+        const secrets loaded = secrets::from_environment();
+        REQUIRE(loaded.ytdlp_firefox_profile.has_value());
+        CHECK(*loaded.ytdlp_firefox_profile == std::filesystem::path("data/firefox-profile"));
     }
 
     SECTION("keys are picked up when present") {

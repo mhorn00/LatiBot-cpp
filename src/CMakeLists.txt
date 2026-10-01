@@ -81,6 +81,7 @@ add_library(latibot_core STATIC
     core/music/links.cpp
     core/music/music_player.cpp
     core/music/music_queue.cpp
+    core/music/pot_provider.cpp
     core/music/yt_dlp.cpp
     core/ports/clock.cpp
     core/ui/interaction.cpp
@@ -125,3 +126,30 @@ target_link_libraries(LatiBot PRIVATE latibot_core)
 latibot_target_warnings(LatiBot)
 latibot_target_sanitizers(LatiBot)
 latibot_copy_runtime_dlls(LatiBot)
+
+# The script that sets up a server for the bot, and its readme, beside the
+# bot, so a build output folder is ready to copy to one
+# (deploy/Install-Dependencies.md). Copied whenever either changes, not only
+# when the bot is linked.
+get_property(latibot_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(latibot_multi_config)
+    set(LATIBOT_DEPLOY_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
+else()
+    set(LATIBOT_DEPLOY_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
+set(LATIBOT_DEPLOY_SOURCES
+    "${PROJECT_SOURCE_DIR}/deploy/Install-Dependencies.ps1"
+    "${PROJECT_SOURCE_DIR}/deploy/Install-Dependencies.md"
+)
+add_custom_command(
+    OUTPUT "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.ps1" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${LATIBOT_DEPLOY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LATIBOT_DEPLOY_SOURCES} "${LATIBOT_DEPLOY_DIR}"
+    DEPENDS ${LATIBOT_DEPLOY_SOURCES}
+    COMMENT "Copying Install-Dependencies.ps1 beside LatiBot.exe"
+    VERBATIM
+)
+add_custom_target(latibot_deploy_files ALL
+    DEPENDS "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.ps1" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
+)
+add_dependencies(LatiBot latibot_deploy_files)

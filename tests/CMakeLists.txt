@@ -46,6 +46,7 @@ add_executable(latibot_tests
     unit/music_links_test.cpp
     unit/music_player_test.cpp
     unit/music_queue_test.cpp
+    unit/pot_provider_test.cpp
     unit/nickname_command_test.cpp
     unit/nickname_import_test.cpp
     unit/nicknames_test.cpp

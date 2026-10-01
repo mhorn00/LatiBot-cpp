@@ -22,6 +22,8 @@ namespace latibot::util {
 struct program {
     std::filesystem::path path;
     std::vector<std::string> arguments;
+    /// Where it runs; empty for the bot's own working directory.
+    std::filesystem::path working_directory;
 };
 
 /// A program could not be started.
@@ -37,6 +39,10 @@ public:
 
 /// The whole command line: the program's path, then each argument, quoted.
 [[nodiscard]] auto command_line(const program& to_run) -> std::string;
+
+/// The folder the bot's own executable is in, or nothing when Windows will
+/// not say.
+[[nodiscard]] auto executable_directory() -> std::optional<std::filesystem::path>;
 
 /// Where a program is: `configured` when it is set, which must exist;
 /// otherwise `name.exe` beside the bot's own executable, then on `PATH`.

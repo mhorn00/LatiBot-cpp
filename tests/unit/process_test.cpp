@@ -3,6 +3,7 @@
 // (tests/support/test_child.cpp).
 
 #include "core/util/process.hpp"
+#include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -10,6 +11,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -109,6 +111,25 @@ TEST_CASE("a program that runs too long is killed", "[util][threads]") {
 TEST_CASE("output past the limit kills the program", "[util][threads]") {
     const auto result = run(child({"bytes", "1000000"}), 10s, 1000);
     CHECK(result.output.size() <= 1000);
+}
+
+TEST_CASE("a program runs in the folder it is given, or the bot's own", "[util][threads]") {
+    const latibot::testing::temp_directory folder;
+    auto in_folder = child({"cwd"});
+    in_folder.working_directory = folder.path();
+    const auto there = run(in_folder, 10s);
+    REQUIRE(there.exit_code == 0);
+    CHECK(std::filesystem::equivalent(lines_of(there.output).at(0), folder.path()));
+
+    const auto here = run(child({"cwd"}), 10s);
+    REQUIRE(here.exit_code == 0);
+    CHECK(std::filesystem::equivalent(lines_of(here.output).at(0), std::filesystem::current_path()));
+}
+
+TEST_CASE("the bot's own folder is the test program's", "[util]") {
+    const auto directory = latibot::util::executable_directory();
+    REQUIRE(directory.has_value());
+    CHECK(std::filesystem::exists(*directory / "latibot_tests.exe"));
 }
 
 TEST_CASE("a program that cannot be found is refused", "[util]") {

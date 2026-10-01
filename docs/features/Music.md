@@ -15,11 +15,11 @@ and [Speech.md](Speech.md).
 
 | | |
 |---|---|
-| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
-| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
+| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies,pot_provider}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
+| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,pot_provider,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
-| **Config** | `ytdlp_path`, `ffmpeg_path`, `deno_path` in `config.json`; `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
-| **Runtime** | `yt-dlp.exe` and `ffmpeg.exe`, beside the bot or on `PATH`; `deno.exe` too, for YouTube (§5) |
+| **Config** | `ytdlp_path`, `ffmpeg_path`, `deno_path`, `pot_provider_path`, `pot_provider_port` in `config.json`; `LATIBOT_YTDLP_FIREFOX_PROFILE` or `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
+| **Runtime** | `yt-dlp.exe`, `ffmpeg.exe` and `deno.exe`, beside the bot or on `PATH`; bgutil's PO token provider and plugin; Firefox. `deploy/Install-Dependencies.ps1` installs them all (§5) |
 | **Plan** | Replaces plan §15, and the mixer half of §13 |
 | **Status** | Built on 2026-09-30. **Not yet run in Discord, or against the real yt-dlp and ffmpeg**: see §7 |
 
@@ -385,15 +385,55 @@ migration was needed.
 
 YouTube plays an age-restricted video only to an account that is signed in
 and old enough. yt-dlp cannot sign in to YouTube with a password, so it is
-given the cookies of a browser that is signed in, as a `cookies.txt` file.
-Added on 2026-10-01, for the owner's instance; an instance without it works
-as before, signed out.
+given the cookies of a browser that is signed in. There are two ways, and an
+instance with neither works as before, signed out:
 
-**Setting it up**, with an account kept for the bot:
+- **A Firefox profile kept for the bot** (`LATIBOT_YTDLP_FIREFOX_PROFILE`),
+  which yt-dlp reads itself each time it signs in. The one to use: nothing
+  is exported, so there is nothing to export again.
+- **A cookies file** exported from a browser (`LATIBOT_YTDLP_COOKIES`), the
+  first way, built earlier the same day. It has to be exported again
+  whenever YouTube ends that sign-in.
+
+When both are named, the profile is used and startup warns.
+
+**A Firefox profile.** `deploy/Install-Dependencies.md` has the steps for
+the owner; in short:
+
+1. `Install-Dependencies.ps1` installs Firefox and makes the folder
+   `data\firefox-profile` beside the bot.
+2. Firefox is opened on it (`-SignIn`, or
+   `firefox.exe -profile <folder> -no-remote`), signed in to YouTube with
+   the bot's account, an age-restricted video checked to play, and closed
+   with Menu > Exit.
+3. `.env` gets `LATIBOT_YTDLP_FIREFOX_PROFILE=<folder>`, and the bot is
+   restarted.
+
+A signed-in run is given `--cookies-from-browser firefox:<folder>`. yt-dlp
+copies the profile's `cookies.sqlite` to a temporary folder and reads the
+copy, every run, so it always has what Firefox last saved, and never writes
+to the profile. It reads only that file, though: an open Firefox keeps its
+newest cookies in `cookies.sqlite-wal`, and saves them into
+`cookies.sqlite` when it closes. So Firefox stays closed while the bot runs.
+When YouTube ends the sign-in, opening the profile again, signing in if
+asked, and closing Firefox renews it, with no restart: the next run reads it.
+
+At startup the bot reads its own copy of `cookies.sqlite`
+(`check_firefox_profile`), counting the cookies by where they are for and
+their name, never their values, and checks `cookies.sqlite-wal`:
+
+| Found | Startup |
+|---|---|
+| Not a folder, no `cookies.sqlite`, or a database it cannot read | A warning; music fetches signed out |
+| No cookies at all | A warning; signed out |
+| No youtube.com cookies, or none named `SAPISID` or `__Secure-3PAPISID` | A warning: yt-dlp only signs in with one of those, and the profile is not signed in to YouTube |
+| `cookies.sqlite-wal` not empty | A warning: Firefox is open with it, or was not closed properly |
+| Otherwise | `music signs in when it must with the Firefox profile <folder>: N cookie(s), M of them for youtube.com` |
+
+**A cookies file.** For an instance without Firefox:
 
 1. **Check the account.** Signed in as it in a browser, an age-restricted
-   video should play without asking for an age. If YouTube asks to verify
-   it, do that there first.
+   video should play without asking for an age.
 2. **Export from a private window.** Open a new private window, sign in to
    YouTube, and in that same tab go to `https://www.youtube.com/robots.txt`.
    Export the cookies for youtube.com in the Netscape `cookies.txt` format,
@@ -408,44 +448,18 @@ as before, signed out.
    `data/youtube-cookies.txt`. Add `LATIBOT_YTDLP_COOKIES=data/youtube-cookies.txt`
    to `.env`; a relative path is from the bot's working directory. Restart
    the bot.
-4. **Read the startup log.** It says how many cookies it found, and how
-   many for youtube.com, never what they are. A file it cannot read, a JSON
-   export, or one with no cookies in it is a warning, and music fetches
-   signed out; one with no youtube.com cookies is a warning too. So is one
-   with no youtube.com `SAPISID` or `__Secure-3PAPISID` cookie: yt-dlp only
-   signs in with one of those, and a file without them was exported
-   signed out.
+4. **Read the startup log.** It counts the cookies as for a profile. A JSON
+   export, a file it cannot read, or one with no cookies is a warning, and
+   music fetches signed out; so are lines that are not cookies, which
+   yt-dlp skips.
 
-**When it does not work.** An age-restricted video still refused with "Sign
-in to confirm your age" means YouTube saw yt-dlp as signed out. When the
-signed-in try fails, the log has a warning, `yt-dlp could not read ...
-signed in either`, with everything yt-dlp said. Signed-in runs keep yt-dlp's
-own warnings, which signed-out runs leave out, so that warning shows why:
-
-- **"The provided YouTube account cookies are no longer valid"**: the
-  session was rotated, usually because it was used in a browser after the
-  export, or exported from an ordinary window. Export again, as in step 2.
-- **No such warning**, and the startup log warned about `SAPISID`: the file
-  was exported signed out. Export again while signed in.
-- **"n challenge solving failed"**, or a warning that no JavaScript runtime
-  was found: yt-dlp cannot solve YouTube's JavaScript challenges without
-  Deno (§5), and the clients that would play an age-restricted video signed
-  in are among those that need it. Install Deno where the bot runs; startup
-  warns when it is missing.
-- **"web_creator client https formats require a GVS PO Token"**: one client
-  yt-dlp tries needs a PO token, and its formats are skipped. On its own
-  this is not the failure: yt-dlp's PO Token guide lists clients, `tv`
-  among them, that need none and take an account's cookies, and with Deno
-  yt-dlp can use them. A PO token provider plugin is the next step only if
-  videos still fail with Deno installed (§8).
-- **"Sorry, this content is age-restricted"**, signed in, after the above:
-  YouTube saw the account, and the clients yt-dlp could use would not play
-  it. Install Deno first. If it still fails, check in a browser, signed in
-  as the account, that the video plays there: YouTube may want the account
-  itself age-verified, and nothing the bot does gets past that.
-
-When age-restricted videos that played stop playing, the session has
-ended: export a fresh file the same way.
+A signed-in run is given `--cookies` and a copy of the file of its own, in
+`data/yt-dlp-runs/`, removed once that run has ended. yt-dlp writes its
+cookies back to the file it was given as it ends, truncating and rewriting
+it, and up to four run at once: one rewriting a shared file while another
+reads it would leave that one signed out, or the file spoilt. Copies left
+behind by a crash are removed at the next start. The owner's file is never
+written to.
 
 **Only when it is needed.** yt-dlp always tries signed out first. When it
 fails, and what it says is that it must sign in (`needs_sign_in`: "Sign in
@@ -466,14 +480,26 @@ second try.
 The cost is one refused run, a second or two, the first time an
 age-restricted link is read or played.
 
-**The copies** (`music::cookie_source`). Every signed-in run of yt-dlp gets a
-copy of the file of its own, in `data/yt-dlp-runs/`, removed once that run
-has ended. yt-dlp writes its
-cookies back to the file it was given as it ends, truncating and rewriting
-it, and up to four run at once: one rewriting a shared file while another
-reads it would leave that one signed out, or the file spoilt. Copies left
-behind by a crash are removed at the next start. The owner's file is never
-written to.
+**When it does not work.** When the signed-in try fails too, the log has a
+warning, `yt-dlp could not read ... signed in either`, with everything
+yt-dlp said: signed-in runs keep yt-dlp's own warnings, which signed-out
+runs leave out.
+
+- **"Sign in to confirm your age"**, signed in: YouTube saw yt-dlp as
+  signed out. Check the startup log's warnings above. With a cookies file,
+  **"The provided YouTube account cookies are no longer valid"** means the
+  session was rotated: export again, as in step 2.
+- **"n challenge solving failed"**, or a warning that no JavaScript runtime
+  was found: yt-dlp cannot solve YouTube's JavaScript challenges without
+  Deno (§5), and the clients that would play an age-restricted video signed
+  in are among those that need it.
+- **"... require a GVS PO Token which was not provided"**: no PO token
+  provider is running (§4.10); the startup log says why.
+- **"Sorry, this content is age-restricted"**, signed in: YouTube saw the
+  account, and the clients yt-dlp could use would not play it. With Deno and
+  the provider running, check in a browser, signed in as the account, that
+  the video plays there: YouTube may want the account itself age-verified,
+  and nothing the bot does gets past that.
 
 **What it means.**
 
@@ -481,15 +507,57 @@ written to.
   will not play a video signed out. Those videos are in its YouTube history,
   and anything it can see can be queued by link, its private playlists
   included.
-- The file is a sign-in. Whoever has it is signed in as the account until
-  the session ends, so it stays in `data/` beside the database, and is never
-  logged.
-- YouTube may limit or suspend an account used through yt-dlp, which yt-dlp's
-  own documentation warns of. Use an account that can be lost.
+- The profile, or the file, is a sign-in. Whoever has it is signed in as the
+  account until the session ends; a profile holds the whole Google sign-in,
+  not only YouTube's. Both stay in `data/` beside the database, and their
+  values are never logged.
+- YouTube may limit or suspend an account used through yt-dlp, which
+  yt-dlp's own documentation warns of. Use an account that can be lost. What
+  the bot does to look like an ordinary client is in §4.10.
 - Signed in, yt-dlp asks YouTube for videos in other ways than signed out.
-  If age-restricted videos still fail once the cookies are added, update
-  yt-dlp first (`yt-dlp -U`), and see its wiki's pages on YouTube. Other
-  videos are fetched signed out, as before.
+  Other videos are fetched signed out, as before.
+
+### 4.10 PO tokens
+
+YouTube asks its clients for a proof-of-origin (PO) token with some
+requests, and refuses, or slows, those without one. yt-dlp's PO Token guide
+recommends a provider plugin, and lists bgutil's first. Added on 2026-10-01,
+at the owner's request, with signing in, to give the account the best chance
+of not being flagged.
+
+- **The plugin**, `bgutil-ytdlp-pot-provider.zip`, goes in
+  `yt-dlp-plugins` beside `yt-dlp.exe`, where yt-dlp looks for plugins
+  beside its own executable. `--ignore-config` does not affect plugins.
+- **The provider** is bgutil's server, from the same release's source, its
+  packages installed with Deno (`deno install --allow-scripts=npm:canvas
+  --frozen`), in `bgutil-ytdlp-pot-provider\server` beside the bot.
+  `Install-Dependencies.ps1` puts both there.
+- **The bot runs it** (`music::pot_provider`), as bgutil's README gives for
+  Deno: `deno run --allow-env --allow-net --allow-ffi=. --allow-read=.
+  ../src/main.ts --port 4416` from its `node_modules` folder, so it reads
+  only there. It listens on `127.0.0.1` and `::1` alone, bgutil's default
+  since 2.0.0; nothing off the machine can reach it. What it writes is
+  logged at debug. If it stops, it is started again after five seconds, and
+  twice as long each time it stops again within a minute, up to ten
+  minutes. Like every program the bot runs, it is in a job object that ends
+  it when the bot's handle to it closes, so it stops with the bot, even when
+  the bot is killed.
+- **Every run of yt-dlp**, signed in or not, is given
+  `--extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:<port>`
+  when the plugin is installed, so the plugin asks the provider on the
+  configured port.
+- **Config:** `pot_provider_path` (its `server` folder; empty for beside the
+  bot) and `pot_provider_port` (4416).
+- **Startup** says what it found: the provider started; the plugin without
+  a provider, which a provider run some other way, such as bgutil's Docker
+  image, can serve on the same port; a provider without the plugin, or
+  without its packages, or without Deno, each a warning; or neither, said
+  once, at info.
+
+The plugin and the provider must be the same version, which is why the
+script takes both from one release. bgutil's "script" mode, a provider
+started for each run of yt-dlp, is not used: its README calls it slower and
+poor with runs at once.
 
 ## 5. Dependencies and running it
 
@@ -514,8 +582,14 @@ written to.
   yt-dlp is external either way.
 - **CI** has neither program, and needs neither: the tests use a stand-in
   (§7).
-- **An account**, for age-restricted videos, is optional: a cookies file
-  named by `LATIBOT_YTDLP_COOKIES` (§4.9).
+- **An account**, for age-restricted videos, is optional: a Firefox profile
+  or a cookies file (§4.9). So are **PO tokens** (§4.10).
+- **`deploy/Install-Dependencies.ps1`** sets a server up: yt-dlp, ffmpeg and
+  Deno beside the bot, bgutil's provider and plugin, the Visual C++
+  Redistributable, Firefox, and the bot's Firefox profile folder, each
+  download checked against its publisher's SHA-256 or Authenticode
+  signature. Run again, it updates whatever has a newer release. The build
+  copies it, with `Install-Dependencies.md`, beside `LatiBot.exe`.
 
 ## 6. Security
 
@@ -529,10 +603,21 @@ People type the links, so everything passed to yt-dlp is untrusted:
 - **Config.** `--ignore-config` on every call, so a `yt-dlp.conf` on the host
   changes nothing. No `--exec`, and nothing written to disk but the copies
   of the cookies, when the owner signed music in.
-- **The account** (§4.9). Its cookies come only from the file the owner
-  names, are never logged, and are copied only into `data/yt-dlp-runs/`,
-  for as long as a run lasts. They are used only when yt-dlp says it must
+- **The account** (§4.9). Its cookies come only from the profile or file the
+  owner names, and are never logged. A file is copied only into
+  `data/yt-dlp-runs/`, for as long as a run lasts; a profile is copied by
+  yt-dlp to its own temporary folder, and the bot's startup check makes
+  and deletes its own copy. They are used only when yt-dlp says it must
   sign in; then anyone who can queue fetches as that account.
+- **The PO token provider** (§4.10) listens on this machine's loopback
+  addresses alone, and reads only its own `node_modules`. bgutil 2.0.0 fixed
+  a remote code execution through a server bound to every address; the
+  script installs the latest release, and the bot never asks it to bind
+  elsewhere.
+- **The setup script** checks every download against the SHA-256 its
+  publisher gives, and the two installers against Microsoft's and Mozilla's
+  signatures; the provider's source, for which GitHub publishes no checksum,
+  comes over HTTPS from its own repository at the plugin's release tag.
 - **The local network.** A link written as a private, loopback, link-local,
   carrier-NAT, multicast or reserved address, IPv4 or IPv6, or as
   `localhost`, is refused when typed. A name is resolved first, by the
@@ -578,6 +663,18 @@ People type the links, so everything passed to yt-dlp is untrusted:
   in at once, other failures told without a retry, and a second refusal
   told. `sign_in_retry` is checked the same way for fetching, and does not
   start over a track that failed partway.
+- **The Firefox profile**, against profiles the tests make with a
+  `moz_cookies` table of made-up cookies: counting by name from a copy that
+  is then deleted, a profile signed out, never opened, or not a database,
+  unsaved cookies in `cookies.sqlite-wal`, the profile chosen over a file,
+  and `--cookies-from-browser firefox:<folder>`. The stand-in counts itself
+  signed in when that folder has a `cookies.sqlite`.
+- **The PO token provider** (`pot_provider_test.cpp`): its command and
+  folder, finding it set up and finding the plugin, and, with the stand-in
+  playing it, being started again when it stops, what it writes being
+  logged, a provider that cannot start being tried again, and destroying it
+  ending it at once. `--extractor-args` before the `--`.
+- **Processes** also check a program runs in the folder it is given.
 - **`[live]`** (`yt_dlp_live_test.cpp`, hidden with `[.]`): the real yt-dlp
   and ffmpeg read and play Wikimedia Commons' `Example.ogg`. Skipped when
   either is not installed; neither was on the machine this was built on.
@@ -598,7 +695,17 @@ People type the links, so everything passed to yt-dlp is untrusted:
 - that `--js-runtimes deno:<path>` with a Windows path, which has a
   colon of its own, is read as yt-dlp's documentation says;
 - how long an exported session lasts with copies that are never written
-  back.
+  back;
+- that `--cookies-from-browser firefox:<folder>` signs in from the owner's
+  profile on the server, and that renewing the sign-in in Firefox works
+  without restarting the bot;
+- that the provider installs with Deno on the server (canvas's prebuilt
+  binary), starts, and that `yt-dlp -v` lists `bgutil:http` and gets
+  tokens from it;
+- `Install-Dependencies.ps1` on a fresh server, as an administrator and
+  not, and run again to update. **It has never been run**: it was written
+  and parsed, by Windows PowerShell 5.1 and PowerShell 7, but nothing it
+  downloads was installed where it was built.
 
 ## 8. Decisions
 
@@ -633,16 +740,22 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | 2026-09-30 | `[live]` tests are hidden with Catch2's `[.]` as well | The presets filter test names, and a tag is not in the name |
 | 2026-10-01 | An account for yt-dlp, as a cookies file named by `LATIBOT_YTDLP_COOKIES` | The owner's request, for age-restricted videos. yt-dlp cannot sign in to YouTube with a password; a cookies file is the way its documentation gives. The file is a sign-in, so it is named where the secrets are, not in `config.json` |
 | 2026-10-01 | Exported from a private window, then closed without signing out | A session left open in a browser has its cookies rotated, which signs out the exported copy (yt-dlp's wiki) |
-| 2026-10-01 | A file, not `--cookies-from-browser` | The bot runs unattended; a browser on the host would keep rotating the session, and Chromium browsers on Windows encrypt their cookies where yt-dlp often cannot read them |
+| 2026-10-01 | A file, not `--cookies-from-browser` | The bot runs unattended; a browser on the host would keep rotating the session, and Chromium browsers on Windows encrypt their cookies where yt-dlp often cannot read them. Superseded below, the same day |
 | 2026-10-01 | Each run of yt-dlp gets a copy of its own, removed when it ends | yt-dlp rewrites its cookie file as it ends, and up to four run at once |
 | 2026-10-01 | Signed out first; signed in only when yt-dlp says it must, retried at once without telling anyone, and only the retry's failure told | The owner's request, so the account is used only where it is needed. It replaced signing every run in, built earlier the same day |
 | 2026-10-01 | Links read signed in are remembered, with their tracks, until a restart | So a track already known to need it is not refused once more when it plays |
 | 2026-10-01 | A track is fetched again only if nothing of it had played | Starting a track over partway would be worse than its failure |
 | 2026-10-01 | Signed-in runs keep yt-dlp's warnings; a signed-in failure is a logged warning; startup checks for `SAPISID` | The owner's first try was refused signed in, and `--no-warnings` had hidden yt-dlp's reason |
 | 2026-10-01 | Deno is looked for like ffmpeg, handed to yt-dlp with `--js-runtimes`, and warned about when missing | The owner's second try failed solving YouTube's JavaScript challenge, with no runtime installed; yt-dlp's EJS wiki makes Deno the default |
-| 2026-10-01 | No PO token provider plugin yet | yt-dlp's PO Token guide lists clients that need no token and take cookies (`tv`); a provider (a plugin with a server of its own) is worth it only if Deno is not enough |
+| 2026-10-01 | No PO token provider plugin yet | yt-dlp's PO Token guide lists clients that need no token and take cookies (`tv`); a provider (a plugin with a server of its own) is worth it only if Deno is not enough. Superseded below, the same day |
 | 2026-10-01 | No playing YouTube in a browser and capturing its audio | Considered at the owner's suggestion. It needs a browser per playing server, plays ads to the channel without Premium, plays only in real time where the mixer reads ahead and rewinds, breaks with YouTube's page, and would still meet an account YouTube will not show the video to |
 | 2026-10-01 | A file that cannot be used is a warning, and music fetches signed out | Music, and so its account, is optional (the 2026-09-30 decision in Operations.md) |
+| 2026-10-01 | A Firefox profile kept for the bot, read with `--cookies-from-browser firefox:<folder>`, preferred to a file | The owner's request: no regular re-exporting. yt-dlp reads it afresh each run, so renewing the sign-in in Firefox needs no restart; Firefox's cookies are readable on Windows, where Chromium's often are not. The folder, not a profile name, since yt-dlp would look for a name under the running user's own Firefox folder |
+| 2026-10-01 | Firefox stays closed while the bot runs | yt-dlp reads only `cookies.sqlite`; an open Firefox keeps its newest cookies in `cookies.sqlite-wal` |
+| 2026-10-01 | bgutil's PO token provider, run by the bot with Deno, with its plugin beside yt-dlp | The owner's request, for the best chance of the account not being flagged; yt-dlp's guide recommends a provider, bgutil's first. Deno, which yt-dlp needs anyway, rather than Node or Docker; run by the bot, so there is no service to keep, and it stops with the bot |
+| 2026-10-01 | The provider is started again when it stops, waiting longer each time it stops quickly | It should not need minding; a port in use would otherwise restart it in a tight loop |
+| 2026-10-01 | `deploy/Install-Dependencies.ps1`, copied beside `LatiBot.exe` by the build | The owner's request. Portable programs beside the bot, rather than winget or `PATH`, so it needs no administrator after the first run, updates in place, and the bot finds each where it looks first |
+| 2026-10-01 | Every download checked: GitHub's published SHA-256 for release assets, gyan.dev's for ffmpeg, Authenticode for the two installers | What the bot runs comes from the internet; only the provider's source archive has no published checksum |
 
 ## 9. The owner's answers
 
@@ -681,7 +794,9 @@ As built, each step with its tests passing:
 - **[Voice_Channels.md](Voice_Channels.md)**: the mixer sits between the
   speech queue and DPP, and leaving empties the music queue.
 - **[Operations.md §4](Operations.md#4-configuration)** and `.env.example`:
-  `LATIBOT_YTDLP_COOKIES`, from 2026-10-01.
+  `LATIBOT_YTDLP_COOKIES` and `LATIBOT_YTDLP_FIREFOX_PROFILE`, from
+  2026-10-01; Deno and the PO token provider among the other programs.
+- **`deploy/`**: `Install-Dependencies.ps1` and its readme, from 2026-10-01.
 - **[Speech.md](Speech.md)**: speech pauses music, and `/tts stop` stops
   speech only.
 - **[Operations.md](Operations.md)**: the two executables, their

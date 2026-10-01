@@ -11,6 +11,7 @@
 //   fail CODE TEXT    TEXT on stderr, then exit with CODE
 //   hang              nothing, for an hour
 //   spawn-hang        starts itself with `hang`, then hangs as well
+//   cwd               the folder it runs in, on a line of its own
 //
 // Started with `--ignore-config`, as yt-dlp is to read a link, it answers
 // as yt-dlp would, going by the link, its last argument: one with "fail" in
@@ -18,6 +19,8 @@
 // and anything else is one track. Given `--cookies FILE` next, as yt-dlp
 // signs in, the track is titled "signed in" when FILE holds a youtube.com
 // cookie, and FILE is then written over as yt-dlp writes its cookies back.
+// Given `--cookies-from-browser firefox:PROFILE`, it is signed in when
+// PROFILE has a cookies.sqlite.
 // One with "adult" in it is refused, as YouTube refuses an age-restricted
 // video, unless it is signed in.
 
@@ -40,6 +43,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -151,6 +155,11 @@ auto child_main() -> int {
             cookies.close();
             std::ofstream(file, std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
         }
+        const auto browser = std::ranges::find(args, std::string("--cookies-from-browser"));
+        if (browser != args.end() && browser + 1 != args.end() && (browser + 1)->starts_with("firefox:")) {
+            const std::string profile = (browser + 1)->substr(std::string_view("firefox:").size());
+            if (GetFileAttributesA((profile + "\\cookies.sqlite").c_str()) != INVALID_FILE_ATTRIBUTES) title = "signed in";
+        }
         if (link.find("adult") != std::string::npos && title != "signed in") {
             const std::string line =
                 "ERROR: [youtube] abc: Sign in to confirm your age. This video may be inappropriate for some users. "
@@ -172,6 +181,13 @@ auto child_main() -> int {
         return 0;
     }
     if (mode == "hang") return hang();
+    if (mode == "cwd") {
+        std::wstring here(MAX_PATH, L'\0');
+        here.resize(GetCurrentDirectoryW(static_cast<DWORD>(here.size()), here.data()));
+        const std::string line = narrow(here.c_str()) + "\n";
+        write_all(out, line.data(), line.size());
+        return 0;
+    }
     if (mode == "spawn-hang") {
         std::wstring self(MAX_PATH, L'\0');
         self.resize(GetModuleFileNameW(nullptr, self.data(), static_cast<DWORD>(self.size())));

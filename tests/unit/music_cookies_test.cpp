@@ -3,6 +3,7 @@
 // written to, and that yt-dlp goes signed out until it is told to sign in.
 // Every cookie here is made up.
 
+#include "core/db/database.hpp"
 #include "core/music/cookies.hpp"
 #include "core/music/yt_dlp.hpp"
 #include "support/capture_log.hpp"
@@ -26,6 +27,7 @@
 #include <vector>
 
 using latibot::music::check_cookie_file;
+using latibot::music::check_firefox_profile;
 using latibot::music::cookie_copy;
 using latibot::music::cookie_source;
 using latibot::music::fetch_arguments;
@@ -34,6 +36,7 @@ using latibot::music::lookup_arguments;
 using latibot::music::needs_sign_in;
 using latibot::music::process_stream;
 using latibot::music::sign_in_retry;
+using latibot::music::ytdlp_extras;
 using latibot::music::ytdlp_resolver;
 using latibot::ports::pcm_stream;
 using latibot::ports::stream_state;
@@ -108,6 +111,18 @@ private:
     bool given_ = false;
 };
 
+/// A Firefox profile whose cookies.sqlite holds these cookies, by where they
+/// are for and their name; their values are made up.
+auto make_profile(const std::filesystem::path& profile, const std::vector<std::pair<std::string, std::string>>& cookies) -> void {
+    std::filesystem::create_directories(profile);
+    latibot::db::database database(profile / "cookies.sqlite");
+    database.execute("CREATE TABLE moz_cookies (id INTEGER PRIMARY KEY, host TEXT, name TEXT, value TEXT)");
+    for (const auto& [host, name] : cookies) {
+        auto insert = database.prepare("INSERT INTO moz_cookies (host, name, value) VALUES (?, ?, 'not-a-real-value')", host, name);
+        (void)insert.step();
+    }
+}
+
 auto retried(const std::vector<std::pair<latibot::util::log_level, std::string>>& lines) -> bool {
     return std::ranges::any_of(lines, [](const auto& line) { return line.second.find("tries again signed in") != std::string::npos; });
 }
@@ -134,21 +149,26 @@ TEST_CASE("a cookies file saved on Windows, with a byte order mark, reads the sa
     CHECK(found.malformed == 0);
 }
 
-TEST_CASE("yt-dlp is told where Deno is, before the --, and the link stays last", "[music]") {
+TEST_CASE("yt-dlp is told where Deno and the PO token provider are, before the --, and the link stays last", "[music]") {
     const std::filesystem::path deno = R"(C:\bot\deno.exe)";
-    const std::filesystem::path cookies = R"(C:\bot\data\yt-dlp-runs\cookies-1.txt)";
-    for (const auto& arguments :
-         {lookup_arguments("--exec calc", 100, std::nullopt, deno), fetch_arguments("--exec calc", "ff.exe", std::nullopt, deno),
-          lookup_arguments("--exec calc", 100, cookies, deno), fetch_arguments("--exec calc", "ff.exe", cookies, deno)}) {
+    const ytdlp_extras out{.deno = deno, .pot_provider = "http://127.0.0.1:4416"};
+    ytdlp_extras in = out;
+    in.sign_in = {"--cookies", R"(C:\bot\data\yt-dlp-runs\cookies-1.txt)"};
+    for (const auto& arguments : {lookup_arguments("--exec calc", 100, out), fetch_arguments("--exec calc", "ff.exe", out),
+                                  lookup_arguments("--exec calc", 100, in), fetch_arguments("--exec calc", "ff.exe", in)}) {
         CHECK(arguments.front() == "--ignore-config");
-        const auto flag = std::ranges::find(arguments, "--js-runtimes");
-        REQUIRE(flag != arguments.end());
-        CHECK(*(flag + 1) == "deno:" + deno.string());
+        const auto runtime = std::ranges::find(arguments, "--js-runtimes");
+        REQUIRE(runtime != arguments.end());
+        CHECK(*(runtime + 1) == "deno:" + deno.string());
+        const auto provider = std::ranges::find(arguments, "--extractor-args");
+        REQUIRE(provider != arguments.end());
+        CHECK(*(provider + 1) == "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416");
         CHECK(arguments.back() == "--exec calc");
         CHECK(arguments[arguments.size() - 2] == "--");
     }
     for (const auto& arguments : {lookup_arguments("https://x.com/a", 100), fetch_arguments("https://x.com/a", std::nullopt)}) {
         CHECK(std::ranges::find(arguments, "--js-runtimes") == arguments.end());
+        CHECK(std::ranges::find(arguments, "--extractor-args") == arguments.end());
     }
 }
 
@@ -156,7 +176,7 @@ TEST_CASE("the resolver hands Deno on, signed in or not", "[music][threads]") {
     const temp_directory folder;
     write(folder.file("cookies.txt"), exported);
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source(folder.file("cookies.txt"), folder.file("runs")),
-                                  std::filesystem::path(R"(C:\bot\deno.exe)"));
+                                  ytdlp_extras{.deno = std::filesystem::path(R"(C:\bot\deno.exe)")});
     // The stand-in finds --cookies wherever it is, so the retry still signs in.
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
     REQUIRE(lookup.ok());
@@ -201,34 +221,34 @@ TEST_CASE("loading the cookies the owner named", "[music]") {
     const auto copies = folder.file("runs");
 
     SECTION("none named: signed out, and no problem") {
-        const auto status = load_cookies(std::nullopt, copies);
+        const auto status = load_cookies(std::nullopt, std::nullopt, copies);
         CHECK_FALSE(status.source.has_value());
         CHECK(status.file.empty());
         CHECK(status.problem.empty());
-        CHECK_FALSE(load_cookies(std::filesystem::path{}, copies).source.has_value());
+        CHECK_FALSE(load_cookies(std::filesystem::path{}, std::filesystem::path{}, copies).source.has_value());
     }
     SECTION("a good file is used, and its path made absolute") {
         write(folder.file("cookies.txt"), exported);
-        const auto status = load_cookies(folder.file("cookies.txt"), copies);
+        const auto status = load_cookies(folder.file("cookies.txt"), std::nullopt, copies);
         REQUIRE(status.source.has_value());
         CHECK(status.file.is_absolute());
         CHECK(status.found.youtube == 2);
         CHECK(status.problem.empty());
     }
     SECTION("a file that is not there") {
-        const auto status = load_cookies(folder.file("missing.txt"), copies);
+        const auto status = load_cookies(folder.file("missing.txt"), std::nullopt, copies);
         CHECK_FALSE(status.source.has_value());
         CHECK(status.problem == "could not be read");
     }
     SECTION("a JSON export") {
         write(folder.file("cookies.json"), R"([{"domain": ".youtube.com"}])");
-        const auto status = load_cookies(folder.file("cookies.json"), copies);
+        const auto status = load_cookies(folder.file("cookies.json"), std::nullopt, copies);
         CHECK_FALSE(status.source.has_value());
         CHECK(status.problem.find("Netscape") != std::string::npos);
     }
     SECTION("a file with no cookies") {
         write(folder.file("empty.txt"), "# Netscape HTTP Cookie File\n\n");
-        const auto status = load_cookies(folder.file("empty.txt"), copies);
+        const auto status = load_cookies(folder.file("empty.txt"), std::nullopt, copies);
         CHECK_FALSE(status.source.has_value());
         CHECK(status.problem == "has no cookies in it");
     }
@@ -241,7 +261,7 @@ TEST_CASE("copies an earlier run left behind are cleared at start, and nothing e
     write(copies / "cookies-0123456789abcdef.txt", exported);
     write(copies / "notes.txt", "kept");
 
-    (void)load_cookies(std::nullopt, copies);
+    (void)load_cookies(std::nullopt, std::nullopt, copies);
     CHECK_FALSE(std::filesystem::exists(copies / "cookies-0123456789abcdef.txt"));
     CHECK(std::filesystem::exists(copies / "notes.txt"));
 }
@@ -283,7 +303,8 @@ TEST_CASE("a cookies file gone since startup leaves the run signed out", "[music
 
 TEST_CASE("yt-dlp is given the cookies before the --, and the link stays last", "[music]") {
     const std::filesystem::path cookies = R"(C:\bot\data\yt-dlp-runs\cookies-1.txt)";
-    for (const auto& arguments : {lookup_arguments("--exec calc", 100, cookies), fetch_arguments("--exec calc", "ff.exe", cookies)}) {
+    const ytdlp_extras signed_in{.sign_in = {"--cookies", cookies.string()}};
+    for (const auto& arguments : {lookup_arguments("--exec calc", 100, signed_in), fetch_arguments("--exec calc", "ff.exe", signed_in)}) {
         CHECK(arguments.front() == "--ignore-config");
         const auto flag = std::ranges::find(arguments, "--cookies");
         REQUIRE(flag != arguments.end());
@@ -444,4 +465,97 @@ TEST_CASE("a track's copy of the cookies lasts until its stream is gone", "[musi
 
     stream.reset();
     CHECK(files_in(copies) == 0);
+}
+
+TEST_CASE("a cookies file signs a run in with a copy, and a Firefox profile with itself", "[music]") {
+    const temp_directory folder;
+    write(folder.file("cookies.txt"), exported);
+    const cookie_source file(folder.file("cookies.txt"), folder.file("runs"));
+    const auto from_file = file.sign_in();
+    REQUIRE(from_file.has_value());
+    REQUIRE(from_file->copy.has_value());
+    CHECK(from_file->arguments == std::vector<std::string>{"--cookies", from_file->copy->path().string()});
+
+    const cookie_source firefox = cookie_source::firefox(folder.file("profile"));
+    const auto from_profile = firefox.sign_in();
+    REQUIRE(from_profile.has_value());
+    CHECK(from_profile->arguments == std::vector<std::string>{"--cookies-from-browser", "firefox:" + folder.file("profile").string()});
+    CHECK_FALSE(from_profile->copy.has_value());
+    CHECK_FALSE(firefox.copy().has_value());
+    CHECK(firefox.file().empty());
+}
+
+TEST_CASE("a Firefox profile's cookies are counted by name, from a copy", "[music]") {
+    const temp_directory folder;
+    const auto profile = folder.file("profile");
+    make_profile(profile, {{".youtube.com", "PREF"}, {".youtube.com", "SAPISID"}, {".google.com", "SID"}});
+    const auto check = check_firefox_profile(profile, folder.file("runs"));
+    CHECK(check.problem.empty());
+    CHECK(check.found.cookies == 3);
+    CHECK(check.found.youtube == 2);
+    CHECK(check.found.youtube_sign_in);
+    CHECK_FALSE(check.unsaved);
+    // The copy it read is gone.
+    CHECK(files_in(folder.file("runs")) == 0);
+}
+
+TEST_CASE("a Firefox profile signed out, or never opened, is told apart", "[music]") {
+    const temp_directory folder;
+
+    SECTION("signed out: YouTube's cookies, but not the sign-in") {
+        make_profile(folder.file("profile"), {{".youtube.com", "PREF"}, {".youtube.com", "VISITOR_INFO1_LIVE"}});
+        const auto check = check_firefox_profile(folder.file("profile"), folder.file("runs"));
+        CHECK(check.found.youtube == 2);
+        CHECK_FALSE(check.found.youtube_sign_in);
+    }
+    SECTION("not a folder") {
+        CHECK(check_firefox_profile(folder.file("missing"), folder.file("runs")).problem == "is not a folder");
+    }
+    SECTION("never opened in Firefox") {
+        std::filesystem::create_directories(folder.file("empty"));
+        CHECK(check_firefox_profile(folder.file("empty"), folder.file("runs")).problem.starts_with("has no cookies.sqlite"));
+    }
+    SECTION("not a database") {
+        std::filesystem::create_directories(folder.file("broken"));
+        write(folder.file("broken") / "cookies.sqlite", "not a database");
+        CHECK(check_firefox_profile(folder.file("broken"), folder.file("runs")).problem.starts_with("has a cookies.sqlite that could not"));
+    }
+}
+
+TEST_CASE("cookies Firefox has not yet saved are noticed", "[music]") {
+    const temp_directory folder;
+    make_profile(folder.file("profile"), {{".youtube.com", "SAPISID"}});
+    write(folder.file("profile") / "cookies.sqlite-wal", "pending");
+    CHECK(check_firefox_profile(folder.file("profile"), folder.file("runs")).unsaved);
+}
+
+TEST_CASE("a Firefox profile is used rather than a cookies file", "[music]") {
+    const temp_directory folder;
+    const auto copies = folder.file("runs");
+    write(folder.file("cookies.txt"), exported);
+    make_profile(folder.file("profile"), {{".youtube.com", "SAPISID"}});
+
+    SECTION("both named: the profile") {
+        const auto status = load_cookies(folder.file("cookies.txt"), folder.file("profile"), copies);
+        REQUIRE(status.source.has_value());
+        CHECK(status.source->profile() == status.profile);
+        CHECK(status.both_named);
+        CHECK(status.named() == status.profile);
+        CHECK(status.found.youtube_sign_in);
+    }
+    SECTION("a profile with no cookies yet is not used") {
+        make_profile(folder.file("new"), {});
+        const auto status = load_cookies(std::nullopt, folder.file("new"), copies);
+        CHECK_FALSE(status.source.has_value());
+        CHECK(status.problem.starts_with("has no cookies in it yet"));
+    }
+}
+
+TEST_CASE("the resolver signs in from a Firefox profile when it must", "[music][threads]") {
+    const temp_directory folder;
+    make_profile(folder.file("profile"), {{".youtube.com", "SAPISID"}});
+    const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source::firefox(folder.file("profile")));
+    const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
+    REQUIRE(lookup.ok());
+    CHECK(lookup.value().items[0].title == "signed in");
 }

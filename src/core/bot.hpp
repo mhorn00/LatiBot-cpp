@@ -40,6 +40,7 @@
 #include "core/llm/stage.hpp"
 #include "core/llm/tools.hpp"
 #include "core/music/music_player.hpp"
+#include "core/music/pot_provider.hpp"
 #include "core/music/yt_dlp.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
@@ -97,6 +98,10 @@ private:
     /// Says whether yt-dlp signs in, and with how many cookies, never what
     /// they are (docs/features/Music.md §4.9).
     auto log_music_account() const -> void;
+
+    /// Starts bgutil's PO token provider when it is set up, and says why not
+    /// when it is not (docs/features/Music.md §4.10).
+    auto start_pot_provider() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot
@@ -244,11 +249,18 @@ private:
     /// Optional: without it yt-dlp cannot solve YouTube's JavaScript
     /// challenges, and some of YouTube, age-restricted videos above all, fails.
     std::optional<std::filesystem::path> deno_;
-    /// The account yt-dlp signs in as, if the owner gave one (§4.9).
+    /// bgutil's PO token provider's `server` folder, when it is there
+    /// (§4.10).
+    std::optional<std::filesystem::path> pot_server_;
+    /// The account yt-dlp signs in as when it must, if the owner gave one
+    /// (§4.9).
     music::cookie_status ytdlp_cookies_;
     music::ytdlp_resolver music_resolver_;
     music::ytdlp_opener music_opener_;
     music::music_player music_;
+    /// Runs the PO token provider for as long as the bot runs; null when it
+    /// is not set up.
+    std::unique_ptr<music::pot_provider> pot_provider_;
 
     // The language model (docs/features/Language_Model.md). A provider exists
     // only when its key is set; the stage and the commands ask `provider_for`

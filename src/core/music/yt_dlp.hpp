@@ -25,22 +25,29 @@ namespace latibot::music {
 // fetching a track into ffmpeg to become PCM. The argument lists and the
 // reading of yt-dlp's JSON are plain functions, tested on their own.
 
+/// What a run of yt-dlp is told beyond its link (docs/features/Music.md
+/// §4.9, §5). Each part is left out when empty.
+struct ytdlp_extras {
+    /// Deno, which yt-dlp solves YouTube's JavaScript challenges with;
+    /// without it, yt-dlp looks for Deno on `PATH` itself.
+    std::optional<std::filesystem::path> deno;
+    /// The address of bgutil's PO token provider, for its yt-dlp plugin.
+    std::string pot_provider;
+    /// The arguments that sign this run in (`sign_in_run`).
+    std::vector<std::string> sign_in;
+};
+
 /// yt-dlp's arguments to read what `url` is: one track's details, or a
 /// playlist's entries without fetching each, at most `max_items` of them.
 ///
 /// `--ignore-config` keeps a `yt-dlp.conf` on the host out of it, and `--`
 /// keeps a link that looks like an option from being read as one.
-/// `cookies`, when given, is the file yt-dlp signs in with (§4.9). `deno`,
-/// when given, is the JavaScript runtime yt-dlp solves YouTube's challenges
-/// with (§5); without it, yt-dlp looks for Deno on `PATH` itself.
-[[nodiscard]] auto lookup_arguments(const std::string& url, std::size_t max_items,
-                                    const std::optional<std::filesystem::path>& cookies = std::nullopt,
-                                    const std::optional<std::filesystem::path>& deno = std::nullopt) -> std::vector<std::string>;
+[[nodiscard]] auto lookup_arguments(const std::string& url, std::size_t max_items, const ytdlp_extras& extras = {})
+    -> std::vector<std::string>;
 
 /// yt-dlp's arguments to write a track's audio to stdout, for ffmpeg.
 [[nodiscard]] auto fetch_arguments(const std::string& url, const std::optional<std::filesystem::path>& ffmpeg,
-                                   const std::optional<std::filesystem::path>& cookies = std::nullopt,
-                                   const std::optional<std::filesystem::path>& deno = std::nullopt) -> std::vector<std::string>;
+                                   const ytdlp_extras& extras = {}) -> std::vector<std::string>;
 
 /// ffmpeg's arguments to decode stdin to 48 kHz stereo 16-bit samples on
 /// stdout, evening out loudness when `even_loudness` is set.
@@ -69,7 +76,7 @@ namespace latibot::music {
 class ytdlp_resolver final : public ports::media_resolver {
 public:
     explicit ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout = std::chrono::seconds{30}, int workers = 2,
-                            std::optional<cookie_source> cookies = std::nullopt, std::optional<std::filesystem::path> deno = std::nullopt);
+                            std::optional<cookie_source> cookies = std::nullopt, ytdlp_extras extras = {});
 
     /// Fails anything still waiting, then waits for the workers.
     ~ytdlp_resolver() override;
@@ -92,7 +99,7 @@ private:
     std::filesystem::path ytdlp_;
     std::chrono::milliseconds timeout_;
     std::optional<cookie_source> cookies_;
-    std::optional<std::filesystem::path> deno_;
+    ytdlp_extras extras_;
 
     std::mutex mutex_;
     std::condition_variable_any wake_;
@@ -196,7 +203,7 @@ private:
 class ytdlp_opener final : public ports::stream_opener {
 public:
     ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness = true,
-                 std::optional<cookie_source> cookies = std::nullopt, std::optional<std::filesystem::path> deno = std::nullopt);
+                 std::optional<cookie_source> cookies = std::nullopt, ytdlp_extras extras = {});
 
     auto open(const std::string& url) -> std::unique_ptr<ports::pcm_stream> override;
 
@@ -205,7 +212,7 @@ private:
     std::filesystem::path ffmpeg_;
     bool even_loudness_;
     std::optional<cookie_source> cookies_;
-    std::optional<std::filesystem::path> deno_;
+    ytdlp_extras extras_;
 };
 
 } // namespace latibot::music

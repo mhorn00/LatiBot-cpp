@@ -421,7 +421,8 @@ bot plays wherever it already is; if it is in no voice channel it joins
 yours, and you can queue music into its channel without being in it.
 
 Age-restricted videos play only when whoever runs the bot has signed music
-in to a YouTube account ([Music.md §4.9](Music.md#49-signing-in-to-youtube)).
+in to a YouTube account, with a Firefox profile or a cookies file
+([Music.md §4.9](Music.md#49-signing-in-to-youtube)).
 Then a video YouTube refuses signed out is quietly tried again signed in,
 and only a second refusal is the reply; without an account, YouTube's
 refusal is.

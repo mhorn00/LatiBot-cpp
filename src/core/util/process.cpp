@@ -153,11 +153,12 @@ auto start(const program& to_run, HANDLE input, HANDLE output, HANDLE errors, HA
 
     const std::wstring application = to_run.path.wstring();
     std::wstring line = widen(command_line(to_run));
+    const std::wstring directory = to_run.working_directory.wstring();
 
     PROCESS_INFORMATION started{};
     const BOOL created = CreateProcessW(application.c_str(), line.data(), nullptr, nullptr, TRUE,
-                                        CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT, nullptr, nullptr,
-                                        &startup.StartupInfo, &started);
+                                        CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT, nullptr,
+                                        directory.empty() ? nullptr : directory.c_str(), &startup.StartupInfo, &started);
     const DWORD code = GetLastError();
     cleanup();
     if (created == 0) throw failure(std::format("could not start {}", to_run.path.filename().string()), code);
@@ -250,6 +251,14 @@ auto command_line(const program& to_run) -> std::string {
     return line;
 }
 
+auto executable_directory() -> std::optional<std::filesystem::path> {
+    std::wstring self(MAX_PATH, L'\0');
+    const DWORD length = GetModuleFileNameW(nullptr, self.data(), static_cast<DWORD>(self.size()));
+    if (length == 0 || length >= self.size()) return std::nullopt;
+    self.resize(length);
+    return std::filesystem::path(self).parent_path();
+}
+
 auto locate_program(std::string_view name, const std::filesystem::path& configured) -> std::optional<std::filesystem::path> {
     std::error_code error;
     if (!configured.empty()) {
@@ -259,11 +268,8 @@ auto locate_program(std::string_view name, const std::filesystem::path& configur
 
     const std::wstring file = widen(name) + L".exe";
 
-    std::wstring self(MAX_PATH, L'\0');
-    const DWORD length = GetModuleFileNameW(nullptr, self.data(), static_cast<DWORD>(self.size()));
-    if (length > 0 && length < self.size()) {
-        self.resize(length);
-        std::filesystem::path beside = std::filesystem::path(self).parent_path() / file;
+    if (const auto directory = executable_directory()) {
+        std::filesystem::path beside = *directory / file;
         if (std::filesystem::is_regular_file(beside, error)) return beside;
     }
 

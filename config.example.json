@@ -14,5 +14,7 @@
   "emoji_copy_min_uses": 1,
   "ytdlp_path": "",
   "ffmpeg_path": "",
-  "deno_path": ""
+  "deno_path": "",
+  "pot_provider_path": "",
+  "pot_provider_port": 4416
 }

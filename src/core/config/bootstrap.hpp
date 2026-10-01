@@ -72,6 +72,13 @@ struct bootstrap {
     /// then on PATH.
     std::filesystem::path deno_path;
 
+    /// bgutil's PO token provider, which the bot runs while it runs
+    /// (docs/features/Music.md §4.10): its `server` folder, and the port it
+    /// listens on, on this machine only. Empty: the folder
+    /// `bgutil-ytdlp-pot-provider/server` beside the bot.
+    std::filesystem::path pot_provider_path;
+    int pot_provider_port = 4416;
+
     /// The account whose messages `/linkstats recompute` reads as the bot's
     /// replacements, in place of the bot's own.
     ///
@@ -136,10 +143,12 @@ struct secrets {
     std::optional<std::string> anthropic_key;
     std::optional<std::string> openai_key;
 
-    /// A cookies file yt-dlp signs in to an account with, so music can play
-    /// age-restricted videos (docs/features/Music.md §4.9). The path, from
-    /// `LATIBOT_YTDLP_COOKIES`; the file is a sign-in, so it stays out of
-    /// `config.json` like the keys.
+    /// The account yt-dlp signs in as when it must, so music can play
+    /// age-restricted videos (docs/features/Music.md §4.9): a Firefox
+    /// profile's folder, from `LATIBOT_YTDLP_FIREFOX_PROFILE`, or a cookies
+    /// file, from `LATIBOT_YTDLP_COOKIES`. Each is a sign-in, so it stays out
+    /// of `config.json` like the keys.
+    std::optional<std::filesystem::path> ytdlp_firefox_profile;
     std::optional<std::filesystem::path> ytdlp_cookies;
 
     /// Throws `config_error` when `DISCORD_BOT_TOKEN` is missing or empty.

@@ -1,11 +1,14 @@
 #include "core/music/cookies.hpp"
 
+#include "core/db/database.hpp"
+#include "core/db/statement.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <exception>
 #include <format>
 #include <fstream>
 #include <random>
@@ -22,6 +25,20 @@ constexpr std::string_view copy_prefix = "cookies-";
 auto is_youtube(std::string_view domain) -> bool {
     const std::string lower = util::to_lower(domain);
     return lower == "youtube.com" || lower.ends_with(".youtube.com");
+}
+
+/// One cookie, by where it is for and its name, never its value.
+auto count_cookie(cookie_file_check& found, std::string_view domain, std::string_view name) -> void {
+    ++found.cookies;
+    if (!is_youtube(domain)) return;
+    ++found.youtube;
+    if (name == "SAPISID" || name == "__Secure-3PAPISID") found.youtube_sign_in = true;
+}
+
+auto absolute_or_as_is(const std::filesystem::path& path) -> std::filesystem::path {
+    std::error_code error;
+    const std::filesystem::path made = std::filesystem::absolute(path, error);
+    return error ? path : made;
 }
 
 auto read_file(const std::filesystem::path& path) -> std::optional<std::string> {
@@ -69,18 +86,53 @@ auto check_cookie_file(std::string_view text) -> cookie_file_check {
             ++found.malformed;
             continue;
         }
-        ++found.cookies;
-        if (!is_youtube(line.substr(0, line.find('\t')))) continue;
-        ++found.youtube;
         // The name is the sixth field.
         std::string_view name = line;
         for (int skip = 0; skip < 5; ++skip) {
             name.remove_prefix(name.find('\t') + 1);
         }
-        name = name.substr(0, name.find('\t'));
-        if (name == "SAPISID" || name == "__Secure-3PAPISID") found.youtube_sign_in = true;
+        count_cookie(found, line.substr(0, line.find('\t')), name.substr(0, name.find('\t')));
     }
     return found;
+}
+
+auto check_firefox_profile(const std::filesystem::path& profile, const std::filesystem::path& scratch) -> firefox_check {
+    firefox_check result;
+    std::error_code error;
+    if (!std::filesystem::is_directory(profile, error)) {
+        result.problem = "is not a folder";
+        return result;
+    }
+    const std::filesystem::path database = profile / "cookies.sqlite";
+    if (!std::filesystem::is_regular_file(database, error)) {
+        result.problem = "has no cookies.sqlite yet: open Firefox with it, sign in to YouTube, and close Firefox";
+        return result;
+    }
+    // Firefox writes its newest cookies to the write-ahead log first, and
+    // into cookies.sqlite when it closes.
+    const std::uintmax_t pending = std::filesystem::file_size(profile / "cookies.sqlite-wal", error);
+    result.unsaved = !error && pending > 0;
+
+    std::filesystem::create_directories(scratch, error);
+    const std::filesystem::path copy = scratch / std::format("{}firefox-check.sqlite", copy_prefix);
+    std::filesystem::copy_file(database, copy, std::filesystem::copy_options::overwrite_existing, error);
+    if (error) {
+        result.problem = "has a cookies.sqlite that could not be copied: " + error.message();
+        return result;
+    }
+    try {
+        db::database cookies(copy);
+        db::statement rows = cookies.prepare("SELECT host, name FROM moz_cookies");
+        while (rows.step()) {
+            count_cookie(result.found, rows.get<std::string>(0), rows.get<std::string>(1));
+        }
+    } catch (const std::exception& failure) {
+        result.problem = std::string("has a cookies.sqlite that could not be read: ") + failure.what();
+    }
+    for (const char* suffix : {"", "-wal", "-shm"}) {
+        std::filesystem::remove(copy.string() + suffix, error);
+    }
+    return result;
 }
 
 auto needs_sign_in(std::string_view errors) -> bool {
@@ -121,7 +173,24 @@ auto cookie_copy::remove() noexcept -> void {
 cookie_source::cookie_source(std::filesystem::path file, std::filesystem::path copies)
     : file_(std::move(file)), copies_(std::move(copies)) {}
 
+auto cookie_source::firefox(std::filesystem::path profile) -> cookie_source {
+    cookie_source source;
+    source.profile_ = std::move(profile);
+    return source;
+}
+
+auto cookie_source::sign_in() const -> std::optional<sign_in_run> {
+    if (!profile_.empty()) {
+        return sign_in_run{.arguments = {"--cookies-from-browser", "firefox:" + profile_.string()}, .copy = std::nullopt};
+    }
+    std::optional<cookie_copy> made = copy();
+    if (!made) return std::nullopt;
+    std::vector<std::string> arguments{"--cookies", made->path().string()};
+    return sign_in_run{.arguments = std::move(arguments), .copy = std::move(made)};
+}
+
 auto cookie_source::copy() const -> std::optional<cookie_copy> {
+    if (file_.empty()) return std::nullopt;
     // Random, not counted: a name that cannot be guessed, and no clash with
     // a copy left behind by an earlier run.
     thread_local std::mt19937_64 random{std::random_device{}()};
@@ -148,15 +217,28 @@ auto cookie_source::needed_for(const std::string& url) const -> bool {
     return memory_->links.contains(url);
 }
 
-auto load_cookies(const std::optional<std::filesystem::path>& file, const std::filesystem::path& copies) -> cookie_status {
+auto load_cookies(const std::optional<std::filesystem::path>& file, const std::optional<std::filesystem::path>& firefox_profile,
+                  const std::filesystem::path& copies) -> cookie_status {
     remove_leftovers(copies);
 
     cookie_status status;
-    if (!file || file->empty()) return status;
+    const bool has_file = file && !file->empty();
+    if (has_file) status.file = absolute_or_as_is(*file);
 
-    std::error_code error;
-    status.file = std::filesystem::absolute(*file, error);
-    if (error) status.file = *file;
+    if (firefox_profile && !firefox_profile->empty()) {
+        status.profile = absolute_or_as_is(*firefox_profile);
+        status.both_named = has_file;
+        const firefox_check check = check_firefox_profile(status.profile, copies);
+        status.found = check.found;
+        status.unsaved = check.unsaved;
+        status.problem = check.problem;
+        if (status.problem.empty() && status.found.cookies == 0) {
+            status.problem = "has no cookies in it yet: open Firefox with it, sign in to YouTube, and close Firefox";
+        }
+        if (status.problem.empty()) status.source = cookie_source::firefox(status.profile);
+        return status;
+    }
+    if (!has_file) return status;
 
     const std::optional<std::string> text = read_file(status.file);
     if (!text) {

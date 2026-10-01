@@ -275,13 +275,17 @@ For music, add [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 folder, or anywhere on `PATH` (`winget install yt-dlp.yt-dlp Gyan.FFmpeg`
 puts both there). Without them everything else works, and `/music play`
 says what is missing. YouTube also needs [Deno](https://deno.com/) 2.3 or
-newer, beside the bot or on `PATH` (`winget install DenoLand.Deno`), which
-yt-dlp solves YouTube's JavaScript challenges with; without it the bot
-warns, and some videos fail. Keep yt-dlp current with `yt-dlp -U`: sites
-change, and an old one stops working with them. For age-restricted videos, music
-can sign in to a YouTube account with a cookies file named by
-`LATIBOT_YTDLP_COOKIES`; [Music.md §4.9](docs/features/Music.md#49-signing-in-to-youtube)
-says how to export one.
+newer, beside the bot or on `PATH`, which yt-dlp solves YouTube's
+JavaScript challenges with; without it the bot warns, and some videos fail.
+Keep yt-dlp current: sites change, and an old one stops working with them.
+
+**`Install-Dependencies.ps1`**, which the build puts beside `LatiBot.exe`,
+does all of this on a server: yt-dlp, ffmpeg and Deno beside the bot,
+bgutil's PO token provider, the Visual C++ Redistributable below, and
+Firefox with a profile for the bot to sign in to YouTube with, so
+age-restricted videos play. Run it again to update.
+[Install-Dependencies.md](deploy/Install-Dependencies.md) explains it, and
+how to sign the bot in.
 
 The machine also needs the **Microsoft Visual C++ Redistributable** (x64), for
 `MSVCP140.dll` and `VCRUNTIME140.dll`. Without it Windows refuses to start the
@@ -340,6 +344,8 @@ put your own user ID in `trusted_users`:
 | `ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
 | `ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
 | `deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
+| `pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](docs/features/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
+| `pot_provider_port` | number | `4416` | the port the provider listens on, on this machine only |
 | `emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
@@ -612,6 +618,7 @@ config.example.json what the bot writes as config.json on its first run
 .env.example        the environment variables, to copy to .env
 cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
 tools/              dev environment setup, catalog generator, clang-tidy and clang-format wrappers
+deploy/             Install-Dependencies.ps1, which sets a server up, and its readme; built beside LatiBot.exe
 .github/workflows/  CI: build and test Debug and Release, and a secret scan
 .vscode/            tasks, launch configurations, IntelliSense and the grouped test tree
 src/main.cpp        entry point

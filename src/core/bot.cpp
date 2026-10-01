@@ -165,6 +165,30 @@ auto prepare(const std::filesystem::path& database_path) -> std::filesystem::pat
     return database_path;
 }
 
+/// bgutil's PO token provider's `server` folder: where config.json says, or
+/// beside the bot. Nothing when it is not there.
+auto locate_pot_server(const config::bootstrap& settings) -> std::optional<std::filesystem::path> {
+    std::filesystem::path server = settings.pot_provider_path;
+    if (server.empty()) {
+        const auto directory = util::executable_directory();
+        if (!directory) return std::nullopt;
+        server = *directory / "bgutil-ytdlp-pot-provider" / "server";
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(server, error)) return std::nullopt;
+    std::filesystem::path found = std::filesystem::absolute(server, error);
+    return error ? server : found;
+}
+
+/// What every run of yt-dlp is told: where Deno is, and the PO token
+/// provider's address when its plugin is beside yt-dlp to ask it.
+auto music_extras(const std::optional<std::filesystem::path>& deno, const std::optional<std::filesystem::path>& ytdlp, int pot_port)
+    -> music::ytdlp_extras {
+    music::ytdlp_extras extras{.deno = deno, .pot_provider = {}, .sign_in = {}};
+    if (ytdlp && music::pot_plugin_installed(*ytdlp)) extras.pot_provider = music::pot_provider_address(pot_port);
+    return extras;
+}
+
 /// What the log channel masks, in case anything ever logs one of them.
 auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> {
     std::vector<std::string> secrets{credentials.discord_token};
@@ -212,9 +236,13 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       ytdlp_(util::locate_program("yt-dlp", settings_.ytdlp_path)),
       ffmpeg_(util::locate_program("ffmpeg", settings_.ffmpeg_path)),
       deno_(util::locate_program("deno", settings_.deno_path)),
-      ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, settings_.database_path.parent_path() / "yt-dlp-runs")),
-      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source, deno_),
-      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source, deno_),
+      pot_server_(locate_pot_server(settings_)),
+      ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, credentials.ytdlp_firefox_profile,
+                                         settings_.database_path.parent_path() / "yt-dlp-runs")),
+      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source,
+                      music_extras(deno_, ytdlp_, settings_.pot_provider_port)),
+      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source,
+                    music_extras(deno_, ytdlp_, settings_.pot_provider_port)),
       music_(music_opener_, mixer_,
              {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
               .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
@@ -303,6 +331,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     // Music plays through the mixer, which reads it from the player.
     mixer_.set_music(&music_);
     log_music_tools();
+    start_pot_provider();
 
     // As soon as the setting can be read, so the rest of starting up is in
     // the channel too. It is posted once the connection is up.
@@ -918,16 +947,16 @@ auto bot::log_music_tools() -> void {
     log_music_account();
     // Which versions, off the startup path: an old yt-dlp is the usual
     // reason a site stops working, and asking takes a second or two.
+    std::vector<std::pair<std::filesystem::path, const char*>> programs{{ytdlp, "--version"}, {ffmpeg, "-version"}};
+    if (deno_) programs.emplace_back(*deno_, "--version");
     // Only the log call in the catch could still throw, as in main(), and
     // there is nowhere left to report that.
     // NOLINTNEXTLINE(bugprone-exception-escape)
-    std::vector<std::pair<std::filesystem::path, const char*>> programs{{ytdlp, "--version"}, {ffmpeg, "-version"}};
-    if (deno_) programs.emplace_back(*deno_, "--version");
     music_versions_ = std::jthread([programs = std::move(programs)] {
         // Everything inside the try: a thread must let nothing out.
         try {
             for (const auto& [program, flag] : programs) {
-                const auto ran = util::run({.path = program, .arguments = {flag}}, std::chrono::seconds{20});
+                const auto ran = util::run({.path = program, .arguments = {flag}, .working_directory = {}}, std::chrono::seconds{20});
                 const auto first_line = util::lines(ran.output);
                 util::log().info("{}: {}", program.stem().string(), first_line.empty() ? "no version given" : first_line.front());
             }
@@ -940,31 +969,89 @@ auto bot::log_music_tools() -> void {
 
 auto bot::log_music_account() const -> void {
     const music::cookie_status& cookies = ytdlp_cookies_;
-    const std::string file = cookies.file.generic_string();
-    if (cookies.file.empty()) {
-        util::log().debug("music fetches signed out: LATIBOT_YTDLP_COOKIES is not set");
+    const std::string named = cookies.named().generic_string();
+    if (named.empty()) {
+        util::log().debug("music fetches signed out: neither LATIBOT_YTDLP_FIREFOX_PROFILE nor LATIBOT_YTDLP_COOKIES is set");
         return;
+    }
+    const bool profile = !cookies.profile.empty();
+    if (cookies.both_named) {
+        util::log().warn("LATIBOT_YTDLP_FIREFOX_PROFILE and LATIBOT_YTDLP_COOKIES are both set; music uses the Firefox profile, not {}",
+                         cookies.file.generic_string());
     }
     // A warning: the owner set it to sign in, and it will not.
     if (!cookies.source) {
-        util::log().warn("music fetches signed out: LATIBOT_YTDLP_COOKIES names {}, which {}", file, cookies.problem);
+        util::log().warn("music fetches signed out: {} names {}, which {}",
+                         profile ? "LATIBOT_YTDLP_FIREFOX_PROFILE" : "LATIBOT_YTDLP_COOKIES", named, cookies.problem);
         return;
     }
     // Counts only. The cookies are a sign-in, and never logged.
-    util::log().info("music fetches signed in, with the {} cookie(s) in {}, {} of them for youtube.com", cookies.found.cookies, file,
-                     cookies.found.youtube);
+    util::log().info("music signs in when it must with the {} {}: {} cookie(s), {} of them for youtube.com",
+                     profile ? "Firefox profile" : "cookies in", named, cookies.found.cookies, cookies.found.youtube);
+    const std::string_view again = profile ? "open Firefox with it, sign in to YouTube, and close Firefox" : "export it again signed in";
     if (cookies.found.youtube == 0) {
-        util::log().warn("{} has no youtube.com cookies, so YouTube will see music as signed out; export them from youtube.com", file);
+        util::log().warn("{} has no youtube.com cookies, so YouTube will see music as signed out; {}", named, again);
     } else if (!cookies.found.youtube_sign_in) {
         util::log().warn(
-            "{} has no youtube.com SAPISID or __Secure-3PAPISID cookie, which yt-dlp needs to sign in; "
-            "it was likely exported signed out, so export it again signed in (docs/features/Music.md §4.9)",
-            file);
+            "{} has no youtube.com SAPISID or __Secure-3PAPISID cookie, which yt-dlp needs to sign in; {} "
+            "(docs/features/Music.md §4.9)",
+            named, again);
+    }
+    if (cookies.unsaved) {
+        util::log().warn(
+            "Firefox has cookies for {} that it has not yet saved where yt-dlp reads them; close Firefox, which saves "
+            "them, and keep it closed while the bot runs",
+            named);
     }
     if (cookies.found.malformed > 0) {
         util::log().warn("{} line(s) of {} are not cookies in the Netscape format, and yt-dlp will skip them", cookies.found.malformed,
-                         file);
+                         named);
     }
+}
+
+auto bot::start_pot_provider() -> void {
+    if (!ytdlp_ || !ffmpeg_) return;
+    const std::string address = music::pot_provider_address(settings_.pot_provider_port);
+    const bool plugin = music::pot_plugin_installed(*ytdlp_);
+    const std::string plugins = (ytdlp_->parent_path() / "yt-dlp-plugins").string();
+
+    if (!pot_server_) {
+        if (!settings_.pot_provider_path.empty()) {
+            util::log().warn("pot_provider_path in config.json names {}, which is not a folder, so no PO token provider runs",
+                             settings_.pot_provider_path.generic_string());
+        } else if (plugin) {
+            util::log().info(
+                "bgutil's PO token plugin is in {}, but its provider is not beside the bot; yt-dlp asks {} for tokens, "
+                "so run one there (docs/features/Music.md §4.10)",
+                plugins, address);
+        } else {
+            util::log().info(
+                "yt-dlp gets no PO tokens, so YouTube may refuse some of its requests; Install-Dependencies.ps1 sets "
+                "a provider up (docs/features/Music.md §4.10)");
+        }
+        return;
+    }
+    const std::string server = pot_server_->string();
+    if (!plugin) {
+        util::log().warn(
+            "bgutil's PO token provider is at {}, but its yt-dlp plugin is not in {}, so yt-dlp would never ask it; "
+            "run Install-Dependencies.ps1 again",
+            server, plugins);
+        return;
+    }
+    if (!deno_) {
+        util::log().warn("bgutil's PO token provider at {} runs with Deno, which was not found", server);
+        return;
+    }
+    if (!music::pot_provider_ready(*pot_server_)) {
+        util::log().warn(
+            "bgutil's PO token provider at {} is not set up: its packages are not installed; run "
+            "Install-Dependencies.ps1 again",
+            server);
+        return;
+    }
+    pot_provider_ = std::make_unique<music::pot_provider>(music::pot_provider_program(*deno_, *pot_server_, settings_.pot_provider_port));
+    util::log().info("yt-dlp gets PO tokens from bgutil's provider, run with Deno from {}, at {}", server, address);
 }
 
 auto bot::music_unavailable() const -> std::string {
