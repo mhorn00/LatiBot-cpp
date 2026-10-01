@@ -2,9 +2,12 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 
 namespace latibot::music {
@@ -13,6 +16,9 @@ namespace latibot::music {
 // file the owner exported from a browser, named by `LATIBOT_YTDLP_COOKIES`,
 // so age-restricted videos play. Its values are never kept or logged: the
 // file is read once to count what is in it, then only ever copied.
+//
+// yt-dlp goes signed out first, and signs in only when it fails saying it
+// must (`needs_sign_in`), so the account is used for nothing else.
 
 /// What a cookies file holds, as far as yt-dlp cares.
 struct cookie_file_check {
@@ -30,6 +36,11 @@ struct cookie_file_check {
 /// Reads a cookies file's text in Netscape's format. `#HttpOnly_` before a
 /// line marks a cookie, not a comment.
 [[nodiscard]] auto check_cookie_file(std::string_view text) -> cookie_file_check;
+
+/// Whether what yt-dlp wrote to stderr says that signing in would help:
+/// an age check, "not a bot", a private or members-only video. yt-dlp's
+/// own errors for those say to sign in, or to pass `--cookies`.
+[[nodiscard]] auto needs_sign_in(std::string_view errors) -> bool;
 
 /// One run's copy of the cookies, removed when this goes.
 class cookie_copy {
@@ -59,8 +70,16 @@ private:
 /// links and two fetching tracks, and one rewriting the file while another
 /// reads it would leave that one signed out, or the file spoilt. A copy
 /// each, in `copies`, leaves the owner's file as it was exported.
+///
+/// It also remembers the links that needed signing in, so a track read
+/// signed in is fetched signed in, rather than refused once more first.
+/// Copies of a `cookie_source` share what they remember.
 class cookie_source {
 public:
+    /// How many links are remembered; past it, they are forgotten and
+    /// remembered afresh.
+    static constexpr std::size_t remembered_links = 1000;
+
     cookie_source(std::filesystem::path file, std::filesystem::path copies);
 
     /// A fresh copy, or nothing, logged, when the file cannot be copied any
@@ -69,9 +88,21 @@ public:
 
     [[nodiscard]] auto file() const -> const std::filesystem::path& { return file_; }
 
+    /// Notes that `url` needed signing in. Safe from any thread.
+    auto remember(const std::string& url) const -> void;
+
+    /// Whether `url` needed signing in before.
+    [[nodiscard]] auto needed_for(const std::string& url) const -> bool;
+
 private:
+    struct memory {
+        std::mutex mutex;
+        std::unordered_set<std::string> links;
+    };
+
     std::filesystem::path file_;
     std::filesystem::path copies_;
+    std::shared_ptr<memory> memory_ = std::make_shared<memory>();
 };
 
 /// The cookies `LATIBOT_YTDLP_COOKIES` named, and what was found in them.

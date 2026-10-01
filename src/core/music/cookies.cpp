@@ -3,6 +3,8 @@
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <format>
 #include <fstream>
@@ -73,6 +75,12 @@ auto check_cookie_file(std::string_view text) -> cookie_file_check {
     return found;
 }
 
+auto needs_sign_in(std::string_view errors) -> bool {
+    const std::string lower = util::to_lower(errors);
+    constexpr std::array<std::string_view, 6> markers{"sign in", "--cookies", "login", "log in", "logged in", "authentication"};
+    return std::ranges::any_of(markers, [&lower](std::string_view marker) { return lower.find(marker) != std::string::npos; });
+}
+
 cookie_copy::~cookie_copy() {
     remove();
 }
@@ -119,6 +127,17 @@ auto cookie_source::copy() const -> std::optional<cookie_copy> {
         return std::nullopt;
     }
     return cookie_copy(target);
+}
+
+auto cookie_source::remember(const std::string& url) const -> void {
+    const std::scoped_lock lock(memory_->mutex);
+    if (memory_->links.size() >= remembered_links) memory_->links.clear();
+    memory_->links.insert(url);
+}
+
+auto cookie_source::needed_for(const std::string& url) const -> bool {
+    const std::scoped_lock lock(memory_->mutex);
+    return memory_->links.contains(url);
 }
 
 auto load_cookies(const std::optional<std::filesystem::path>& file, const std::filesystem::path& copies) -> cookie_status {

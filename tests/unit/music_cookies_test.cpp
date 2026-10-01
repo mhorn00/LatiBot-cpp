@@ -1,9 +1,11 @@
 // Signing yt-dlp in with a cookies file (docs/features/Music.md §4.9): what
-// is counted in one, the copy each run gets, and that the owner's file is
-// never written to. Every cookie here is made up.
+// is counted in one, the copy each run gets, that the owner's file is never
+// written to, and that yt-dlp goes signed out until it is told to sign in.
+// Every cookie here is made up.
 
 #include "core/music/cookies.hpp"
 #include "core/music/yt_dlp.hpp"
+#include "support/capture_log.hpp"
 #include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -16,9 +18,11 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 using latibot::music::check_cookie_file;
@@ -27,10 +31,15 @@ using latibot::music::cookie_source;
 using latibot::music::fetch_arguments;
 using latibot::music::load_cookies;
 using latibot::music::lookup_arguments;
+using latibot::music::needs_sign_in;
 using latibot::music::process_stream;
+using latibot::music::sign_in_retry;
 using latibot::music::ytdlp_resolver;
+using latibot::ports::pcm_stream;
 using latibot::ports::stream_state;
+using latibot::testing::capture_log;
 using latibot::testing::temp_directory;
+using latibot::util::program;
 using namespace std::chrono_literals;
 
 namespace {
@@ -56,6 +65,51 @@ auto read(const std::filesystem::path& path) -> std::string {
 auto files_in(const std::filesystem::path& directory) -> std::size_t {
     if (!std::filesystem::exists(directory)) return 0;
     return static_cast<std::size_t>(std::distance(std::filesystem::directory_iterator(directory), std::filesystem::directory_iterator{}));
+}
+
+/// YouTube's refusal of an age-restricted video, as yt-dlp tells it.
+constexpr const char* age_check =
+    "ERROR: [youtube] abc: Sign in to confirm your age. This video may be inappropriate for some users. "
+    "Use --cookies-from-browser or --cookies for the authentication.";
+
+auto child_stream(std::vector<std::string> arguments) -> std::unique_ptr<pcm_stream> {
+    return std::make_unique<process_stream>(std::vector<program>{{.path = LATIBOT_TEST_CHILD, .arguments = std::move(arguments)}}, 10s);
+}
+
+/// Reads a stream until it is no longer running, or `limit` passes.
+auto drain(pcm_stream& stream, std::chrono::milliseconds limit = 10s) -> std::vector<std::int16_t> {
+    std::vector<std::int16_t> all;
+    std::vector<std::int16_t> chunk(4096);
+    const auto deadline = std::chrono::steady_clock::now() + limit;
+    while (std::chrono::steady_clock::now() < deadline) {
+        const std::size_t got = stream.read(chunk);
+        all.insert(all.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(got));
+        if (got == 0) {
+            if (stream.state() != stream_state::running) break;
+            std::this_thread::sleep_for(5ms);
+        }
+    }
+    return all;
+}
+
+/// A stream that gives a little audio, then fails asking to sign in.
+class fails_after_audio final : public pcm_stream {
+public:
+    auto read(std::span<std::int16_t> into) -> std::size_t override {
+        if (given_ || into.empty()) return 0;
+        given_ = true;
+        into[0] = 1;
+        return 1;
+    }
+    [[nodiscard]] auto state() const -> stream_state override { return given_ ? stream_state::failed : stream_state::running; }
+    [[nodiscard]] auto error() const -> std::string override { return age_check; }
+
+private:
+    bool given_ = false;
+};
+
+auto retried(const std::vector<std::pair<latibot::util::log_level, std::string>>& lines) -> bool {
+    return std::ranges::any_of(lines, [](const auto& line) { return line.second.find("tries again signed in") != std::string::npos; });
 }
 
 } // namespace
@@ -204,25 +258,128 @@ TEST_CASE("yt-dlp is given the cookies before the --, and the link stays last", 
     }
 }
 
-TEST_CASE("the resolver signs in with a copy, and the owner's file is left as exported", "[music][threads]") {
+TEST_CASE("what yt-dlp says when signing in would help", "[music]") {
+    CHECK(needs_sign_in(age_check));
+    CHECK(
+        needs_sign_in("ERROR: [youtube] abc: Sign in to confirm you\u2019re not a bot. Use --cookies-from-browser or --cookies for the "
+                      "authentication."));
+    CHECK(needs_sign_in("ERROR: [youtube] abc: Private video. Sign in if you've been granted access to this video"));
+    CHECK(needs_sign_in("ERROR: [vimeo] 1: This video is only available for registered users. Use --cookies for the authentication."));
+    CHECK_FALSE(needs_sign_in("ERROR: [generic] Unable to download webpage: HTTP Error 404: Not Found"));
+    CHECK_FALSE(needs_sign_in("ERROR: Unsupported URL: https://example.com/a"));
+    CHECK_FALSE(needs_sign_in("ERROR: [youtube] abc: Video unavailable"));
+    CHECK_FALSE(needs_sign_in(""));
+}
+
+TEST_CASE("the links that needed signing in are shared, and kept to a limit", "[music]") {
+    const temp_directory folder;
+    const cookie_source source(folder.file("cookies.txt"), folder.file("runs"));
+    const cookie_source copied = source; // NOLINT(performance-unnecessary-copy-initialization): the copy is the point
+    source.remember("https://example.com/0");
+    CHECK(copied.needed_for("https://example.com/0"));
+    CHECK_FALSE(copied.needed_for("https://example.com/1"));
+
+    for (std::size_t index = 1; index <= cookie_source::remembered_links; ++index) {
+        source.remember("https://example.com/" + std::to_string(index));
+    }
+    CHECK_FALSE(source.needed_for("https://example.com/0"));
+    CHECK(source.needed_for("https://example.com/" + std::to_string(cookie_source::remembered_links)));
+}
+
+TEST_CASE("the resolver reads signed out, and signs in only when yt-dlp asks to", "[music][threads]") {
     const temp_directory folder;
     const auto copies = folder.file("runs");
     write(folder.file("cookies.txt"), exported);
+    const cookie_source source(folder.file("cookies.txt"), copies);
+    const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, source);
+    const capture_log log;
 
-    SECTION("signed in") {
-        const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source(folder.file("cookies.txt"), copies));
-        // The stand-in writes the copy back as yt-dlp would.
-        const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
-        REQUIRE(lookup.ok());
-        CHECK(lookup.value().items[0].title == "signed in");
-        CHECK(read(folder.file("cookies.txt")) == exported);
-        CHECK(files_in(copies) == 0);
-    }
-    SECTION("without cookies, signed out as before") {
-        const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1);
+    SECTION("an ordinary link, signed out") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
         REQUIRE(lookup.ok());
         CHECK(lookup.value().items[0].title == "A song");
+        CHECK_FALSE(source.needed_for("https://203.0.113.5/song"));
+    }
+    SECTION("an age-restricted one, read again signed in, without a word") {
+        const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
+        REQUIRE(lookup.ok());
+        CHECK(lookup.value().items[0].title == "signed in");
+        CHECK(retried(log.lines()));
+        // So the track is fetched signed in, not refused first.
+        CHECK(source.needed_for("https://203.0.113.5/adult"));
+        // The stand-in wrote its copy back, as yt-dlp does.
+        CHECK(read(folder.file("cookies.txt")) == exported);
+        CHECK(files_in(copies) == 0);
+    }
+    SECTION("a link that needed signing in before, signed in at once") {
+        source.remember("https://203.0.113.5/song");
+        const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
+        REQUIRE(lookup.ok());
+        CHECK(lookup.value().items[0].title == "signed in");
+        CHECK_FALSE(retried(log.lines()));
+    }
+    SECTION("a failure signing in would not help, told without a retry") {
+        const auto lookup = resolver.lookup_now("https://203.0.113.5/fail", 100);
+        REQUIRE_FALSE(lookup.ok());
+        CHECK(lookup.error().message.find("HTTP Error 404") != std::string::npos);
+        CHECK_FALSE(retried(log.lines()));
+    }
+}
+
+TEST_CASE("refused signed in as well, the second refusal is what is told", "[music][threads]") {
+    const temp_directory folder;
+    // Cookies, but none for YouTube: the stand-in is not signed in by them.
+    write(folder.file("cookies.txt"), ".example.com\tTRUE\t/\tFALSE\t1893456000\tid\tnot-a-real-value\n");
+    const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source(folder.file("cookies.txt"), folder.file("runs")));
+    const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
+    REQUIRE_FALSE(lookup.ok());
+    CHECK(lookup.error().message.starts_with("[youtube] abc: Sign in to confirm your age"));
+}
+
+TEST_CASE("without cookies, an age-restricted link is refused as YouTube refused it", "[music][threads]") {
+    const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1);
+    const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
+    REQUIRE_FALSE(lookup.ok());
+    CHECK(lookup.error().message.find("Sign in to confirm your age") != std::string::npos);
+}
+
+TEST_CASE("a track refused for want of signing in is fetched again, signed in", "[music][threads]") {
+    int opened = 0;
+    auto signed_in = [&opened] {
+        ++opened;
+        return child_stream({"samples", "1000"});
+    };
+
+    SECTION("asked to sign in: the second try plays, and nothing is told") {
+        sign_in_retry stream(child_stream({"fail", "1", age_check}), signed_in);
+        CHECK(drain(stream).size() == 1000);
+        CHECK(stream.state() == stream_state::finished);
+        CHECK(stream.error().empty());
+        CHECK(opened == 1);
+    }
+    SECTION("any other failure is told, with no second try") {
+        sign_in_retry stream(child_stream({"fail", "1", "ERROR: [youtube] abc: Video unavailable"}), signed_in);
+        (void)drain(stream);
+        CHECK(stream.state() == stream_state::failed);
+        CHECK(stream.error() == "[youtube] abc: Video unavailable");
+        CHECK(opened == 0);
+    }
+    SECTION("refused again signed in: that refusal is told, and there is no third try") {
+        int tries = 0;
+        sign_in_retry stream(child_stream({"fail", "1", age_check}), [&tries] {
+            ++tries;
+            return child_stream({"fail", "1", age_check});
+        });
+        (void)drain(stream);
+        CHECK(stream.state() == stream_state::failed);
+        CHECK(stream.error().find("Sign in to confirm your age") != std::string::npos);
+        CHECK(tries == 1);
+    }
+    SECTION("a track that failed after some of it played is not started over") {
+        sign_in_retry stream(std::make_unique<fails_after_audio>(), signed_in);
+        (void)drain(stream);
+        CHECK(stream.state() == stream_state::failed);
+        CHECK(opened == 0);
     }
 }
 

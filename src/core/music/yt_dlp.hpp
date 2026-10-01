@@ -59,7 +59,9 @@ namespace latibot::music {
 ///
 /// Before yt-dlp is run, the link's host is resolved, and a link into a
 /// private or loopback network is refused (docs/features/Music.md §6).
-/// With `cookies`, each run is signed in with a copy of its own (§4.9).
+/// With `cookies`, a link yt-dlp says needs signing in is read again,
+/// signed in with a copy of its own (§4.9), and only that try's failure is
+/// told.
 class ytdlp_resolver final : public ports::media_resolver {
 public:
     explicit ytdlp_resolver(std::filesystem::path ytdlp, std::chrono::milliseconds timeout = std::chrono::seconds{30}, int workers = 2,
@@ -81,6 +83,7 @@ public:
 private:
     struct job;
     auto work(const std::stop_token& stopping) -> void;
+    [[nodiscard]] auto run_lookup(const std::string& url, std::size_t max_items, bool signed_in) const -> util::run_result;
 
     std::filesystem::path ytdlp_;
     std::chrono::milliseconds timeout_;
@@ -156,7 +159,35 @@ private:
     std::jthread reader_;
 };
 
-/// Opens tracks as `yt-dlp | ffmpeg`, signed in with `cookies` when given.
+/// A track fetched signed out, and fetched again signed in when it fails,
+/// before any audio arrived, with yt-dlp saying it needs signing in (§4.9).
+/// Only the second try's failure is told.
+class sign_in_retry final : public ports::pcm_stream {
+public:
+    using opener = std::function<std::unique_ptr<ports::pcm_stream>()>;
+
+    sign_in_retry(std::unique_ptr<ports::pcm_stream> first, opener signed_in);
+
+    auto read(std::span<std::int16_t> into) -> std::size_t override;
+    [[nodiscard]] auto state() const -> ports::stream_state override;
+    [[nodiscard]] auto error() const -> std::string override;
+
+private:
+    /// Starts the signed-in try when it is due. With `mutex_` held.
+    auto settle() const -> void;
+
+    // Mutable: asking how the stream is doing is what notices the failure,
+    // and `state()` is const.
+    mutable std::mutex mutex_;
+    mutable std::unique_ptr<ports::pcm_stream> current_;
+    /// Emptied once used: there is one retry.
+    mutable opener signed_in_;
+    bool delivered_ = false;
+};
+
+/// Opens tracks as `yt-dlp | ffmpeg`. With `cookies`, signed out first and
+/// signed in when that fails asking to (`sign_in_retry`), or straight away
+/// for a link that needed it before.
 class ytdlp_opener final : public ports::stream_opener {
 public:
     ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ffmpeg, bool even_loudness = true,

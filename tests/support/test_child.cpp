@@ -18,6 +18,8 @@
 // and anything else is one track. Given `--cookies FILE` next, as yt-dlp
 // signs in, the track is titled "signed in" when FILE holds a youtube.com
 // cookie, and FILE is then written over as yt-dlp writes its cookies back.
+// One with "adult" in it is refused, as YouTube refuses an age-restricted
+// video, unless it is signed in.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -145,6 +147,13 @@ auto child_main() -> int {
             if (held.find("youtube.com\t") != std::string::npos) title = "signed in";
             cookies.close();
             std::ofstream(args[3], std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
+        }
+        if (link.find("adult") != std::string::npos && title != "signed in") {
+            const std::string line =
+                "ERROR: [youtube] abc: Sign in to confirm your age. This video may be inappropriate for some users. "
+                "Use --cookies-from-browser or --cookies for the authentication.\n";
+            write_all(err, line.data(), line.size());
+            return 1;
         }
         std::string json;
         if (link.find("list") != std::string::npos) {

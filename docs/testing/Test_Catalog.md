@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-904 test cases across 12 components, including 189 sections.
+909 test cases across 12 components, including 195 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -16,7 +16,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
-| [music](#music) | 80 | 19 |
+| [music](#music) | 85 | 25 |
 | [llm](#llm) | 58 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
@@ -761,18 +761,23 @@ Music (`src/core/music`)
 | an empty queue says so, with no buttons |  |  | [tests/unit/music_command_test.cpp:192](../../tests/unit/music_command_test.cpp#L192) |
 | volume and track limit have defaults, and stored values are kept in range |  |  | [tests/unit/music_command_test.cpp:202](../../tests/unit/music_command_test.cpp#L202) |
 | the music command registers, with m as its alias |  |  | [tests/unit/music_command_test.cpp:218](../../tests/unit/music_command_test.cpp#L218) |
-| a Netscape cookies file is counted, HttpOnly cookies included |  |  | [tests/unit/music_cookies_test.cpp:63](../../tests/unit/music_cookies_test.cpp#L63) |
-| a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [tests/unit/music_cookies_test.cpp:71](../../tests/unit/music_cookies_test.cpp#L71) |
-| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:83](../../tests/unit/music_cookies_test.cpp#L83) |
-| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:92](../../tests/unit/music_cookies_test.cpp#L92) |
-| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:101](../../tests/unit/music_cookies_test.cpp#L101) |
-| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:107](../../tests/unit/music_cookies_test.cpp#L107) |
-| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:145](../../tests/unit/music_cookies_test.cpp#L145) |
-| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:157](../../tests/unit/music_cookies_test.cpp#L157) |
-| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:184](../../tests/unit/music_cookies_test.cpp#L184) |
-| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:192](../../tests/unit/music_cookies_test.cpp#L192) |
-| the resolver signs in with a copy, and the owner's file is left as exported | `threads` | 2 | [tests/unit/music_cookies_test.cpp:207](../../tests/unit/music_cookies_test.cpp#L207) |
-| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:229](../../tests/unit/music_cookies_test.cpp#L229) |
+| a Netscape cookies file is counted, HttpOnly cookies included |  |  | [tests/unit/music_cookies_test.cpp:117](../../tests/unit/music_cookies_test.cpp#L117) |
+| a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [tests/unit/music_cookies_test.cpp:125](../../tests/unit/music_cookies_test.cpp#L125) |
+| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:137](../../tests/unit/music_cookies_test.cpp#L137) |
+| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:146](../../tests/unit/music_cookies_test.cpp#L146) |
+| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:155](../../tests/unit/music_cookies_test.cpp#L155) |
+| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:161](../../tests/unit/music_cookies_test.cpp#L161) |
+| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:199](../../tests/unit/music_cookies_test.cpp#L199) |
+| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:211](../../tests/unit/music_cookies_test.cpp#L211) |
+| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:238](../../tests/unit/music_cookies_test.cpp#L238) |
+| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:246](../../tests/unit/music_cookies_test.cpp#L246) |
+| what yt-dlp says when signing in would help |  |  | [tests/unit/music_cookies_test.cpp:261](../../tests/unit/music_cookies_test.cpp#L261) |
+| the links that needed signing in are shared, and kept to a limit |  |  | [tests/unit/music_cookies_test.cpp:274](../../tests/unit/music_cookies_test.cpp#L274) |
+| the resolver reads signed out, and signs in only when yt-dlp asks to | `threads` | 4 | [tests/unit/music_cookies_test.cpp:289](../../tests/unit/music_cookies_test.cpp#L289) |
+| refused signed in as well, the second refusal is what is told | `threads` |  | [tests/unit/music_cookies_test.cpp:329](../../tests/unit/music_cookies_test.cpp#L329) |
+| without cookies, an age-restricted link is refused as YouTube refused it | `threads` |  | [tests/unit/music_cookies_test.cpp:339](../../tests/unit/music_cookies_test.cpp#L339) |
+| a track refused for want of signing in is fetched again, signed in | `threads` | 4 | [tests/unit/music_cookies_test.cpp:346](../../tests/unit/music_cookies_test.cpp#L346) |
+| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:386](../../tests/unit/music_cookies_test.cpp#L386) |
 | an http or https link is taken as it is |  |  | [tests/unit/music_links_test.cpp:16](../../tests/unit/music_links_test.cpp#L16) |
 | text that is not a link is refused, with the reason |  |  | [tests/unit/music_links_test.cpp:22](../../tests/unit/music_links_test.cpp#L22) |
 | a link that looks like an option is still a link or nothing |  |  | [tests/unit/music_links_test.cpp:31](../../tests/unit/music_links_test.cpp#L31) |

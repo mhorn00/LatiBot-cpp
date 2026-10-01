@@ -247,9 +247,14 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
     if (resolves_to_private(host_of(url))) return media_error("that link points into a private network, which i won't fetch from");
 
     try {
-        // Removed as this returns, once yt-dlp has ended: `run` waits for it.
-        const std::optional<cookie_copy> cookies = cookies_ ? cookies_->copy() : std::nullopt;
-        const util::run_result ran = util::run({.path = ytdlp_, .arguments = lookup_arguments(url, max_items, path_of(cookies))}, timeout_);
+        // Signed out first, unless this link needed signing in before.
+        bool signed_in = cookies_ && cookies_->needed_for(url);
+        util::run_result ran = run_lookup(url, max_items, signed_in);
+        if (cookies_ && !signed_in && !ran.timed_out && ran.exit_code != 0 && needs_sign_in(ran.errors)) {
+            util::log().debug("yt-dlp must sign in to read {}, so it tries again signed in: {}", url, ran.errors);
+            signed_in = true;
+            ran = run_lookup(url, max_items, true);
+        }
         if (ran.timed_out) {
             return media_error(std::format("reading that link took more than {}; the site may be down",
                                            std::chrono::duration_cast<std::chrono::seconds>(timeout_)));
@@ -258,11 +263,25 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
             util::log().debug("yt-dlp could not read {}: {}", url, ran.errors);
             return media_error(describe_failure(ran.errors));
         }
-        return parse_lookup(ran.output, max_items);
+        auto lookup = parse_lookup(ran.output, max_items);
+        // Its tracks are fetched signed in too, rather than refused first.
+        if (signed_in && lookup.ok()) {
+            cookies_->remember(url);
+            for (const ports::media_item& item : lookup.value().items) {
+                cookies_->remember(item.url);
+            }
+        }
+        return lookup;
     } catch (const util::process_error& error) {
         util::log().error("could not run yt-dlp: {}", error.what());
         return media_error("i couldn't run yt-dlp; it's in the log");
     }
+}
+
+auto ytdlp_resolver::run_lookup(const std::string& url, std::size_t max_items, bool signed_in) const -> util::run_result {
+    // Removed as this returns, once yt-dlp has ended: `run` waits for it.
+    const std::optional<cookie_copy> cookies = signed_in && cookies_ ? cookies_->copy() : std::nullopt;
+    return util::run({.path = ytdlp_, .arguments = lookup_arguments(url, max_items, path_of(cookies))}, timeout_);
 }
 
 auto ytdlp_resolver::work(const std::stop_token& stopping) -> void {
@@ -404,14 +423,66 @@ ytdlp_opener::ytdlp_opener(std::filesystem::path ytdlp, std::filesystem::path ff
                            std::optional<cookie_source> cookies)
     : ytdlp_(std::move(ytdlp)), ffmpeg_(std::move(ffmpeg)), even_loudness_(even_loudness), cookies_(std::move(cookies)) {}
 
-auto ytdlp_opener::open(const std::string& url) -> std::unique_ptr<ports::pcm_stream> {
-    std::optional<cookie_copy> cookies = cookies_ ? cookies_->copy() : std::nullopt;
+sign_in_retry::sign_in_retry(std::unique_ptr<ports::pcm_stream> first, opener signed_in)
+    : current_(std::move(first)), signed_in_(std::move(signed_in)) {}
+
+auto sign_in_retry::settle() const -> void {
+    if (!signed_in_ || delivered_ || current_->state() != ports::stream_state::failed) return;
+    const std::string reason = current_->error();
+    if (!needs_sign_in(reason)) return;
+    util::log().debug("yt-dlp must sign in to fetch a track, so it tries again signed in: {}", reason);
+    // The first try has ended; replacing it waits for nothing.
+    current_ = std::exchange(signed_in_, nullptr)();
+}
+
+auto sign_in_retry::read(std::span<std::int16_t> into) -> std::size_t {
+    const std::scoped_lock lock(mutex_);
+    settle();
+    const std::size_t got = current_->read(into);
+    if (got > 0) delivered_ = true;
+    return got;
+}
+
+auto sign_in_retry::state() const -> ports::stream_state {
+    const std::scoped_lock lock(mutex_);
+    settle();
+    return current_->state();
+}
+
+auto sign_in_retry::error() const -> std::string {
+    const std::scoped_lock lock(mutex_);
+    settle();
+    return current_->error();
+}
+
+namespace {
+
+auto open_track(const std::filesystem::path& ytdlp, const std::filesystem::path& ffmpeg, bool even_loudness, const std::string& url,
+                std::optional<cookie_copy> cookies) -> std::unique_ptr<ports::pcm_stream> {
     std::vector<util::program> programs{
-        {.path = ytdlp_, .arguments = fetch_arguments(url, ffmpeg_, path_of(cookies))},
-        {.path = ffmpeg_, .arguments = decode_arguments(even_loudness_)},
+        {.path = ytdlp, .arguments = fetch_arguments(url, ffmpeg, path_of(cookies))},
+        {.path = ffmpeg, .arguments = decode_arguments(even_loudness)},
     };
     return std::make_unique<process_stream>(std::move(programs), std::chrono::seconds{30}, process_stream::default_buffer,
                                             std::move(cookies));
+}
+
+} // namespace
+
+auto ytdlp_opener::open(const std::string& url) -> std::unique_ptr<ports::pcm_stream> {
+    if (!cookies_) return open_track(ytdlp_, ffmpeg_, even_loudness_, url, std::nullopt);
+    if (cookies_->needed_for(url)) return open_track(ytdlp_, ffmpeg_, even_loudness_, url, cookies_->copy());
+
+    // Copies, not `this`: the retry belongs to the stream, which the player
+    // holds. Moving it is only as noexcept as moving what it copied, which
+    // clang-tidy cannot see through; it is moved once, into the retry, and
+    // nothing relies on that not throwing.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
+    auto signed_in = [ytdlp = ytdlp_, ffmpeg = ffmpeg_, even = even_loudness_, url, cookies = *cookies_] {
+        cookies.remember(url);
+        return open_track(ytdlp, ffmpeg, even, url, cookies.copy());
+    };
+    return std::make_unique<sign_in_retry>(open_track(ytdlp_, ffmpeg_, even_loudness_, url, std::nullopt), std::move(signed_in));
 }
 
 } // namespace latibot::music

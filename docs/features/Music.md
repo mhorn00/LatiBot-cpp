@@ -310,8 +310,9 @@ to deal with what sites need: signed URLs, headers, fragmented streams. It
 is also given ffmpeg's location, since it uses ffmpeg itself for live
 streams and some sites.
 
-When the owner has signed music in to an account (§4.9), both commands also
-get `--cookies` and a copy of the cookies, straight after `--ignore-config`.
+When the owner has signed music in to an account (§4.9), a run that fails
+because yt-dlp must sign in is run again with `--cookies` and a copy of the
+cookies, straight after `--ignore-config`.
 
 ### 4.5 Decoding: ffmpeg
 
@@ -412,9 +413,28 @@ When age-restricted videos stop playing, and yt-dlp's reason asks to sign
 in to confirm your age, the session has ended: export a fresh file the same
 way.
 
-**How it is used** (`music::cookie_source`). Every run of yt-dlp, reading a
-link or fetching a track, gets a copy of the file of its own, in
-`data/yt-dlp-runs/`, removed once that run has ended. yt-dlp writes its
+**Only when it is needed.** yt-dlp always tries signed out first. When it
+fails, and what it says is that it must sign in (`needs_sign_in`: "Sign in
+to confirm your age", "not a bot", a private video, or "use `--cookies`"),
+it tries again at once, signed in, and nobody is told: only a failure of
+that second try is the reply. Any other failure is told as it was, with no
+second try.
+
+- **Reading a link** (`ytdlp_resolver`) retries this way. A link read
+  signed in is remembered, with every track it gave, so those tracks are
+  fetched signed in straight away rather than refused first. The bot
+  remembers up to 1,000 links until it restarts.
+- **Fetching a track** (`sign_in_retry`) retries this way too, since a
+  playlist is read without opening each video, and its age-restricted ones
+  are only refused when they are fetched. A track is only fetched again if
+  it was refused before any of it played.
+
+The cost is one refused run, a second or two, the first time an
+age-restricted link is read or played.
+
+**The copies** (`music::cookie_source`). Every signed-in run of yt-dlp gets a
+copy of the file of its own, in `data/yt-dlp-runs/`, removed once that run
+has ended. yt-dlp writes its
 cookies back to the file it was given as it ends, truncating and rewriting
 it, and up to four run at once: one rewriting a shared file while another
 reads it would leave that one signed out, or the file spoilt. Copies left
@@ -423,17 +443,19 @@ written to.
 
 **What it means.**
 
-- Everyone who can use `/music` fetches as that account. What they queue is
-  in its YouTube history, and anything it can see can be queued by link, its
-  private playlists included.
+- Everyone who can use `/music` fetches as that account whenever YouTube
+  will not play a video signed out. Those videos are in its YouTube history,
+  and anything it can see can be queued by link, its private playlists
+  included.
 - The file is a sign-in. Whoever has it is signed in as the account until
   the session ends, so it stays in `data/` beside the database, and is never
   logged.
 - YouTube may limit or suspend an account used through yt-dlp, which yt-dlp's
   own documentation warns of. Use an account that can be lost.
 - Signed in, yt-dlp asks YouTube for videos in other ways than signed out.
-  If YouTube stops working once the cookies are added, update yt-dlp first
-  (`yt-dlp -U`), and see its wiki's pages on YouTube.
+  If age-restricted videos still fail once the cookies are added, update
+  yt-dlp first (`yt-dlp -U`), and see its wiki's pages on YouTube. Other
+  videos are fetched signed out, as before.
 
 ## 5. Dependencies and running it
 
@@ -469,7 +491,8 @@ People type the links, so everything passed to yt-dlp is untrusted:
   of the cookies, when the owner signed music in.
 - **The account** (§4.9). Its cookies come only from the file the owner
   names, are never logged, and are copied only into `data/yt-dlp-runs/`,
-  for as long as a run lasts. Anyone who can queue fetches as that account.
+  for as long as a run lasts. They are used only when yt-dlp says it must
+  sign in; then anyone who can queue fetches as that account.
 - **The local network.** A link written as a private, loopback, link-local,
   carrier-NAT, multicast or reserved address, IPv4 or IPv6, or as
   `localhost`, is refused when typed. A name is resolved first, by the
@@ -508,7 +531,13 @@ People type the links, so everything passed to yt-dlp is untrusted:
   refused; a copy per run, removed when the run is done, and leftovers
   cleared at start; `--cookies` before the `--`. The stand-in, given
   `--cookies`, says whether it was signed in and writes the file back as
-  yt-dlp does, so the tests check the owner's file is left as exported.
+  yt-dlp does, so the tests check the owner's file is left as exported. It
+  refuses a link with "adult" in it unless signed in, as YouTube refuses an
+  age-restricted video: an ordinary link is read signed out, a refused one
+  read again signed in without a word, a link that needed it before signed
+  in at once, other failures told without a retry, and a second refusal
+  told. `sign_in_retry` is checked the same way for fetching, and does not
+  start over a track that failed partway.
 - **`[live]`** (`yt_dlp_live_test.cpp`, hidden with `[.]`): the real yt-dlp
   and ffmpeg read and play Wikimedia Commons' `Example.ogg`. Skipped when
   either is not installed; neither was on the machine this was built on.
@@ -523,8 +552,9 @@ People type the links, so everything passed to yt-dlp is untrusted:
   speech cutting in cleanly, and music resuming without a click;
 - what DPP does to its queue on a move with `/join`;
 - `/music` registering, and the queue's buttons;
-- an age-restricted video playing with the owner's cookies, and the startup
-  log's count of them;
+- an age-restricted video playing with the owner's cookies, from a link
+  and from a playlist, and the startup log's count of them;
+- that `needs_sign_in` matches what YouTube says today, which can change;
 - how long an exported session lasts with copies that are never written
   back.
 
@@ -563,7 +593,9 @@ People type the links, so everything passed to yt-dlp is untrusted:
 | 2026-10-01 | Exported from a private window, then closed without signing out | A session left open in a browser has its cookies rotated, which signs out the exported copy (yt-dlp's wiki) |
 | 2026-10-01 | A file, not `--cookies-from-browser` | The bot runs unattended; a browser on the host would keep rotating the session, and Chromium browsers on Windows encrypt their cookies where yt-dlp often cannot read them |
 | 2026-10-01 | Each run of yt-dlp gets a copy of its own, removed when it ends | yt-dlp rewrites its cookie file as it ends, and up to four run at once |
-| 2026-10-01 | Every run signs in, not only after YouTube refuses | One way to fetch, so what works is what was tried; retrying would read every age-restricted link twice |
+| 2026-10-01 | Signed out first; signed in only when yt-dlp says it must, retried at once without telling anyone, and only the retry's failure told | The owner's request, so the account is used only where it is needed. It replaced signing every run in, built earlier the same day |
+| 2026-10-01 | Links read signed in are remembered, with their tracks, until a restart | So a track already known to need it is not refused once more when it plays |
+| 2026-10-01 | A track is fetched again only if nothing of it had played | Starting a track over partway would be worse than its failure |
 | 2026-10-01 | A file that cannot be used is a warning, and music fetches signed out | Music, and so its account, is optional (the 2026-09-30 decision in Operations.md) |
 
 ## 9. The owner's answers
