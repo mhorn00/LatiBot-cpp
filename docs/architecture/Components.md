@@ -303,7 +303,7 @@ and the last column the tables it keeps in `bot.db`.
 | Allowed bots | every message (`describe()` asks); `/bots` | `bot_allowlist` | `allowed_bots` |
 | Log channel | every log line; the 2 s tick; `/logs` | `log_channel`, `log_buffer`, `log_destination_store` | `guild_settings` |
 | Speech | `/speak`, `/tts`, `/chat`, `/voice`; the voice lab panel; voice events; the 5 s auto-leave tick | `dectalk_engine`, `speech_queue`, `voice_sessions`, `auto_leave`, `voice_store`, `voice_lab` | `tts_voices`, `guild_settings` |
-| Language model | message stage; `/llm`, `/memory` and their panels | `llm_stage`, `responder`, providers, `tool_registry`, the `llm` stores | `llm_documents`, `llm_memory`, `llm_memory_search`, `llm_usage`, `llm_blacklist`, `llm_triggers`, `guild_settings` |
+| Language model | message stage; `/llm`, `/memory` and their panels | `llm_stage`, `responder`, providers, `tool_registry`, the `llm` stores | `llm_documents`, `llm_memory`, `llm_memory_search`, `llm_usage`, `llm_blacklist`, `llm_triggers`, `llm_aliases`, `guild_settings` |
 | Backups | a timer, every `backup_interval` (6 h by default) | `db::create_backup` | all of them, copied to `data/backups/` |
 
 `guild_settings` is a key/value table that many features share for single

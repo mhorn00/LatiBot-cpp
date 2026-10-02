@@ -55,6 +55,7 @@ add_executable(latibot_tests
     unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
     unit/llm_answer_test.cpp
+    unit/llm_aliases_test.cpp
     unit/llm_command_test.cpp
     unit/llm_guards_test.cpp
     unit/llm_provider_test.cpp

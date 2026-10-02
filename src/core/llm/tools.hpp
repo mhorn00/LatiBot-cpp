@@ -13,12 +13,20 @@
 
 namespace latibot::llm {
 
+class people;
+
 /// Whom the model is answering, which is what a tool acts on behalf of.
 struct tool_context {
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;
     dpp::snowflake author_id;
     std::chrono::sys_seconds now;
+
+    /// The people in this request, by alias: a tool reads aliases the model
+    /// passes through it, and shows people to the model as aliases
+    /// (docs/features/Language_Model.md §3.8). Null in a tool's own tests,
+    /// where nobody is named.
+    people* cast = nullptr;
 };
 
 /// What a tool handed back: text for the model, and whether it failed.

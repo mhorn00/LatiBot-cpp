@@ -31,6 +31,7 @@
 #include "core/events/url_rules.hpp"
 #include "core/events/voice_sessions.hpp"
 #include "core/llm/advanced_triggers.hpp"
+#include "core/llm/aliases.hpp"
 #include "core/llm/documents.hpp"
 #include "core/llm/guards.hpp"
 #include "core/llm/memory.hpp"
@@ -268,6 +269,7 @@ private:
     llm::usage_store llm_usage_;
     llm::document_store llm_documents_;
     llm::memory_store llm_memories_;
+    llm::alias_store llm_aliases_;
     llm::blacklist_store llm_blacklist_;
     llm::advanced_trigger_store llm_triggers_;
     llm::tool_registry llm_tools_;

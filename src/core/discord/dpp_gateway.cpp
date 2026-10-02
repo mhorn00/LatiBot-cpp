@@ -1,5 +1,6 @@
 #include "core/discord/dpp_gateway.hpp"
 
+#include <dpp/cache.h>
 #include <dpp/cluster.h>
 
 #include <algorithm>
@@ -111,6 +112,33 @@ auto dpp_gateway::delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task
     const auto confirmation = co_await cluster_->co_application_emoji_delete(emoji_id);
     if (confirmation.is_error()) co_return to_error(confirmation);
     co_return ports::result<void>{};
+}
+
+auto dpp_gateway::member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> {
+    ports::member_names names;
+    if (const dpp::user* user = dpp::find_user(user_id); user != nullptr) {
+        names.display_name = user->global_name;
+        names.username = user->username;
+    }
+    if (const dpp::guild* guild = dpp::find_guild(guild_id); guild != nullptr) {
+        if (const auto member = guild->members.find(user_id); member != guild->members.end()) {
+            names.nickname = member->second.get_nickname();
+        }
+    }
+    if (names.nickname.empty() && names.display_name.empty() && names.username.empty()) return std::nullopt;
+    return names;
+}
+
+auto dpp_gateway::role_name(dpp::snowflake role_id) const -> std::optional<std::string> {
+    const dpp::role* role = dpp::find_role(role_id);
+    if (role == nullptr) return std::nullopt;
+    return role->name;
+}
+
+auto dpp_gateway::channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> {
+    const dpp::channel* channel = dpp::find_channel(channel_id);
+    if (channel == nullptr) return std::nullopt;
+    return channel->name;
 }
 
 } // namespace latibot::discord

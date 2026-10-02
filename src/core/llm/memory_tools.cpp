@@ -1,5 +1,6 @@
 #include "core/llm/memory_tools.hpp"
 
+#include "core/llm/aliases.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
@@ -17,18 +18,21 @@ auto refuse(std::string reason) -> tool_outcome {
     return {.content = std::move(reason), .is_error = true};
 }
 
-auto describe(const memory& entry) -> std::string {
-    const std::string about = entry.subject ? std::format(" (about user {})", *entry.subject) : std::string{};
-    return std::format("#{}{}: {}", entry.id, about, entry.content);
+/// A memory as the model is shown it: whom it is about by alias, and its
+/// text sanitized, since one saved before aliases may name people
+/// (docs/features/Language_Model.md §3.8).
+auto describe(const memory& entry, people* cast) -> std::string {
+    if (cast == nullptr) return std::format("#{}: {}", entry.id, entry.content);
+    const std::string about = entry.subject ? std::format(" (about {})", cast->meet(*entry.subject)) : std::string{};
+    return std::format("#{}{}: {}", entry.id, about, cast->sanitize(entry.content));
 }
 
-/// A Discord id the model passed, as a string or a number.
-auto id_in(const json& input, const char* key) -> std::optional<dpp::snowflake> {
+/// Whom the alias the model passed stands for.
+auto person_in(const json& input, const char* key, const people* cast) -> std::optional<dpp::snowflake> {
+    if (cast == nullptr || !input.is_object()) return std::nullopt;
     const auto found = input.find(key);
-    if (found == input.end()) return std::nullopt;
-    if (found->is_string()) return util::parse_snowflake(found->get<std::string>());
-    if (found->is_number_unsigned()) return dpp::snowflake{found->get<std::uint64_t>()};
-    return std::nullopt;
+    if (found == input.end() || !found->is_string()) return std::nullopt;
+    return cast->user_for(util::trim(found->get<std::string>()));
 }
 
 auto remember(memory_store& store, const json& input, const tool_context& context) -> tool_outcome {
@@ -45,9 +49,9 @@ auto remember(memory_store& store, const json& input, const tool_context& contex
         return refuse(std::format("this server already has {} memories, the most it may; forget one first", memories_per_guild));
     }
 
-    // An id that is not one is dropped rather than refused: the memory is
-    // still worth having, as one about the server.
-    const std::optional<dpp::snowflake> about = input.is_object() ? id_in(input, "about_user_id") : std::nullopt;
+    // An alias that is nobody's is dropped rather than refused: the memory
+    // is still worth having, as one about the server.
+    const std::optional<dpp::snowflake> about = person_in(input, "about", context.cast);
     const std::int64_t id = store.add({.id = 0,
                                        .guild_id = context.guild_id,
                                        .subject = about,
@@ -67,7 +71,7 @@ auto recall(const memory_store& store, const json& input, const tool_context& co
 
     std::string listed;
     for (const memory& entry : found) {
-        listed += describe(entry);
+        listed += describe(entry, context.cast);
         listed += '\n';
     }
     return {.content = listed, .is_error = false};
@@ -96,13 +100,13 @@ auto forget(memory_store& store, const json& input, const tool_context& context)
 auto add_memory_tools(tool_registry& tools, memory_store& store) -> void {
     tools.add({.name = "remember",
                .description = std::format("Save a fact worth knowing in later conversations here: something about a person, or about the "
-                                          "server. Keep it short and self-contained, at most {} characters. When it is about one person, "
-                                          "pass their user id, shown beside their name in the conversation.",
+                                          "server. Keep it short and self-contained, at most {} characters, writing people as markers "
+                                          "like <u7kx3q:name>. When it is about one person, pass their alias as about.",
                                           memory_length_limit),
                .input_schema = {{"type", "object"},
                                 {"properties",
                                  {{"content", {{"type", "string"}, {"description", "The fact, as a sentence."}}},
-                                  {"about_user_id", {{"type", "string"}, {"description", "The user id it is about, if one person."}}}}},
+                                  {"about", {{"type", "string"}, {"description", "The alias of the person it is about, if one person."}}}}},
                                 {"required", json::array({"content"})}}},
               [&store](const json& input, const tool_context& context) { return remember(store, input, context); });
 

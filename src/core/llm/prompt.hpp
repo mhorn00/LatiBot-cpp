@@ -13,6 +13,8 @@
 
 namespace latibot::llm {
 
+class people;
+
 /// A message in the channel, as the model is shown it.
 struct context_message {
     dpp::snowflake id;
@@ -52,14 +54,15 @@ struct instruction_parts {
 /// which is what makes it worth caching.
 [[nodiscard]] auto stable_instructions(const instruction_parts& parts) -> std::string;
 
-/// The part that changes per message: the memories that matched, and the
-/// time.
-[[nodiscard]] auto varying_instructions(std::span<const memory> memories, std::chrono::sys_seconds now) -> std::string;
+/// The part that changes per message: the memories that matched, by the
+/// alias of whom they are about, and the time. Everyone they are about must
+/// have been met.
+[[nodiscard]] auto varying_instructions(std::span<const memory> memories, std::chrono::sys_seconds now, people& cast) -> std::string;
 
-/// One message as a line of the transcript: "Name (id): text", with
-/// mentions of the bot written as its name, and anything longer than a
-/// message's worth cut short.
-[[nodiscard]] auto transcript_line(const context_message& message, dpp::snowflake bot_id, std::string_view bot_name) -> std::string;
+/// One message as a line of the transcript: "alias: text", or "Name (you)"
+/// for the bot, its content sanitized by `cast`, and anything longer than a
+/// message's worth cut short (docs/features/Language_Model.md §3.8).
+[[nodiscard]] auto transcript_line(const context_message& message, people& cast) -> std::string;
 
 /// What the model is asked: the recent conversation, oldest first, then the
 /// message to answer, or for an advanced trigger what caught its attention.
@@ -70,7 +73,7 @@ struct instruction_parts {
 /// is one turn rather than a turn per message: several people talk in a
 /// channel, and the providers expect two sides taking turns.
 [[nodiscard]] auto question_for(std::span<const context_message> history, const context_message& latest, std::string_view context_prompt,
-                                std::size_t token_budget, dpp::snowflake bot_id, std::string_view bot_name) -> std::string;
+                                std::size_t token_budget, people& cast) -> std::string;
 
 /// A reply cut into Discord messages of at most `limit` characters, on line
 /// breaks where it can, and at most `most` of them; anything after that is

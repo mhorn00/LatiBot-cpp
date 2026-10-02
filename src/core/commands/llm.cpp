@@ -4,6 +4,7 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/llm/advanced_triggers.hpp"
+#include "core/llm/aliases.hpp"
 #include "core/llm/guards.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ports/http_client.hpp"
@@ -107,6 +108,17 @@ auto match_mode_option() -> dpp::command_option {
     mode.add_choice(dpp::command_option_choice("Whole word", std::string("whole_word")));
     mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
     return mode;
+}
+
+/// Memories with the people they name as mentions, which Discord shows as
+/// names, rather than the aliases the model wrote
+/// (docs/features/Language_Model.md §3.8).
+auto named(std::vector<llm::memory> memories, dpp::snowflake guild, const llm::alias_store* aliases) -> std::vector<llm::memory> {
+    if (aliases == nullptr) return memories;
+    for (llm::memory& entry : memories) {
+        entry.content = llm::aliases_as_mentions(entry.content, guild, *aliases);
+    }
+    return memories;
 }
 
 } // namespace
@@ -842,7 +854,7 @@ auto memory_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void
             co_await event.co_reply(refusal(event, "you can see what i remember about you; anyone else needs Manage Server"));
             co_return;
         }
-        const auto shown = services_.memories->list(guild, subject, 0, memories_per_page);
+        const auto shown = named(services_.memories->list(guild, subject, 0, memories_per_page), guild, services_.aliases);
         co_await event.co_reply(result(event, render_memories(shown, services_.memories->count(guild, subject), 0, subject)));
     } else if (action == "forget") {
         const std::int64_t id = int_option(event, "id").value_or(0);
@@ -918,7 +930,9 @@ auto llm_panels::on_component(const dpp::interaction_create_t& event, const ui::
         }
         const std::size_t total = services_.memories->count(guild, subject);
         const int page = ui::clamp_page(state.page, total, memories_per_page);
-        const auto shown = services_.memories->list(guild, subject, static_cast<std::size_t>(page) * memories_per_page, memories_per_page);
+        const auto shown =
+            named(services_.memories->list(guild, subject, static_cast<std::size_t>(page) * memories_per_page, memories_per_page), guild,
+                  services_.aliases);
         ui::update_panel(event, render_memories(shown, total, page, subject));
         return true;
     }

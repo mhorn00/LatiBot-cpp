@@ -6,6 +6,7 @@
 #include "core/commands/speak.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
+#include "core/llm/aliases.hpp"
 #include "core/llm/documents.hpp"
 #include "core/llm/memory.hpp"
 #include "core/llm/settings.hpp"
@@ -77,13 +78,21 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
     // covers most replies; a failure to show it is not worth a line.
     co_await services_.discord->start_typing(ask.channel_id);
 
+    // Everyone the model hears of is an alias, never an id or a name
+    // (docs/features/Language_Model.md §3.8). Met as they are read, so that
+    // every name is known before any text is sanitized.
+    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, me.name);
+    cast.meet(ask.author_id, ask.author_name);
+    cast.meet_mentioned(ask.content);
+
     const int wanted = addressed ? settings.context_messages : settings.trigger_context;
-    const std::vector<context_message> history = co_await recent_messages(ask, wanted, me.id);
+    const std::vector<context_message> history = co_await recent_messages(ask, wanted, me.id, cast);
 
     const auto now = seconds_now(*services_.clock);
-    request call = build_request(ask, settings, *model, history, me, now);
+    request call = build_request(ask, settings, *model, history, now, cast);
 
-    const tool_context context{.guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now};
+    const tool_context context{
+        .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
     auto outcome = co_await run_tool_loop(
         *answering, std::move(call), *services_.tools, context, services_.bootstrap->llm_tool_rounds, [&](const usage& used) {
             report.used += used;
@@ -97,7 +106,9 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
         co_return report;
     }
 
-    std::string text = std::move(outcome.value().text);
+    // Names back in, where the model wrote markers. Spoken, a mention is a
+    // name too.
+    std::string text = cast.restore(outcome.value().text, ask.speak);
     if (outcome.value().stop == stop_reason::max_tokens) {
         util::log().debug("the reply in channel {} ran out of its {} tokens", ask.channel_id, settings.max_output_tokens);
     }
@@ -131,7 +142,7 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
     co_return report;
 }
 
-auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::snowflake bot_id) const
+auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
     -> dpp::task<std::vector<context_message>> {
     std::vector<context_message> history;
     if (wanted <= 0) co_return history;
@@ -145,13 +156,21 @@ auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::sno
     // Newest first from Discord; the transcript reads oldest first.
     for (const dpp::message& message : std::views::reverse(page.value())) {
         history.push_back(to_context(message, bot_id));
+        // A fetched message carries no server nicknames; the cache has those.
+        cast.meet(message.author.id, history.back().author_name, message.author.username);
+        for (const auto& [user, member] : message.mentions) {
+            std::string shown = member.get_nickname();
+            if (shown.empty()) shown = user.global_name;
+            if (shown.empty()) shown = user.username;
+            cast.meet(user.id, shown, user.username);
+        }
+        cast.meet_mentioned(message.content);
     }
     co_return history;
 }
 
 auto responder::build_request(const events::ask_llm& ask, const llm_settings& settings, const model_info& model,
-                              const std::vector<context_message>& history, const bot_identity& me, std::chrono::sys_seconds now) const
-    -> request {
+                              const std::vector<context_message>& history, std::chrono::sys_seconds now, people& cast) const -> request {
     const bool addressed = ask.trigger_id == 0;
     const context_message latest{.id = ask.message_id,
                                  .author_id = ask.author_id,
@@ -160,18 +179,28 @@ auto responder::build_request(const events::ask_llm& ask, const llm_settings& se
                                  .from_bot = ask.author_is_bot,
                                  .content = ask.content};
 
+    // Searched with what the model will see, since memories name people by
+    // alias; whom they are about are met before any text is sanitized.
+    const std::vector<memory> memories =
+        relevant_memories(*services_.memories, ask.guild_id, ask.author_id, cast.sanitize(ask.content), memories_shown);
+    for (const memory& entry : memories) {
+        if (entry.subject) cast.meet(*entry.subject);
+    }
+
+    // The documents keep the names they were written with, so the same text
+    // goes each time and stays cached; only mentions in them become aliases.
     request call;
     call.model = std::string(model.id);
     call.stable_system = stable_instructions(
-        {.system_document = services_.documents->text(ask.guild_id, document_kind::system),
-         .personality = services_.documents->text(ask.guild_id, document_kind::personality),
-         .trigger_style = addressed ? std::string{} : services_.documents->text(ask.guild_id, document_kind::trigger_style),
+        {.system_document = cast.sanitize(services_.documents->text(ask.guild_id, document_kind::system), false),
+         .personality = cast.sanitize(services_.documents->text(ask.guild_id, document_kind::personality), false),
+         .trigger_style =
+             addressed ? std::string{} : cast.sanitize(services_.documents->text(ask.guild_id, document_kind::trigger_style), false),
          .speaking = ask.speak});
-    const std::vector<memory> memories = relevant_memories(*services_.memories, ask.guild_id, ask.author_id, ask.content, memories_shown);
-    call.varying_system = varying_instructions(memories, now);
+    call.varying_system = varying_instructions(memories, now, cast);
     call.conversation.push_back(
         {.from = speaker::user,
-         .text = question_for(history, latest, ask.context_prompt, static_cast<std::size_t>(settings.context_tokens), me.id, me.name),
+         .text = question_for(history, latest, ask.context_prompt, static_cast<std::size_t>(settings.context_tokens), cast),
          .calls = {},
          .results = {},
          .raw = {}});

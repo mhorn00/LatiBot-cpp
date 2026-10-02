@@ -1182,11 +1182,12 @@ cached, so a change in `/llm settings` applies to the next message.
 
 ## 11. The language model: answering
 
-`src/core/llm/{responder,provider,tools,prompt,documents,memory,models}.hpp`
+`src/core/llm/{responder,provider,tools,prompt,documents,memory,models,aliases}.hpp`
 
 `responder` turns an `ask_llm` into a reply. It gathers recent messages, the
 server's documents and relevant memories, sends them to the model, runs any
-tools the model asks for, and posts the result.
+tools the model asks for, and posts the result. Everyone in it is an alias to
+the model, through a `people` made for each answer.
 
 ```mermaid
 classDiagram
@@ -1196,8 +1197,8 @@ classDiagram
         -services_ : responder_services
         -me_ : function returning bot_identity
         +answer(ask_llm) task~answer_report~
-        -recent_messages(ask, wanted, bot_id) task~vector~context_message~~
-        -build_request(ask, settings, model, history, me, now) request
+        -recent_messages(ask, wanted, bot_id, people) task~vector~context_message~~
+        -build_request(ask, settings, model, history, now, people) request
         -post(ask, parts, report) task
         -speak(ask, text) task
     }
@@ -1209,6 +1210,7 @@ classDiagram
         +memories : memory_store
         +usage : usage_store
         +tools : tool_registry
+        +aliases : alias_store
         +provider_for(provider_kind) provider
         +engine : tts_engine
         +speech : speech_queue
@@ -1274,6 +1276,18 @@ classDiagram
         +list(guild, subject, offset, limit) vector~memory~
         +remove(id, guild) bool
     }
+    class alias_store {
+        +alias_for(guild, user) string
+        +user_for(guild, alias) optional~snowflake~
+        +note_names(guild, user, name, username)
+    }
+    class people {
+        -met_ : map~snowflake, person~
+        +meet(user, shown, username) string
+        +sanitize(text, names_too) string
+        +restore(text, for_speech) string
+        +user_for(alias) optional~snowflake~
+    }
     class model_info {
         <<struct>>
         +id, label : string_view
@@ -1298,6 +1312,10 @@ classDiagram
     tool_registry ..> tool_call : runs
     tool_registry ..> tool_result : answers with
     responder ..> model_info : prices usage with
+    responder_services o-- alias_store
+    responder ..> people : one per answer
+    people o-- alias_store
+    tool_registry ..> people : via tool_context
 ```
 
 A few things that are easy to miss:
@@ -1312,6 +1330,10 @@ A few things that are easy to miss:
   (the system document, personality and trigger style) is the same from call
   to call, which lets the APIs cache it. `varying_system` holds the
   memories and the date.
+- **Aliases.** `people` meets everyone in an answer, then sanitizes every
+  text sent: aliases for ids, markers for names. `restore` puts names back
+  into the reply before it is posted or spoken
+  ([Language_Model.md §3.8](../features/Language_Model.md#38-who-the-model-is-told-about)).
 - **Providers.** `anthropic_provider` and `openai_provider` each translate
   `request` and `response` to and from their API's JSON (`anthropic_body`,
   `read_anthropic_reply` and so on), and send it through `http_client`.

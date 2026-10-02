@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -167,6 +168,29 @@ public:
             co_return scripted;
         }
         co_return ports::result<void>{};
+    }
+
+    /// What the cache knows: members by (guild, user), roles and channels.
+    std::map<std::pair<dpp::snowflake, dpp::snowflake>, ports::member_names> members;
+    std::map<dpp::snowflake, std::string> roles;
+    std::map<dpp::snowflake, std::string> channels;
+
+    [[nodiscard]] auto member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> override {
+        const auto found = members.find({guild_id, user_id});
+        if (found == members.end()) return std::nullopt;
+        return found->second;
+    }
+
+    [[nodiscard]] auto role_name(dpp::snowflake role_id) const -> std::optional<std::string> override {
+        const auto found = roles.find(role_id);
+        if (found == roles.end()) return std::nullopt;
+        return found->second;
+    }
+
+    [[nodiscard]] auto channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> override {
+        const auto found = channels.find(channel_id);
+        if (found == channels.end()) return std::nullopt;
+        return found->second;
     }
 
 private:

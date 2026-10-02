@@ -32,8 +32,10 @@ class tts_engine;
 
 namespace latibot::llm {
 
+class alias_store;
 class document_store;
 class memory_store;
+class people;
 class tool_registry;
 class usage_store;
 
@@ -54,6 +56,9 @@ struct responder_services {
     const memory_store* memories = nullptr;
     usage_store* usage = nullptr;
     const tool_registry* tools = nullptr;
+
+    /// Who everyone is to the model (docs/features/Language_Model.md §3.8).
+    alias_store* aliases = nullptr;
 
     /// The provider that serves models of a kind, or null when there is no
     /// key for it.
@@ -99,14 +104,16 @@ public:
     auto answer(events::ask_llm ask) -> dpp::task<answer_report>;
 
 private:
-    /// The messages before the one being answered, oldest first.
-    [[nodiscard]] auto recent_messages(const events::ask_llm& ask, int wanted, dpp::snowflake bot_id) const
+    /// The messages before the one being answered, oldest first. Their
+    /// authors, and whom they mention, are met in `cast`.
+    [[nodiscard]] auto recent_messages(const events::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
         -> dpp::task<std::vector<context_message>>;
 
-    /// The first request: the instructions, the memories and the question.
+    /// The first request: the instructions, the memories and the question,
+    /// with everyone in them as aliases.
     [[nodiscard]] auto build_request(const events::ask_llm& ask, const llm_settings& settings, const model_info& model,
-                                     const std::vector<context_message>& history, const bot_identity& me,
-                                     std::chrono::sys_seconds now) const -> request;
+                                     const std::vector<context_message>& history, std::chrono::sys_seconds now, people& cast) const
+        -> request;
 
     /// Tells whoever addressed the bot that the model could not answer.
     auto apologise(const events::ask_llm& ask, const ports::api_error& error) const -> dpp::task<void>;

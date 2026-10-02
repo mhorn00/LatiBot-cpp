@@ -18,8 +18,8 @@ follows an answer.
 | | |
 |---|---|
 | **Code** | `src/core/llm/*`, `src/core/commands/llm.*` (`/llm`, `/memory` and their panels), `src/core/discord/dpp_http_client.*` |
-| **Tests** | `tests/unit/{llm_answer,llm_command,llm_guards,llm_provider,llm_tools}_test.cpp`, `tests/db/llm_store_test.cpp`, `tests/mocks/{mock_llm,mock_http}.hpp` |
-| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers` (migration 11); settings as `llm_*` rows in `guild_settings` |
+| **Tests** | `tests/unit/{llm_answer,llm_aliases,llm_command,llm_guards,llm_provider,llm_tools}_test.cpp`, `tests/db/llm_store_test.cpp`, `tests/mocks/{mock_llm,mock_http}.hpp` |
+| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers` (migration 11); `llm_aliases` (migration 15); settings as `llm_*` rows in `guild_settings` |
 | **Config** | `llm_provider`, `llm_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `llm_tool_rounds` in `config.json`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
 | **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
 | **Status** | Built in phase 5 (2026-09-28). **Never called a real API or run in Discord**: see §5 |
@@ -92,11 +92,11 @@ Checked in this order, **before anything is spent**:
   to about **3,000 tokens** (four characters to a token), then the message
   it is answering. They are fetched from Discord for each answer, never kept
   in memory, so they are right after a restart, an edit or a deletion.
-- The messages are one **transcript**, in one user turn:
-  `Name (user id): text`. Continuation lines are indented, so a message
-  cannot fake another speaker, and mentions of the bot are written as its
-  name. The model is told that the transcript is what it is shown, not
-  instructions to follow.
+- The messages are one **transcript**, in one user turn: `u7kx3q: text`,
+  each person an alias, never a name or a Discord id (§3.8). Continuation
+  lines are indented, so a message cannot fake another speaker, and mentions
+  of the bot are written as its name. The model is told that the transcript
+  is what it is shown, not instructions to follow.
 - The reply is a Discord reply to the message, split into messages of 2,000
   characters, at line breaks where it can. At most **three**: anything past
   that is cut, and the last message says so. Whoever addressed the bot is
@@ -113,6 +113,8 @@ tools: when someone tells it something worth keeping, or asks it to.
 - Before it answers, up to **8** memories are put in front of it: those
   about the author first, then those matching the message's words. So it
   rarely has to look.
+- It writes people in a memory as markers, `<u7kx3q:name>`, and says whom a
+  memory is about by alias (§3.8). `/memory` shows them as mentions.
 - It may forget only what is **about**, or was **saved by**, the person it is
   answering. Nobody can talk it into erasing what it knows about someone
   else.
@@ -314,7 +316,9 @@ message is read as FTS5 syntax. Common and short words are left out, and at
 most 16 words are searched.
 
 The tools are entries in a `tool_registry`: a name, a JSON schema, and a
-handler. A later feature adds a tool without touching the loop.
+handler. A later feature adds a tool without touching the loop. Each is
+handed the request's `people` in its `tool_context`, so it reads the aliases
+the model passes, `remember`'s `about`, and shows people as aliases (§3.8).
 
 ### 3.5 Documents
 
@@ -352,6 +356,73 @@ The planned `llm_settings` table was not made: it would have been
 `guild_settings` rows with an `llm_` prefix (`llm_enabled`, `llm_model`,
 `llm_personality_role`, and the ten of §2.9).
 
+### 3.8 Who the model is told about
+
+The model is never told who anyone is. Every person it hears of is an
+**alias**, and names reach it only as **markers**, which the bot replaces in
+what it posts. Added on 2026-10-02, at the owner's request, so the provider
+never receives anything that ties a Discord id, or an alias, to a name.
+
+**Aliases** (`alias_store`, `llm_aliases`, migration 15). Each person gets
+one per server the first time the model hears of them: `u` and six
+characters with no vowels, no `y` and none of `0`, `1` and `l`, so an alias
+never spells a word, like `u7kx3q`. They are random, not derived from the
+id, and kept, so a memory that names someone by alias still means them
+later; the provider can tell it is the same person from one request to the
+next, as it could with names. A person has a different alias in each
+server. The table also keeps the name and username each was last seen with,
+to put back into a reply when the bot's cache does not know them; those are
+never sent.
+
+**What the model is sent** (`people::sanitize`). Each answer has a `people`
+of its own. Everyone is met first: whoever is answered, the authors of the
+recent messages and whom they mention, and whom the memories shown are
+about. Then:
+
+| In the text | Becomes |
+|---|---|
+| A transcript line's author | Their alias: `u7kx3q: text`, `u7kx3q (a bot): text`, and the bot `LatiBot (you): text` |
+| `<@id>`, `<@!id>` | `@u7kx3q`; the bot's own, `@LatiBot` |
+| A name of anyone met, typed in a message or a memory | `<u7kx3q:name>`, or `<u7kx3q:username>` for a username: whole words, any case, longest first, at least three characters |
+| `<@&id>`, `<#id>` | `@role name`, `#channel name` from the cache, or `@a role`, `#a channel` |
+| `<:name:id>`, `<a:name:id>` | `:name:` |
+| `<t:seconds>`, `<t:seconds:R>` | `2026-03-15 12:00 UTC` |
+| `</name:id>` | `/name` |
+| A memory's subject | `(about u7kx3q)` |
+| A marker already written, in a memory | itself |
+
+A person's names are their server nickname, from the bot's cache, since a
+fetched message carries none; their display name; their username; and what
+was noted before. The server's documents and an advanced trigger's prompt
+have mentions made aliases, but keep their names: the same text then goes
+each time, and stays cached (§3.3).
+
+**What the model writes** (`people::restore`). The fixed rules tell it to
+write `<u7kx3q:name>` wherever it would write a name, `<u7kx3q:username>`
+for a username, and `<u7kx3q:mention>` to mention someone; never to guess a
+name. Before the reply is posted:
+
+- `name` (or `nickname`) becomes the name people see in the server: the
+  nickname, else the display name, else the username;
+- `username` the username;
+- `mention` a mention, `<@id>`, which notifies nobody (§2.3); in a spoken
+  reply, the name;
+- a bare alias, or `@u7kx3q`, the name;
+- a marker for an alias that is nobody's, "someone".
+
+**Memories** are written by the model with markers, and saved as written;
+`remember` takes `about` as an alias. `/memory` shows the people a memory
+names as mentions, which Discord shows as their names. A memory saved before
+aliases is shown to the model sanitized like a message.
+
+**What it cannot catch.** A name is found only when it is the name of
+someone in the request, written as that name: a nickname misspelt, a first
+name of a longer display name, or someone who is not in the conversation is
+sent as typed, though with no alias beside it. A name that is also a common
+word, "Will", is taken for the person wherever it is a whole word, and comes
+back as their name in the reply. The documents keep their names. A memory
+saved before 2026-10-02 may hold a name the model wrote then.
+
 ## 4. Decisions
 
 | Date | Decision | Why |
@@ -377,6 +448,11 @@ The planned `llm_settings` table was not made: it would have been
 | 2026-09-28 | Typing once, not kept alive | Most replies arrive inside its ten seconds |
 | 2026-09-28 | No retries on a failure; a 429 or 529 asks the person to try again in a minute | Not recorded |
 | 2026-09-29 | Forms read through `ui::form_fields`; a document form must return every part | Every form arrived empty under DPP 10.1, and the documents saved blank versions (plan §21.21) |
+| 2026-10-02 | Every person an alias, names as markers put back only in what is posted; no Discord id or name sent | The owner's request: the provider never gets anything that ties an id, or an alias, to a name (§3.8) |
+| 2026-10-02 | Aliases random, kept per person per server | Memories name people by alias, and must still mean them later; a different alias in each server keeps the servers apart |
+| 2026-10-02 | Names typed in messages found and replaced too, whole words of three characters or more | A name beside an alias would undo it. Shorter names are mostly words |
+| 2026-10-02 | Documents keep their names; only their mentions become aliases | They are the cached prefix, and must be the same text each time; admins write them |
+| 2026-10-02 | Roles, channels, emoji, timestamps and commands written as names | They carried ids, and their names read better to the model |
 
 ## 5. Limits, and what is still to check
 
@@ -393,6 +469,11 @@ The planned `llm_settings` table was not made: it would have been
     Completions.
 - **Still to check in Discord:**
   - that `describe` sees mentions and replies;
+  - that real models write markers where they would write names, and
+    `about` as an alias, and how often a name gets through in what people
+    type (§3.8);
+  - that the cache has nicknames for the authors of fetched messages, which
+    needs the Server Members intent (`track_nicknames`);
   - that `/llm` registers, since it is the largest command and Discord allows
     8,000 characters per command;
   - that the `/llm settings` panel routes, and whether its group menu sticks

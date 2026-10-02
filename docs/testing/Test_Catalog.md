@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-928 test cases across 12 components, including 202 sections.
+941 test cases across 12 components, including 202 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -17,7 +17,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
 | [music](#music) | 101 | 31 |
-| [llm](#llm) | 58 | 0 |
+| [llm](#llm) | 71 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
 | [util](#util) | 54 | 22 |
@@ -861,27 +861,40 @@ The language model (`src/core/llm`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [tests/unit/llm_answer_test.cpp:166](../../tests/unit/llm_answer_test.cpp#L166) |
-| an addressed message is handed to the model and consumed |  |  | [tests/unit/llm_answer_test.cpp:187](../../tests/unit/llm_answer_test.cpp#L187) |
-| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [tests/unit/llm_answer_test.cpp:201](../../tests/unit/llm_answer_test.cpp#L201) |
-| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [tests/unit/llm_answer_test.cpp:213](../../tests/unit/llm_answer_test.cpp#L213) |
-| a blacklisted user or role is not answered, and the message is still consumed |  |  | [tests/unit/llm_answer_test.cpp:241](../../tests/unit/llm_answer_test.cpp#L241) |
-| past a spend cap the bot says so once, then stays quiet |  |  | [tests/unit/llm_answer_test.cpp:253](../../tests/unit/llm_answer_test.cpp#L253) |
-| one person asking too often is rate limited, per minute |  |  | [tests/unit/llm_answer_test.cpp:273](../../tests/unit/llm_answer_test.cpp#L273) |
-| another bot is answered at the pace the guild set, until a person speaks |  |  | [tests/unit/llm_answer_test.cpp:289](../../tests/unit/llm_answer_test.cpp#L289) |
-| a message in a voice session's text channel is answered out loud too |  |  | [tests/unit/llm_answer_test.cpp:312](../../tests/unit/llm_answer_test.cpp#L312) |
-| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [tests/unit/llm_answer_test.cpp:326](../../tests/unit/llm_answer_test.cpp#L326) |
-| the model can remember something about the person it is answering | `coro` |  | [tests/unit/llm_answer_test.cpp:370](../../tests/unit/llm_answer_test.cpp#L370) |
-| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [tests/unit/llm_answer_test.cpp:384](../../tests/unit/llm_answer_test.cpp#L384) |
-| remember refuses what is too long, or a server that is full |  |  | [tests/unit/llm_answer_test.cpp:401](../../tests/unit/llm_answer_test.cpp#L401) |
-| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [tests/unit/llm_answer_test.cpp:415](../../tests/unit/llm_answer_test.cpp#L415) |
-| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [tests/unit/llm_answer_test.cpp:432](../../tests/unit/llm_answer_test.cpp#L432) |
-| a spoken answer is sanitized as the model's, posted as spoken, and queued in voice | `coro` |  | [tests/unit/llm_answer_test.cpp:452](../../tests/unit/llm_answer_test.cpp#L452) |
-| a long answer is posted as several messages, only the first a reply | `coro` |  | [tests/unit/llm_answer_test.cpp:470](../../tests/unit/llm_answer_test.cpp#L470) |
-| the conversation keeps the newest messages that fit the token budget |  |  | [tests/unit/llm_answer_test.cpp:489](../../tests/unit/llm_answer_test.cpp#L489) |
-| a transcript line cannot pass itself off as someone else speaking |  |  | [tests/unit/llm_answer_test.cpp:509](../../tests/unit/llm_answer_test.cpp#L509) |
-| the fixed rules come first, then the system document, then the personality |  |  | [tests/unit/llm_answer_test.cpp:519](../../tests/unit/llm_answer_test.cpp#L519) |
-| a reply too long for one message is split on line breaks, three messages at most |  |  | [tests/unit/llm_answer_test.cpp:532](../../tests/unit/llm_answer_test.cpp#L532) |
+| an alias is u and six letters that spell nothing |  |  | [tests/unit/llm_aliases_test.cpp:43](../../tests/unit/llm_aliases_test.cpp#L43) |
+| each person keeps one alias per server |  |  | [tests/unit/llm_aliases_test.cpp:57](../../tests/unit/llm_aliases_test.cpp#L57) |
+| mentions become aliases, and of the bot its name |  |  | [tests/unit/llm_aliases_test.cpp:74](../../tests/unit/llm_aliases_test.cpp#L74) |
+| roles, channels, emoji, timestamps and commands lose their ids |  |  | [tests/unit/llm_aliases_test.cpp:84](../../tests/unit/llm_aliases_test.cpp#L84) |
+| names written in text become markers, as whole words |  |  | [tests/unit/llm_aliases_test.cpp:96](../../tests/unit/llm_aliases_test.cpp#L96) |
+| a name too short to tell from a word is left |  |  | [tests/unit/llm_aliases_test.cpp:110](../../tests/unit/llm_aliases_test.cpp#L110) |
+| a marker already written is kept as it is |  |  | [tests/unit/llm_aliases_test.cpp:117](../../tests/unit/llm_aliases_test.cpp#L117) |
+| what the model writes gets its names back |  |  | [tests/unit/llm_aliases_test.cpp:124](../../tests/unit/llm_aliases_test.cpp#L124) |
+| someone known from before, not in this request, still gets their name |  |  | [tests/unit/llm_aliases_test.cpp:141](../../tests/unit/llm_aliases_test.cpp#L141) |
+| nothing sent names anyone, or gives an id |  |  | [tests/unit/llm_aliases_test.cpp:149](../../tests/unit/llm_aliases_test.cpp#L149) |
+| memories show the people they name as mentions in Discord |  |  | [tests/unit/llm_aliases_test.cpp:160](../../tests/unit/llm_aliases_test.cpp#L160) |
+| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [tests/unit/llm_answer_test.cpp:172](../../tests/unit/llm_answer_test.cpp#L172) |
+| an addressed message is handed to the model and consumed |  |  | [tests/unit/llm_answer_test.cpp:193](../../tests/unit/llm_answer_test.cpp#L193) |
+| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [tests/unit/llm_answer_test.cpp:207](../../tests/unit/llm_answer_test.cpp#L207) |
+| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [tests/unit/llm_answer_test.cpp:219](../../tests/unit/llm_answer_test.cpp#L219) |
+| a blacklisted user or role is not answered, and the message is still consumed |  |  | [tests/unit/llm_answer_test.cpp:247](../../tests/unit/llm_answer_test.cpp#L247) |
+| past a spend cap the bot says so once, then stays quiet |  |  | [tests/unit/llm_answer_test.cpp:259](../../tests/unit/llm_answer_test.cpp#L259) |
+| one person asking too often is rate limited, per minute |  |  | [tests/unit/llm_answer_test.cpp:279](../../tests/unit/llm_answer_test.cpp#L279) |
+| another bot is answered at the pace the guild set, until a person speaks |  |  | [tests/unit/llm_answer_test.cpp:295](../../tests/unit/llm_answer_test.cpp#L295) |
+| a message in a voice session's text channel is answered out loud too |  |  | [tests/unit/llm_answer_test.cpp:318](../../tests/unit/llm_answer_test.cpp#L318) |
+| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [tests/unit/llm_answer_test.cpp:332](../../tests/unit/llm_answer_test.cpp#L332) |
+| the model can remember something about the person it is answering | `coro` |  | [tests/unit/llm_answer_test.cpp:383](../../tests/unit/llm_answer_test.cpp#L383) |
+| a mention the model writes is posted as one, and spoken as a name | `coro` |  | [tests/unit/llm_answer_test.cpp:401](../../tests/unit/llm_answer_test.cpp#L401) |
+| the model's tools see people as aliases | `coro` |  | [tests/unit/llm_answer_test.cpp:407](../../tests/unit/llm_answer_test.cpp#L407) |
+| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [tests/unit/llm_answer_test.cpp:422](../../tests/unit/llm_answer_test.cpp#L422) |
+| remember refuses what is too long, or a server that is full |  |  | [tests/unit/llm_answer_test.cpp:439](../../tests/unit/llm_answer_test.cpp#L439) |
+| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [tests/unit/llm_answer_test.cpp:453](../../tests/unit/llm_answer_test.cpp#L453) |
+| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [tests/unit/llm_answer_test.cpp:470](../../tests/unit/llm_answer_test.cpp#L470) |
+| a spoken answer is sanitized as the model's, posted as spoken, and queued in voice | `coro` |  | [tests/unit/llm_answer_test.cpp:490](../../tests/unit/llm_answer_test.cpp#L490) |
+| a long answer is posted as several messages, only the first a reply | `coro` |  | [tests/unit/llm_answer_test.cpp:508](../../tests/unit/llm_answer_test.cpp#L508) |
+| the conversation keeps the newest messages that fit the token budget |  |  | [tests/unit/llm_answer_test.cpp:527](../../tests/unit/llm_answer_test.cpp#L527) |
+| a transcript line cannot pass itself off as someone else speaking |  |  | [tests/unit/llm_answer_test.cpp:549](../../tests/unit/llm_answer_test.cpp#L549) |
+| the fixed rules come first, then the system document, then the personality |  |  | [tests/unit/llm_answer_test.cpp:564](../../tests/unit/llm_answer_test.cpp#L564) |
+| a reply too long for one message is split on line breaks, three messages at most |  |  | [tests/unit/llm_answer_test.cpp:577](../../tests/unit/llm_answer_test.cpp#L577) |
 | a rate limit allows so many per window, then frees up as they age |  |  | [tests/unit/llm_guards_test.cpp:44](../../tests/unit/llm_guards_test.cpp#L44) |
 | bot turns in a row stop at the limit until a person speaks |  |  | [tests/unit/llm_guards_test.cpp:67](../../tests/unit/llm_guards_test.cpp#L67) |
 | a bot turn soon after the last one waits out the delay |  |  | [tests/unit/llm_guards_test.cpp:82](../../tests/unit/llm_guards_test.cpp#L82) |

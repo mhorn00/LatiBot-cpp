@@ -7,10 +7,21 @@
 #include <dpp/snowflake.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace latibot::ports {
+
+/// What a server member is called. Any of them may be empty.
+struct member_names {
+    /// Their nickname in this server.
+    std::string nickname;
+    /// Their display name, the same in every server.
+    std::string display_name;
+    /// Their account's username.
+    std::string username;
+};
 
 /// The Discord calls our features make.
 ///
@@ -60,6 +71,17 @@ public:
     virtual auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<result<dpp::snowflake>> = 0;
 
     virtual auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<result<void>> = 0;
+
+    /// What the bot's cache says a member is called, without asking
+    /// Discord. Nothing when the cache has not seen them.
+    [[nodiscard]] virtual auto member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const
+        -> std::optional<ports::member_names> = 0;
+
+    /// A role's name, from the cache. Nothing when it is not there.
+    [[nodiscard]] virtual auto role_name(dpp::snowflake role_id) const -> std::optional<std::string> = 0;
+
+    /// A channel's name, from the cache. Nothing when it is not there.
+    [[nodiscard]] virtual auto channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> = 0;
 };
 
 } // namespace latibot::ports

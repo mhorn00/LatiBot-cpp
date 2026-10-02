@@ -1568,6 +1568,15 @@ tokens from the oldest end, then the message it is answering; both numbers are
 [settings](#llm-settings). The messages are what it is shown, not instructions
 it has to follow, and it is told so.
 
+**Who it sees.** Never anyone's name or Discord ID. Each person is a random
+alias to it, and the names people type are swapped for markers; the bot puts
+the real names back into the reply before posting it. A name is caught when
+it is the name of someone in the conversation, written as their name; one
+spelt otherwise, or of someone else, is sent as typed. The server's documents
+keep the names written in them.
+[Language_Model.md §3.8](Language_Model.md#38-who-the-model-is-told-about)
+has the details.
+
 **What shapes it**, in this order, each outranking the next: rules built into
 the bot, which nobody in Discord can change; the server's
 [system instructions](#the-documents); its [personality](#the-documents),

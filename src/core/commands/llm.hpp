@@ -29,6 +29,7 @@ struct bootstrap;
 
 namespace latibot::llm {
 class advanced_trigger_store;
+class alias_store;
 class blacklist_store;
 class document_store;
 class memory_store;
@@ -132,6 +133,8 @@ struct llm_command_services {
     llm::advanced_trigger_store* triggers = nullptr;
     llm::blacklist_store* blacklist = nullptr;
     llm::memory_store* memories = nullptr;
+    /// To show the people a memory names as mentions, not aliases.
+    const llm::alias_store* aliases = nullptr;
     const llm::usage_store* usage = nullptr;
 
     /// For documents attached as files.

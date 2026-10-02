@@ -205,6 +205,8 @@ rows, upgrades, and checks the rows survived.
 | 11 | `llm` | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search`, `llm_blacklist`, `llm_triggers` | [Language_Model.md](Language_Model.md) |
 | 12 | `media_posts` | `replacement_messages.kind` | [Link_Stats.md](Link_Stats.md) |
 | 13 | `emoji_copies` | `emoji_images`, `emoji_copies` | [Link_Stats.md](Link_Stats.md) |
+| 14 | `emote_reactions` | `emote_reactions`, the view `counted_reactions` | [Link_Stats.md](Link_Stats.md) |
+| 15 | `llm_aliases` | `llm_aliases` | [Language_Model.md](Language_Model.md#38-who-the-model-is-told-about) |
 
 **Backups** use SQLite's online backup API, so a consistent copy is taken
 while the bot runs, even during an open write transaction. Every

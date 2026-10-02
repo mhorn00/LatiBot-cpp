@@ -13,7 +13,7 @@ namespace latibot::db {
 namespace {
 
 // Append only. Never edit a migration that has shipped.
-constexpr std::array<migration, 14> all_migrations{{
+constexpr std::array<migration, 15> all_migrations{{
     {.version = 1, .name = "guild_settings", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -433,6 +433,25 @@ constexpr std::array<migration, 14> all_migrations{{
             SELECT e.message_id, e.user_id, e.emoji_key, ((e.source_id >> 22) + 1420070400000) / 1000 FROM emote_reactions e
             WHERE NOT EXISTS (SELECT 1 FROM reactions r
                               WHERE r.message_id = e.message_id AND r.user_id = e.user_id AND r.emoji_key = e.emoji_key);
+     )sql"},
+    {.version = 15, .name = "llm_aliases", .sql = R"sql(
+        -- What the language model calls each person, in place of their
+        -- Discord id and their name (docs/features/Language_Model.md 3.8).
+        -- Random, one per person per server, and kept, so memories that
+        -- name someone by alias still mean them later.
+        CREATE TABLE llm_aliases (
+            guild_id INTEGER NOT NULL,
+            user_id  INTEGER NOT NULL,
+            alias    TEXT    NOT NULL,
+
+            -- What they were last seen called here, to put back into a
+            -- reply when the bot's cache does not know them.
+            name     TEXT    NOT NULL DEFAULT '',
+            username TEXT    NOT NULL DEFAULT '',
+
+            PRIMARY KEY (guild_id, user_id),
+            UNIQUE (guild_id, alias)
+        ) WITHOUT ROWID;
      )sql"},
 }};
 

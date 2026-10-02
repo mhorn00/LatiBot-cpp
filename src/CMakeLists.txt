@@ -64,6 +64,7 @@ add_library(latibot_core STATIC
     core/events/url_rules.cpp
     core/events/voice_sessions.cpp
     core/llm/advanced_triggers.cpp
+    core/llm/aliases.cpp
     core/llm/anthropic.cpp
     core/llm/documents.cpp
     core/llm/guards.cpp
