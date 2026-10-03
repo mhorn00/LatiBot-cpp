@@ -43,8 +43,7 @@ public:
     /// True when some line at `severity` contains `text`.
     [[nodiscard]] auto contains(util::log_level severity, std::string_view text) const -> bool {
         const std::scoped_lock guard(mutex_);
-        return std::ranges::any_of(lines_,
-                                   [&](const auto& line) { return line.first == severity && line.second.find(text) != std::string::npos; });
+        return std::ranges::any_of(lines_, [&](const auto& line) { return line.first == severity && line.second.contains(text); });
     }
 
 private:

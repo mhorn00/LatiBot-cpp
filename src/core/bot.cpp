@@ -454,7 +454,7 @@ auto bot::register_events() -> void {
         // it as a websocket number in a reconnect loop. The cause is always
         // the same toggle, so say which one rather than leaving somebody to
         // look the code up (docs/features/Operations.md §3).
-        if (settings_.track_nicknames && event.message.find("4014") != std::string::npos) {
+        if (settings_.track_nicknames && event.message.contains("4014")) {
             util::log().error(
                 "Discord refused the Server Members intent. Enable it under Bot > Privileged Gateway Intents "
                 "in the Discord developer portal, or set \"track_nicknames\": false in config.json.");

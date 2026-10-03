@@ -40,7 +40,7 @@ extern "C" auto LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t siz
     const auto match = latibot::events::classify(ours, bot, mirrors);
     for (const std::string& url : match.mirror_urls) {
         // Every mirror link is a piece of the message itself.
-        if (ours.content.find(url) == std::string::npos) std::abort();
+        if (!ours.content.contains(url)) std::abort();
     }
 
     if (match.what == latibot::events::legacy_match::kind::recognised) {

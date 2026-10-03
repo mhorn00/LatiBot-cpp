@@ -19,8 +19,8 @@ TEST_CASE("an empty allowlist explains itself", "[commands]") {
     // state has to say which one it is.
     const std::string body = render_allowed_bots({});
 
-    CHECK(body.find("No bots are allowed here") != std::string::npos);
-    CHECK(body.find("/bots allow") != std::string::npos);
+    CHECK(body.contains("No bots are allowed here"));
+    CHECK(body.contains("/bots allow"));
 }
 
 TEST_CASE("allowed bots are listed by name where one is known", "[commands]") {
@@ -28,9 +28,9 @@ TEST_CASE("allowed bots are listed by name where one is known", "[commands]") {
 
     const std::string body = render_allowed_bots(known);
 
-    CHECK(body.find("DiceBot") != std::string::npos);
-    CHECK(body.find("QuoteBot") != std::string::npos);
-    CHECK(body.find("55") != std::string::npos);
+    CHECK(body.contains("DiceBot"));
+    CHECK(body.contains("QuoteBot"));
+    CHECK(body.contains("55"));
 }
 
 TEST_CASE("a bot that has left is still listed, and says so", "[commands]") {
@@ -39,8 +39,8 @@ TEST_CASE("a bot that has left is still listed, and says so", "[commands]") {
 
     const std::string body = render_allowed_bots(known);
 
-    CHECK(body.find("55") != std::string::npos);
-    CHECK(body.find("not in this server any more") != std::string::npos);
+    CHECK(body.contains("55"));
+    CHECK(body.contains("not in this server any more"));
 }
 
 TEST_CASE("the list says that hearing is not answering", "[commands]") {
@@ -49,5 +49,5 @@ TEST_CASE("the list says that hearing is not answering", "[commands]") {
     // (docs/features/Message_Pipeline.md §2.1).
     const std::vector<listed_bot> known{{dpp::snowflake{55}, "DiceBot"}};
 
-    CHECK(render_allowed_bots(known).find("bots:true") != std::string::npos);
+    CHECK(render_allowed_bots(known).contains("bots:true"));
 }

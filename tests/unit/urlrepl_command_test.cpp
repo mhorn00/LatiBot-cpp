@@ -75,10 +75,10 @@ TEST_CASE("a mirror listed twice is kept once, in its first place", "[commands]"
 
 TEST_CASE("rules that could not work are refused with a reason", "[commands]") {
     CHECK(problem_with("x.com", "") == "a rule needs at least one mirror to send links to");
-    CHECK(problem_with("x.com", "x.com").find("can't be its own mirror") != std::string::npos);
-    CHECK(problem_with("localhost", "fxtwitter.com").find("doesn't look like a site") != std::string::npos);
-    CHECK(problem_with("x.com", "notamirror").find("doesn't look like a mirror") != std::string::npos);
-    CHECK(problem_with("x.com", "a.com b.com c.com d.com e.com f.com g.com h.com i.com").find("most one rule takes") != std::string::npos);
+    CHECK(problem_with("x.com", "x.com").contains("can't be its own mirror"));
+    CHECK(problem_with("localhost", "fxtwitter.com").contains("doesn't look like a site"));
+    CHECK(problem_with("x.com", "notamirror").contains("doesn't look like a mirror"));
+    CHECK(problem_with("x.com", "a.com b.com c.com d.com e.com f.com g.com h.com i.com").contains("most one rule takes"));
 }
 
 TEST_CASE("a rule describes itself in one line", "[commands]") {
@@ -94,26 +94,26 @@ TEST_CASE("the dry run shows the post and accounts for every link", "[commands]"
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com vxtwitter.com")};
     const std::string reply = render_test("||https://x.com/a/status/1|| https://example.com/b <https://x.com/c>", rules, false, true);
 
-    CHECK(reply.find("🔗 ||[_](https://fxtwitter.com/a/status/1)||") != std::string::npos);
-    CHECK(reply.find("replaced using the x.com rule, trying fxtwitter.com, vxtwitter.com (spoilered") != std::string::npos);
-    CHECK(reply.find("no rule for example.com") != std::string::npos);
-    CHECK(reply.find("turns its preview off") != std::string::npos);
-    CHECK(reply.find("opted out") == std::string::npos);
+    CHECK(reply.contains("🔗 ||[_](https://fxtwitter.com/a/status/1)||"));
+    CHECK(reply.contains("replaced using the x.com rule, trying fxtwitter.com, vxtwitter.com (spoilered"));
+    CHECK(reply.contains("no rule for example.com"));
+    CHECK(reply.contains("turns its preview off"));
+    CHECK_FALSE(reply.contains("opted out"));
 }
 
 TEST_CASE("the dry run says when the person running it has opted out", "[commands]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
-    CHECK(render_test("https://x.com/a", rules, true, true).find("opted out") != std::string::npos);
+    CHECK(render_test("https://x.com/a", rules, true, true).contains("opted out"));
 }
 
 TEST_CASE("the dry run works while replacement is off, and says that it is", "[commands]") {
     // Trying rules out before switching them on is the point of it.
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     const std::string off = render_test("https://x.com/a", rules, false, false);
-    CHECK(off.find("**Would post:**") != std::string::npos);
-    CHECK(off.find("`/urlrepl enable`") != std::string::npos);
+    CHECK(off.contains("**Would post:**"));
+    CHECK(off.contains("`/urlrepl enable`"));
 
-    CHECK(render_test("https://x.com/a", rules, false, true).find("`/urlrepl enable`") == std::string::npos);
+    CHECK_FALSE(render_test("https://x.com/a", rules, false, true).contains("`/urlrepl enable`"));
 }
 
 TEST_CASE("the dry run says when there is nothing to do", "[commands]") {
@@ -131,7 +131,7 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
 
     const std::string reply = render_test(content, rules, false, true);
     CHECK(reply.size() <= 2000);
-    CHECK(reply.find("more") != std::string::npos);
+    CHECK(reply.contains("more"));
 }
 
 // --------------------------------------------------------------------------
@@ -141,7 +141,7 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
 TEST_CASE("an empty list says how to start one", "[commands]") {
     const store_fixture fixture;
     const auto message = latibot::commands::render_url_rule_list(fixture.store, guild, 0);
-    CHECK(message.content.find("/urlrepl set") != std::string::npos);
+    CHECK(message.content.contains("/urlrepl set"));
     CHECK(message.components.empty());
 }
 
@@ -163,12 +163,12 @@ TEST_CASE("the list and the panel say whether replacement is on", "[commands]") 
     store_fixture fixture;
     fixture.store.set(guild, rule_from("x.com", "fxtwitter.com"));
 
-    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.find("**off**") != std::string::npos);
-    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.find("**off**") != std::string::npos);
+    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.contains("**off**"));
+    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.contains("**off**"));
 
     fixture.store.set_enabled(guild, true);
-    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.find("**on**") != std::string::npos);
-    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.find("**on**") != std::string::npos);
+    CHECK(latibot::commands::render_url_rule_list(fixture.store, guild, 0).content.contains("**on**"));
+    CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.contains("**on**"));
 }
 
 TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]") {
@@ -207,10 +207,10 @@ TEST_CASE("turning replacement on or off says what changed", "[commands]") {
 
     using latibot::commands::render_switch;
     CHECK(render_switch(false, true, 3) == "Link replacement was already on here.");
-    CHECK(render_switch(true, true, 0).find("no rules yet") != std::string::npos);
-    CHECK(render_switch(true, true, 1).find("Its one rule applies") != std::string::npos);
-    CHECK(render_switch(true, true, 3).find("Its 3 rules apply") != std::string::npos);
-    CHECK(render_switch(true, false, 3).find("rules are kept") != std::string::npos);
+    CHECK(render_switch(true, true, 0).contains("no rules yet"));
+    CHECK(render_switch(true, true, 1).contains("Its one rule applies"));
+    CHECK(render_switch(true, true, 3).contains("Its 3 rules apply"));
+    CHECK(render_switch(true, false, 3).contains("rules are kept"));
 }
 
 TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]") {
@@ -220,8 +220,8 @@ TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]
     }
 
     const auto first = latibot::commands::render_url_panel(fixture.store, guild, 0);
-    CHECK(first.content.find("**a.com**") != std::string::npos);
-    CHECK(first.content.find("**f.com**") == std::string::npos);
+    CHECK(first.content.contains("**a.com**"));
+    CHECK_FALSE(first.content.contains("**f.com**"));
     latibot::testing::check_message_fits(first);
 
     // Menu and footer; no Edit/Delete until something is picked.
@@ -278,8 +278,8 @@ TEST_CASE("the panel follows a rule to the page it sorts onto", "[commands]") {
     }
 
     const auto panel = latibot::commands::render_url_panel(fixture.store, guild, 0, "z.com");
-    CHECK(panel.content.find("**z.com**") != std::string::npos);
-    CHECK(panel.content.find("Page 2 of 2") != std::string::npos);
+    CHECK(panel.content.contains("**z.com**"));
+    CHECK(panel.content.contains("Page 2 of 2"));
 }
 
 TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {

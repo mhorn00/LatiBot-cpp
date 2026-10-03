@@ -25,7 +25,7 @@ TEST_CASE("text that is not a link is refused, with the reason", "[music]") {
     CHECK_FALSE(check_link("youtube.com/watch?v=abc").ok());
     CHECK_FALSE(check_link("ftp://example.com/a.mp3").ok());
     CHECK_FALSE(check_link("file:///C:/Windows/win.ini").ok());
-    CHECK(check_link("search for this").refusal.find("only play links") != std::string::npos);
+    CHECK(check_link("search for this").refusal.contains("only play links"));
 }
 
 TEST_CASE("a link that looks like an option is still a link or nothing", "[music]") {
@@ -39,7 +39,7 @@ TEST_CASE("links into the host's own network are refused", "[music]") {
                              "http://192.168.1.1/", "http://172.20.0.1/", "http://169.254.169.254/latest/meta-data/", "http://[::1]/",
                              "http://[fe80::1]/", "http://user:pass@127.0.0.1:81/"}) {
         INFO(link);
-        CHECK(check_link(link).refusal.find("private network") != std::string::npos);
+        CHECK(check_link(link).refusal.contains("private network"));
     }
     CHECK(check_link("http://8.8.8.8/").ok());
     CHECK(check_link("http://[2606:4700:4700::1111]/").ok());

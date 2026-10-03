@@ -39,7 +39,7 @@ auto url_replacer::operator()(const incoming_message& message) const -> stage_re
     // Almost every message has no link at all, and this keeps them away from
     // the database. "://" rather than "http", because the scheme can be
     // written in any case.
-    if (message.content.find("://") == std::string::npos) return {};
+    if (!message.content.contains("://")) return {};
 
     // The author turned previews off themselves.
     if (message.embeds_suppressed) return {};

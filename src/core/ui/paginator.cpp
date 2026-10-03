@@ -12,7 +12,7 @@ constexpr char separator = ':';
 /// The view name and the page number are read back by splitting on ':', so
 /// neither may contain one. The argument may: it is whatever is left.
 auto usable_view_name(std::string_view view) -> bool {
-    return !view.empty() && view.find(separator) == std::string_view::npos;
+    return !view.empty() && !view.contains(separator);
 }
 
 } // namespace

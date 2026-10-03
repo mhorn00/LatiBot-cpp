@@ -243,17 +243,17 @@ TEST_CASE("the attachment spells out times rather than leaving markup in a file"
     const std::vector<nickname_change> history{named, cleared};
     const std::string text = render_history_text(history, "somebody (3000)");
 
-    CHECK(text.find("Nickname history for somebody (3000)") != std::string::npos);
-    CHECK(text.find("2 entries") != std::string::npos);
-    CHECK(text.find("2026-09-23 12:00:00  worm scientist  (by 4000)") != std::string::npos);
-    CHECK(text.find("2026-09-23 12:00:00  (cleared)\n") != std::string::npos);
+    CHECK(text.contains("Nickname history for somebody (3000)"));
+    CHECK(text.contains("2 entries"));
+    CHECK(text.contains("2026-09-23 12:00:00  worm scientist  (by 4000)"));
+    CHECK(text.contains("2026-09-23 12:00:00  (cleared)\n"));
 
     // No Discord markup: a .txt attachment has nothing to render it.
-    CHECK(text.find("<t:") == std::string::npos);
+    CHECK_FALSE(text.contains("<t:"));
 }
 
 TEST_CASE("one entry is not described as one entries", "[events]") {
     const std::vector<nickname_change> history{change_to("worm scientist")};
 
-    CHECK(render_history_text(history, "somebody").find("1 entry,") != std::string::npos);
+    CHECK(render_history_text(history, "somebody").contains("1 entry,"));
 }

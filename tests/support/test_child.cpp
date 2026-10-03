@@ -139,19 +139,19 @@ auto child_main() -> int {
     }
     if (mode == "--ignore-config") {
         const std::string& link = args.back();
-        if (link.find("fail") != std::string::npos) {
+        if (link.contains("fail")) {
             const std::string line = "ERROR: [generic] Unable to download webpage: HTTP Error 404: Not Found\n";
             write_all(err, line.data(), line.size());
             return 1;
         }
-        if (link.find("hang") != std::string::npos) return hang();
+        if (link.contains("hang")) return hang();
         std::string title = "A song";
         const auto flag = std::ranges::find(args, std::string("--cookies"));
         if (flag != args.end() && flag + 1 != args.end()) {
             const std::string& file = *(flag + 1);
             std::ifstream cookies(file, std::ios::binary);
             const std::string held((std::istreambuf_iterator<char>(cookies)), std::istreambuf_iterator<char>());
-            if (held.find("youtube.com\t") != std::string::npos) title = "signed in";
+            if (held.contains("youtube.com\t")) title = "signed in";
             cookies.close();
             std::ofstream(file, std::ios::binary | std::ios::trunc) << "# written back by the stand-in\n";
         }
@@ -160,7 +160,7 @@ auto child_main() -> int {
             const std::string profile = (browser + 1)->substr(std::string_view("firefox:").size());
             if (GetFileAttributesA((profile + "\\cookies.sqlite").c_str()) != INVALID_FILE_ATTRIBUTES) title = "signed in";
         }
-        if (link.find("adult") != std::string::npos && title != "signed in") {
+        if (link.contains("adult") && title != "signed in") {
             const std::string line =
                 "ERROR: [youtube] abc: Sign in to confirm your age. This video may be inappropriate for some users. "
                 "Use --cookies-from-browser or --cookies for the authentication.\n";
@@ -168,7 +168,7 @@ auto child_main() -> int {
             return 1;
         }
         std::string json;
-        if (link.find("list") != std::string::npos) {
+        if (link.contains("list")) {
             json = R"({"_type": "playlist", "title": "Three songs", "playlist_count": 3, "entries": [)"
                    R"({"url": "https://example.com/1", "title": "One", "duration": 60},)"
                    R"({"url": "https://example.com/2", "title": "Two", "duration": 120.4},)"

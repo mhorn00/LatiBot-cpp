@@ -124,7 +124,7 @@ auto make_profile(const std::filesystem::path& profile, const std::vector<std::p
 }
 
 auto retried(const std::vector<std::pair<latibot::util::log_level, std::string>>& lines) -> bool {
-    return std::ranges::any_of(lines, [](const auto& line) { return line.second.find("tries again signed in") != std::string::npos; });
+    return std::ranges::any_of(lines, [](const auto& line) { return line.second.contains("tries again signed in"); });
 }
 
 } // namespace
@@ -244,7 +244,7 @@ TEST_CASE("loading the cookies the owner named", "[music]") {
         write(folder.file("cookies.json"), R"([{"domain": ".youtube.com"}])");
         const auto status = load_cookies(folder.file("cookies.json"), std::nullopt, copies);
         CHECK_FALSE(status.source.has_value());
-        CHECK(status.problem.find("Netscape") != std::string::npos);
+        CHECK(status.problem.contains("Netscape"));
     }
     SECTION("a file with no cookies") {
         write(folder.file("empty.txt"), "# Netscape HTTP Cookie File\n\n");
@@ -383,7 +383,7 @@ TEST_CASE("the resolver reads signed out, and signs in only when yt-dlp asks to"
     SECTION("a failure signing in would not help, told without a retry") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/fail", 100);
         REQUIRE_FALSE(lookup.ok());
-        CHECK(lookup.error().message.find("HTTP Error 404") != std::string::npos);
+        CHECK(lookup.error().message.contains("HTTP Error 404"));
         CHECK_FALSE(retried(log.lines()));
     }
 }
@@ -402,7 +402,7 @@ TEST_CASE("without cookies, an age-restricted link is refused as YouTube refused
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1);
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
     REQUIRE_FALSE(lookup.ok());
-    CHECK(lookup.error().message.find("Sign in to confirm your age") != std::string::npos);
+    CHECK(lookup.error().message.contains("Sign in to confirm your age"));
 }
 
 TEST_CASE("a track refused for want of signing in is fetched again, signed in", "[music][threads]") {
@@ -434,7 +434,7 @@ TEST_CASE("a track refused for want of signing in is fetched again, signed in", 
         });
         (void)drain(stream);
         CHECK(stream.state() == stream_state::failed);
-        CHECK(stream.error().find("Sign in to confirm your age") != std::string::npos);
+        CHECK(stream.error().contains("Sign in to confirm your age"));
         CHECK(tries == 1);
     }
     SECTION("a track that failed after some of it played is not started over") {

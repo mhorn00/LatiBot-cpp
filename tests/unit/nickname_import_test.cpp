@@ -179,7 +179,7 @@ TEST_CASE("malformed shapes are named rather than dropped quietly", "[events]") 
     SECTION("a key that is not a guild id") {
         const import_report report = read_nicknames_json(R"json({"not-an-id": []})json");
         REQUIRE(report.problems.size() == 1);
-        CHECK(report.problems.front().find("not-an-id") != std::string::npos);
+        CHECK(report.problems.front().contains("not-an-id"));
     }
 
     SECTION("a guild that does not hold a list") {

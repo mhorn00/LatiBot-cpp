@@ -100,14 +100,14 @@ auto render_switch(bool changed, bool enabled, std::size_t rule_count) -> std::s
 
 auto build_rule(std::string_view domain_text, std::string_view mirrors_text) -> std::variant<events::url_rule, std::string> {
     const auto domain = events::normalise_domain(domain_text);
-    if (!domain || domain->find('.') == std::string::npos) {
+    if (!domain || !domain->contains('.')) {
         return std::format("\"{}\" doesn't look like a site; try something like x.com", util::trim(domain_text));
     }
 
     events::url_rule rule{.domain = *domain, .mirrors = {}};
     for (const std::string_view word : mirror_words(mirrors_text)) {
         const auto entry = events::parse_mirror(word);
-        if (!entry || entry->host.find('.') == std::string::npos) {
+        if (!entry || !entry->host.contains('.')) {
             return std::format("\"{}\" doesn't look like a mirror; try something like fxtwitter.com", word);
         }
         if (entry->host == rule.domain) return std::format("{} can't be its own mirror", rule.domain);
@@ -514,7 +514,7 @@ auto urlrepl_command::autocomplete(const dpp::autocomplete_t& event) const -> vo
     std::size_t offered = 0;
     for (const events::url_rule& rule : store_->for_guild(event.command.guild_id)) {
         if (offered == domain_choices) break;
-        if (wanted.empty() || rule.domain.find(wanted) != std::string::npos) {
+        if (wanted.empty() || rule.domain.contains(wanted)) {
             reply.add_autocomplete_choice(dpp::command_option_choice(rule.domain, rule.domain));
             ++offered;
         }

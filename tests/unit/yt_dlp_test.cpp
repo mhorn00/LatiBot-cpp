@@ -180,12 +180,12 @@ TEST_CASE("the resolver runs yt-dlp and reads what it says", "[music][threads][c
     SECTION("a failure, told as yt-dlp told it") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/fail", 100);
         REQUIRE_FALSE(lookup.ok());
-        CHECK(lookup.error().message.find("HTTP Error 404") != std::string::npos);
+        CHECK(lookup.error().message.contains("HTTP Error 404"));
     }
     SECTION("a private address, refused before yt-dlp runs") {
         const auto lookup = resolver.lookup_now("http://127.0.0.1/list", 100);
         REQUIRE_FALSE(lookup.ok());
-        CHECK(lookup.error().message.find("private network") != std::string::npos);
+        CHECK(lookup.error().message.contains("private network"));
     }
     SECTION("through the workers") {
         const auto lookup = resolver.lookup("https://203.0.113.5/song", 100).sync_wait_for(10s);
@@ -198,7 +198,7 @@ TEST_CASE("a link yt-dlp takes too long over is given up on", "[music][threads]"
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 300ms);
     const auto lookup = resolver.lookup_now("https://203.0.113.5/hang", 100);
     REQUIRE_FALSE(lookup.ok());
-    CHECK(lookup.error().message.find("took more than") != std::string::npos);
+    CHECK(lookup.error().message.contains("took more than"));
 }
 
 TEST_CASE("a stream delivers every sample, in order, then finishes", "[music][threads]") {
@@ -222,7 +222,7 @@ TEST_CASE("a stream that produces nothing for too long has failed", "[music][thr
     process_stream stream({child({"hang"})}, 200ms);
     std::this_thread::sleep_for(400ms);
     CHECK(stream.state() == stream_state::failed);
-    CHECK(stream.error().find("no audio arrived") != std::string::npos);
+    CHECK(stream.error().contains("no audio arrived"));
 }
 
 TEST_CASE("a stream whose program cannot start has failed at once", "[music]") {

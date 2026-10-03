@@ -283,19 +283,19 @@ Command framework (`src/core/commands`)
 | link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:263](../../tests/unit/linkstats_command_test.cpp#L263) |
 | the longest site filter still leaves room for a board's paging |  |  | [tests/unit/linkstats_command_test.cpp:276](../../tests/unit/linkstats_command_test.cpp#L276) |
 | a recompute's report says what it found and what it could not read |  | 3 | [tests/unit/linkstats_command_test.cpp:302](../../tests/unit/linkstats_command_test.cpp#L302) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:370](../../tests/unit/linkstats_command_test.cpp#L370) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:389](../../tests/unit/linkstats_command_test.cpp#L389) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:431](../../tests/unit/linkstats_command_test.cpp#L431) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:456](../../tests/unit/linkstats_command_test.cpp#L456) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:479](../../tests/unit/linkstats_command_test.cpp#L479) |
-| a finished recompute is answered with a ping to whoever started it |  | 3 | [tests/unit/linkstats_command_test.cpp:487](../../tests/unit/linkstats_command_test.cpp#L487) |
-| every reaction, by emoji, for everyone or for one person |  | 3 | [tests/unit/linkstats_command_test.cpp:537](../../tests/unit/linkstats_command_test.cpp#L537) |
-| a page of one person's reactions stays theirs |  |  | [tests/unit/linkstats_command_test.cpp:578](../../tests/unit/linkstats_command_test.cpp#L578) |
-| a board's buttons from before people could be named still page |  |  | [tests/unit/linkstats_command_test.cpp:606](../../tests/unit/linkstats_command_test.cpp#L606) |
-| a board says what it counts: links, images, or both |  |  | [tests/unit/linkstats_command_test.cpp:620](../../tests/unit/linkstats_command_test.cpp#L620) |
-| what a board counts survives the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:641](../../tests/unit/linkstats_command_test.cpp#L641) |
-| images are turned on per server, and the boards can ask for them |  |  | [tests/unit/linkstats_command_test.cpp:657](../../tests/unit/linkstats_command_test.cpp#L657) |
-| a recompute that counts images says what it found |  |  | [tests/unit/linkstats_command_test.cpp:682](../../tests/unit/linkstats_command_test.cpp#L682) |
+| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:371](../../tests/unit/linkstats_command_test.cpp#L371) |
+| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:390](../../tests/unit/linkstats_command_test.cpp#L390) |
+| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:432](../../tests/unit/linkstats_command_test.cpp#L432) |
+| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:457](../../tests/unit/linkstats_command_test.cpp#L457) |
+| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:480](../../tests/unit/linkstats_command_test.cpp#L480) |
+| a finished recompute is answered with a ping to whoever started it |  | 3 | [tests/unit/linkstats_command_test.cpp:488](../../tests/unit/linkstats_command_test.cpp#L488) |
+| every reaction, by emoji, for everyone or for one person |  | 3 | [tests/unit/linkstats_command_test.cpp:538](../../tests/unit/linkstats_command_test.cpp#L538) |
+| a page of one person's reactions stays theirs |  |  | [tests/unit/linkstats_command_test.cpp:579](../../tests/unit/linkstats_command_test.cpp#L579) |
+| a board's buttons from before people could be named still page |  |  | [tests/unit/linkstats_command_test.cpp:607](../../tests/unit/linkstats_command_test.cpp#L607) |
+| a board says what it counts: links, images, or both |  |  | [tests/unit/linkstats_command_test.cpp:621](../../tests/unit/linkstats_command_test.cpp#L621) |
+| what a board counts survives the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:642](../../tests/unit/linkstats_command_test.cpp#L642) |
+| images are turned on per server, and the boards can ask for them |  |  | [tests/unit/linkstats_command_test.cpp:658](../../tests/unit/linkstats_command_test.cpp#L658) |
+| a recompute that counts images says what it found |  |  | [tests/unit/linkstats_command_test.cpp:683](../../tests/unit/linkstats_command_test.cpp#L683) |
 | per_page sets how many to a page, and the buttons remember it |  |  | [tests/unit/linkstats_command_test.cpp:711](../../tests/unit/linkstats_command_test.cpp#L711) |
 | a page size is only as big as fits in a message |  | 1 | [tests/unit/linkstats_command_test.cpp:739](../../tests/unit/linkstats_command_test.cpp#L739) |
 | a page size survives the trip through a button, and nothing else passes for one |  |  | [tests/unit/linkstats_command_test.cpp:767](../../tests/unit/linkstats_command_test.cpp#L767) |
@@ -306,13 +306,13 @@ Command framework (`src/core/commands`)
 | the document form fits a modal and is filled with the current text |  |  | [tests/unit/llm_command_test.cpp:109](../../tests/unit/llm_command_test.cpp#L109) |
 | a document is shown inline when short, and attached when not |  |  | [tests/unit/llm_command_test.cpp:120](../../tests/unit/llm_command_test.cpp#L120) |
 | saving a large document warns that it is sent with every message |  |  | [tests/unit/llm_command_test.cpp:134](../../tests/unit/llm_command_test.cpp#L134) |
-| history lists the newest versions first, with who and when |  |  | [tests/unit/llm_command_test.cpp:141](../../tests/unit/llm_command_test.cpp#L141) |
-| the settings panel shows every setting and fits a message |  |  | [tests/unit/llm_command_test.cpp:155](../../tests/unit/llm_command_test.cpp#L155) |
-| each settings form fits a modal and is filled with the current values |  |  | [tests/unit/llm_command_test.cpp:164](../../tests/unit/llm_command_test.cpp#L164) |
-| a settings form is stored whole or not at all, naming what was out of range |  |  | [tests/unit/llm_command_test.cpp:173](../../tests/unit/llm_command_test.cpp#L173) |
-| the memory list pages ten at a time, carrying whose list it is |  |  | [tests/unit/llm_command_test.cpp:189](../../tests/unit/llm_command_test.cpp#L189) |
-| the status says what was spent against the caps |  |  | [tests/unit/llm_command_test.cpp:206](../../tests/unit/llm_command_test.cpp#L206) |
-| the llm and memory commands register, within Discord's limits |  |  | [tests/unit/llm_command_test.cpp:219](../../tests/unit/llm_command_test.cpp#L219) |
+| history lists the newest versions first, with who and when |  |  | [tests/unit/llm_command_test.cpp:140](../../tests/unit/llm_command_test.cpp#L140) |
+| the settings panel shows every setting and fits a message |  |  | [tests/unit/llm_command_test.cpp:154](../../tests/unit/llm_command_test.cpp#L154) |
+| each settings form fits a modal and is filled with the current values |  |  | [tests/unit/llm_command_test.cpp:163](../../tests/unit/llm_command_test.cpp#L163) |
+| a settings form is stored whole or not at all, naming what was out of range |  |  | [tests/unit/llm_command_test.cpp:172](../../tests/unit/llm_command_test.cpp#L172) |
+| the memory list pages ten at a time, carrying whose list it is |  |  | [tests/unit/llm_command_test.cpp:188](../../tests/unit/llm_command_test.cpp#L188) |
+| the status says what was spent against the caps |  |  | [tests/unit/llm_command_test.cpp:205](../../tests/unit/llm_command_test.cpp#L205) |
+| the llm and memory commands register, within Discord's limits |  |  | [tests/unit/llm_command_test.cpp:218](../../tests/unit/llm_command_test.cpp#L218) |
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
@@ -539,10 +539,10 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | the level can change without moving the channel | `coro` |  | [tests/unit/log_channel_test.cpp:200](../../tests/unit/log_channel_test.cpp#L200) |
 | a failed post waits before trying again, longer each time | `coro` |  | [tests/unit/log_channel_test.cpp:214](../../tests/unit/log_channel_test.cpp#L214) |
 | the first failure is logged, and the lines it lost are counted | `coro` |  | [tests/unit/log_channel_test.cpp:253](../../tests/unit/log_channel_test.cpp#L253) |
-| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:271](../../tests/unit/log_channel_test.cpp#L271) |
-| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:289](../../tests/unit/log_channel_test.cpp#L289) |
-| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:305](../../tests/unit/log_channel_test.cpp#L305) |
-| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:318](../../tests/unit/log_channel_test.cpp#L318) |
+| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:270](../../tests/unit/log_channel_test.cpp#L270) |
+| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:288](../../tests/unit/log_channel_test.cpp#L288) |
+| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:304](../../tests/unit/log_channel_test.cpp#L304) |
+| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:317](../../tests/unit/log_channel_test.cpp#L317) |
 | stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:51](../../tests/unit/message_pipeline_test.cpp#L51) |
 | a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:64](../../tests/unit/message_pipeline_test.cpp#L64) |
 | the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:79](../../tests/unit/message_pipeline_test.cpp#L79) |

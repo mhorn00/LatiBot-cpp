@@ -48,25 +48,25 @@ TEST_CASE("only the trusted users can choose where the log goes", "[commands]") 
 }
 
 TEST_CASE("the log channel's state says where, from which level, and how it is going", "[commands]") {
-    CHECK(render_log_channel({}, here).find("`/logs set`") != std::string::npos);
+    CHECK(render_log_channel({}, here).contains("`/logs set`"));
 
     const std::string plain = render_log_channel(pointing_at(here, log_level::info), here);
-    CHECK(plain.find("<#200>") != std::string::npos);
-    CHECK(plain.find("**info** and above") != std::string::npos);
-    CHECK(plain.find("another server") == std::string::npos);
-    CHECK(plain.find("failing") == std::string::npos);
+    CHECK(plain.contains("<#200>"));
+    CHECK(plain.contains("**info** and above"));
+    CHECK_FALSE(plain.contains("another server"));
+    CHECK_FALSE(plain.contains("failing"));
 
-    CHECK(render_log_channel(pointing_at(here, log_level::trace), here).find("everything") != std::string::npos);
-    CHECK(render_log_channel(pointing_at(dpp::snowflake{300}, log_level::info), here).find("another server (`300`)") != std::string::npos);
+    CHECK(render_log_channel(pointing_at(here, log_level::trace), here).contains("everything"));
+    CHECK(render_log_channel(pointing_at(dpp::snowflake{300}, log_level::info), here).contains("another server (`300`)"));
 
     log_channel_status failing = pointing_at(here, log_level::warn);
     failing.waiting = 12;
     failing.failure = "Missing Access";
     failing.retry_in = 60s;
     const std::string trouble = render_log_channel(failing, here);
-    CHECK(trouble.find("12 line(s) waiting") != std::string::npos);
-    CHECK(trouble.find("Missing Access") != std::string::npos);
-    CHECK(trouble.find("60s") != std::string::npos);
+    CHECK(trouble.contains("12 line(s) waiting"));
+    CHECK(trouble.contains("Missing Access"));
+    CHECK(trouble.contains("60s"));
 }
 
 TEST_CASE("the logs command registers, with a level for every choice but off", "[commands]") {

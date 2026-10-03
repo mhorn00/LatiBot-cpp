@@ -38,7 +38,7 @@ auto history_of(std::size_t entries) -> std::vector<nickname_change> {
 TEST_CASE("an empty history says so rather than showing an empty page", "[commands]") {
     const dpp::message reply = render_nickname_history({}, member, 0);
 
-    CHECK(reply.content.find("Nothing recorded here yet.") != std::string::npos);
+    CHECK(reply.content.contains("Nothing recorded here yet."));
 
     // One empty page needs no buttons to page between.
     CHECK(reply.components.empty());
@@ -48,23 +48,23 @@ TEST_CASE("a history page shows its entries and where it is", "[commands]") {
     const auto history = history_of(3);
     const dpp::message reply = render_nickname_history(history, member, 0);
 
-    CHECK(reply.content.find("**Nickname history for <@3000>**") != std::string::npos);
-    CHECK(reply.content.find("name 0") != std::string::npos);
-    CHECK(reply.content.find("name 2") != std::string::npos);
-    CHECK(reply.content.find("Page 1 of 1") != std::string::npos);
+    CHECK(reply.content.contains("**Nickname history for <@3000>**"));
+    CHECK(reply.content.contains("name 0"));
+    CHECK(reply.content.contains("name 2"));
+    CHECK(reply.content.contains("Page 1 of 1"));
 }
 
 TEST_CASE("a long history pages, and the buttons remember whose it is", "[commands]") {
     const auto history = history_of(nicknames_per_page * 2);
     const dpp::message reply = render_nickname_history(history, member, 1);
 
-    CHECK(reply.content.find("Page 2 of 2") != std::string::npos);
+    CHECK(reply.content.contains("Page 2 of 2"));
     latibot::testing::check_message_fits(reply);
     latibot::testing::check_message_fits(render_nickname_history(history, member, 0));
 
     // The second page holds the older half.
-    CHECK(reply.content.find(std::format("name {}", nicknames_per_page)) != std::string::npos);
-    CHECK(reply.content.find("name 0\n") == std::string::npos);
+    CHECK(reply.content.contains(std::format("name {}", nicknames_per_page)));
+    CHECK_FALSE(reply.content.contains("name 0\n"));
 
     REQUIRE_FALSE(reply.components.empty());
     const auto& buttons = reply.components.front().components;
@@ -84,7 +84,7 @@ TEST_CASE("a page number from a stale button is brought back in range", "[comman
     // The history was longer when that button was made. Clamping beats an
     // error, since somebody scrolling back through an old reply is ordinary.
     const dpp::message reply = render_nickname_history(history, member, 40);
-    CHECK(reply.content.find("Page 1 of 1") != std::string::npos);
+    CHECK(reply.content.contains("Page 1 of 1"));
 }
 
 TEST_CASE("a history is posted for the room, not just for whoever asked", "[commands]") {
@@ -103,7 +103,7 @@ TEST_CASE("a history reply cannot ping the people it names", "[commands]") {
     // Mentions are how somebody who has left the server still gets a name.
     // The message is public, so without this every person in the history
     // would be pinged by somebody else looking it up.
-    CHECK(reply.content.find("<@4000>") != std::string::npos);
+    CHECK(reply.content.contains("<@4000>"));
     CHECK_FALSE(reply.allowed_mentions.parse_users);
     CHECK_FALSE(reply.allowed_mentions.parse_everyone);
     CHECK_FALSE(reply.allowed_mentions.parse_roles);

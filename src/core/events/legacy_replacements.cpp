@@ -64,7 +64,7 @@ auto masked_format(std::string_view content, const std::vector<masked_link>& mas
     }
     rest += content.substr(last);
 
-    const bool marked = rest.find("🔗") != std::string::npos || rest.find(":link:") != std::string::npos;
+    const bool marked = rest.contains("🔗") || rest.contains(":link:");
     if (!only_decoration(rest)) return std::nullopt;
 
     // The label inside the brackets tells the formats apart: "." with or

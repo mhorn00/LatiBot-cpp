@@ -167,7 +167,7 @@ TEST_CASE("the trigger panel adds a trigger as it was typed", "[commands]") {
     CHECK(all[0].responses[1].weight == 3);
 
     // The panel shows it, picked, ready for the next change.
-    CHECK(test.discord.content().find(std::format("added trigger `{}`", all[0].id)) != std::string::npos);
+    CHECK(test.discord.content().contains(std::format("added trigger `{}`", all[0].id)));
     const auto picked = option_in(test.discord.panel(), std::to_string(all[0].id));
     REQUIRE(picked.has_value());
     CHECK(picked->is_default);
@@ -193,7 +193,7 @@ TEST_CASE("the trigger panel's form, sent back untouched, changes nothing", "[co
     CHECK(after->mode == before.mode);
     CHECK(after->cooldown == before.cooldown);
     CHECK(after->responses.size() == before.responses.size());
-    CHECK(test.discord.content().find(std::format("saved trigger `{}`", id)) != std::string::npos);
+    CHECK(test.discord.content().contains(std::format("saved trigger `{}`", id)));
 }
 
 TEST_CASE("the trigger panel's form saves what it can read, and says what it kept", "[commands]") {
@@ -210,7 +210,7 @@ TEST_CASE("the trigger panel's form saves what it can read, and says what it kep
     CHECK(after->pattern == "goodbye");
     CHECK(after->mode == latibot::events::match_mode::whole_word);
     CHECK(after->cooldown == 30s);
-    CHECK(test.discord.content().find("\"thirty\" isn't a number of seconds") != std::string::npos);
+    CHECK(test.discord.content().contains("\"thirty\" isn't a number of seconds"));
 }
 
 TEST_CASE("the trigger panel refuses a form that could not work, and keeps the trigger", "[commands]") {
@@ -273,8 +273,8 @@ TEST_CASE("a trigger added past the first page is shown on its own page, picked"
 
     test.discord.submit(test.discord.press("Add"), {{"pattern", "the ninth"}, {"responses", "yes"}});
 
-    CHECK(test.discord.content().find("the ninth") != std::string::npos);
-    CHECK(test.discord.content().find("Page 2 of 2") != std::string::npos);
+    CHECK(test.discord.content().contains("the ninth"));
+    CHECK(test.discord.content().contains("Page 2 of 2"));
     const auto added = test.store.for_guild(guild).back();
     const auto picked = option_in(test.discord.panel(), std::to_string(added.id));
     REQUIRE(picked.has_value());
@@ -318,7 +318,7 @@ TEST_CASE("the URL panel adds a rule", "[commands]") {
     REQUIRE(panel_harness::is_update(answer));
 
     CHECK(test.mirrors_of("x.com") == "fxtwitter.com/en, vxtwitter.com");
-    CHECK(test.discord.content().find("x.com added") != std::string::npos);
+    CHECK(test.discord.content().contains("x.com added"));
     const auto picked = option_in(test.discord.panel(), "x.com");
     REQUIRE(picked.has_value());
     CHECK(picked->is_default);
@@ -337,7 +337,7 @@ TEST_CASE("the URL panel edits a rule's mirrors, and an untouched form changes n
 
     REQUIRE(panel_harness::is_update(test.discord.submit(test.discord.press("Edit"), {{"mirrors", "vxtwitter.com\nfixupx.com"}})));
     CHECK(test.mirrors_of("x.com") == "vxtwitter.com, fixupx.com");
-    CHECK(test.discord.content().find("x.com changed") != std::string::npos);
+    CHECK(test.discord.content().contains("x.com changed"));
 }
 
 TEST_CASE("the URL panel renames a rule by editing its site", "[commands]") {
@@ -358,7 +358,7 @@ TEST_CASE("the URL panel will not save over another site's rule", "[commands]") 
     SECTION("adding a site that has one") {
         const json answer = test.discord.submit(test.discord.press("Add rule"), {{"domain", "twitter.com"}, {"mirrors", "fixupx.com"}});
         CHECK(panel_harness::is_private_note(answer));
-        CHECK(panel_harness::text_of(answer).find("already a rule for twitter.com") != std::string::npos);
+        CHECK(panel_harness::text_of(answer).contains("already a rule for twitter.com"));
     }
     SECTION("renaming onto one") {
         test.discord.choose("x.com");
@@ -384,7 +384,7 @@ TEST_CASE("the URL panel deletes a rule once confirmed, and turns replacement on
     CHECK(test.store.find(guild, "x.com").has_value());
     test.discord.press("Delete x.com");
     CHECK_FALSE(test.store.find(guild, "x.com").has_value());
-    CHECK(test.discord.content().find("deleted the rule for x.com") != std::string::npos);
+    CHECK(test.discord.content().contains("deleted the rule for x.com"));
 }
 
 // --------------------------------------------------------------------------
@@ -452,8 +452,8 @@ TEST_CASE("the voice lab keeps what its forms set, and the Test says it in that 
     const json form = test.discord.choose("0"); // Pitch
     CHECK(field_value(form, "ap").empty());
     REQUIRE(panel_harness::is_update(test.discord.submit(form, {{"ap", "300"}, {"pr", "150"}})));
-    CHECK(test.discord.content().find("**Pitch** ap 300 · pr 150") != std::string::npos);
-    CHECK(test.discord.content().find("`[:nh][:dv ap 300 pr 150]`") != std::string::npos);
+    CHECK(test.discord.content().contains("**Pitch** ap 300 · pr 150"));
+    CHECK(test.discord.content().contains("`[:nh][:dv ap 300 pr 150]`"));
 
     // The form opens again with what it was given.
     const json again = test.discord.choose("0");
@@ -473,8 +473,8 @@ TEST_CASE("the voice lab's text form replaces the whole voice", "[commands]") {
     const json form = test.discord.choose(latibot::commands::lab_raw_form);
     CHECK(field_value(form, "raw") == "[:np]");
     REQUIRE(panel_harness::is_update(test.discord.submit(form, {{"raw", "[:nk][:dv hs 80]"}})));
-    CHECK(test.discord.content().find("Built on **kit**") != std::string::npos);
-    CHECK(test.discord.content().find("`[:nk][:dv hs 80]`") != std::string::npos);
+    CHECK(test.discord.content().contains("Built on **kit**"));
+    CHECK(test.discord.content().contains("`[:nk][:dv hs 80]`"));
 }
 
 TEST_CASE("the voice lab saves a voice, says when it has changed since, and opens it again", "[commands]") {
@@ -486,19 +486,19 @@ TEST_CASE("the voice lab saves a voice, says when it has changed since, and open
     const auto saved = test.voices.find(guild, "robo");
     REQUIRE(saved.has_value());
     CHECK(saved->voice.dv_parameters() == "ap 250");
-    CHECK(test.discord.content().find("editing `robo`, as saved") != std::string::npos);
+    CHECK(test.discord.content().contains("editing `robo`, as saved"));
 
     test.discord.submit(test.discord.choose("0"), {{"ap", "90"}});
-    CHECK(test.discord.content().find("editing `robo`, with **unsaved changes**") != std::string::npos);
+    CHECK(test.discord.content().contains("editing `robo`, with **unsaved changes**"));
     CHECK(test.voices.find(guild, "robo")->voice.dv_parameters() == "ap 250");
 
     // Picking it again throws the changes away.
     test.discord.choose("robo");
-    CHECK(test.discord.content().find("editing `robo`, as saved") != std::string::npos);
-    CHECK(test.discord.content().find("ap 250") != std::string::npos);
+    CHECK(test.discord.content().contains("editing `robo`, as saved"));
+    CHECK(test.discord.content().contains("ap 250"));
 
     test.discord.press("New voice");
-    CHECK(test.discord.content().find("editing a new voice, not saved yet") != std::string::npos);
+    CHECK(test.discord.content().contains("editing a new voice, not saved yet"));
 }
 
 TEST_CASE("the voice lab will not save over someone else's voice", "[commands]") {
@@ -508,7 +508,7 @@ TEST_CASE("the voice lab will not save over someone else's voice", "[commands]")
     test.discord.submit(test.discord.choose("0"), {{"ap", "250"}});
     test.discord.submit(test.discord.press("Save as…"), {{"name", "theirs"}});
     CHECK(test.voices.find(guild, "theirs")->voice.edits.empty());
-    CHECK(test.discord.content().find("only whoever made `theirs`, or an admin, can change it") != std::string::npos);
+    CHECK(test.discord.content().contains("only whoever made `theirs`, or an admin, can change it"));
 
     test.discord.permissions = dpp::p_administrator;
     test.discord.submit(test.discord.press("Save as…"), {{"name", "theirs"}});
@@ -559,7 +559,7 @@ TEST_CASE("the language model's settings panel stores what its forms set", "[com
     CHECK(field_value(form, "llm_context_messages") == "15");
     REQUIRE(panel_harness::is_update(test.discord.submit(form, {{"llm_context_messages", "20"}})));
     CHECK(test.settings.get_int(guild, "llm_context_messages", 0) == 20);
-    CHECK(test.discord.content().find("**20**") != std::string::npos);
+    CHECK(test.discord.content().contains("**20**"));
 
     const json bots = test.discord.submit(test.discord.choose("bots"), {{"llm_bot_needs_human", "no"}});
     REQUIRE(panel_harness::is_update(bots));
@@ -632,5 +632,5 @@ TEST_CASE("the memory list pages", "[commands]") {
     test.discord.open(latibot::commands::render_memories(first, test.memories.count(guild, test.discord.user), 0, test.discord.user));
 
     REQUIRE(panel_harness::is_update(test.discord.press("▶")));
-    CHECK(test.discord.content().find("Page 2 of 2") != std::string::npos);
+    CHECK(test.discord.content().contains("Page 2 of 2"));
 }

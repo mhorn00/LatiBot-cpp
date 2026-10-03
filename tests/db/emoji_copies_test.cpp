@@ -345,5 +345,5 @@ TEST_CASE("the duplicates menus show each emote's picture once the bot has a cop
     CHECK(options[0].emoji.name == "kekw");
     // No copy of the other yet: its name only, as before.
     CHECK(options[1].emoji.id.empty());
-    CHECK(shown.content.find("<:kekw:901>") != std::string::npos);
+    CHECK(shown.content.contains("<:kekw:901>"));
 }

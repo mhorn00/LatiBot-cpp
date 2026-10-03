@@ -114,8 +114,7 @@ TEST_CASE("a provider that cannot start is tried again, and stopped with the bot
         const pot_provider provider(program{.path = R"(C:\no\such\deno.exe)", .arguments = {}}, 10ms, 20ms);
         CHECK(wait_for([&log] {
             const auto lines = log.lines();
-            return std::ranges::count_if(
-                       lines, [](const auto& line) { return line.second.find("could not be started") != std::string::npos; }) >= 2;
+            return std::ranges::count_if(lines, [](const auto& line) { return line.second.contains("could not be started"); }) >= 2;
         }));
         CHECK(provider.starts() == 0);
     }

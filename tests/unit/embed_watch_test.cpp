@@ -132,7 +132,7 @@ TEST_CASE("the failure note names the mirrors that were tried", "[events]") {
     CHECK(latibot::events::render_failure(one).starts_with("🔗 couldn't get a preview for that link from fxtwitter.com or vxtwitter.com."));
 
     const std::vector<planned_link> two{x_link(), tiktok_link()};
-    CHECK(latibot::events::render_failure(two).find("those links from fxtwitter.com, vxtwitter.com or tfxktok.com") != std::string::npos);
+    CHECK(latibot::events::render_failure(two).contains("those links from fxtwitter.com, vxtwitter.com or tfxktok.com"));
 }
 
 TEST_CASE("a failure note turns its own previews off and carries Retry", "[events]") {
@@ -447,7 +447,7 @@ TEST_CASE("Retry says why there is nothing to retry", "[events]") {
 
         const auto planned = latibot::events::plan_retry(test.replacements, test.rules, ours, guild);
         REQUIRE(std::holds_alternative<std::string>(planned));
-        CHECK(std::get<std::string>(planned).find("turned off") != std::string::npos);
+        CHECK(std::get<std::string>(planned).contains("turned off"));
         CHECK(test.replacements.find(ours)->state == replacement_state::failed);
     }
 }
@@ -556,7 +556,7 @@ TEST_CASE("a replacement stranded without a preview gets its note, and the origi
 
     // The note names the mirrors from the rule as it is now, and has Retry.
     REQUIRE(discord.edited.size() == 1);
-    CHECK(discord.edited[0].content.find("from fxtwitter.com") != std::string::npos);
+    CHECK(discord.edited[0].content.contains("from fxtwitter.com"));
     CHECK_FALSE(discord.edited[0].components.empty());
 
     // Nothing is left being watched, or unsettled for the next start.

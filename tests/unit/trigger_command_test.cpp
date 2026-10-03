@@ -218,7 +218,7 @@ TEST_CASE("a long trigger list pages", "[commands]") {
     for (const int page : {0, 1, 2}) {
         const auto list = latibot::commands::render_trigger_list(store, guild, page);
         latibot::testing::check_message_fits(list);
-        CHECK(list.content.find(std::format("Page {} of 3", page + 1)) != std::string::npos);
+        CHECK(list.content.contains(std::format("Page {} of 3", page + 1)));
     }
 
     CHECK(latibot::commands::render_trigger_list(store, dpp::snowflake{2000}, 0).components.empty());
@@ -227,10 +227,10 @@ TEST_CASE("a long trigger list pages", "[commands]") {
 TEST_CASE("a trigger that answers bots says so when described", "[commands]") {
     latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
 
-    CHECK(describe(entry).find("answers bots") == std::string::npos);
+    CHECK_FALSE(describe(entry).contains("answers bots"));
 
     entry.respond_to_bots = true;
-    CHECK(describe(entry).find("answers bots") != std::string::npos);
+    CHECK(describe(entry).contains("answers bots"));
 }
 
 TEST_CASE("a trigger says when its replies notify or hide previews", "[commands]") {
@@ -339,7 +339,7 @@ TEST_CASE("the longest pattern the command takes still fits the panel", "[comman
     latibot::testing::check_message_fits(panel);
 
     // The list above the menu still shows the pattern in full.
-    CHECK(panel.content.find(std::string(200, 'a')) != std::string::npos);
+    CHECK(panel.content.contains(std::string(200, 'a')));
 }
 
 TEST_CASE("a full page of the longest patterns still fits the panel and the list", "[commands]") {

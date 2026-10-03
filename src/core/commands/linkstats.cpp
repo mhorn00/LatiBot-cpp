@@ -177,6 +177,24 @@ auto board_letter(board which) -> char {
     return 'r';
 }
 
+/// The board `board_letter` wrote as `letter`, or nothing for any other.
+auto board_from_letter(char letter) -> std::optional<board> {
+    switch (letter) {
+    case 'r':
+        return board::received;
+    case 'g':
+        return board::given;
+    case 's':
+        return board::self;
+    case 'e':
+        return board::emoji;
+    case 'f':
+        return board::emoji_given;
+    default:
+        return std::nullopt;
+    }
+}
+
 /// Which side of a reaction a board counts. The emoji boards count what
 /// people received or gave, leaving self-reactions out like every other
 /// board.
@@ -208,6 +226,15 @@ auto source_letter(events::stat_source source) -> char {
         break;
     }
     return 'b';
+}
+
+/// The kind of post `source_letter` wrote as `letter`, or nothing for any
+/// other.
+auto source_from_letter(std::string_view letter) -> std::optional<events::stat_source> {
+    if (letter == "l") return events::stat_source::links;
+    if (letter == "i") return events::stat_source::images;
+    if (letter == "b") return events::stat_source::both;
+    return std::nullopt;
 }
 
 /// What a statistic is about, as its title names it: "replaced x.com links",
@@ -356,25 +383,9 @@ auto decode_board(std::string_view argument) -> std::optional<board_spec> {
     }
     if (fields.size() < 5 || fields.size() > 8 || fields[0].size() != 1) return std::nullopt;
 
-    board which = board::received;
-    switch (fields[0].front()) {
-    case 'r':
-        break;
-    case 'g':
-        which = board::given;
-        break;
-    case 's':
-        which = board::self;
-        break;
-    case 'e':
-        which = board::emoji;
-        break;
-    case 'f':
-        which = board::emoji_given;
-        break;
-    default:
-        return std::nullopt;
-    }
+    const std::optional<board> decoded = board_from_letter(fields[0].front());
+    if (!decoded) return std::nullopt;
+    const board which = *decoded;
 
     events::stat_query query;
     query.kind = kind_for(which);
@@ -392,13 +403,9 @@ auto decode_board(std::string_view argument) -> std::optional<board_spec> {
     }
     query.source = events::stat_source::links;
     if (fields.size() >= 7) {
-        if (fields[6] == "b") {
-            query.source = events::stat_source::both;
-        } else if (fields[6] == "i") {
-            query.source = events::stat_source::images;
-        } else if (fields[6] != "l") {
-            return std::nullopt;
-        }
+        const auto source = source_from_letter(fields[6]);
+        if (!source) return std::nullopt;
+        query.source = *source;
     }
 
     std::size_t per_page = 0;
@@ -935,7 +942,7 @@ auto linkstats_command::autocomplete(const dpp::autocomplete_t& event) const -> 
     if (focused->name == "domain") {
         std::size_t offered = 0;
         for (const std::string& site : store_->known_domains(event.command.guild_id)) {
-            if (offered < emoji_choices && site.find(util::trim(filter)) != std::string::npos) {
+            if (offered < emoji_choices && site.contains(util::trim(filter))) {
                 reply.add_autocomplete_choice(dpp::command_option_choice(site, site));
                 ++offered;
             }

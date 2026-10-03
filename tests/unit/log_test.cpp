@@ -85,7 +85,7 @@ TEST_CASE("a message is never split between threads", "[log][threads]") {
     // fragments that do not match the format.
     for (const auto& [level, message] : lines) {
         CHECK(message.starts_with("thread "));
-        CHECK(message.find(" line ") != std::string::npos);
+        CHECK(message.contains(" line "));
     }
 }
 

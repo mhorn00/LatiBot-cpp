@@ -153,7 +153,7 @@ TEST_CASE("nothing sent names anyone, or gives an id", "[llm]") {
     (void)test.cast.meet(bob, "Bob");
     const std::string sent = test.cast.sanitize("<@11> told Bob: Ally, alice_1 and Alice are all <@!11>");
     for (const char* leak : {"11", "12", "Ally", "Alice", "alice_1", "Bob"}) {
-        CHECK(sent.find(leak) == std::string::npos);
+        CHECK_FALSE(sent.contains(leak));
     }
 }
 

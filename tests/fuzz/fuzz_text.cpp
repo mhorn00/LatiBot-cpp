@@ -17,7 +17,7 @@ namespace {
 constexpr std::string_view whitespace = " \t\n\r\f\v";
 
 auto is_space(char letter) -> bool {
-    return whitespace.find(letter) != std::string_view::npos;
+    return whitespace.contains(letter);
 }
 
 auto is_continuation(char byte) -> bool {

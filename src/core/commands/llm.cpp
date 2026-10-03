@@ -212,7 +212,7 @@ auto render_document(llm::document_kind kind, const llm::document_version& shown
                                            : std::format("The {}, version {}:", label_of(kind), shown.version);
     if (util::is_blank(shown.content)) return dpp::message(std::format("The {} is empty.", label_of(kind)));
 
-    if (util::character_count(shown.content) <= inline_limit && shown.content.find("```") == std::string::npos) {
+    if (util::character_count(shown.content) <= inline_limit && !shown.content.contains("```")) {
         return dpp::message(std::format("{}\n```\n{}\n```", heading, shown.content));
     }
     dpp::message message(std::format("{} (attached, it is too long to show here)", heading));
@@ -448,8 +448,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
 auto llm_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const std::string path = subcommand_path(event.command.get_command_interaction());
     const std::string_view group = std::string_view(path).substr(0, path.find(' '));
-    const std::string_view action =
-        path.find(' ') == std::string::npos ? std::string_view{} : std::string_view(path).substr(path.find(' ') + 1);
+    const std::string_view action = !path.contains(' ') ? std::string_view{} : std::string_view(path).substr(path.find(' ') + 1);
 
     if (path == "status") {
         co_await status(event);
@@ -609,7 +608,7 @@ auto llm_command::diff_document(const dpp::slashcommand_t& event, llm::document_
     const std::string heading = std::format("The {} from version {} to {}:", label_of(kind), from, to);
     if (diff.empty()) {
         co_await event.co_reply(result(event, std::format("{} no change", heading)));
-    } else if (util::character_count(diff) <= inline_limit && diff.find("```") == std::string::npos) {
+    } else if (util::character_count(diff) <= inline_limit && !diff.contains("```")) {
         co_await event.co_reply(result(event, std::format("{}\n```diff\n{}```", heading, diff)));
     } else {
         dpp::message message(std::format("{} (attached, it is too long to show here)", heading));

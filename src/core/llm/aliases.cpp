@@ -159,7 +159,7 @@ auto random_alias() -> std::string {
 
 auto is_alias(std::string_view text) -> bool {
     return text.size() == alias_length && text.front() == 'u' &&
-           std::ranges::all_of(text.substr(1), [](char letter) { return alias_letters.find(letter) != std::string_view::npos; });
+           std::ranges::all_of(text.substr(1), [](char letter) { return alias_letters.contains(letter); });
 }
 
 // --------------------------------------------------------------------------

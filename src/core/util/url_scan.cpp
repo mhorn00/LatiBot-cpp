@@ -64,7 +64,7 @@ auto trim_link(std::string_view url) -> std::string_view {
 
     while (!url.empty()) {
         const char last = url.back();
-        if (trailing_punctuation.find(last) != std::string_view::npos) {
+        if (trailing_punctuation.contains(last)) {
             url.remove_suffix(1);
         } else if (last == ')' && close_round > open_round) {
             url.remove_suffix(1);

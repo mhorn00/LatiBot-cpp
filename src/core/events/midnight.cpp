@@ -92,7 +92,7 @@ auto matching_timezones(std::string_view typed, std::size_t limit) -> std::vecto
     try {
         for (const std::chrono::time_zone& zone : std::chrono::get_tzdb().zones) {
             const std::string name(zone.name());
-            if (!wanted.empty() && util::to_lower(name).find(wanted) == std::string::npos) continue;
+            if (!wanted.empty() && !util::to_lower(name).contains(wanted)) continue;
 
             found.push_back(name);
             if (found.size() == limit) break;

@@ -104,11 +104,11 @@ TEST_CASE("custom emojis with names alike are listed a group at a time", "[comma
 
     SECTION("to anybody, as a list") {
         const dpp::message shown = latibot::commands::render_similar(test.reactions, guild, 0, {}, false);
-        CHECK(shown.content.find("1. <:skull:77> `skull` 1") != std::string::npos);
-        CHECK(shown.content.find("<:Skull:78>") != std::string::npos);
-        CHECK(shown.content.find("<:skul:79>") != std::string::npos);
-        CHECK(shown.content.find("Manage Server") != std::string::npos);
-        CHECK(shown.content.find("Group 1 of 1") != std::string::npos);
+        CHECK(shown.content.contains("1. <:skull:77> `skull` 1"));
+        CHECK(shown.content.contains("<:Skull:78>"));
+        CHECK(shown.content.contains("<:skul:79>"));
+        CHECK(shown.content.contains("Manage Server"));
+        CHECK(shown.content.contains("Group 1 of 1"));
         CHECK(shown.components.empty());
     }
 
@@ -122,7 +122,7 @@ TEST_CASE("custom emojis with names alike are listed a group at a time", "[comma
     SECTION("and once one is picked, a menu of what to merge into it") {
         const dpp::message shown = latibot::commands::render_similar(test.reactions, guild, 0, "c:77", true);
         REQUIRE(shown.components.size() == 2);
-        CHECK(shown.content.find("Keeping <:skull:77>") != std::string::npos);
+        CHECK(shown.content.contains("Keeping <:skull:77>"));
         const auto& merge = shown.components[1].components[0].options;
         REQUIRE(merge.size() == 3);
         CHECK(merge[0].value == latibot::commands::merge_everything);
@@ -148,14 +148,14 @@ TEST_CASE("emojis alike are merged from the list by somebody with Manage Server"
 
     SECTION("one at a time") {
         CHECK(panel_harness::is_update(discord.choose("c:77")));
-        CHECK(discord.content().find("Keeping <:skull:77>") != std::string::npos);
+        CHECK(discord.content().contains("Keeping <:skull:77>"));
 
         CHECK(panel_harness::is_update(discord.choose("c:79", latibot::commands::merge_view)));
         CHECK(test.reactions.canonical(guild, "c:79") == "c:77");
         CHECK(test.reactions.canonical(guild, "c:78") == "c:78");
-        CHECK(discord.content().find("Merged <:skul:79> into <:skull:77>.") != std::string::npos);
+        CHECK(discord.content().contains("Merged <:skul:79> into <:skull:77>."));
         // Still keeping the same one, for what is left of the group.
-        CHECK(discord.content().find("Keeping <:skull:77>") != std::string::npos);
+        CHECK(discord.content().contains("Keeping <:skull:77>"));
     }
 
     SECTION("all at once, and the next group takes its place") {
@@ -163,8 +163,8 @@ TEST_CASE("emojis alike are merged from the list by somebody with Manage Server"
         CHECK(panel_harness::is_update(discord.choose(latibot::commands::merge_everything, latibot::commands::merge_view)));
         CHECK(test.reactions.canonical(guild, "c:78") == "c:77");
         CHECK(test.reactions.canonical(guild, "c:79") == "c:77");
-        CHECK(discord.content().find("<:catjam:80>") != std::string::npos);
-        CHECK(discord.content().find("Group 1 of 1") != std::string::npos);
+        CHECK(discord.content().contains("<:catjam:80>"));
+        CHECK(discord.content().contains("Group 1 of 1"));
     }
 
     SECTION("not by somebody who has lost Manage Server since") {
@@ -214,25 +214,25 @@ TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
             .content;
 
     CHECK(text.starts_with("**Most reactions received on replaced links**"));
-    CHECK(text.find("1. <@11> 2") != std::string::npos);
+    CHECK(text.contains("1. <@11> 2"));
     // Alice's own laugh is not a reaction she received.
-    CHECK(text.find("<@12>") == std::string::npos);
+    CHECK_FALSE(text.contains("<@12>"));
 }
 
 TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]") {
     const fixture test;
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
 
-    CHECK(text.find("💀 1") != std::string::npos);
-    CHECK(text.find("<:skull:77> 1") != std::string::npos);
-    CHECK(text.find("😂") == std::string::npos);
+    CHECK(text.contains("💀 1"));
+    CHECK(text.contains("<:skull:77> 1"));
+    CHECK_FALSE(text.contains("😂"));
 }
 
 TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
     const fixture test;
     const std::string text =
         latibot::commands::render_board(test.reactions, dpp::snowflake{5}, board::given, {.kind = stat_kind::given}).content;
-    CHECK(text.find("/linkstats recompute") != std::string::npos);
+    CHECK(text.contains("/linkstats recompute"));
 }
 
 TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
@@ -241,7 +241,7 @@ TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
                                             .since = std::chrono::sys_days{std::chrono::year{2026} / 1 / 1},
                                             .until = std::chrono::sys_days{std::chrono::year{2026} / 2 / 1}};
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, query).content;
-    CHECK(text.find("since 2026-01-01 until 2026-01-31") != std::string::npos);
+    CHECK(text.contains("since 2026-01-01 until 2026-01-31"));
 }
 
 TEST_CASE("an emoji can be named rather than drawn", "[commands]") {
@@ -322,14 +322,15 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
 
     const std::string text = latibot::commands::render_backfill(report, request, true);
     CHECK(text.starts_with("**Link stats recomputed since 2021-01-01 until 2021-12-31**"));
-    CHECK(text.find("Messages scanned: 1234") != std::string::npos);
-    CHECK(text.find("Emotes sent as reactions: 12\n") != std::string::npos);
-    CHECK(text.find("Replacements found: 56 (50 credited to whoever posted the link, 6 not)") != std::string::npos);
+    CHECK(text.contains("Messages scanned: 1234"));
+    CHECK(text.contains("Emotes sent as reactions: 12\n"));
+    CHECK(text.contains("Replacements found: 56 (50 credited to whoever posted the link, 6 not)"));
     // Linked, so a click shows each one.
-    CHECK(text.find("Not understood: in no replacement format known: 2\n"
-                    "- https://discord.com/channels/1000/1/111\n"
-                    "- https://discord.com/channels/1000/2/222\n") != std::string::npos);
-    CHECK(text.find("Missing Access") != std::string::npos);
+    CHECK(
+        text.contains("Not understood: in no replacement format known: 2\n"
+                      "- https://discord.com/channels/1000/1/111\n"
+                      "- https://discord.com/channels/1000/2/222\n"));
+    CHECK(text.contains("Missing Access"));
     CHECK(text.size() <= 2000);
 
     SECTION("with more to look at than a message has room for") {
@@ -346,24 +347,24 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
         }
         const std::string crowded = latibot::commands::render_backfill(report, request, true);
         CHECK(latibot::util::character_count(crowded) <= 2000);
-        CHECK(crowded.find("Old mirrors recognised: ") != std::string::npos);
-        CHECK(crowded.find(" and 17 more") != std::string::npos);
-        CHECK(crowded.find("Not credited: after a link that is not the one it replaced: 500") != std::string::npos);
-        CHECK(crowded.find("Reactions not read: their old counts are kept: 500") != std::string::npos);
+        CHECK(crowded.contains("Old mirrors recognised: "));
+        CHECK(crowded.contains(" and 17 more"));
+        CHECK(crowded.contains("Not credited: after a link that is not the one it replaced: 500"));
+        CHECK(crowded.contains("Reactions not read: their old counts are kept: 500"));
     }
 
     SECTION("while it runs") {
         report.channels_done = 1;
         const std::string running = latibot::commands::render_backfill(report, request, false);
-        CHECK(running.find("Channel 2 of 2") != std::string::npos);
-        CHECK(running.find("/linkstats recompute cancel") != std::string::npos);
+        CHECK(running.contains("Channel 2 of 2"));
+        CHECK(running.contains("/linkstats recompute cancel"));
     }
 
     SECTION("stopped early") {
         report.cancelled = true;
         const std::string stopped = latibot::commands::render_backfill(report, request, true);
         CHECK(stopped.starts_with("**Link stats recompute stopped"));
-        CHECK(stopped.find("carries on from where it stopped") != std::string::npos);
+        CHECK(stopped.contains("carries on from where it stopped"));
     }
 }
 
@@ -405,9 +406,9 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
 
     const latibot::events::stat_query query{.kind = stat_kind::received, .emoji_key = "u:💀"};
     const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::received, query);
-    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
-    CHECK(first.content.find("10. ") != std::string::npos);
-    CHECK(first.content.find("11. ") == std::string::npos);
+    CHECK(first.content.contains("Page 1 of 2"));
+    CHECK(first.content.contains("10. "));
+    CHECK_FALSE(first.content.contains("11. "));
     latibot::testing::check_message_fits(first);
     REQUIRE(first.components.size() == 1);
 
@@ -422,9 +423,9 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
 
     const dpp::message second =
         latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
-    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
-    CHECK(second.content.find("11. ") != std::string::npos);
-    CHECK(second.content.find("13. ") != std::string::npos);
+    CHECK(second.content.contains("Page 2 of 2"));
+    CHECK(second.content.contains("11. "));
+    CHECK(second.content.contains("13. "));
     latibot::testing::check_message_fits(second);
 }
 
@@ -470,8 +471,8 @@ TEST_CASE("a board can be limited to one site", "[commands]") {
     const latibot::events::stat_query tiktok{.kind = stat_kind::received, .domain = "tiktok.com"};
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::received, tiktok).content;
     CHECK(text.starts_with("**Most reactions received on replaced tiktok.com links**"));
-    CHECK(text.find("<@12> 1") != std::string::npos);
-    CHECK(text.find("<@11>") == std::string::npos);
+    CHECK(text.contains("<@12> 1"));
+    CHECK_FALSE(text.contains("<@11>"));
 
     CHECK(test.reactions.known_domains(guild) == std::vector<std::string>{"tiktok.com"});
 }
@@ -516,7 +517,7 @@ TEST_CASE("a finished recompute is answered with a ping to whoever started it", 
         report.unread = {{.channel_id = dpp::snowflake{2}, .message_id = dpp::snowflake{222}}};
 
         const dpp::message reply = latibot::commands::backfill_done_reply(report, request, channel, progress, alice);
-        CHECK(reply.content.find("since 2021-01-01 stopped:") != std::string::npos);
+        CHECK(reply.content.contains("since 2021-01-01 stopped:"));
         CHECK(reply.content.ends_with("2 messages to look at, linked in the file."));
         REQUIRE(reply.file_data.size() == 1);
         CHECK(reply.file_data[0].name == "recompute-issues.txt");
@@ -553,25 +554,25 @@ TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands
             latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received, .source = links_only})
                 .content;
         CHECK(text.starts_with("**Most used reactions received on replaced links**"));
-        CHECK(text.find("_3 reactions with 3 different emojis_") != std::string::npos);
+        CHECK(text.contains("_3 reactions with 3 different emojis_"));
     }
 
     SECTION("what one person received") {
         const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice, .source = links_only};
         const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, alices).content;
         CHECK(text.starts_with("**Reactions <@11> received on replaced links**"));
-        CHECK(text.find("💀 1") != std::string::npos);
-        CHECK(text.find("<:skull:77> 1") != std::string::npos);
-        CHECK(text.find("🔥") == std::string::npos);
+        CHECK(text.contains("💀 1"));
+        CHECK(text.contains("<:skull:77> 1"));
+        CHECK_FALSE(text.contains("🔥"));
     }
 
     SECTION("what one person gave") {
         const latibot::events::stat_query alices{.kind = stat_kind::given, .user_id = alice, .source = links_only};
         const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji_given, alices).content;
         CHECK(text.starts_with("**Reactions <@11> gave on replaced links**"));
-        CHECK(text.find("🔥 1") != std::string::npos);
+        CHECK(text.contains("🔥 1"));
         // Her laugh at her own link is neither.
-        CHECK(text.find("😂") == std::string::npos);
+        CHECK_FALSE(text.contains("😂"));
     }
 }
 
@@ -584,9 +585,9 @@ TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
 
     const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
     const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::emoji, alices);
-    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
-    CHECK(first.content.find("20. ") != std::string::npos);
-    CHECK(first.content.find("21. ") == std::string::npos);
+    CHECK(first.content.contains("Page 1 of 2"));
+    CHECK(first.content.contains("20. "));
+    CHECK_FALSE(first.content.contains("21. "));
     latibot::testing::check_message_fits(first);
     REQUIRE(first.components.size() == 1);
 
@@ -599,8 +600,8 @@ TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
 
     const dpp::message second =
         latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
-    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
-    CHECK(second.content.find("32. ") != std::string::npos);
+    CHECK(second.content.contains("Page 2 of 2"));
+    CHECK(second.content.contains("32. "));
 }
 
 TEST_CASE("a board's buttons from before people could be named still page", "[commands]") {
@@ -693,15 +694,14 @@ TEST_CASE("a recompute that counts images says what it found", "[commands]") {
     report.images = 7;
     report.image_reactions = 30;
 
-    CHECK(latibot::commands::render_backfill(report, request, true).find("Images and videos found: 7, with 30 reactions\n") !=
-          std::string::npos);
-    CHECK(latibot::commands::render_backfill(report, request, false).find("7 images and videos with 30 reactions") != std::string::npos);
+    CHECK(latibot::commands::render_backfill(report, request, true).contains("Images and videos found: 7, with 30 reactions\n"));
+    CHECK(latibot::commands::render_backfill(report, request, false).contains("7 images and videos with 30 reactions"));
     CHECK(latibot::commands::backfill_done_reply(report, request, dpp::snowflake{3}, dpp::snowflake{4}, alice).content ==
           "<@11> the link stats recompute since 2021-01-01 is done: 2 replacements found, 5 reactions recorded; 7 images and videos "
           "with 30 reactions.");
 
     request.images = false;
-    CHECK(latibot::commands::render_backfill(report, request, true).find("Images") == std::string::npos);
+    CHECK_FALSE(latibot::commands::render_backfill(report, request, true).contains("Images"));
 }
 
 // --------------------------------------------------------------------------
@@ -716,9 +716,9 @@ TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[com
 
     const latibot::events::stat_query alices{.kind = stat_kind::received, .user_id = alice};
     const dpp::message first = latibot::commands::render_board(test.reactions, guild, board::emoji, alices, 0, 25);
-    CHECK(first.content.find("25. ") != std::string::npos);
-    CHECK(first.content.find("26. ") == std::string::npos);
-    CHECK(first.content.find("Page 1 of 2") != std::string::npos);
+    CHECK(first.content.contains("25. "));
+    CHECK_FALSE(first.content.contains("26. "));
+    CHECK(first.content.contains("Page 1 of 2"));
     REQUIRE(first.components.size() == 1);
 
     const auto state = latibot::ui::decode(first.components[0].components[1].custom_id);
@@ -729,8 +729,8 @@ TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[com
 
     const dpp::message second =
         latibot::commands::render_board(test.reactions, guild, decoded->which, decoded->query, state->page, decoded->per_page);
-    CHECK(second.content.find("26. ") != std::string::npos);
-    CHECK(second.content.find("Page 2 of 2") != std::string::npos);
+    CHECK(second.content.contains("26. "));
+    CHECK(second.content.contains("Page 2 of 2"));
 
     // All of them on one page: no buttons at all.
     CHECK(latibot::commands::render_board(test.reactions, guild, board::emoji, alices, 0, 100).components.empty());
@@ -759,7 +759,7 @@ TEST_CASE("a page size is only as big as fits in a message", "[commands]") {
     SECTION("and a page that has outgrown it shows what fits, and says so") {
         const dpp::message crowded = latibot::commands::render_board(test.reactions, guild, board::emoji, everyone, 0, 100);
         latibot::testing::check_message_fits(crowded);
-        CHECK(crowded.content.find("more that do not fit in a message_") != std::string::npos);
+        CHECK(crowded.content.contains("more that do not fit in a message_"));
         CHECK(crowded.content.ends_with("_Page 1 of 2_"));
     }
 }

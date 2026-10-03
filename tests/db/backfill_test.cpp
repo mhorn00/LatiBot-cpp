@@ -268,7 +268,7 @@ TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[e
     const backfill_report report = test.run(wanted);
 
     REQUIRE(report.problems.size() == 1);
-    CHECK(report.problems[0].find("Missing Access") != std::string::npos);
+    CHECK(report.problems[0].contains("Missing Access"));
     CHECK(report.replacements == 1);
 }
 

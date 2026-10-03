@@ -24,36 +24,36 @@ auto entry_in(std::string timezone) -> midnight_entry {
 } // namespace
 
 TEST_CASE("an empty list says how to add one", "[commands]") {
-    CHECK(render_midnight_list({}).find("/midnight add") != std::string::npos);
+    CHECK(render_midnight_list({}).contains("/midnight add"));
 }
 
 TEST_CASE("a listed entry names its channel, zone and message", "[commands]") {
     const std::string line = describe(entry_in("America/Chicago"));
 
-    CHECK(line.find("`4`") != std::string::npos);
-    CHECK(line.find("<#3000>") != std::string::npos);
-    CHECK(line.find("America/Chicago") != std::string::npos);
-    CHECK(line.find("it is a new day") != std::string::npos);
+    CHECK(line.contains("`4`"));
+    CHECK(line.contains("<#3000>"));
+    CHECK(line.contains("America/Chicago"));
+    CHECK(line.contains("it is a new day"));
 }
 
 TEST_CASE("an entry that is off says so", "[commands]") {
     midnight_entry entry = entry_in("UTC");
     entry.enabled = false;
 
-    CHECK(describe(entry).find("(off)") != std::string::npos);
+    CHECK(describe(entry).contains("(off)"));
 
     // And one that is on does not carry the noise.
-    CHECK(describe(entry_in("UTC")).find("(off)") == std::string::npos);
+    CHECK_FALSE(describe(entry_in("UTC")).contains("(off)"));
 }
 
 TEST_CASE("an entry that has posted says when", "[commands]") {
     midnight_entry entry = entry_in("UTC");
     entry.last_fired_date = "2026-09-23";
 
-    CHECK(describe(entry).find("last posted 2026-09-23") != std::string::npos);
+    CHECK(describe(entry).contains("last posted 2026-09-23"));
 
     // A new one has nothing to report rather than an empty date.
-    CHECK(describe(entry_in("UTC")).find("last posted") == std::string::npos);
+    CHECK_FALSE(describe(entry_in("UTC")).contains("last posted"));
 }
 
 TEST_CASE("every entry appears in the list", "[commands]") {
@@ -61,16 +61,16 @@ TEST_CASE("every entry appears in the list", "[commands]") {
     entries[1].id = 5;
 
     const std::string body = render_midnight_list(entries);
-    CHECK(body.find("`4`") != std::string::npos);
-    CHECK(body.find("`5`") != std::string::npos);
-    CHECK(body.find("Asia/Tokyo") != std::string::npos);
+    CHECK(body.contains("`4`"));
+    CHECK(body.contains("`5`"));
+    CHECK(body.contains("Asia/Tokyo"));
 }
 
 TEST_CASE("an entry that notifies or hides previews says so", "[commands]") {
     midnight_entry entry = entry_in("UTC");
     entry.message_flags = dpp::m_suppress_embeds;
-    CHECK(describe(entry).find("(notifies, no previews)") != std::string::npos);
+    CHECK(describe(entry).contains("(notifies, no previews)"));
 
     entry.enabled = false;
-    CHECK(describe(entry).find("(off, notifies, no previews)") != std::string::npos);
+    CHECK(describe(entry).contains("(off, notifies, no previews)"));
 }

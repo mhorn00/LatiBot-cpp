@@ -58,7 +58,7 @@ TEST_CASE("an unknown tool, or one that throws, is an error the model reads", "[
     const auto broken = tools.run({.id = "b", .name = "broken", .input = {}}, asked_by);
     CHECK(broken.is_error);
     // What went wrong stays in the log; the model only learns that it did.
-    CHECK(broken.content.find("disk") == std::string::npos);
+    CHECK_FALSE(broken.content.contains("disk"));
 }
 
 TEST_CASE("the tool loop runs what the model asks for and hands the result back", "[llm][coro]") {

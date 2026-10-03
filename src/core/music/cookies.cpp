@@ -138,7 +138,7 @@ auto check_firefox_profile(const std::filesystem::path& profile, const std::file
 auto needs_sign_in(std::string_view errors) -> bool {
     const std::string lower = util::to_lower(errors);
     constexpr std::array<std::string_view, 6> markers{"sign in", "--cookies", "login", "log in", "logged in", "authentication"};
-    return std::ranges::any_of(markers, [&lower](std::string_view marker) { return lower.find(marker) != std::string::npos; });
+    return std::ranges::any_of(markers, [&lower](std::string_view marker) { return lower.contains(marker); });
 }
 
 cookie_copy::~cookie_copy() {

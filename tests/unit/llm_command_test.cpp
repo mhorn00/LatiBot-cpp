@@ -134,8 +134,7 @@ TEST_CASE("a document is shown inline when short, and attached when not", "[comm
 TEST_CASE("saving a large document warns that it is sent with every message", "[commands]") {
     CHECK(latibot::commands::describe_saved(document_kind::personality, 2, "short") ==
           "saved the personality as version 2 (about 2 tokens)");
-    CHECK(latibot::commands::describe_saved(document_kind::system, 5, std::string(8000, 'a')).find("sent with every message") !=
-          std::string::npos);
+    CHECK(latibot::commands::describe_saved(document_kind::system, 5, std::string(8000, 'a')).contains("sent with every message"));
 }
 
 TEST_CASE("history lists the newest versions first, with who and when", "[commands]") {
@@ -147,18 +146,18 @@ TEST_CASE("history lists the newest versions first, with who and when", "[comman
          .note = "reverted to version 0"},
         {.version = 1, .content = "a", .edited_by = dpp::snowflake{8}, .edited_at = std::chrono::sys_seconds{50s}, .note = {}}};
     const std::string text = latibot::commands::render_history(document_kind::personality, versions);
-    CHECK(text.find("`v2` <t:100:f> by <@7>, 1 characters (reverted to version 0)") != std::string::npos);
+    CHECK(text.contains("`v2` <t:100:f> by <@7>, 1 characters (reverted to version 0)"));
     CHECK(text.find("`v2`") < text.find("`v1`"));
-    CHECK(latibot::commands::render_history(document_kind::personality, {}).find("default") != std::string::npos);
+    CHECK(latibot::commands::render_history(document_kind::personality, {}).contains("default"));
 }
 
 TEST_CASE("the settings panel shows every setting and fits a message", "[commands]") {
     const dpp::message panel = latibot::commands::render_llm_settings(default_values(), true);
     latibot::testing::check_message_fits(panel);
     for (const auto& spec : latibot::llm::setting_specs()) {
-        CHECK(panel.content.find(spec.label) != std::string::npos);
+        CHECK(panel.content.contains(spec.label));
     }
-    CHECK(panel.content.find("**on**") != std::string::npos);
+    CHECK(panel.content.contains("**on**"));
 }
 
 TEST_CASE("each settings form fits a modal and is filled with the current values", "[commands]") {
@@ -200,7 +199,7 @@ TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[co
 
     const dpp::message everyone = latibot::commands::render_memories(page, 10, 0, std::nullopt);
     CHECK(everyone.components.empty());
-    CHECK(everyone.content.find("(<@7>)") != std::string::npos);
+    CHECK(everyone.content.contains("(<@7>)"));
 }
 
 TEST_CASE("the status says what was spent against the caps", "[commands]") {

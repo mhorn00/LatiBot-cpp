@@ -189,7 +189,7 @@ auto names_look_alike(std::string_view first, std::string_view second) -> bool {
     // letters, so the rows are small.
     std::vector<std::size_t> previous(two.size() + 1);
     std::vector<std::size_t> current(two.size() + 1);
-    std::iota(previous.begin(), previous.end(), std::size_t{0});
+    std::ranges::iota(previous, std::size_t{0});
     for (std::size_t row = 1; row <= one.size(); ++row) {
         current[0] = row;
         std::size_t best = current[0];
@@ -627,7 +627,7 @@ auto reaction_store::known_emojis(dpp::snowflake guild_id, std::string_view filt
     while (found.size() < limit && statement.step()) {
         emoji_ref emoji = emoji_from(statement.get<std::string>(0), statement.get<std::optional<std::string>>(2),
                                      statement.get<std::optional<std::int64_t>>(3).value_or(0) != 0);
-        if (wanted.empty() || util::to_lower(emoji.name).find(wanted) != std::string::npos) {
+        if (wanted.empty() || util::to_lower(emoji.name).contains(wanted)) {
             emoji.copy = copy_of(emoji.key);
             found.push_back({.emoji = std::move(emoji), .count = statement.get<std::int64_t>(1)});
         }
@@ -650,11 +650,11 @@ auto reaction_store::similar_emojis(dpp::snowflake guild_id) const -> std::vecto
         lowered.push_back(util::to_lower(tally.emoji.name));
     }
     std::vector<std::size_t> by_length(custom.size());
-    std::iota(by_length.begin(), by_length.end(), std::size_t{0});
+    std::ranges::iota(by_length, std::size_t{0});
     std::ranges::stable_sort(by_length, {}, [&](std::size_t index) { return lowered[index].size(); });
 
     std::vector<std::size_t> parent(custom.size());
-    std::iota(parent.begin(), parent.end(), std::size_t{0});
+    std::ranges::iota(parent, std::size_t{0});
     const auto root = [&](std::size_t index) {
         while (parent[index] != index) {
             parent[index] = parent[parent[index]];

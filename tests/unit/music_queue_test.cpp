@@ -187,7 +187,7 @@ TEST_CASE("shuffle keeps every track, and never the current one", "[music]") {
     CHECK(shuffle(queue, 42) == 49);
     CHECK(queue.current->id == 1);
     std::vector<std::uint64_t> in_order(49);
-    std::iota(in_order.begin(), in_order.end(), std::uint64_t{2});
+    std::ranges::iota(in_order, std::uint64_t{2});
     auto order = ids(queue);
     CHECK(order != in_order);
     std::ranges::sort(order);

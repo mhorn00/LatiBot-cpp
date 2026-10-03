@@ -60,10 +60,10 @@ TEST_CASE("every option type has a readable form", "[commands]") {
 
     const std::string line = describe_invocation(interaction);
 
-    CHECK(line.find("text=\"hi\"") != std::string::npos);
-    CHECK(line.find("count=7") != std::string::npos);
-    CHECK(line.find("flag=true") != std::string::npos);
-    CHECK(line.find("who=1234567890123456789") != std::string::npos);
+    CHECK(line.contains("text=\"hi\""));
+    CHECK(line.contains("count=7"));
+    CHECK(line.contains("flag=true"));
+    CHECK(line.contains("who=1234567890123456789"));
 }
 
 TEST_CASE("an unfilled option says so rather than logging nothing", "[commands]") {
@@ -81,9 +81,9 @@ TEST_CASE("newlines in a value never break the line", "[commands]") {
 
     const std::string line = describe_invocation(interaction);
 
-    CHECK(line.find('\n') == std::string::npos);
-    CHECK(line.find('\r') == std::string::npos);
-    CHECK(line.find("nice\\nvery nice") != std::string::npos);
+    CHECK_FALSE(line.contains('\n'));
+    CHECK_FALSE(line.contains('\r'));
+    CHECK(line.contains("nice\\nvery nice"));
 }
 
 TEST_CASE("a quote in a value is escaped", "[commands]") {
@@ -102,14 +102,14 @@ TEST_CASE("a long value is cut, and says how long it really was", "[commands]") 
     const std::string line = describe_invocation(interaction);
 
     CHECK(line.size() < 300);
-    CHECK(line.find("(2000 chars)") != std::string::npos);
+    CHECK(line.contains("(2000 chars)"));
 }
 
 TEST_CASE("a value that just fits is not cut", "[commands]") {
     auto interaction = command_named("say");
     interaction.options.push_back(option("message", std::string(120, 'a')));
 
-    CHECK(describe_invocation(interaction).find("chars)") == std::string::npos);
+    CHECK_FALSE(describe_invocation(interaction).contains("chars)"));
 }
 
 TEST_CASE("a user is logged by name and id", "[commands]") {

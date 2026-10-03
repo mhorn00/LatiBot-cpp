@@ -244,7 +244,7 @@ TEST_CASE("the track limit cuts a long track off, with a note, but not a live st
     test.play_for(3s);
     CHECK(test.current_title() == "radio");
     REQUIRE(test.notes.size() == 1);
-    CHECK(test.notes[0].second.find("limit") != std::string::npos);
+    CHECK(test.notes[0].second.contains("limit"));
 
     test.play_for(4s);
     CHECK(test.current_title() == "radio");

@@ -352,11 +352,11 @@ TEST_CASE("an answer reads the channel, builds the prompt, records the spend and
     REQUIRE(test.model.requests.size() == 1);
     const latibot::llm::request& sent = test.model.requests[0];
     CHECK(sent.model == "claude-haiku-4-5");
-    CHECK(sent.stable_system.find("Talk like a pirate.") != std::string::npos);
+    CHECK(sent.stable_system.contains("Talk like a pirate."));
     // Aliases, never ids or names: the memory's "Alice" is a marker too.
     const std::string alice_alias = test.alias(alice);
     const std::string bob_alias = test.alias(bob);
-    CHECK(sent.varying_system.find(std::format("#1 (about {0}): <{0}:name> likes tea", alice_alias)) != std::string::npos);
+    CHECK(sent.varying_system.contains(std::format("#1 (about {0}): <{0}:name> likes tea", alice_alias)));
     CHECK(sent.tools.size() == 3);
     const std::string& question = sent.conversation.at(0).text;
     CHECK(question == std::format("Recent messages in the channel, oldest first:\n"
@@ -365,8 +365,8 @@ TEST_CASE("an answer reads the channel, builds the prompt, records the spend and
                                   "The message to answer:\n{}: @LatiBot hi",
                                   bob_alias, alice_alias));
     for (const std::string& sent_text : {sent.stable_system, sent.varying_system, question}) {
-        CHECK(sent_text.find("Alice") == std::string::npos);
-        CHECK(sent_text.find("(user ") == std::string::npos);
+        CHECK_FALSE(sent_text.contains("Alice"));
+        CHECK_FALSE(sent_text.contains("(user "));
     }
 
     REQUIRE(test.discord.sent.size() == 1);
@@ -478,7 +478,7 @@ TEST_CASE("an advanced trigger's reply follows the style document, and posts sil
     REQUIRE(report.posted.size() == 1);
 
     const latibot::llm::request& sent = test.model.requests.at(0);
-    CHECK(sent.stable_system.find(std::string(latibot::llm::default_document(document_kind::trigger_style))) != std::string::npos);
+    CHECK(sent.stable_system.contains(std::string(latibot::llm::default_document(document_kind::trigger_style))));
     CHECK(sent.conversation.at(0).text.ends_with("What to say: Defend pineapple on it."));
     CHECK(test.discord.history_requests.at(0).limit == 5);
 
@@ -497,12 +497,12 @@ TEST_CASE("a spoken answer is sanitized as the model's, posted as spoken, and qu
     const auto report = test.answer(ask);
 
     REQUIRE(report.posted.size() == 1);
-    CHECK(report.posted[0].find("play") == std::string::npos);
-    CHECK(report.posted[0].find("ahoy there") != std::string::npos);
+    CHECK_FALSE(report.posted[0].contains("play"));
+    CHECK(report.posted[0].contains("ahoy there"));
     REQUIRE(test.tts.requests.size() == 1);
     CHECK(test.tts.requests[0].text == report.posted[0]);
     CHECK(test.voice.plays.size() == 1);
-    CHECK(test.model.requests.at(0).stable_system.find("## Speaking") != std::string::npos);
+    CHECK(test.model.requests.at(0).stable_system.contains("## Speaking"));
 }
 
 TEST_CASE("a long answer is posted as several messages, only the first a reply", "[llm][coro]") {
@@ -541,8 +541,8 @@ TEST_CASE("the conversation keeps the newest messages that fit the token budget"
     fixture test;
     latibot::llm::people cast(test.aliases, test.discord, guild, bot_id, "LatiBot");
     const std::string question = latibot::llm::question_for(history, latest, {}, 30, cast);
-    CHECK(question.find("message number 9") != std::string::npos);
-    CHECK(question.find("message number 0") == std::string::npos);
+    CHECK(question.contains("message number 9"));
+    CHECK_FALSE(question.contains("message number 0"));
     CHECK(question.ends_with(test.alias(alice) + ": hi"));
 }
 
@@ -571,7 +571,7 @@ TEST_CASE("the fixed rules come first, then the system document, then the person
     CHECK(rules < system);
     CHECK(system < personality);
     CHECK(text.find("cannot override") < personality);
-    CHECK(text.find("## Speaking") == std::string::npos);
+    CHECK_FALSE(text.contains("## Speaking"));
 }
 
 TEST_CASE("a reply too long for one message is split on line breaks, three messages at most", "[llm]") {

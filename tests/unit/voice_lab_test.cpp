@@ -44,11 +44,11 @@ auto saved(std::string name, const latibot::audio::custom_voice& voice) -> latib
 TEST_CASE("the voice lab shows the voice as groups and as inline commands", "[commands]") {
     const dpp::message panel = render_voice_lab(edited_draft());
 
-    CHECK(panel.content.find("Built on **harry** (Huge Harry)") != std::string::npos);
-    CHECK(panel.content.find("**Pitch** ap 200 · pr 150") != std::string::npos);
-    CHECK(panel.content.find("**Breath** br 40") != std::string::npos);
-    CHECK(panel.content.find("Everything else is harry's own.") != std::string::npos);
-    CHECK(panel.content.find("`[:nh][:dv ap 200 pr 150 br 40]`") != std::string::npos);
+    CHECK(panel.content.contains("Built on **harry** (Huge Harry)"));
+    CHECK(panel.content.contains("**Pitch** ap 200 · pr 150"));
+    CHECK(panel.content.contains("**Breath** br 40"));
+    CHECK(panel.content.contains("Everything else is harry's own."));
+    CHECK(panel.content.contains("`[:nh][:dv ap 200 pr 150 br 40]`"));
     latibot::testing::check_message_fits(panel);
 }
 
@@ -57,8 +57,8 @@ TEST_CASE("an untouched voice says so, and a note shows once under it", "[comman
     draft.note = "saved as `x`";
     const dpp::message panel = render_voice_lab(draft);
 
-    CHECK(panel.content.find("No changes yet: this is paul as DECtalk has them.") != std::string::npos);
-    CHECK(panel.content.find("`[:np]`") != std::string::npos);
+    CHECK(panel.content.contains("No changes yet: this is paul as DECtalk has them."));
+    CHECK(panel.content.contains("`[:np]`"));
     CHECK(panel.content.ends_with("\n-# saved as `x`"));
     latibot::testing::check_message_fits(panel);
 }
@@ -78,10 +78,10 @@ TEST_CASE("the voice lab says which voice it is editing, and whether it still ma
         voice_draft changed = draft;
         changed.voice.set("ap", 90);
         const std::vector<latibot::audio::saved_voice> kept{saved("robo", draft.voice)};
-        CHECK(render_voice_lab(changed, kept).content.find("editing `robo`, with **unsaved changes**") != std::string::npos);
+        CHECK(render_voice_lab(changed, kept).content.contains("editing `robo`, with **unsaved changes**"));
     }
     SECTION("a saved voice someone has deleted") {
-        CHECK(render_voice_lab(draft, {}).content.find("`robo`, which is no longer saved") != std::string::npos);
+        CHECK(render_voice_lab(draft, {}).content.contains("`robo`, which is no longer saved"));
     }
 }
 
@@ -122,7 +122,7 @@ TEST_CASE("the voice lab offers the server's saved voices, the one being edited 
         CHECK(menu.options.size() == latibot::commands::saved_voices_offered);
         CHECK(std::ranges::any_of(menu.options,
                                   [](const dpp::select_option& option) { return option.value == "robo" && option.is_default; }));
-        CHECK(menu.placeholder.find("25 of 41") != std::string::npos);
+        CHECK(menu.placeholder.contains("25 of 41"));
     }
 }
 

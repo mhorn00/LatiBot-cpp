@@ -66,8 +66,8 @@ TEST_CASE("a track is named safely, with its length or that it is live", "[music
 
     // Markdown and mentions from a site's title are shown, not obeyed.
     const std::string shown = describe_track(song("**bold** @everyone"));
-    CHECK(shown.find("\\*\\*bold\\*\\*") != std::string::npos);
-    CHECK(shown.find("@everyone") == std::string::npos);
+    CHECK(shown.contains("\\*\\*bold\\*\\*"));
+    CHECK_FALSE(shown.contains("@everyone"));
 }
 
 TEST_CASE("text from outside is made plain", "[util]") {
@@ -135,9 +135,9 @@ TEST_CASE("the reply to /music play says what happened", "[music]") {
         const std::string text = describe_play(
             {.lookup = lookup, .added = added(95, 3), .where = queue_position::end, .playing = false, .too_long = 2, .limit = 3600s});
         CHECK(text.starts_with("queued 95 tracks from **Big Mix**"));
-        CHECK(text.find("the other 150 were left out") != std::string::npos);
-        CHECK(text.find("2 tracks longer than this server's 60-minute limit were left out") != std::string::npos);
-        CHECK(text.find("3 tracks didn't fit") != std::string::npos);
+        CHECK(text.contains("the other 150 were left out"));
+        CHECK(text.contains("2 tracks longer than this server's 60-minute limit were left out"));
+        CHECK(text.contains("3 tracks didn't fit"));
     }
     SECTION("a single track over the limit") {
         CHECK(describe_play({.lookup = single(item("Epic", 7200s)),
@@ -146,7 +146,7 @@ TEST_CASE("the reply to /music play says what happened", "[music]") {
                              .playing = false,
                              .too_long = 1,
                              .limit = 3600s})
-                  .find("longer than this server's 60-minute limit") != std::string::npos);
+                  .contains("longer than this server's 60-minute limit"));
     }
 }
 
@@ -161,9 +161,9 @@ TEST_CASE("now playing shows the track, where it is, and who queued it", "[music
     status.upcoming = {song("Next")};
     const std::string text = render_now_playing(status);
     CHECK(text.find("**Now playing:** Song — 1:05 / 3:20 · paused · repeating this track, queued by <@42>") == 0);
-    CHECK(text.find("<https://x.com/a>") != std::string::npos);
-    CHECK(text.find("by Artist") != std::string::npos);
-    CHECK(text.find("next: **Next**") != std::string::npos);
+    CHECK(text.contains("<https://x.com/a>"));
+    CHECK(text.contains("by Artist"));
+    CHECK(text.contains("next: **Next**"));
 }
 
 TEST_CASE("the queue pages ten at a time, within Discord's limits, pinging nobody", "[music]") {
@@ -175,18 +175,18 @@ TEST_CASE("the queue pages ten at a time, within Discord's limits, pinging nobod
 
     const dpp::message first = render_music_queue(status, 0);
     latibot::testing::check_message_fits(first);
-    CHECK(first.content.find("`1.`") != std::string::npos);
-    CHECK(first.content.find("`10.`") != std::string::npos);
-    CHECK(first.content.find("`11.`") == std::string::npos);
-    CHECK(first.content.find("25 tracks queued, 41:40") != std::string::npos);
-    CHECK(first.content.find("Page 1 of 3") != std::string::npos);
+    CHECK(first.content.contains("`1.`"));
+    CHECK(first.content.contains("`10.`"));
+    CHECK_FALSE(first.content.contains("`11.`"));
+    CHECK(first.content.contains("25 tracks queued, 41:40"));
+    CHECK(first.content.contains("Page 1 of 3"));
     CHECK_FALSE(first.components.empty());
     CHECK(first.allowed_mentions.parse_users == false);
 
     const dpp::message last = render_music_queue(status, 99);
     latibot::testing::check_message_fits(last);
-    CHECK(last.content.find("`25.`") != std::string::npos);
-    CHECK(last.content.find("Page 3 of 3") != std::string::npos);
+    CHECK(last.content.contains("`25.`"));
+    CHECK(last.content.contains("Page 3 of 3"));
 }
 
 TEST_CASE("an empty queue says so, with no buttons", "[music]") {
@@ -195,7 +195,7 @@ TEST_CASE("an empty queue says so, with no buttons", "[music]") {
     music_status alone;
     alone.current = song("Only");
     const dpp::message message = render_music_queue(alone, 0);
-    CHECK(message.content.find("Nothing else is queued.") != std::string::npos);
+    CHECK(message.content.contains("Nothing else is queued."));
     CHECK(message.components.empty());
 }
 

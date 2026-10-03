@@ -70,8 +70,8 @@ TEST_CASE("lines are packed into as few messages as fit, in order", "[events]") 
     }
     const std::vector<std::string> lines = lines_in(messages);
     REQUIRE(lines.size() == 100);
-    CHECK(lines.front().find("line 000") != std::string::npos);
-    CHECK(lines.back().find("line 099") != std::string::npos);
+    CHECK(lines.front().contains("line 000"));
+    CHECK(lines.back().contains("line 099"));
 }
 
 TEST_CASE("what does not fit this time keeps waiting", "[events]") {
@@ -91,9 +91,9 @@ TEST_CASE("secrets are masked wherever they appear, and short ones left alone", 
 
     const std::string message = buffer.take(1).at(0);
 
-    CHECK(message.find("s3cret") == std::string::npos);
+    CHECK_FALSE(message.contains("s3cret"));
     CHECK(latibot::util::count_occurrences(message, "*****") == 2);
-    CHECK(message.find("abc") != std::string::npos);
+    CHECK(message.contains("abc"));
 }
 
 TEST_CASE("nothing a line holds can close its code block", "[events]") {
@@ -105,8 +105,8 @@ TEST_CASE("nothing a line holds can close its code block", "[events]") {
     // The opening and closing fences, and no others: any run of backticks,
     // however long, is broken up.
     CHECK(latibot::util::count_occurrences(message, "```") == 2);
-    CHECK(message.find("``x`") != std::string::npos);
-    CHECK(message.find("@everyone") != std::string::npos);
+    CHECK(message.contains("``x`"));
+    CHECK(message.contains("@everyone"));
 }
 
 TEST_CASE("a very long line is cut to fit one message", "[events]") {
@@ -131,7 +131,7 @@ TEST_CASE("a flood keeps its start and says how much was dropped", "[events]") {
 
     REQUIRE_FALSE(messages.empty());
     CHECK(messages[0].starts_with("```\n… 5 line(s) dropped"));
-    CHECK(messages[0].find("line 0\n") != std::string::npos);
+    CHECK(messages[0].contains("line 0\n"));
     CHECK(buffer.take(1).empty());
 }
 
@@ -187,8 +187,8 @@ TEST_CASE("the log is posted to its channel, silently, from its level up", "[eve
     REQUIRE(discord.sent.size() == 1);
     const dpp::message& posted = discord.sent[0];
     CHECK(posted.channel_id == destination.channel_id);
-    CHECK(posted.content.find("[info] hello 7") != std::string::npos);
-    CHECK(posted.content.find("too quiet") == std::string::npos);
+    CHECK(posted.content.contains("[info] hello 7"));
+    CHECK_FALSE(posted.content.contains("too quiet"));
     CHECK((posted.flags & dpp::m_suppress_notifications) != 0);
     CHECK((posted.flags & dpp::m_suppress_embeds) != 0);
 
@@ -208,7 +208,7 @@ TEST_CASE("the level can change without moving the channel", "[events][coro]") {
     channel.flush().sync_wait_for(2s);
 
     REQUIRE(discord.sent.size() == 1);
-    CHECK(discord.sent[0].content.find("now wanted") != std::string::npos);
+    CHECK(discord.sent[0].content.contains("now wanted"));
 }
 
 TEST_CASE("a failed post waits before trying again, longer each time", "[events][coro]") {
@@ -243,11 +243,11 @@ TEST_CASE("a failed post waits before trying again, longer each time", "[events]
     channel.flush().sync_wait_for(2s);
     REQUIRE(discord.sent.size() == 3);
     CHECK_FALSE(channel.status().failure.has_value());
-    CHECK(discord.sent[2].content.find("third") != std::string::npos);
+    CHECK(discord.sent[2].content.contains("third"));
 
     channel.flush().sync_wait_for(2s);
     REQUIRE(discord.sent.size() == 4);
-    CHECK(discord.sent[3].content.find("posting the log to its channel again") != std::string::npos);
+    CHECK(discord.sent[3].content.contains("posting the log to its channel again"));
 }
 
 TEST_CASE("the first failure is logged, and the lines it lost are counted", "[events][coro]") {
@@ -264,8 +264,7 @@ TEST_CASE("the first failure is logged, and the lines it lost are counted", "[ev
     channel.flush().sync_wait_for(2s);
 
     REQUIRE(discord.sent.size() == 2);
-    CHECK(discord.sent[1].content.find("could not post the log to channel 2: Unknown Channel; 1 message(s) of it lost") !=
-          std::string::npos);
+    CHECK(discord.sent[1].content.contains("could not post the log to channel 2: Unknown Channel; 1 message(s) of it lost"));
 }
 
 TEST_CASE("the backoff stops growing at its longest", "[events][coro]") {
@@ -316,6 +315,6 @@ TEST_CASE("a log channel unhooks itself from the logger when it goes", "[events]
 }
 
 TEST_CASE("the first message says what the channel will get", "[events]") {
-    CHECK(latibot::events::log_channel_greeting(log_level::warn).find("warn and above") != std::string::npos);
-    CHECK(latibot::events::log_channel_greeting(log_level::trace).find("everything") != std::string::npos);
+    CHECK(latibot::events::log_channel_greeting(log_level::warn).contains("warn and above"));
+    CHECK(latibot::events::log_channel_greeting(log_level::trace).contains("everything"));
 }

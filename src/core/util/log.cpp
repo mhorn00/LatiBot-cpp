@@ -210,7 +210,7 @@ auto logger::write(log_level level, std::string_view message) -> void {
     if (tap_ && level >= tap_level_) {
         // The line was coloured for the terminal if the terminal is where it
         // went; the tap is not a terminal.
-        const bool colored = colors_ && !sink_ && message.find('\x1b') != std::string_view::npos;
+        const bool colored = colors_ && !sink_ && message.contains('\x1b');
         try {
             if (colored) {
                 tap_(level, strip_colors(message));
