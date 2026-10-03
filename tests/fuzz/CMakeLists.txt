@@ -21,7 +21,10 @@ add_library(latibot_fuzz_core STATIC
     ${core}/events/url_rules.cpp
     ${core}/events/legacy_replacements.cpp
     ${core}/audio/dectalk_sanitizer.cpp
-    # What those need to link.
+    # What those need to link. legacy_replacements asks media_posts whether
+    # a message carries an image or a video.
+    ${core}/events/media_posts.cpp
+    ${core}/events/replacements.cpp
     ${core}/config/guild_settings.cpp
     ${core}/db/database.cpp
     ${core}/db/error.cpp
