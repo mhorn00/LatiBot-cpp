@@ -1,7 +1,7 @@
 # LatiBot
 
 C++ port of a Discord bot (originally written in Java), built with CMake + MSVC
-as C++20. It uses [DPP (D++)](https://dpp.dev/) for the Discord API, built from
+as C++23. It uses [DPP (D++)](https://dpp.dev/) for the Discord API, built from
 source as a git submodule, and Conan 2 for the remaining dependencies.
 
 The `java-reference/` folder holds the original Java source purely for
@@ -127,9 +127,10 @@ This writes `~/.conan2/profiles/default` from the compiler it finds. If one is
 already there it stops with `ERROR: Profile ... already exists`, which is
 fine: keep the one you have. It should say `compiler=msvc` and
 `compiler.version=195`, the v145 toolset that ships with VS 2026 (`194` is
-VS 2022, which works too). It will also say `compiler.cppstd=14`: leave that,
-since the install commands below ask for C++20 themselves, which is what this
-project needs and what CI does.
+VS 2022 17.13 or newer, which works too). It will also say
+`compiler.cppstd=14`: leave that, since the install commands below ask for
+C++20 themselves, which is what the dependencies are built as and what CI
+does. The bot itself is C++23, which `CMakeLists.txt` sets.
 
 **The profile, not the newest Visual Studio installed, decides which compiler
 builds everything**, dependencies and bot alike: Conan's toolchain sets the
@@ -680,6 +681,11 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
 - **Three linker warnings in a clean build are expected**, none of them ours:
   `LNK4017` from `dectalk.def`'s `DESCRIPTION` line, in each configuration,
   and `LNK4075` from DPP's own link settings in Debug.
+- **C++23 is `/std:c++23preview` until MSVC Build Tools 14.52**, then
+  `/std:c++23`. `CMakeLists.txt` picks the switch by compiler version, since
+  CMake and Conan would otherwise ask for `/std:c++latest`, which adds C++26
+  draft features that change with every compiler update. Only our own code is
+  C++23: DPP stays C++20, and the Conan packages are installed as C++20.
 - **`CMAKE_CONFIGURATION_TYPES` is limited to `Debug;Release`.** Without that,
   the Visual Studio generator also expects `MinSizeRel`/`RelWithDebInfo`, which
   Conan hasn't installed.

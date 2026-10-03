@@ -4,9 +4,31 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
 project(LatiBot LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# CMake and Conan both spell C++23 as /std:c++latest for MSVC, which also turns
+# on C++26 draft and experimental features that change with every compiler
+# update. Ask for C++23 alone: /std:c++23preview up to MSVC Build Tools 14.51,
+# and /std:c++23 from 14.52 (cl 19.52), which retires the preview switch. MSVC
+# ignores a /std it does not know and compiles as C++14, so the switch follows
+# the compiler rather than being written down once.
+#
+# Only our own code is C++23. DPP sets its own standard in its directory and
+# stays C++20 (its mlspp, C++17), DECtalk is C, and the Conan packages are
+# installed with compiler.cppstd=20 (README.md, step 4).
+if(MSVC)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.43)
+        message(FATAL_ERROR "C++23 needs MSVC 19.43 (Visual Studio 2022 17.13) or newer; this one is ${CMAKE_CXX_COMPILER_VERSION}")
+    elseif(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.52)
+        set(latibot_cxx23_switch "-std:c++23preview")
+    else()
+        set(latibot_cxx23_switch "-std:c++23")
+    endif()
+    set(CMAKE_CXX23_STANDARD_COMPILE_OPTION "${latibot_cxx23_switch}")
+    set(CMAKE_CXX23_EXTENSION_COMPILE_OPTION "${latibot_cxx23_switch}")
+endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # only honoured by the Ninja presets
 
 option(LATIBOT_BUILD_TESTS "Build the unit tests" ON)

@@ -18,8 +18,9 @@ struct api_error {
 ///
 /// Ports return this instead of throwing: a Discord call failing is ordinary
 /// and every caller has to handle it, which is easy to forget with exceptions
-/// and easy to see in the type. (std::expected is C++23; this project is on
-/// C++20.)
+/// and easy to see in the type. It was written before the project moved to
+/// C++23; std::expected would now do the same job, and moving to it is a
+/// change of its own.
 template <typename T>
 // Moving a result is only as noexcept as moving a T, and some of the DPP
 // payloads we carry allocate when moved (MSVC's node-based containers do).

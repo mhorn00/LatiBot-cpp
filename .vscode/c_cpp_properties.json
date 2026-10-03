@@ -38,7 +38,7 @@
       // once CMake Tools has configured, it supplies the exact one the build
       // uses.
       "cStandard": "c17",
-      "cppStandard": "c++20",
+      "cppStandard": "c++23",
       "intelliSenseMode": "windows-msvc-x64"
     }
   ]
