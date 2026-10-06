@@ -20,11 +20,14 @@
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
+#include "core/events/stage_order.hpp"
 #include "core/llm/anthropic.hpp"
 #include "core/llm/config_check.hpp"
 #include "core/llm/memory_tools.hpp"
 #include "core/llm/models.hpp"
 #include "core/llm/openai.hpp"
+#include "core/module/host.hpp"
+#include "core/module/module.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
@@ -115,7 +118,6 @@ auto nickname_change_in(const dpp::audit_entry& entry) -> std::optional<dpp::aud
 }
 
 using ui::answer_privately;
-using ui::detach;
 using ui::update_panel;
 
 /// What a button, menu or form no panel claims hears back. It is one of ours,
@@ -200,7 +202,7 @@ auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> 
 
 } // namespace
 
-bot::bot(config::bootstrap settings, const config::secrets& credentials)
+bot::bot(config::bootstrap settings, const config::secrets& credentials, const module::module_factory& make_modules)
     : settings_(std::move(settings)),
       database_(prepare(settings_.database_path)),
       guild_settings_(database_),
@@ -372,6 +374,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
     register_stages();
     register_events();
     register_timers();
+    start_modules(make_modules);
 
     std::string stages;
     for (const std::string_view name : pipeline_.stage_names()) {
@@ -416,14 +419,15 @@ auto bot::register_stages() -> void {
     // changing it is one line. The model is last: it consumes what it
     // answers, and a simple trigger's reply before it keeps an advanced
     // trigger quiet.
-    pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
-    pipeline_.add("url replacement", events::carried_out_by<events::replace_links>(
-                                         events::url_replacer(url_rules_), "posting a replacement", [this](events::replace_links request) {
-                                             return events::post_replacement(gateway_, replacements_, embed_tracker_, clock_,
-                                                                             std::move(request));
-                                         }));
-    pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
-    pipeline_.add("language model",
+    pipeline_.add(events::stage_order::stop, "goodbye", events::goodbye_stage(guild_settings_));
+    pipeline_.add(events::stage_order::rewrite, "url replacement",
+                  events::carried_out_by<events::replace_links>(
+                      events::url_replacer(url_rules_), "posting a replacement", [this](events::replace_links request) {
+                          return events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, std::move(request));
+                      }));
+    pipeline_.add(events::stage_order::reply, "triggers",
+                  [this](const events::incoming_message& message) { return trigger_responder_(message); });
+    pipeline_.add(events::stage_order::model, "language model",
                   events::carried_out_by<llm::ask_llm>([this](const events::incoming_message& message) { return llm_stage_(message); },
                                                        "answering with the language model",
                                                        [this](llm::ask_llm ask) { return answer_with_llm(std::move(ask)); }));
@@ -641,77 +645,83 @@ auto bot::on_ready(const dpp::ready_t& event) -> void {
 
 namespace {
 
-/// A timer callback that logs what it throws rather than letting it reach
-/// DPP.
+/// A timer's work, logging what it throws rather than letting it reach DPP.
 ///
 /// DPP runs timers on its socket thread and puts a repeating one back in its
 /// queue only after the callback returns, so one exception would stop that
 /// timer for the life of the process, leaving a single log line that does
 /// not say which timer it was.
-template <typename Work>
-auto guarded(std::string_view what, Work work) {
-    return [what, work = std::move(work)](dpp::timer handle) {
-        try {
-            work(handle);
-        } catch (const std::exception& error) {
-            util::log().error("{} failed: {}", what, error.what());
-        }
-    };
+auto run_guarded(std::string_view what, const std::function<void()>& work) -> void {
+    try {
+        work();
+    } catch (const std::exception& error) {
+        module::report_failure(what, &error);
+    } catch (...) {
+        module::report_failure(what, nullptr);
+    }
 }
 
 } // namespace
+
+auto bot::every(std::chrono::seconds interval, std::string name, std::function<void()> work) -> void {
+    cluster_.start_timer([name = std::move(name), work = std::move(work)](dpp::timer) { run_guarded(name, work); },
+                         static_cast<std::uint64_t>(interval.count()));
+}
+
+auto bot::after(std::chrono::seconds delay, std::string name, std::function<void()> work) -> void {
+    // A self-cancelling repeat, which is the one-shot DPP does not have. The
+    // handle arrives in the callback, so nothing has to be kept alive here.
+    cluster_.start_timer(
+        [this, name = std::move(name), work = std::move(work)](dpp::timer handle) {
+            cluster_.stop_timer(handle);
+            run_guarded(name, work);
+        },
+        static_cast<std::uint64_t>(delay.count()));
+}
 
 auto bot::register_timers() -> void {
     // Polling the wall clock is the fix for the Java bot's random-fire bug:
     // it computed a delay from the wall clock and then waited on a monotonic
     // timer, so a machine that slept woke up and posted at whatever time it
     // happened to be (docs/features/Midnight.md §1).
-    cluster_.start_timer(guarded("the midnight tick", [this](dpp::timer) { carry_out(midnight_scheduler_.tick()); }),
-                         static_cast<std::uint64_t>(events::midnight_tick.count()));
+    every(events::midnight_tick, "the midnight tick", [this] { carry_out(midnight_scheduler_.tick()); });
 
     util::log().debug("midnight messages checked every {}", events::midnight_tick);
 
     // One timer for every replacement being watched, rather than one each:
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
-    cluster_.start_timer(guarded("the preview tracker's tick", [this](dpp::timer) { carry_out(embed_tracker_.tick()); }), 1);
+    every(std::chrono::seconds{1}, "the preview tracker's tick", [this] { carry_out(embed_tracker_.tick()); });
 
     // Keeps a few seconds of music queued on each connection playing it
     // (docs/features/Music.md §4.2). Most ticks find nothing to do.
-    cluster_.start_timer(guarded("feeding music", [this](dpp::timer) { mixer_.tick(); }), 1);
+    every(std::chrono::seconds{1}, "feeding music", [this] { mixer_.tick(); });
 
     // Posts what has been logged since the last tick, if a channel is set.
     // A tick with nothing waiting, or no channel, costs a coroutine that
     // takes a lock and returns.
-    cluster_.start_timer(guarded("the log channel's tick", [this](dpp::timer) { detach(log_channel_.flush(), "posting the log"); }),
-                         static_cast<std::uint64_t>(events::log_channel_tick.count()));
+    every(events::log_channel_tick, "the log channel's tick", [this] { detach(log_channel_.flush(), "posting the log"); });
 
     // Leaving a voice channel nobody else is in, once its guild's grace has
     // passed (docs/features/Voice_Channels.md §2.3). Leaving is the bot's own
     // voice state changing, which on_voice_state tidies up after.
-    cluster_.start_timer(guarded("the voice auto-leave check",
-                                 [this](dpp::timer) {
-                                     const auto grace = [this](dpp::snowflake guild) {
-                                         return commands::voice_grace_for(guild_settings_, guild);
-                                     };
-                                     for (const dpp::snowflake guild : auto_leave_.due(grace)) {
-                                         dpp::discord_client* shard = discord::shard_for(cluster_, guild);
-                                         if (shard == nullptr) continue;
-                                         shard->disconnect_voice(guild);
-                                         util::log().info("left voice in guild {}: nobody else was there for {}", guild, grace(guild));
-                                     }
-                                 }),
-                         static_cast<std::uint64_t>(events::auto_leave_tick.count()));
+    every(events::auto_leave_tick, "the voice auto-leave check", [this] {
+        const auto grace = [this](dpp::snowflake guild) { return commands::voice_grace_for(guild_settings_, guild); };
+        for (const dpp::snowflake guild : auto_leave_.due(grace)) {
+            dpp::discord_client* shard = discord::shard_for(cluster_, guild);
+            if (shard == nullptr) continue;
+            shard->disconnect_voice(guild);
+            util::log().info("left voice in guild {}: nobody else was there for {}", guild, grace(guild));
+        }
+    });
 
     // The bot's own copies of the emojis it has seen, a few at a time. The
     // copies belong to the bot's application, which it only knows once
     // connected.
     if (emoji_copier_.enabled()) {
-        cluster_.start_timer(guarded("copying emojis",
-                                     [this](dpp::timer) {
-                                         if (!cluster_.me.id.empty()) detach(copy_emojis(), "copying emojis");
-                                     }),
-                             static_cast<std::uint64_t>(events::copy_round_interval.count()));
+        every(events::copy_round_interval, "copying emojis", [this] {
+            if (!cluster_.me.id.empty()) detach(copy_emojis(), "copying emojis");
+        });
         util::log().info("keeping copies of emojis used at least {} time{}", settings_.emoji_copy_min_uses,
                          settings_.emoji_copy_min_uses == 1 ? "" : "s");
     } else {
@@ -723,20 +733,16 @@ auto bot::register_timers() -> void {
         return;
     }
 
-    const auto every = std::chrono::duration_cast<std::chrono::seconds>(settings_.backup_interval);
-    cluster_.start_timer(
-        [this](dpp::timer) {
-            try {
-                const auto written =
-                    db::create_backup(database_, settings_.backup_directory, "bot", settings_.backups_to_keep, clock_.now());
-                util::log().info("wrote {}", written.generic_string());
-            } catch (const std::exception& error) {
-                // A backup that fails is worth knowing about and is never
-                // worth taking the bot down for.
-                util::log().error("could not write a backup to {}: {}", settings_.backup_directory.generic_string(), error.what());
-            }
-        },
-        static_cast<std::uint64_t>(every.count()));
+    every(std::chrono::duration_cast<std::chrono::seconds>(settings_.backup_interval), "the database backup", [this] {
+        try {
+            const auto written = db::create_backup(database_, settings_.backup_directory, "bot", settings_.backups_to_keep, clock_.now());
+            util::log().info("wrote {}", written.generic_string());
+        } catch (const std::exception& error) {
+            // A backup that fails is worth knowing about and is never worth
+            // taking the bot down for.
+            util::log().error("could not write a backup to {}: {}", settings_.backup_directory.generic_string(), error.what());
+        }
+    });
 
     util::log().info("backing up to {} every {}, keeping {}", settings_.backup_directory.generic_string(), settings_.backup_interval,
                      settings_.backups_to_keep);
@@ -790,41 +796,35 @@ auto bot::on_member_update(const dpp::guild_member& member) -> void {
 }
 
 auto bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void {
-    // A self-cancelling repeat, which is the one-shot DPP does not have. The
-    // handle arrives in the callback, so nothing has to be kept alive here.
-    cluster_.start_timer(guarded("the audit log fallback",
-                                 [this, guild_id, user_id, row](dpp::timer handle) {
-                                     cluster_.stop_timer(handle);
+    after(events::audit_fallback_delay, "the audit log fallback", [this, guild_id, user_id, row] {
+        const auto waiting = nicknames_.find(row);
+        if (!waiting || waiting->changed_by) {
+            // The gateway entry arrived, which is the ordinary path.
+            return;
+        }
 
-                                     const auto waiting = nicknames_.find(row);
-                                     if (!waiting || waiting->changed_by) {
-                                         // The gateway entry arrived, which is the ordinary path.
-                                         return;
-                                     }
+        util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
+        cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
+                                    [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
+                                        if (reply.is_error()) {
+                                            // Almost always a missing View Audit Log, which the
+                                            // permission preflight already warns about per guild.
+                                            util::log().debug("could not read the audit log for guild {}: {}", guild_id,
+                                                              reply.get_error().message);
+                                            return;
+                                        }
 
-                                     util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
-                                     cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
-                                                                 [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
-                                                                     if (reply.is_error()) {
-                                                                         // Almost always a missing View Audit Log, which the
-                                                                         // permission preflight already warns about per guild.
-                                                                         util::log().debug("could not read the audit log for guild {}: {}",
-                                                                                           guild_id, reply.get_error().message);
-                                                                         return;
-                                                                     }
+                                        const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
+                                        if (entries == nullptr) return;
 
-                                                                     const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
-                                                                     if (entries == nullptr) return;
-
-                                                                     // Every recent entry about this member goes through
-                                                                     // the same path as a live one, which decides which
-                                                                     // row, if any, it attributes.
-                                                                     for (const dpp::audit_entry& entry : entries->entries) {
-                                                                         if (entry.target_id == user_id) on_audit_entry(entry, guild_id);
-                                                                     }
-                                                                 });
-                                 }),
-                         static_cast<std::uint64_t>(events::audit_fallback_delay.count()));
+                                        // Every recent entry about this member goes through the
+                                        // same path as a live one, which decides which row, if
+                                        // any, it attributes.
+                                        for (const dpp::audit_entry& entry : entries->entries) {
+                                            if (entry.target_id == user_id) on_audit_entry(entry, guild_id);
+                                        }
+                                    });
+    });
 }
 
 auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void {
@@ -1134,6 +1134,9 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state.page));
     } else if (state.view == events::url_retry_view) {
         retry_replacement(event, dpp::snowflake(state.argument), who);
+    } else if (panels_.claimed(state.view)) {
+        // A module's panel (docs/modules/Module_Plan_Final.md §4.6).
+        return panels_.on_component(event, state, chosen);
     } else {
         // Each panel's router says whether the view was one of its own.
         return trigger_panel_.on_component(event, state, chosen) || url_panel_.on_component(event, state, chosen) ||
@@ -1157,8 +1160,8 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
 
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && (trigger_panel_.on_form(event, *state) || url_panel_.on_form(event, *state) || voice_lab_.on_form(event, *state) ||
-                      llm_panels_.on_form(event, *state))) {
+        if (state && (panels_.on_form(event, *state) || trigger_panel_.on_form(event, *state) || url_panel_.on_form(event, *state) ||
+                      voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
             // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
@@ -1211,6 +1214,34 @@ auto bot::post(events::send_message message) -> void {
     std::vector<events::action> one;
     one.emplace_back(std::move(message));
     carry_out(std::move(one));
+}
+
+auto bot::detach(dpp::task<void> work, std::string what) -> void {
+    ui::detach(std::move(work), std::move(what));
+}
+
+auto bot::add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void {
+    pipeline_.add(position, std::move(name), std::move(stage));
+}
+
+auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
+    module_permissions_.emplace_back(bits, std::move(purpose));
+}
+
+auto bot::start_modules(const module::module_factory& make_modules) -> void {
+    modules_ = module::start_modules(make_modules, *this, capabilities_);
+    // Before connecting, which is when DPP reads them.
+    cluster_.intents |= module_intents_;
+
+    std::string names;
+    for (const auto& each : modules_) {
+        if (!names.empty()) names += ", ";
+        names += each->name();
+    }
+    util::log().info("{} module(s){}{}", modules_.size(), names.empty() ? "" : ": ", names);
+    for (const std::string& listener : listeners_) {
+        util::log().debug("  listening: {}", listener);
+    }
 }
 
 auto bot::carry_out(std::vector<events::action> actions) -> void {
@@ -1274,6 +1305,9 @@ auto bot::check_permissions(const dpp::guild& guild) const -> void {
     std::vector<commands::requirement> required;
     const auto passive = commands::passive_requirements();
     required.assign(passive.begin(), passive.end());
+    for (const auto& [bits, purpose] : module_permissions_) {
+        required.push_back({.permissions = bits, .purpose = purpose});
+    }
     required.push_back({.permissions = commands_.required_bot_permissions(), .purpose = "the registered commands"});
 
     const std::uint64_t granted = guild.base_permissions(self->second);

@@ -102,12 +102,21 @@ log_buffer::log_buffer(std::vector<std::string> secrets) : secrets_(std::move(se
     std::erase_if(secrets_, [](const std::string& secret) { return secret.size() < shortest_secret; });
 }
 
+auto log_buffer::add_secret(std::string secret) -> void {
+    if (secret.size() < shortest_secret) return;
+    const std::unique_lock guard(secrets_mutex_);
+    secrets_.push_back(std::move(secret));
+}
+
 auto log_buffer::push(std::chrono::sys_seconds stamp, util::log_level level, std::string_view message) -> void {
     // Everything that costs anything happens before the lock, which every
     // thread that logs is waiting on.
     std::string line = std::format("{:%H:%M:%S} [{}] {}", stamp, util::to_string(level), message);
-    for (const std::string& secret : secrets_) {
-        replace_all(line, secret, "*****");
+    {
+        const std::shared_lock reading(secrets_mutex_);
+        for (const std::string& secret : secrets_) {
+            replace_all(line, secret, "*****");
+        }
     }
     line = defuse_fences(line);
     if (util::character_count(line) > max_line) line = util::truncate(line, max_line);

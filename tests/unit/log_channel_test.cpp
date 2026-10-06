@@ -96,6 +96,20 @@ TEST_CASE("secrets are masked wherever they appear, and short ones left alone", 
     CHECK(message.contains("abc"));
 }
 
+TEST_CASE("a secret added later is masked from then on, and a short one still is not", "[events]") {
+    // What a module passes to host::secret while the bot starts.
+    log_buffer buffer({"s3cret-token-value"});
+    buffer.push(stamp, log_level::info, "before: module-api-key-1234");
+    buffer.add_secret("module-api-key-1234");
+    buffer.add_secret("xyz");
+    buffer.push(stamp, log_level::info, "after: module-api-key-1234 xyz s3cret-token-value");
+
+    const std::string message = buffer.take(1).at(0);
+
+    CHECK(message.contains("before: module-api-key-1234"));
+    CHECK(message.contains("after: ***** xyz *****"));
+}
+
 TEST_CASE("nothing a line holds can close its code block", "[events]") {
     log_buffer buffer;
     buffer.push(stamp, log_level::info, "```\n@everyone ``````` ``x`");

@@ -1,12 +1,15 @@
 #include "core/events/message_pipeline.hpp"
+#include "core/events/stage_order.hpp"
 
 #include "support/capture_log.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -15,6 +18,7 @@ using latibot::events::incoming_message;
 using latibot::events::pipeline;
 using latibot::events::send_message;
 using latibot::events::stage_result;
+namespace stage_order = latibot::events::stage_order;
 
 namespace {
 
@@ -49,17 +53,31 @@ auto sent(const std::vector<action>& actions) -> std::vector<std::string> {
 
 } // namespace
 
-TEST_CASE("stages run in the order they were added", "[events]") {
+TEST_CASE("stages run by position, whatever order they were added in", "[events]") {
+    // Modules start in dependency order, which says nothing about where
+    // their stages belong (docs/modules/Module_Plan_Final.md §4.4).
     std::vector<std::string> ran;
     pipeline stages;
-    stages.add("first", recorder(ran, "first"));
-    stages.add("second", recorder(ran, "second"));
-    stages.add("third", recorder(ran, "third"));
+    stages.add(stage_order::model, "model", recorder(ran, "model"));
+    stages.add(stage_order::stop, "stop", recorder(ran, "stop"));
+    stages.add(stage_order::reply, "reply", recorder(ran, "reply"));
+    stages.add(stage_order::rewrite, "rewrite", recorder(ran, "rewrite"));
 
     const auto actions = stages.run(from_human());
 
-    CHECK(ran == std::vector<std::string>{"first", "second", "third"});
+    CHECK(ran == std::vector<std::string>{"stop", "rewrite", "reply", "model"});
+    CHECK(stages.stage_names() == std::vector<std::string_view>{"stop", "rewrite", "reply", "model"});
     CHECK(actions.empty());
+}
+
+TEST_CASE("two stages at one position stop startup", "[events]") {
+    std::vector<std::string> ran;
+    pipeline stages;
+    stages.add(stage_order::reply, "triggers", recorder(ran, "triggers"));
+
+    CHECK_THROWS_WITH(stages.add(stage_order::reply, "echo", recorder(ran, "echo")),
+                      Catch::Matchers::ContainsSubstring("\"triggers\" and \"echo\" both claim position 300"));
+    CHECK(stages.size() == 1);
 }
 
 TEST_CASE("a stage that consumes the message stops the ones after it", "[events]") {
@@ -67,9 +85,9 @@ TEST_CASE("a stage that consumes the message stops the ones after it", "[events]
     // replacement follow, and a goodbye, which ends the conversation.
     std::vector<std::string> ran;
     pipeline stages;
-    stages.add("first", recorder(ran, "first", /*consumes=*/false, /*answers=*/true));
-    stages.add("second", recorder(ran, "second", /*consumes=*/true, /*answers=*/true));
-    stages.add("third", recorder(ran, "third", /*consumes=*/false, /*answers=*/true));
+    stages.add(1, "first", recorder(ran, "first", /*consumes=*/false, /*answers=*/true));
+    stages.add(2, "second", recorder(ran, "second", /*consumes=*/true, /*answers=*/true));
+    stages.add(3, "third", recorder(ran, "third", /*consumes=*/false, /*answers=*/true));
 
     const auto actions = stages.run(from_human());
 
@@ -83,7 +101,7 @@ TEST_CASE("the bot never answers itself, or a bot this guild has not allowed", "
     // (docs/features/Message_Pipeline.md §2.1).
     std::vector<std::string> ran;
     pipeline stages;
-    stages.add("only", recorder(ran, "only", false, true));
+    stages.add(1, "only", recorder(ran, "only", false, true));
 
     SECTION("our own message") {
         auto message = from_human();
@@ -115,7 +133,7 @@ TEST_CASE("an allowed bot reaches the stages", "[events]") {
     // stage's own (docs/features/Message_Pipeline.md §2.1).
     std::vector<std::string> ran;
     pipeline stages;
-    stages.add("only", recorder(ran, "only", false, true));
+    stages.add(1, "only", recorder(ran, "only", false, true));
 
     auto message = from_human();
     message.from_bot = true;
@@ -132,8 +150,8 @@ TEST_CASE("a stage that throws is logged and the rest still run", "[events]") {
 
     std::vector<std::string> ran;
     pipeline stages;
-    stages.add("broken", [](const incoming_message&) -> stage_result { throw std::runtime_error("nope"); });
-    stages.add("healthy", recorder(ran, "healthy", false, true));
+    stages.add(1, "broken", [](const incoming_message&) -> stage_result { throw std::runtime_error("nope"); });
+    stages.add(2, "healthy", recorder(ran, "healthy", false, true));
 
     const auto actions = stages.run(from_human());
 
@@ -163,20 +181,21 @@ TEST_CASE("a stage's own actions become background tasks, and the rest pass thro
 
     std::vector<int> carried;
     pipeline stages;
-    stages.add("own", latibot::events::carried_out_by<own_step>(
-                          [](const incoming_message& message) {
-                              own_stage_result<own_step> decided;
-                              decided.actions.emplace_back(own_step{.number = 7});
-                              decided.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = "noted"});
-                              decided.answered = true;
-                              return decided;
-                          },
-                          "doing the step",
-                          [&carried](own_step step) -> dpp::task<void> {
-                              carried.push_back(step.number);
-                              co_return;
-                          }));
-    stages.add("later", [](const incoming_message& message) {
+    stages.add(1, "own",
+               latibot::events::carried_out_by<own_step>(
+                   [](const incoming_message& message) {
+                       own_stage_result<own_step> decided;
+                       decided.actions.emplace_back(own_step{.number = 7});
+                       decided.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = "noted"});
+                       decided.answered = true;
+                       return decided;
+                   },
+                   "doing the step",
+                   [&carried](own_step step) -> dpp::task<void> {
+                       carried.push_back(step.number);
+                       co_return;
+                   }));
+    stages.add(2, "later", [](const incoming_message& message) {
         stage_result result;
         // The first stage answered, and this one sees it.
         if (message.answered) result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = "seen"});

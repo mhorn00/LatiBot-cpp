@@ -5,6 +5,7 @@
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
 #include "core/events/replacements.hpp"
+#include "core/events/stage_order.hpp"
 #include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
@@ -740,13 +741,15 @@ TEST_CASE("a message with a joke and a link gets both", "[events]") {
     // hands the plan to whatever posts it.
     std::vector<latibot::events::replace_links> posted;
     latibot::events::pipeline stages;
-    stages.add("url replacement", latibot::events::carried_out_by<latibot::events::replace_links>(
-                                      latibot::events::url_replacer(test.rules), "posting a replacement",
-                                      [&posted](latibot::events::replace_links request) -> dpp::task<void> {
-                                          posted.push_back(std::move(request));
-                                          co_return;
-                                      }));
-    stages.add("triggers", [&](const latibot::events::incoming_message& message) { return responder(message); });
+    stages.add(latibot::events::stage_order::rewrite, "url replacement",
+               latibot::events::carried_out_by<latibot::events::replace_links>(
+                   latibot::events::url_replacer(test.rules), "posting a replacement",
+                   [&posted](latibot::events::replace_links request) -> dpp::task<void> {
+                       posted.push_back(std::move(request));
+                       co_return;
+                   }));
+    stages.add(latibot::events::stage_order::reply, "triggers",
+               [&](const latibot::events::incoming_message& message) { return responder(message); });
 
     auto actions = stages.run(link_message("420 https://x.com/a/status/1"));
     REQUIRE(actions.size() == 2);

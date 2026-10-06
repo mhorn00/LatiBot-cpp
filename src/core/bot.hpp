@@ -41,11 +41,15 @@
 #include "core/llm/spend.hpp"
 #include "core/llm/stage.hpp"
 #include "core/llm/tools.hpp"
+#include "core/module/capability_registry.hpp"
+#include "core/module/host.hpp"
+#include "core/module/module.hpp"
 #include "core/music/music_player.hpp"
 #include "core/music/pot_provider.hpp"
 #include "core/music/yt_dlp.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
+#include "core/ui/panel_routes.hpp"
 
 #include <dpp/dpp.h>
 
@@ -56,6 +60,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace latibot {
@@ -65,9 +70,14 @@ namespace latibot {
 /// This is the shell: it wires DPP events to core functions and holds the
 /// ports features talk through. The logic itself lives outside, where it can
 /// be tested without Discord (docs/testing/README.md).
-class bot {
+///
+/// It is also the modules' host (docs/modules/Module_Plan_Final.md §4): it
+/// builds them with `make_modules`, has each offer its capabilities and then
+/// start, and only then connects. The features not yet moved into a module
+/// are still its own members.
+class bot final : public module::host {
 public:
-    bot(config::bootstrap settings, const config::secrets& credentials);
+    bot(config::bootstrap settings, const config::secrets& credentials, const module::module_factory& make_modules);
 
     bot(const bot&) = delete;
     auto operator=(const bot&) -> bot& = delete;
@@ -75,7 +85,36 @@ public:
     /// Connects and blocks until the bot shuts down.
     auto run() -> void;
 
+    // module::host
+    [[nodiscard]] auto database() -> db::database& override { return database_; }
+    [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings_; }
+    [[nodiscard]] auto bootstrap() const -> const config::bootstrap& override { return settings_; }
+    [[nodiscard]] auto gateway() -> ports::discord_gateway& override { return gateway_; }
+    [[nodiscard]] auto http() -> ports::http_client& override { return http_; }
+    [[nodiscard]] auto raw() -> discord::raw_api& override { return raw_; }
+    [[nodiscard]] auto clock() -> ports::clock& override { return clock_; }
+    [[nodiscard]] auto cluster() -> dpp::cluster& override { return cluster_; }
+    [[nodiscard]] auto me() const -> const dpp::user& override { return cluster_.me; }
+    [[nodiscard]] auto capabilities() const -> const module::capability_registry& override { return capabilities_; }
+    [[nodiscard]] auto slash_commands() -> commands::registry& override { return commands_; }
+    [[nodiscard]] auto panels() -> ui::panel_routes& override { return panels_; }
+    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void override;
+    auto every(std::chrono::seconds interval, std::string name, std::function<void()> work) -> void override;
+    auto after(std::chrono::seconds delay, std::string name, std::function<void()> work) -> void override;
+    auto intents(std::uint32_t wanted) -> void override { module_intents_ |= wanted; }
+    auto permission(std::uint64_t bits, std::string purpose) -> void override;
+    auto secret(std::string value) -> void override { log_channel_.add_secret(std::move(value)); }
+    auto post(events::send_message message) -> void override;
+    auto detach(dpp::task<void> work, std::string what) -> void override;
+
+protected:
+    auto note_listener(std::string_view name) -> void override { listeners_.emplace_back(name); }
+
 private:
+    /// Builds the modules, has each offer, then start, and logs what they
+    /// added (docs/modules/Module_Plan_Final.md §4.3).
+    auto start_modules(const module::module_factory& make_modules) -> void;
+
     auto register_commands() -> void;
     auto register_stages() -> void;
     auto register_events() -> void;
@@ -127,9 +166,6 @@ private:
 
     /// Performs what the stages decided.
     auto carry_out(std::vector<events::action> actions) -> void;
-
-    /// Posts one message, as a stage's `send_message` would be.
-    auto post(events::send_message message) -> void;
 
     /// Buttons and select menus. `chosen` is the select menu's value, empty
     /// for a button. Both arrive here because a panel mixes the two and the
@@ -302,6 +338,22 @@ private:
     /// Asks yt-dlp and ffmpeg their versions at startup, for the log, without
     /// holding startup up.
     std::jthread music_versions_;
+
+    // What the modules registered (docs/modules/Module_Plan_Final.md §4.2).
+    // The routes and the capabilities point into the modules, which are
+    // destroyed first.
+    module::capability_registry capabilities_;
+    ui::panel_routes panels_;
+    std::uint32_t module_intents_ = 0;
+    /// Permissions modules asked for, checked with the commands' in each
+    /// server.
+    std::vector<std::pair<std::uint64_t, std::string>> module_permissions_;
+    /// Who listens to which DPP event, for the startup log.
+    std::vector<std::string> listeners_;
+
+    /// The modules, in dependency order. After everything they were given,
+    /// so they are destroyed before any of it.
+    module::module_list modules_;
 
     /// The pause between the goodbye and shutting down. Last, so it is
     /// joined first when the bot is destroyed, while the cluster it shuts

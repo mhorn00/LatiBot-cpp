@@ -80,6 +80,9 @@ add_library(latibot_core STATIC
     core/llm/spend.cpp
     core/llm/stage.cpp
     core/llm/tools.cpp
+    core/module/capability_registry.cpp
+    core/module/host.cpp
+    core/module/module.cpp
     core/music/cookies.cpp
     core/music/links.cpp
     core/music/music_player.cpp
@@ -89,6 +92,7 @@ add_library(latibot_core STATIC
     core/ports/clock.cpp
     core/ui/interaction.cpp
     core/ui/paginator.cpp
+    core/ui/panel_routes.cpp
     core/util/ca_certificates.cpp
     core/util/env.cpp
     core/util/log.cpp
@@ -129,7 +133,10 @@ target_precompile_headers(latibot_core PRIVATE <dpp/dpp.h>)
 latibot_target_warnings(latibot_core)
 latibot_target_sanitizers(latibot_core)
 
-add_executable(LatiBot main.cpp)
+# enabled_modules.cpp is the list of modules this build includes
+# (docs/modules/Module_Plan_Final.md §4.8). Written by hand until CMake writes
+# it from the LATIBOT_WITH_* switches.
+add_executable(LatiBot main.cpp enabled_modules.cpp)
 target_link_libraries(LatiBot PRIVATE latibot_core)
 
 latibot_target_warnings(LatiBot)

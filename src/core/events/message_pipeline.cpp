@@ -2,13 +2,20 @@
 
 #include "core/util/log.hpp"
 
+#include <algorithm>
 #include <exception>
+#include <format>
+#include <stdexcept>
 #include <utility>
 
 namespace latibot::events {
 
-auto pipeline::add(std::string name, stage_fn handler) -> void {
-    stages_.push_back({.name = std::move(name), .handler = std::move(handler)});
+auto pipeline::add(int position, std::string name, stage_fn handler) -> void {
+    const auto later = std::ranges::find_if(stages_, [position](const stage& entry) { return entry.position >= position; });
+    if (later != stages_.end() && later->position == position) {
+        throw std::logic_error(std::format(R"(message stages "{}" and "{}" both claim position {})", later->name, name, position));
+    }
+    stages_.insert(later, {.position = position, .name = std::move(name), .handler = std::move(handler)});
 }
 
 auto pipeline::run(const incoming_message& message) const -> std::vector<action> {

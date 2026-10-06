@@ -40,6 +40,7 @@ add_executable(latibot_tests
     unit/goodbye_test.cpp
     unit/legacy_replacements_test.cpp
     unit/message_pipeline_test.cpp
+    unit/module_test.cpp
     unit/midnight_command_test.cpp
     unit/midnight_test.cpp
     unit/music_command_test.cpp
@@ -53,6 +54,7 @@ add_executable(latibot_tests
     unit/nicknames_test.cpp
     unit/paginator_test.cpp
     unit/panels_test.cpp
+    unit/panel_routes_test.cpp
     unit/pcm_test.cpp
     unit/linkstats_command_test.cpp
     unit/llm_answer_test.cpp

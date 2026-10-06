@@ -5,15 +5,16 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-949 test cases across 12 components, including 202 sections.
+962 test cases across 13 components, including 202 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 155 | 21 |
 | [config](#config) | 37 | 21 |
 | [commands](#commands) | 197 | 55 |
-| [events](#events) | 198 | 40 |
-| [ui](#ui) | 11 | 0 |
+| [events](#events) | 200 | 40 |
+| [ui](#ui) | 15 | 0 |
+| [module](#module) | 7 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
@@ -470,36 +471,36 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:89](../../tests/db/media_posts_test.cpp#L89) |
 | only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:102](../../tests/db/media_posts_test.cpp#L102) |
 | a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:114](../../tests/db/media_posts_test.cpp#L114) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:120](../../tests/unit/embed_watch_test.cpp#L120) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:130](../../tests/unit/embed_watch_test.cpp#L130) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:138](../../tests/unit/embed_watch_test.cpp#L138) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:152](../../tests/unit/embed_watch_test.cpp#L152) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:162](../../tests/unit/embed_watch_test.cpp#L162) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:168](../../tests/unit/embed_watch_test.cpp#L168) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:177](../../tests/unit/embed_watch_test.cpp#L177) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:188](../../tests/unit/embed_watch_test.cpp#L188) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:201](../../tests/unit/embed_watch_test.cpp#L201) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:216](../../tests/unit/embed_watch_test.cpp#L216) |
-| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:254](../../tests/unit/embed_watch_test.cpp#L254) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:332](../../tests/unit/embed_watch_test.cpp#L332) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:344](../../tests/unit/embed_watch_test.cpp#L344) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:354](../../tests/unit/embed_watch_test.cpp#L354) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:363](../../tests/unit/embed_watch_test.cpp#L363) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:377](../../tests/unit/embed_watch_test.cpp#L377) |
-| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:418](../../tests/unit/embed_watch_test.cpp#L418) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:459](../../tests/unit/embed_watch_test.cpp#L459) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:490](../../tests/unit/embed_watch_test.cpp#L490) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:504](../../tests/unit/embed_watch_test.cpp#L504) |
-| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:543](../../tests/unit/embed_watch_test.cpp#L543) |
-| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:567](../../tests/unit/embed_watch_test.cpp#L567) |
-| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:580](../../tests/unit/embed_watch_test.cpp#L580) |
-| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:606](../../tests/unit/embed_watch_test.cpp#L606) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:643](../../tests/unit/embed_watch_test.cpp#L643) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:659](../../tests/unit/embed_watch_test.cpp#L659) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:679](../../tests/unit/embed_watch_test.cpp#L679) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:713](../../tests/unit/embed_watch_test.cpp#L713) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:725](../../tests/unit/embed_watch_test.cpp#L725) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:121](../../tests/unit/embed_watch_test.cpp#L121) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:131](../../tests/unit/embed_watch_test.cpp#L131) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:139](../../tests/unit/embed_watch_test.cpp#L139) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:153](../../tests/unit/embed_watch_test.cpp#L153) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:163](../../tests/unit/embed_watch_test.cpp#L163) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:169](../../tests/unit/embed_watch_test.cpp#L169) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:178](../../tests/unit/embed_watch_test.cpp#L178) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:189](../../tests/unit/embed_watch_test.cpp#L189) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:202](../../tests/unit/embed_watch_test.cpp#L202) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:217](../../tests/unit/embed_watch_test.cpp#L217) |
+| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:255](../../tests/unit/embed_watch_test.cpp#L255) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:308](../../tests/unit/embed_watch_test.cpp#L308) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:333](../../tests/unit/embed_watch_test.cpp#L333) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:345](../../tests/unit/embed_watch_test.cpp#L345) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:355](../../tests/unit/embed_watch_test.cpp#L355) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:364](../../tests/unit/embed_watch_test.cpp#L364) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:378](../../tests/unit/embed_watch_test.cpp#L378) |
+| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:419](../../tests/unit/embed_watch_test.cpp#L419) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:460](../../tests/unit/embed_watch_test.cpp#L460) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:491](../../tests/unit/embed_watch_test.cpp#L491) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:505](../../tests/unit/embed_watch_test.cpp#L505) |
+| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:544](../../tests/unit/embed_watch_test.cpp#L544) |
+| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:568](../../tests/unit/embed_watch_test.cpp#L568) |
+| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:581](../../tests/unit/embed_watch_test.cpp#L581) |
+| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:607](../../tests/unit/embed_watch_test.cpp#L607) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:644](../../tests/unit/embed_watch_test.cpp#L644) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:660](../../tests/unit/embed_watch_test.cpp#L660) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:680](../../tests/unit/embed_watch_test.cpp#L680) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:714](../../tests/unit/embed_watch_test.cpp#L714) |
+| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:726](../../tests/unit/embed_watch_test.cpp#L726) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
@@ -529,26 +530,28 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | lines are packed into as few messages as fit, in order |  |  | [tests/unit/log_channel_test.cpp:59](../../tests/unit/log_channel_test.cpp#L59) |
 | what does not fit this time keeps waiting |  |  | [tests/unit/log_channel_test.cpp:77](../../tests/unit/log_channel_test.cpp#L77) |
 | secrets are masked wherever they appear, and short ones left alone |  |  | [tests/unit/log_channel_test.cpp:88](../../tests/unit/log_channel_test.cpp#L88) |
-| nothing a line holds can close its code block |  |  | [tests/unit/log_channel_test.cpp:99](../../tests/unit/log_channel_test.cpp#L99) |
-| a very long line is cut to fit one message |  |  | [tests/unit/log_channel_test.cpp:112](../../tests/unit/log_channel_test.cpp#L112) |
-| a flood keeps its start and says how much was dropped |  |  | [tests/unit/log_channel_test.cpp:123](../../tests/unit/log_channel_test.cpp#L123) |
-| the log channel is kept bot-wide and can be cleared |  |  | [tests/unit/log_channel_test.cpp:142](../../tests/unit/log_channel_test.cpp#L142) |
-| a stored level that cannot be read is info, and the channel is kept |  |  | [tests/unit/log_channel_test.cpp:159](../../tests/unit/log_channel_test.cpp#L159) |
-| the log is posted to its channel, silently, from its level up | `coro` |  | [tests/unit/log_channel_test.cpp:177](../../tests/unit/log_channel_test.cpp#L177) |
-| the level can change without moving the channel | `coro` |  | [tests/unit/log_channel_test.cpp:200](../../tests/unit/log_channel_test.cpp#L200) |
-| a failed post waits before trying again, longer each time | `coro` |  | [tests/unit/log_channel_test.cpp:214](../../tests/unit/log_channel_test.cpp#L214) |
-| the first failure is logged, and the lines it lost are counted | `coro` |  | [tests/unit/log_channel_test.cpp:253](../../tests/unit/log_channel_test.cpp#L253) |
-| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:270](../../tests/unit/log_channel_test.cpp#L270) |
-| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:288](../../tests/unit/log_channel_test.cpp#L288) |
-| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:304](../../tests/unit/log_channel_test.cpp#L304) |
-| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:317](../../tests/unit/log_channel_test.cpp#L317) |
-| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:52](../../tests/unit/message_pipeline_test.cpp#L52) |
-| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:65](../../tests/unit/message_pipeline_test.cpp#L65) |
-| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:80](../../tests/unit/message_pipeline_test.cpp#L80) |
-| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:113](../../tests/unit/message_pipeline_test.cpp#L113) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:128](../../tests/unit/message_pipeline_test.cpp#L128) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:145](../../tests/unit/message_pipeline_test.cpp#L145) |
-| a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:160](../../tests/unit/message_pipeline_test.cpp#L160) |
+| a secret added later is masked from then on, and a short one still is not |  |  | [tests/unit/log_channel_test.cpp:99](../../tests/unit/log_channel_test.cpp#L99) |
+| nothing a line holds can close its code block |  |  | [tests/unit/log_channel_test.cpp:113](../../tests/unit/log_channel_test.cpp#L113) |
+| a very long line is cut to fit one message |  |  | [tests/unit/log_channel_test.cpp:126](../../tests/unit/log_channel_test.cpp#L126) |
+| a flood keeps its start and says how much was dropped |  |  | [tests/unit/log_channel_test.cpp:137](../../tests/unit/log_channel_test.cpp#L137) |
+| the log channel is kept bot-wide and can be cleared |  |  | [tests/unit/log_channel_test.cpp:156](../../tests/unit/log_channel_test.cpp#L156) |
+| a stored level that cannot be read is info, and the channel is kept |  |  | [tests/unit/log_channel_test.cpp:173](../../tests/unit/log_channel_test.cpp#L173) |
+| the log is posted to its channel, silently, from its level up | `coro` |  | [tests/unit/log_channel_test.cpp:191](../../tests/unit/log_channel_test.cpp#L191) |
+| the level can change without moving the channel | `coro` |  | [tests/unit/log_channel_test.cpp:214](../../tests/unit/log_channel_test.cpp#L214) |
+| a failed post waits before trying again, longer each time | `coro` |  | [tests/unit/log_channel_test.cpp:228](../../tests/unit/log_channel_test.cpp#L228) |
+| the first failure is logged, and the lines it lost are counted | `coro` |  | [tests/unit/log_channel_test.cpp:267](../../tests/unit/log_channel_test.cpp#L267) |
+| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:284](../../tests/unit/log_channel_test.cpp#L284) |
+| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:302](../../tests/unit/log_channel_test.cpp#L302) |
+| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:318](../../tests/unit/log_channel_test.cpp#L318) |
+| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:331](../../tests/unit/log_channel_test.cpp#L331) |
+| stages run by position, whatever order they were added in |  |  | [tests/unit/message_pipeline_test.cpp:56](../../tests/unit/message_pipeline_test.cpp#L56) |
+| two stages at one position stop startup |  |  | [tests/unit/message_pipeline_test.cpp:73](../../tests/unit/message_pipeline_test.cpp#L73) |
+| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
+| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:98](../../tests/unit/message_pipeline_test.cpp#L98) |
+| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:131](../../tests/unit/message_pipeline_test.cpp#L131) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
+| a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
 | the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:41](../../tests/unit/midnight_test.cpp#L41) |
 | a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:51](../../tests/unit/midnight_test.cpp#L51) |
 | an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:62](../../tests/unit/midnight_test.cpp#L62) |
@@ -654,6 +657,24 @@ Panels and paging (`src/core/ui`)
 | there is no paging row for a single page |  |  | [tests/unit/paginator_test.cpp:92](../../tests/unit/paginator_test.cpp#L92) |
 | the paging row disables the direction it cannot go |  |  | [tests/unit/paginator_test.cpp:98](../../tests/unit/paginator_test.cpp#L98) |
 | the paging buttons carry the neighbouring pages |  |  | [tests/unit/paginator_test.cpp:111](../../tests/unit/paginator_test.cpp#L111) |
+| a component goes to the panel that claimed its view |  |  | [tests/unit/panel_routes_test.cpp:52](../../tests/unit/panel_routes_test.cpp#L52) |
+| a view nobody claimed, or one its panel declines, is not handled |  |  | [tests/unit/panel_routes_test.cpp:68](../../tests/unit/panel_routes_test.cpp#L68) |
+| a form goes to its panel, and a panel without forms handles none |  |  | [tests/unit/panel_routes_test.cpp:84](../../tests/unit/panel_routes_test.cpp#L84) |
+| a view claimed twice stops startup, naming both, and the second panel claims nothing |  |  | [tests/unit/panel_routes_test.cpp:101](../../tests/unit/panel_routes_test.cpp#L101) |
+
+## module
+
+The module interface and the host (`src/core/module`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| a capability is found once offered, and null when nobody offers it |  |  | [tests/unit/module_test.cpp:94](../../tests/unit/module_test.cpp#L94) |
+| one capability offered twice stops startup, naming both modules |  |  | [tests/unit/module_test.cpp:110](../../tests/unit/module_test.cpp#L110) |
+| every module offers before any starts, so the list's order does not matter |  |  | [tests/unit/module_test.cpp:123](../../tests/unit/module_test.cpp#L123) |
+| without the module that offers it, a capability is null and the user copes |  |  | [tests/unit/module_test.cpp:142](../../tests/unit/module_test.cpp#L142) |
+| a module that throws while starting stops startup |  |  | [tests/unit/module_test.cpp:157](../../tests/unit/module_test.cpp#L157) |
+| a listener that throws is logged under its name, and DPP never sees it |  |  | [tests/unit/module_test.cpp:170](../../tests/unit/module_test.cpp#L170) |
+| the test host fires a repeating timer each time, and a one-shot once |  |  | [tests/unit/module_test.cpp:188](../../tests/unit/module_test.cpp#L188) |
 
 ## discord
 

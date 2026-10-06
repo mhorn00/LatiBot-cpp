@@ -185,7 +185,7 @@ public:
 
     /// Offers capabilities to other modules (§5). Every module exists by now;
     /// none has started.
-    virtual auto offer(capabilities& offered) -> void {}
+    virtual auto offer(capability_registry& offered) -> void {}
 
     /// Registers commands, stages, listeners, timers and panels, and looks up
     /// the capabilities it uses.
@@ -203,8 +203,8 @@ members of the module, as they are members of `bot` today.
 
 | Kind | What | Replaces |
 |---|---|---|
-| Services | `database()`, `settings()`, `config()`, `section(name)`, `gateway()`, `http()`, `raw()`, `clock()`, `cluster()`, `me()` | the constructor arguments `bot` hands out |
-| Commands | `commands().add(...)` | `register_commands` |
+| Services | `database()`, `settings()`, `bootstrap()`, `section(name)`, `gateway()`, `http()`, `raw()`, `clock()`, `cluster()`, `me()`, `capabilities()` | the constructor arguments `bot` hands out |
+| Commands | `slash_commands().add(...)` | `register_commands` |
 | Message stages | `add_stage(position, name, fn)` (§4.4) | `register_stages` |
 | Discord events | `listen(cluster().on_message_create, "linkstats: media posts", fn)` | the lambdas in `register_events` |
 | Timers | `every(interval, name, fn)` and `after(delay, name, fn)`, both guarded | `register_timers`, `attribute_later` |
@@ -213,6 +213,10 @@ members of the module, as they are members of `bot` today.
 | Carrying out | `post(send_message)`, `detach(task, what)` | `carry_out` |
 
 The details:
+- **Two names differ from v2:** `bootstrap()` rather than `config()`, and
+  `slash_commands()` rather than `commands()`. The bot is the host, and a
+  member called `config` or `commands` would hide those namespaces throughout
+  `bot.cpp`.
 - **Discord events** go straight to DPP's own event routers, which already
   take any number of listeners. `listen` adds only an exception guard and a
   name, so startup can log which module listens to what.
@@ -279,7 +283,7 @@ registers the stage wraps the decision into a `background_task`.
   refuses a name claimed twice. Custom ids don't change, so buttons on old
   messages keep working.
 - **Commands:** `commands::registry` and `command` are already the right
-  shape. A module calls `bot.commands().add(...)` from `start`.
+  shape. A module calls `bot.slash_commands().add(...)` from `start`.
 
 ### 4.7 Per-server settings
 
@@ -317,12 +321,15 @@ Ports reach the outside world; capabilities reach a module that may not be
 there.
 
 ```cpp
-class capabilities {
+class capability_registry {
 public:
-    template <typename Interface> auto offer(Interface& implementation) -> void;  // twice stops startup
+    template <typename Interface> auto offer(Interface& implementation, std::string_view by) -> void;  // twice stops startup
     template <typename Interface> [[nodiscard]] auto find() const -> Interface*;  // null when nobody offers it
 };
 ```
+
+It is `capability_registry`, in `core/module/`, so that inside the module
+namespace the name `capabilities` still means the interfaces' namespace.
 
 Keep them few and small. One that grows module-specific types becomes a
 bridge instead.
@@ -693,7 +700,7 @@ Nothing is pushed.
 | | 2c Workflow presets (I4), the lockfile (I7), the install step (I5) | done, `3b1af7c`; the lockfile leaves DPP out, since its recipe revision follows line endings |
 | | 2d The precompiled header, measured (I8) | done, `6f70bd6`: a clean Debug build of our code, 124 s → 72 s |
 | | 2e CI: the cached DPP, ASan (I9); the README, `DevEnvSetup.ps1`, tasks, testing docs | done: an AddressSanitizer job, which first checks the image has the runtime; not yet run on GitHub |
-| **3. The module interface** | 3a `module`, `host`, `capabilities`, `stage_order`; `bot` becomes the host | |
+| **3. The module interface** | 3a `module`, `host`, `capabilities`, `stage_order`; `bot` becomes the host | done: also `ui::panel_routes`, and `tests/support/test_host.hpp` for modules' tests |
 | | 3b `schema_versions`, the flattened schemas, adoption, the comparison test (§7) | |
 | | 3c Config sections and key tables (§8) | |
 | | 3d midnight as the first module | |

@@ -28,6 +28,7 @@ $components = [ordered]@{
     'commands' = 'Command framework (`src/core/commands`)'
     'events'   = 'Messages, replacements, reactions, nicknames and midnight (`src/core/events`)'
     'ui'       = 'Panels and paging (`src/core/ui`)'
+    'module'   = 'The module interface and the host (`src/core/module`)'
     'discord'  = 'Discord plumbing (`src/core/discord`)'
     'audio'    = 'Speech and voice (`src/core/audio`)'
     'music'    = 'Music (`src/core/music`)'

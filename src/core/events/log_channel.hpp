@@ -13,6 +13,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -88,6 +89,10 @@ public:
     /// would be public in a channel if something ever did.
     explicit log_buffer(std::vector<std::string> secrets = {});
 
+    /// Masks one more, from the next line on: a module's own key, offered
+    /// while the bot starts (docs/modules/Module_Plan_Final.md §8.3).
+    auto add_secret(std::string secret) -> void;
+
     auto push(std::chrono::sys_seconds stamp, util::log_level level, std::string_view message) -> void;
 
     /// Up to `max_messages` messages of waiting lines, oldest first, each a
@@ -103,6 +108,9 @@ private:
     mutable std::mutex mutex_;
     std::deque<std::string> lines_;
     std::size_t dropped_ = 0;
+
+    /// Its own lock, read by every line, written only while starting.
+    mutable std::shared_mutex secrets_mutex_;
     std::vector<std::string> secrets_;
 };
 
@@ -154,6 +162,9 @@ public:
     auto stop() -> void;
 
     [[nodiscard]] auto status() const -> log_channel_status;
+
+    /// Masks one more value; see `log_buffer::add_secret`.
+    auto add_secret(std::string secret) -> void { buffer_.add_secret(std::move(secret)); }
 
     /// Posts what is waiting, unless a failure is being waited out or the
     /// last flush is still going.

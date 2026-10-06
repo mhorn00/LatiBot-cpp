@@ -65,12 +65,17 @@ for itself whether it answers a bot:
 
 ### 2.2 The stages, in order
 
-| # | Stage | Consumes the message | Marks it answered |
+| Position | Stage | Consumes the message | Marks it answered |
 |---|---|---|---|
-| 1 | [The goodbye phrase](Basic_Commands.md#3-the-goodbye-phrase) | yes, when it matches | — |
-| 2 | [URL replacement](Url_Replacement.md) | no | no |
-| 3 | [Simple triggers](Triggers.md) | no | yes, when one replies |
-| 4 | [The language model](Language_Model.md): addressed, or an advanced trigger | yes, when it answers | — |
+| 100, `stop` | [The goodbye phrase](Basic_Commands.md#3-the-goodbye-phrase) | yes, when it matches | — |
+| 200, `rewrite` | [URL replacement](Url_Replacement.md) | no | no |
+| 300, `reply` | [Simple triggers](Triggers.md) | no | yes, when one replies |
+| 400, `model` | [The language model](Language_Model.md): addressed, or an advanced trigger | yes, when it answers | — |
+
+- **Positions** are named in `events/stage_order.hpp`, and each stage is
+  added at one. They run lowest first, whatever order they were added in, so
+  a module's stage lands in the same place whichever modules are built. Two
+  stages at one position stop startup.
 
 - **Consumes** means the stages after it are skipped. Nothing should follow
   a goodbye.

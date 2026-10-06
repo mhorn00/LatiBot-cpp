@@ -67,7 +67,8 @@ grouped by; the traits are for filtering.
 | `[config]` | `src/core/config`: `config.json`, per-guild settings |
 | `[commands]` | `src/core/commands`: the registry, dispatch and the commands |
 | `[events]` | `src/core/events`: the message pipeline and its stages (goodbye, triggers, URL replacement), the embed tracker, reactions, nicknames, midnight and the backfill |
-| `[ui]` | `src/core/ui`: paging and panel primitives |
+| `[ui]` | `src/core/ui`: paging and panel primitives, and the routes panels claim their views in |
+| `[module]` | `src/core/module`: capabilities, the order modules offer and start in, the host; `tests/support/test_host.hpp` stands in for the bot |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
 | `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV, the mixer |
 | `[music]` | `src/core/music` and `/music`: the queue, the player, links, yt-dlp and ffmpeg |

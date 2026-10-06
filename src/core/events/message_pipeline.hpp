@@ -164,14 +164,18 @@ template <typename Own, typename Stage, typename CarryOut>
 
 /// The ordered stages a message passes through.
 ///
-/// The order is a list rather than a chain of calls, so changing it is a
-/// matter of moving one line (docs/features/Message_Pipeline.md §2.2).
+/// Each stage runs at a position, lowest first, rather than in the order it
+/// was added, so the order does not depend on which module started first
+/// (`stage_order`, docs/features/Message_Pipeline.md §2.2).
 class pipeline {
 public:
     using stage_fn = std::function<stage_result(const incoming_message&)>;
 
-    /// The name is for logging and for reading the order back in a test.
-    auto add(std::string name, stage_fn handler) -> void;
+    /// Adds a stage at `position`, one of `stage_order`'s. The name is for
+    /// logging and for reading the order back in a test. Throws
+    /// std::logic_error when another stage holds the position: which of two
+    /// would run first is exactly what the positions exist to say.
+    auto add(int position, std::string name, stage_fn handler) -> void;
 
     /// Everything the stages asked for, in order.
     ///
@@ -186,6 +190,7 @@ public:
 
 private:
     struct stage {
+        int position = 0;
         std::string name;
         stage_fn handler;
     };
