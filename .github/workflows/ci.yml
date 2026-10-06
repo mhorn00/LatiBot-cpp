@@ -12,20 +12,27 @@ concurrency:
 
 jobs:
   build-test:
-    name: Build and test (Windows, MSVC, ${{ matrix.configuration }})
+    name: Build and test (Windows, MSVC, ${{ matrix.name }})
     runs-on: windows-latest
 
     # Release as well as Debug, since NDEBUG changes what is built: the
-    # default log level, and anything under #ifdef NDEBUG. ASan, clang-tidy
-    # and fuzzing stay local (docs/testing/README.md, Tooling).
+    # default log level, and anything under #ifdef NDEBUG. AddressSanitizer is
+    # a Debug build of its own, against the same Debug dependencies.
+    # clang-tidy and fuzzing stay local (docs/testing/README.md, Tooling).
+    # `configuration` is the Conan build type; `test_preset` the workflow.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - configuration: Debug
+          - name: Debug
+            configuration: Debug
             test_preset: debug
-          - configuration: Release
+          - name: Release
+            configuration: Release
             test_preset: release
+          - name: AddressSanitizer
+            configuration: Debug
+            test_preset: asan
 
     steps:
       - name: Checkout (with submodules)
@@ -42,7 +49,7 @@ jobs:
       # regenerating docs/testing/Test_Catalog.md, and any mistagged test,
       # since the generator refuses those.
       - name: Check the test catalog is up to date
-        if: matrix.configuration == 'Debug'
+        if: matrix.test_preset == 'debug'
         run: |
           pwsh -NoProfile -File tools/Update-TestCatalog.ps1
           git diff --exit-code -- docs/testing/Test_Catalog.md
@@ -51,7 +58,7 @@ jobs:
       # clang-format, as the local task does; if the image's version ever
       # formats differently, this is where it shows.
       - name: Check formatting
-        if: matrix.configuration == 'Debug'
+        if: matrix.test_preset == 'debug'
         run: pwsh -NoProfile -File tools/Invoke-ClangFormat.ps1 -Check
 
       - name: Install Conan
@@ -97,6 +104,17 @@ jobs:
             Write-Error "Expected build/conan/conan_toolchain.cmake"
             exit 1
           }
+
+      # MSVC's ASan is an optional Visual Studio component (VC.ASAN), and its
+      # runtime DLL sits beside cl.exe, which conanbuild.bat puts on PATH.
+      # Without it the build only warns and every test fails to start, so
+      # check first and say what is missing.
+      - name: Check for the AddressSanitizer runtime
+        if: matrix.test_preset == 'asan'
+        shell: cmd
+        run: |
+          call build\conan\conanbuild.bat >nul
+          where clang_rt.asan_dynamic-x86_64.dll || (echo ::error::The runner's Visual Studio has no AddressSanitizer runtime ^(the VC.ASAN component^), so the asan job cannot run. & exit /b 1)
 
       # Configure, build and test in one: the workflow preset, as locally.
       # Ninja needs the Visual Studio environment, which conanbuild.bat loads
