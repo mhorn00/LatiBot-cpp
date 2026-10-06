@@ -236,9 +236,9 @@ auto dectalk_engine::work(const std::stop_token& stopping) -> void {
         // Completed here, on this thread, whatever happened: a promise left
         // unset would leave its caller suspended for ever.
         if (stopping.stop_requested()) {
-            next->done.set_value(engine_error("the speech engine is shutting down"));
+            next->done.set_value(std::unexpected(engine_error("the speech engine is shutting down")));
         } else if (cancelled(next->id)) {
-            next->done.set_value(engine_error("stopped"));
+            next->done.set_value(std::unexpected(engine_error("stopped")));
         } else {
             next->done.set_value(speak(next->request, next->id));
         }
@@ -335,13 +335,13 @@ auto dectalk_engine::speak(const ports::speech_request& request, std::uint64_t i
     std::error_code error;
     if (!std::filesystem::is_regular_file(dictionary_, error)) {
         util::log().error("the DECtalk dictionary is missing: {}", dictionary_.string());
-        return engine_error("the DECtalk dictionary is missing");
+        return std::unexpected(engine_error("the DECtalk dictionary is missing"));
     }
 
     std::string dictionary = dictionary_.string();
     const MMRESULT started =
         TextToSpeechStartupExFonix(&speaking->handle, WAVE_MAPPER, DO_NOT_USE_AUDIO_DEVICE, &on_dectalk_message, 0, dictionary.data());
-    if (started != MMSYSERR_NOERROR) return engine_error(std::format("DECtalk would not start: {}", describe(started)));
+    if (started != MMSYSERR_NOERROR) return std::unexpected(engine_error(std::format("DECtalk would not start: {}", describe(started))));
 
     {
         const std::scoped_lock hold(current_mutex);
@@ -365,14 +365,14 @@ auto dectalk_engine::speak(const ports::speech_request& request, std::uint64_t i
     if (speaking->out_of_order != 0) {
         util::log().error("DECtalk returned {} buffer(s) out of order; the audio may be garbled", speaking->out_of_order);
     }
-    if (!ended) return engine_error(std::format("DECtalk would not write to memory: {}", describe(opened)));
+    if (!ended) return std::unexpected(engine_error(std::format("DECtalk would not write to memory: {}", describe(opened))));
 
     switch (*ended) {
     case ending::cancelled:
-        return engine_error("stopped");
+        return std::unexpected(engine_error("stopped"));
     case ending::timed_out:
         util::log().warn("DECtalk took longer than {} to say {} characters; abandoned", max_synthesis_, request.text.size());
-        return engine_error("that took too long to say");
+        return std::unexpected(engine_error("that took too long to say"));
     case ending::finished:
     case ending::truncated:
         break;

@@ -655,9 +655,9 @@ auto llm_command::edit_from_file(const dpp::slashcommand_t& event, llm::document
     co_await defer(event);
     const auto downloaded =
         co_await services_.http->send({.url = file->url, .method = ports::http_method::get, .body = {}, .content_type = {}, .headers = {}});
-    if (!downloaded.ok() || downloaded.value().status != 200) {
+    if (!downloaded.has_value() || downloaded.value().status != 200) {
         util::log().warn("could not download {} for the {} in guild {}: {}", file->filename, label_of(kind), guild,
-                         downloaded.ok() ? std::format("status {}", downloaded.value().status) : downloaded.error().message);
+                         downloaded.has_value() ? std::format("status {}", downloaded.value().status) : downloaded.error().message);
         co_await answer_deferred(event, refusal(event, "i couldn't download that file; try again"));
         co_return;
     }

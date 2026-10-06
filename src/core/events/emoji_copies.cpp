@@ -336,7 +336,7 @@ auto emoji_copier::fetch_format(std::string_view host, dpp::snowflake id, std::s
                                                     .body = {},
                                                     .content_type = {},
                                                     .headers = {}});
-        if (!response.ok() || response.value().status == 429 || response.value().status >= 500) {
+        if (!response.has_value() || response.value().status == 429 || response.value().status >= 500) {
             tried.transient = true;
             co_return tried;
         }
@@ -413,7 +413,7 @@ auto emoji_copier::copy_one(const std::string& emoji_key, round_report& report) 
     }
 
     const auto uploaded = co_await discord_->create_application_emoji(name, got.image, got.animated);
-    if (!uploaded.ok()) {
+    if (!uploaded.has_value()) {
         util::log().warn("could not upload a copy of emoji {} as {}: {}", emoji_key, name, uploaded.error().message);
         store_->record_image(emoji_key, image_state::failed, sha256, got.animated, now());
         ++report.failed;
@@ -429,7 +429,7 @@ auto emoji_copier::copy_one(const std::string& emoji_key, round_report& report) 
 auto emoji_copier::prune_one(const stored_copy& copy, round_report& report) -> dpp::task<void> {
     const auto deleted = co_await discord_->delete_application_emoji(copy.copy_id);
     // Already gone is as good as deleted.
-    if (!deleted.ok() && deleted.error().http_status != 404) {
+    if (!deleted.has_value() && deleted.error().http_status != 404) {
         util::log().warn("could not delete the bot's emoji {} ({}): {}", copy.name, copy.copy_id, deleted.error().message);
         co_return;
     }

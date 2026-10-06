@@ -210,7 +210,7 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
 
     auto spoken = co_await services_.engine->synthesize(
         {.text = std::move(clean.text), .voice = std::move(voice), .max_duration = limits.max_duration});
-    if (!spoken.ok()) {
+    if (!spoken.has_value()) {
         util::log().warn("/speak in guild {} failed: {}", guild, spoken.error().message);
         co_await answer_deferred(event, refusal(event, describe_speech_error(spoken.error().message)));
         co_return;

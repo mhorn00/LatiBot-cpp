@@ -30,7 +30,7 @@ public:
         if (next_error) {
             auto scripted = *next_error;
             next_error.reset();
-            co_return scripted;
+            co_return std::unexpected(scripted);
         }
 
         ports::pcm_audio audio;

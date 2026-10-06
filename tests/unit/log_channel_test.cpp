@@ -217,7 +217,7 @@ TEST_CASE("a failed post waits before trying again, longer each time", "[events]
     log_channel channel(discord, clock);
     channel.start(destination);
 
-    discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"});
+    discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"}));
     log().info("first");
     channel.flush().sync_wait_for(2s);
 
@@ -232,7 +232,7 @@ TEST_CASE("a failed post waits before trying again, longer each time", "[events]
     CHECK(channel.status().waiting > 0);
 
     clock.advance(log_channel::first_backoff);
-    discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"});
+    discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"}));
     channel.flush().sync_wait_for(2s);
     CHECK(discord.sent.size() == 2);
     CHECK(channel.status().retry_in == log_channel::first_backoff * 2);
@@ -256,7 +256,7 @@ TEST_CASE("the first failure is logged, and the lines it lost are counted", "[ev
     log_channel channel(discord, clock);
     channel.start(destination);
 
-    discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 404, .message = "Unknown Channel"});
+    discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 404, .message = "Unknown Channel"}));
     log().info("lost");
     channel.flush().sync_wait_for(2s);
 
@@ -274,7 +274,7 @@ TEST_CASE("the backoff stops growing at its longest", "[events][coro]") {
     channel.start(destination);
 
     for (int attempt = 0; attempt < 10; ++attempt) {
-        discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 500, .message = "down"});
+        discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 500, .message = "down"}));
         log().info("attempt {}", attempt);
         channel.flush().sync_wait_for(2s);
         clock.advance(log_channel::longest_backoff);

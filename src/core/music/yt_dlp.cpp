@@ -180,7 +180,9 @@ auto decode_arguments(bool even_loudness) -> std::vector<std::string> {
 
 auto parse_lookup(std::string_view json_text, std::size_t max_items) -> ports::result<ports::media_lookup> {
     const nlohmann::json document = nlohmann::json::parse(json_text, nullptr, /*allow_exceptions=*/false);
-    if (document.is_discarded() || !document.is_object()) return media_error("yt-dlp's answer about that link could not be read");
+    if (document.is_discarded() || !document.is_object()) {
+        return std::unexpected(media_error("yt-dlp's answer about that link could not be read"));
+    }
 
     ports::media_lookup lookup;
     const auto entries = document.find("entries");
@@ -191,7 +193,7 @@ auto parse_lookup(std::string_view json_text, std::size_t max_items) -> ports::r
         lookup.playlist_size = 1;
     }
 
-    if (lookup.items.empty()) return media_error("there's nothing i can play at that link");
+    if (lookup.items.empty()) return std::unexpected(media_error("there's nothing i can play at that link"));
     return lookup;
 }
 
@@ -239,7 +241,7 @@ ytdlp_resolver::~ytdlp_resolver() {
     // that cannot be set leaves nothing more to do on the way out.
     for (const std::unique_ptr<job>& waiting : queue_) {
         try {
-            waiting->done.set_value(media_error("the bot is shutting down"));
+            waiting->done.set_value(std::unexpected(media_error("the bot is shutting down")));
         } catch (...) { // NOLINT(bugprone-empty-catch)
         }
     }
@@ -259,7 +261,9 @@ auto ytdlp_resolver::lookup(std::string url, std::size_t max_items) -> dpp::task
 }
 
 auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) const -> ports::result<ports::media_lookup> {
-    if (resolves_to_private(host_of(url))) return media_error("that link points into a private network, which i won't fetch from");
+    if (resolves_to_private(host_of(url))) {
+        return std::unexpected(media_error("that link points into a private network, which i won't fetch from"));
+    }
 
     try {
         // Signed out first, unless this link needed signing in before.
@@ -271,8 +275,8 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
             ran = run_lookup(url, max_items, true);
         }
         if (ran.timed_out) {
-            return media_error(std::format("reading that link took more than {}; the site may be down",
-                                           std::chrono::duration_cast<std::chrono::seconds>(timeout_)));
+            return std::unexpected(media_error(std::format("reading that link took more than {}; the site may be down",
+                                                           std::chrono::duration_cast<std::chrono::seconds>(timeout_))));
         }
         if (ran.exit_code != 0) {
             // A warning when signed in: the owner set the cookies up for
@@ -283,11 +287,11 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
             } else {
                 util::log().debug("yt-dlp could not read {}: {}", url, ran.errors);
             }
-            return media_error(describe_failure(ran.errors));
+            return std::unexpected(media_error(describe_failure(ran.errors)));
         }
         auto lookup = parse_lookup(ran.output, max_items);
         // Its tracks are fetched signed in too, rather than refused first.
-        if (signed_in && lookup.ok()) {
+        if (signed_in && lookup.has_value()) {
             cookies_->remember(url);
             for (const ports::media_item& item : lookup.value().items) {
                 cookies_->remember(item.url);
@@ -296,7 +300,7 @@ auto ytdlp_resolver::lookup_now(const std::string& url, std::size_t max_items) c
         return lookup;
     } catch (const util::process_error& error) {
         util::log().error("could not run yt-dlp: {}", error.what());
-        return media_error("i couldn't run yt-dlp; it's in the log");
+        return std::unexpected(media_error("i couldn't run yt-dlp; it's in the log"));
     }
 }
 

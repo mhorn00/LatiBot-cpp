@@ -21,12 +21,12 @@ namespace {
 /// reports what happened rather than doing the I/O itself.
 auto post_then_edit(latibot::ports::discord_gateway& gateway) -> dpp::task<std::string> {
     const auto sent = co_await gateway.send_message(dpp::message(dpp::snowflake{42}, "hello"));
-    if (!sent.ok()) co_return "send failed: " + sent.error().message;
+    if (!sent.has_value()) co_return "send failed: " + sent.error().message;
 
     dpp::message updated = sent.value();
     updated.content = "edited";
     const auto edited = co_await gateway.edit_message(updated);
-    if (!edited.ok()) co_return "edit failed";
+    if (!edited.has_value()) co_return "edit failed";
 
     co_return "ok:" + std::to_string(static_cast<std::uint64_t>(sent.value().id));
 }
@@ -63,7 +63,7 @@ TEST_CASE("a coroutine feature runs against the Discord mock", "[ports][coro]") 
 
 TEST_CASE("the Discord mock can script a failure", "[ports][coro]") {
     latibot::testing::mock_discord discord;
-    discord.send_results.emplace_back(api_error{.http_status = 500, .message = "Internal Server Error"});
+    discord.send_results.emplace_back(std::unexpected(api_error{.http_status = 500, .message = "Internal Server Error"}));
 
     const auto outcome = post_then_edit(discord).sync_wait_for(2s);
 
@@ -81,14 +81,14 @@ TEST_CASE("the Discord mock hands out scripted history pages", "[ports][coro]") 
 
     const auto first = discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100).sync_wait_for(2s);
     REQUIRE(first.has_value());
-    REQUIRE(first->ok());
+    REQUIRE(first->has_value());
     CHECK(first->value().size() == 1);
 
     // With nothing left queued the mock reports an empty page, which is how a
     // backfill learns it has reached the end.
     const auto second = discord.get_messages(dpp::snowflake{42}, dpp::snowflake{0}, 100).sync_wait_for(2s);
     REQUIRE(second.has_value());
-    REQUIRE(second->ok());
+    REQUIRE(second->has_value());
     CHECK(second->value().empty());
 
     REQUIRE(discord.history_requests.size() == 2);
@@ -106,19 +106,19 @@ TEST_CASE("the HTTP mock replays responses in order and records requests", "[por
 
     const auto first = http.send(request).sync_wait_for(2s);
     REQUIRE(first.has_value());
-    REQUIRE(first->ok());
+    REQUIRE(first->has_value());
     CHECK(first->value().status == 200);
 
     const auto second = http.send(request).sync_wait_for(2s);
     REQUIRE(second.has_value());
-    REQUIRE(second->ok());
+    REQUIRE(second->has_value());
     // A rate limit is a response, not a transport failure: the caller needs
     // the status and body to decide what to do.
     CHECK(second->value().status == 429);
 
     const auto third = http.send(request).sync_wait_for(2s);
     REQUIRE(third.has_value());
-    CHECK_FALSE(third->ok());
+    CHECK_FALSE(third->has_value());
 
     REQUIRE(http.requests.size() == 3);
     CHECK(http.requests.front().url == "https://api.anthropic.com/v1/messages");
@@ -131,7 +131,7 @@ TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro
     const auto outcome = tts.synthesize({.text = "abcde"}).sync_wait_for(2s);
 
     REQUIRE(outcome.has_value());
-    REQUIRE(outcome->ok());
+    REQUIRE(outcome->has_value());
     // 11025 Hz does not divide evenly into milliseconds, so a whole number of
     // samples lands just under the requested length: 50 ms of audio is 551.25
     // samples, and 551 of them read back as 49 ms.
@@ -148,12 +148,12 @@ TEST_CASE("the TTS mock can fail once and records stops", "[ports][coro]") {
 
     const auto failed = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
     REQUIRE(failed.has_value());
-    CHECK_FALSE(failed->ok());
+    CHECK_FALSE(failed->has_value());
 
     // The scripted failure applies to one call only.
     const auto recovered = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
     REQUIRE(recovered.has_value());
-    CHECK(recovered->ok());
+    CHECK(recovered->has_value());
 
     tts.stop();
     CHECK(tts.stop_count == 1);

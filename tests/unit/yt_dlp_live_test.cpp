@@ -31,7 +31,7 @@ TEST_CASE("yt-dlp reads a real link, and yt-dlp piped into ffmpeg plays it", "[m
 
     const latibot::music::ytdlp_resolver resolver(*ytdlp, 60s);
     const auto lookup = resolver.lookup_now(example, 100);
-    REQUIRE(lookup.ok());
+    REQUIRE(lookup.has_value());
     REQUIRE(lookup.value().items.size() == 1);
     INFO(lookup.value().items[0].title);
 

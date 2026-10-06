@@ -72,7 +72,7 @@ TEST_CASE("the tool loop runs what the model asks for and hands the result back"
                              recorded.push_back(used);
                          }).sync_wait_for(2s);
     REQUIRE(outcome.has_value());
-    REQUIRE(outcome->ok());
+    REQUIRE(outcome->has_value());
 
     CHECK(outcome->value().text == "pong");
     CHECK(outcome->value().stop == stop_reason::finished);
@@ -101,7 +101,7 @@ TEST_CASE("after the last round of tools the model has to answer", "[llm][coro]"
 
     const auto outcome = latibot::llm::run_tool_loop(model, question(), tools, asked_by, 2, {}).sync_wait_for(2s);
     REQUIRE(outcome.has_value());
-    REQUIRE(outcome->ok());
+    REQUIRE(outcome->has_value());
 
     REQUIRE(model.requests.size() == 3);
     CHECK(model.requests[0].allow_tools);
@@ -120,7 +120,7 @@ TEST_CASE("a failure mid-loop is reported, and what was spent before it still co
     const auto outcome =
         latibot::llm::run_tool_loop(model, question(), tools, asked_by, 4, [&](const usage&) { ++recorded; }).sync_wait_for(2s);
     REQUIRE(outcome.has_value());
-    REQUIRE_FALSE(outcome->ok());
+    REQUIRE_FALSE(outcome->has_value());
     CHECK(outcome->error().http_status == 529);
     CHECK(recorded == 1);
 }
@@ -139,6 +139,6 @@ TEST_CASE("when the last turn says nothing, what was said along the way is kept"
 
     const auto outcome = latibot::llm::run_tool_loop(model, question(), tools, asked_by, 4, {}).sync_wait_for(2s);
     REQUIRE(outcome.has_value());
-    REQUIRE(outcome->ok());
+    REQUIRE(outcome->has_value());
     CHECK(outcome->value().text == "one moment");
 }

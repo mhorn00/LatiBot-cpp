@@ -20,6 +20,7 @@
 
 #include <format>
 #include <ranges>
+#include <tuple>
 #include <utility>
 
 namespace latibot::llm {
@@ -76,7 +77,7 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
     // rather than ignoring whoever asked
     // (docs/features/Language_Model.md §2.3). It lasts ten seconds, which
     // covers most replies; a failure to show it is not worth a line.
-    co_await services_.discord->start_typing(ask.channel_id);
+    std::ignore = co_await services_.discord->start_typing(ask.channel_id);
 
     // Everyone the model hears of is an alias, never an id or a name
     // (docs/features/Language_Model.md §3.8). Met as they are read, so that
@@ -99,7 +100,7 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
             report.cost += services_.usage->record(ask.guild_id, *model, used, seconds_now(*services_.clock));
         });
 
-    if (!outcome.ok()) {
+    if (!outcome.has_value()) {
         report.failure = outcome.error().message;
         util::log().warn("{} could not answer {} in channel {}: {}", model->id, ask.author_id, ask.channel_id, report.failure);
         if (addressed) co_await apologise(ask, outcome.error());
@@ -148,7 +149,7 @@ auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::sno
     if (wanted <= 0) co_return history;
 
     const auto page = co_await services_.discord->get_messages(ask.channel_id, ask.message_id, static_cast<std::uint64_t>(wanted));
-    if (!page.ok()) {
+    if (!page.has_value()) {
         util::log().debug("could not read the recent messages in channel {}: {}", ask.channel_id, page.error().message);
         co_return history;
     }
@@ -213,7 +214,8 @@ auto responder::apologise(const events::ask_llm& ask, const ports::api_error& er
     dpp::message apology(ask.channel_id, failure_reply(error));
     apology.set_reference(ask.message_id, ask.guild_id, ask.channel_id, false);
     apology.set_allowed_mentions(false, false, false, false);
-    co_await services_.discord->send_message(std::move(apology));
+    // Best effort: an apology that cannot be posted has nowhere left to go.
+    std::ignore = co_await services_.discord->send_message(std::move(apology));
 }
 
 auto responder::post(const events::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void> {
@@ -229,7 +231,7 @@ auto responder::post(const events::ask_llm& ask, const std::vector<std::string>&
         if (!addressed) reply.set_flags(dpp::m_suppress_notifications);
 
         const auto sent = co_await services_.discord->send_message(std::move(reply));
-        if (!sent.ok()) {
+        if (!sent.has_value()) {
             report.failure = sent.error().message;
             util::log().warn("could not post the model's reply in channel {}: {}", ask.channel_id, report.failure);
             co_return;
@@ -250,7 +252,7 @@ auto responder::speak(const events::ask_llm& ask, std::string text) const -> dpp
 
     const std::uint64_t ticket = services_.speech->ticket(ask.guild_id);
     auto spoken = co_await services_.engine->synthesize({.text = std::move(text), .voice = {}, .max_duration = limits.max_duration});
-    if (!spoken.ok()) {
+    if (!spoken.has_value()) {
         util::log().warn("could not speak the model's reply in guild {}: {}", ask.guild_id, spoken.error().message);
         co_return;
     }

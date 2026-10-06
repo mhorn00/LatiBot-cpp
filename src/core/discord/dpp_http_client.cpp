@@ -40,8 +40,8 @@ auto dpp_http_client::send(ports::http_request request) -> dpp::task<ports::resu
     // limits and refusals that way and callers need the body. Only a
     // transport-level problem becomes an error.
     if (completion.error != dpp::h_success) {
-        co_return ports::api_error{.http_status = completion.status,
-                                   .message = "HTTP transport error " + std::to_string(static_cast<int>(completion.error))};
+        co_return std::unexpected(ports::api_error{
+            .http_status = completion.status, .message = "HTTP transport error " + std::to_string(static_cast<int>(completion.error))});
     }
 
     co_return ports::http_response{.status = completion.status, .body = completion.body};

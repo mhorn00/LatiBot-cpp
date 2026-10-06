@@ -446,7 +446,7 @@ auto voice_lab::test(dpp::snowflake guild, dpp::snowflake user, audio::custom_vo
         {.text = std::string(voice_test_phrase),
          .voice = {.voice = voice.base, .rate = audio::default_rate, .volume = 100, .custom_params = voice.dv_parameters()},
          .max_duration = limits.max_duration});
-    if (!spoken.ok()) {
+    if (!spoken.has_value()) {
         util::log().warn("the voice lab's test in guild {} failed: {}", guild, spoken.error().message);
         co_return;
     }

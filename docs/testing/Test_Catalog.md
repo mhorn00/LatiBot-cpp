@@ -59,9 +59,9 @@ Database (`src/core/db`)
 | the media proxy is tried when the CDN refuses | `coro` |  | [tests/db/emoji_copies_test.cpp:254](../../tests/db/emoji_copies_test.cpp#L254) |
 | an image too big even when smaller is not uploaded | `coro` |  | [tests/db/emoji_copies_test.cpp:266](../../tests/db/emoji_copies_test.cpp#L266) |
 | a failed download or upload is tried again the next day | `coro` | 2 | [tests/db/emoji_copies_test.cpp:282](../../tests/db/emoji_copies_test.cpp#L282) |
-| raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:306](../../tests/db/emoji_copies_test.cpp#L306) |
-| with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:324](../../tests/db/emoji_copies_test.cpp#L324) |
-| the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:333](../../tests/db/emoji_copies_test.cpp#L333) |
+| raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:307](../../tests/db/emoji_copies_test.cpp#L307) |
+| with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:325](../../tests/db/emoji_copies_test.cpp#L325) |
+| the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:334](../../tests/db/emoji_copies_test.cpp#L334) |
 | an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [tests/db/emote_reactions_test.cpp:190](../../tests/db/emote_reactions_test.cpp#L190) |
 | an emote is dated by the message it was sent in |  |  | [tests/db/emote_reactions_test.cpp:221](../../tests/db/emote_reactions_test.cpp#L221) |
 | a recompute's emotes replace what was there, but not what it did not read |  |  | [tests/db/emote_reactions_test.cpp:231](../../tests/db/emote_reactions_test.cpp#L231) |

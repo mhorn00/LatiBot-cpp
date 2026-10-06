@@ -16,7 +16,7 @@ auto to_error(const dpp::confirmation_callback_t& confirmation) -> ports::api_er
 /// Pulls the payload out of a DPP confirmation, or reports the failure.
 template <typename T>
 auto unwrap(const dpp::confirmation_callback_t& confirmation) -> ports::result<T> {
-    if (confirmation.is_error()) return to_error(confirmation);
+    if (confirmation.is_error()) return std::unexpected(to_error(confirmation));
     return std::get<T>(confirmation.value);
 }
 
@@ -34,7 +34,7 @@ auto dpp_gateway::edit_message(dpp::message message) -> dpp::task<ports::result<
 
 auto dpp_gateway::delete_message(dpp::snowflake channel_id, dpp::snowflake message_id) -> dpp::task<ports::result<void>> {
     const auto confirmation = co_await cluster_->co_message_delete(message_id, channel_id);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return ports::result<void>{};
 }
 
@@ -48,7 +48,7 @@ auto dpp_gateway::set_embeds_suppressed(dpp::snowflake channel_id, dpp::snowflak
     target.flags = suppressed ? dpp::m_suppress_embeds : 0;
 
     const auto confirmation = co_await cluster_->co_message_edit_flags(target);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return ports::result<void>{};
 }
 
@@ -60,7 +60,7 @@ auto dpp_gateway::get_message(dpp::snowflake channel_id, dpp::snowflake message_
 auto dpp_gateway::get_messages(dpp::snowflake channel_id, dpp::snowflake before, std::uint64_t limit)
     -> dpp::task<ports::result<std::vector<dpp::message>>> {
     const auto confirmation = co_await cluster_->co_messages_get(channel_id, /*around=*/0, before, /*after=*/0, limit);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
 
     // DPP hands back a map keyed by id; callers want them newest first, which
     // is the order Discord sends and the order the backfill walks.
@@ -77,7 +77,7 @@ auto dpp_gateway::get_messages(dpp::snowflake channel_id, dpp::snowflake before,
 auto dpp_gateway::get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                                      std::uint64_t limit) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> {
     const auto confirmation = co_await cluster_->co_message_get_reactions(message_id, channel_id, emoji, /*before=*/0, after, limit);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
 
     const auto& users = std::get<dpp::user_map>(confirmation.value);
     std::vector<dpp::snowflake> ids;
@@ -90,7 +90,7 @@ auto dpp_gateway::get_reaction_users(dpp::snowflake channel_id, dpp::snowflake m
 
 auto dpp_gateway::start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> {
     const auto confirmation = co_await cluster_->co_channel_typing(channel_id);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return ports::result<void>{};
 }
 
@@ -100,17 +100,17 @@ auto dpp_gateway::create_application_emoji(std::string name, std::string image, 
         // DPP refuses an image over Discord's 256 KiB here, before sending.
         made.load_image(image, animated ? dpp::i_gif : dpp::i_png);
     } catch (const dpp::exception& error) {
-        co_return ports::api_error{.http_status = 0, .message = error.what()};
+        co_return std::unexpected(ports::api_error{.http_status = 0, .message = error.what()});
     }
 
     const auto confirmation = co_await cluster_->co_application_emoji_create(made);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return std::get<dpp::emoji>(confirmation.value).id;
 }
 
 auto dpp_gateway::delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> {
     const auto confirmation = co_await cluster_->co_application_emoji_delete(emoji_id);
-    if (confirmation.is_error()) co_return to_error(confirmation);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return ports::result<void>{};
 }
 

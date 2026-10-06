@@ -824,7 +824,7 @@ namespace {
 /// lambda, since a coroutine lambda's captures die with the lambda.
 auto show_progress(ports::discord_gateway& discord, dpp::message message) -> dpp::task<void> {
     const auto edited = co_await discord.edit_message(std::move(message));
-    if (!edited.ok()) util::log().debug("could not update the recompute progress message: {}", edited.error().message);
+    if (!edited.has_value()) util::log().debug("could not update the recompute progress message: {}", edited.error().message);
 }
 
 } // namespace
@@ -1246,7 +1246,7 @@ auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp
     ports::discord_gateway& discord = *recompute_.discord;
     const dpp::snowflake channel = event.command.channel_id;
     const auto posted = co_await discord.send_message(post(event, dpp::message(channel, render_backfill({}, request, false))));
-    const dpp::snowflake progress_id = posted.ok() ? posted.value().id : dpp::snowflake{};
+    const dpp::snowflake progress_id = posted.has_value() ? posted.value().id : dpp::snowflake{};
 
     // Edits the progress message as the run goes. It captures this frame's
     // locals by reference, which is safe only because `run` is awaited just
@@ -1275,7 +1275,7 @@ auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp
     dpp::snowflake report_id = progress_id;
     if (progress_id.empty()) {
         const auto sent = co_await discord.send_message(final_report);
-        if (sent.ok()) report_id = sent.value().id;
+        if (sent.has_value()) report_id = sent.value().id;
     } else {
         final_report.id = progress_id;
         co_await show_progress(discord, final_report);
@@ -1286,7 +1286,7 @@ auto linkstats_command::recompute_start(const dpp::slashcommand_t& event) -> dpp
     // not silently: telling them is its whole point.
     dpp::message done = post(event, backfill_done_reply(report, request, channel, report_id, event.command.get_issuing_user().id));
     done.flags = static_cast<discord::message_flags>(done.flags & ~static_cast<discord::message_flags>(dpp::m_suppress_notifications));
-    if (const auto sent = co_await discord.send_message(std::move(done)); !sent.ok()) {
+    if (const auto sent = co_await discord.send_message(std::move(done)); !sent.has_value()) {
         util::log().warn("could not tell {} the link stats recompute in guild {} is over: {}",
                          describe_user(event.command.get_issuing_user()), guild, sent.error().message);
     }

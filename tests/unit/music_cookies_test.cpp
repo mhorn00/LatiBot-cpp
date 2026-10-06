@@ -179,7 +179,7 @@ TEST_CASE("the resolver hands Deno on, signed in or not", "[music][threads]") {
                                   ytdlp_extras{.deno = std::filesystem::path(R"(C:\bot\deno.exe)")});
     // The stand-in finds --cookies wherever it is, so the retry still signs in.
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
-    REQUIRE(lookup.ok());
+    REQUIRE(lookup.has_value());
     CHECK(lookup.value().items[0].title == "signed in");
 }
 
@@ -358,13 +358,13 @@ TEST_CASE("the resolver reads signed out, and signs in only when yt-dlp asks to"
 
     SECTION("an ordinary link, signed out") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
-        REQUIRE(lookup.ok());
+        REQUIRE(lookup.has_value());
         CHECK(lookup.value().items[0].title == "A song");
         CHECK_FALSE(source.needed_for("https://203.0.113.5/song"));
     }
     SECTION("an age-restricted one, read again signed in, without a word") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
-        REQUIRE(lookup.ok());
+        REQUIRE(lookup.has_value());
         CHECK(lookup.value().items[0].title == "signed in");
         CHECK(retried(log.lines()));
         // So the track is fetched signed in, not refused first.
@@ -376,13 +376,13 @@ TEST_CASE("the resolver reads signed out, and signs in only when yt-dlp asks to"
     SECTION("a link that needed signing in before, signed in at once") {
         source.remember("https://203.0.113.5/song");
         const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
-        REQUIRE(lookup.ok());
+        REQUIRE(lookup.has_value());
         CHECK(lookup.value().items[0].title == "signed in");
         CHECK_FALSE(retried(log.lines()));
     }
     SECTION("a failure signing in would not help, told without a retry") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/fail", 100);
-        REQUIRE_FALSE(lookup.ok());
+        REQUIRE_FALSE(lookup.has_value());
         CHECK(lookup.error().message.contains("HTTP Error 404"));
         CHECK_FALSE(retried(log.lines()));
     }
@@ -394,14 +394,14 @@ TEST_CASE("refused signed in as well, the second refusal is what is told", "[mus
     write(folder.file("cookies.txt"), ".example.com\tTRUE\t/\tFALSE\t1893456000\tid\tnot-a-real-value\n");
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source(folder.file("cookies.txt"), folder.file("runs")));
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
-    REQUIRE_FALSE(lookup.ok());
+    REQUIRE_FALSE(lookup.has_value());
     CHECK(lookup.error().message.starts_with("[youtube] abc: Sign in to confirm your age"));
 }
 
 TEST_CASE("without cookies, an age-restricted link is refused as YouTube refused it", "[music][threads]") {
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1);
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
-    REQUIRE_FALSE(lookup.ok());
+    REQUIRE_FALSE(lookup.has_value());
     CHECK(lookup.error().message.contains("Sign in to confirm your age"));
 }
 
@@ -556,6 +556,6 @@ TEST_CASE("the resolver signs in from a Firefox profile when it must", "[music][
     make_profile(folder.file("profile"), {{".youtube.com", "SAPISID"}});
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 5s, 1, cookie_source::firefox(folder.file("profile")));
     const auto lookup = resolver.lookup_now("https://203.0.113.5/adult", 100);
-    REQUIRE(lookup.ok());
+    REQUIRE(lookup.has_value());
     CHECK(lookup.value().items[0].title == "signed in");
 }

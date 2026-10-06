@@ -87,9 +87,11 @@ public:
     auto lookup(std::string url, std::size_t max_items) -> dpp::task<ports::result<ports::media_lookup>> override {
         asked.push_back(url);
         const auto found = answers.find(url);
-        if (found == answers.end()) co_return ports::api_error{.http_status = 0, .message = "there's nothing i can play at that link"};
+        if (found == answers.end()) {
+            co_return std::unexpected(ports::api_error{.http_status = 0, .message = "there's nothing i can play at that link"});
+        }
         ports::result<ports::media_lookup> answer = found->second;
-        if (answer.ok() && answer.value().items.size() > max_items) answer.value().items.resize(max_items);
+        if (answer.has_value() && answer.value().items.size() > max_items) answer.value().items.resize(max_items);
         co_return answer;
     }
 };

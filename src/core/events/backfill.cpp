@@ -163,7 +163,7 @@ auto backfill_service::run(backfill_request request, progress_fn progress) -> dp
 auto backfill_service::page_before(dpp::snowflake channel_id, dpp::snowflake before, backfill_report& report)
     -> dpp::task<std::optional<std::vector<history_message>>> {
     const auto page = co_await discord_->get_messages(channel_id, before, history_page_size);
-    if (!page.ok()) {
+    if (!page.has_value()) {
         // Most often a channel the bot cannot read, which the permission
         // check names; say which one here.
         note(report, std::format("could not read <#{}>: {}", channel_id, page.error().message));
@@ -311,7 +311,7 @@ auto backfill_service::consider(const channel_scan& scan, const history_message&
         attribution found = attribute(message, match, older, request.bot_id);
         if (found.needs_fetch && found.original_message_id) {
             const auto original = co_await discord_->get_message(scan.channel_id, *found.original_message_id);
-            if (original.ok()) {
+            if (original.has_value()) {
                 found.author_id = original.value().author.id;
                 found.replaced = replaced_links(match, original.value().content);
             }
@@ -453,7 +453,7 @@ auto backfill_service::reactors(dpp::snowflake channel_id, const history_message
         while (true) {
             const auto page =
                 co_await discord_->get_reaction_users(channel_id, message.id, emoji_for_api(reaction), after, reactor_page_size);
-            if (!page.ok()) co_return std::nullopt;
+            if (!page.has_value()) co_return std::nullopt;
             for (const dpp::snowflake user_id : page.value()) {
                 seen.push_back({.user_id = user_id, .emoji_key = emoji.key});
                 after = std::max(after, user_id);

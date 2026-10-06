@@ -43,19 +43,19 @@ public:
 
     auto global_commands() -> dpp::task<ports::result<std::vector<std::string>>> override {
         const auto confirmation = co_await cluster_->co_global_commands_get();
-        if (confirmation.is_error()) co_return to_error(confirmation);
+        if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
         co_return names_of(std::get<dpp::slashcommand_map>(confirmation.value));
     }
 
     auto delete_global_commands() -> dpp::task<ports::result<void>> override {
         const auto confirmation = co_await cluster_->co_global_bulk_command_delete();
-        if (confirmation.is_error()) co_return to_error(confirmation);
+        if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
         co_return ports::result<void>{};
     }
 
     auto guilds() -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override {
         const auto confirmation = co_await cluster_->co_current_user_get_guilds();
-        if (confirmation.is_error()) co_return to_error(confirmation);
+        if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
 
         std::vector<dpp::snowflake> ids;
         for (const auto& [id, guild] : std::get<dpp::guild_map>(confirmation.value)) {
@@ -67,13 +67,13 @@ public:
 
     auto guild_commands(dpp::snowflake guild_id) -> dpp::task<ports::result<std::vector<std::string>>> override {
         const auto confirmation = co_await cluster_->co_guild_commands_get(guild_id);
-        if (confirmation.is_error()) co_return to_error(confirmation);
+        if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
         co_return names_of(std::get<dpp::slashcommand_map>(confirmation.value));
     }
 
     auto delete_guild_commands(dpp::snowflake guild_id) -> dpp::task<ports::result<void>> override {
         const auto confirmation = co_await cluster_->co_guild_bulk_command_delete(guild_id);
-        if (confirmation.is_error()) co_return to_error(confirmation);
+        if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
         co_return ports::result<void>{};
     }
 

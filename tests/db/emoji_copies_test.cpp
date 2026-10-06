@@ -294,7 +294,8 @@ TEST_CASE("a failed download or upload is tried again the next day", "[db][coro]
     SECTION("the upload") {
         test.http.queue(415, "");
         test.http.queue(200, still_png());
-        test.discord.emoji_upload_results.emplace_back(latibot::ports::api_error{.http_status = 400, .message = "Invalid Form Body"});
+        test.discord.emoji_upload_results.emplace_back(
+            std::unexpected(latibot::ports::api_error{.http_status = 400, .message = "Invalid Form Body"}));
         CHECK(test.round().failed == 1);
     }
 

@@ -26,7 +26,7 @@ public:
     }
 
     auto queue_error(std::string message) -> void {
-        responses.emplace_back(ports::api_error{.http_status = 0, .message = std::move(message)});
+        responses.emplace_back(std::unexpected(ports::api_error{.http_status = 0, .message = std::move(message)}));
     }
 
     auto send(ports::http_request request) -> dpp::task<ports::result<ports::http_response>> override {
@@ -35,7 +35,7 @@ public:
         if (responses.empty()) {
             // Failing loudly beats returning an empty 200 that a test then
             // misreads as a real answer.
-            co_return ports::api_error{.http_status = 0, .message = "mock_http: no response queued for this request"};
+            co_return std::unexpected(ports::api_error{.http_status = 0, .message = "mock_http: no response queued for this request"});
         }
 
         auto next = std::move(responses.front());

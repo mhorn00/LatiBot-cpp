@@ -32,8 +32,8 @@ auto to_result(const rest_reply& reply) -> ports::result<nlohmann::json> {
     const auto& [body, http] = reply;
 
     if (http.error != dpp::h_success) {
-        return ports::api_error{.http_status = http.status,
-                                .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))};
+        return std::unexpected(ports::api_error{.http_status = http.status,
+                                                .message = "HTTP transport error " + std::to_string(static_cast<int>(http.error))});
     }
 
     if (http.status >= 400) {
@@ -41,7 +41,7 @@ auto to_result(const rest_reply& reply) -> ports::result<nlohmann::json> {
         // to tell what went wrong with a hand-built request.
         std::string message = "Discord returned " + std::to_string(http.status);
         if (body.contains("message") && body["message"].is_string()) message += ": " + body["message"].get<std::string>();
-        return ports::api_error{.http_status = http.status, .message = message};
+        return std::unexpected(ports::api_error{.http_status = http.status, .message = message});
     }
 
     return body;

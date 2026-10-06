@@ -25,7 +25,7 @@ namespace {
 auto say(dectalk_engine& engine, speech_request request) -> pcm_audio {
     const auto outcome = engine.synthesize(std::move(request)).sync_wait_for(20s);
     REQUIRE(outcome.has_value());
-    if (!outcome->ok()) FAIL("DECtalk failed: " << outcome->error().message);
+    if (!outcome->has_value()) FAIL("DECtalk failed: " << outcome->error().message);
     return outcome->value();
 }
 
@@ -140,7 +140,7 @@ TEST_CASE("an utterance that takes too long is abandoned", "[audio][coro][thread
     const auto took = std::chrono::steady_clock::now() - started;
 
     REQUIRE(outcome.has_value());
-    REQUIRE_FALSE(outcome->ok());
+    REQUIRE_FALSE(outcome->has_value());
     CHECK(outcome->error().message == "that took too long to say");
     CHECK(took < 5s);
 
@@ -175,7 +175,7 @@ TEST_CASE("a missing dictionary fails the request instead of the process", "[aud
         const auto outcome = engine.synthesize({.text = "Hello there."}).sync_wait_for(20s);
 
         REQUIRE(outcome.has_value());
-        REQUIRE_FALSE(outcome->ok());
+        REQUIRE_FALSE(outcome->has_value());
         // Shown in Discord, so it names no path on the host.
         CHECK(outcome->error().message == "the DECtalk dictionary is missing");
     }

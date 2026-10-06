@@ -103,11 +103,11 @@ auto anthropic_body(const request& call) -> nlohmann::json {
 }
 
 auto read_anthropic_reply(int status, std::string_view body) -> ports::result<response> {
-    if (status < 200 || status >= 300) return error_of(status, body);
+    if (status < 200 || status >= 300) return std::unexpected(error_of(status, body));
 
     const json parsed = json::parse(body, nullptr, /*allow_exceptions=*/false);
     if (!parsed.is_object() || !parsed.contains("content") || !parsed["content"].is_array()) {
-        return ports::api_error{.http_status = status, .message = "Anthropic sent a reply with no content"};
+        return std::unexpected(ports::api_error{.http_status = status, .message = "Anthropic sent a reply with no content"});
     }
 
     response reply;
@@ -151,7 +151,7 @@ auto anthropic_provider::complete(request call) -> dpp::task<ports::result<respo
                                  .headers = {{"x-api-key", api_key_}, {"anthropic-version", std::string(anthropic_version)}}};
 
     const auto sent = co_await http_->send(std::move(outgoing));
-    if (!sent.ok()) co_return sent.error();
+    if (!sent.has_value()) co_return std::unexpected(sent.error());
     co_return read_anthropic_reply(sent.value().status, sent.value().body);
 }
 

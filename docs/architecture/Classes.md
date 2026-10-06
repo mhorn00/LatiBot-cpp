@@ -125,8 +125,8 @@ classDiagram
         +complete(request) task~result~response~~
     }
     class result~T~ {
-        -data_ : variant~T, api_error~
-        +ok() bool
+        <<alias of std::expected~T, api_error~>>
+        +has_value() bool
         +value() T
         +error() api_error
     }
@@ -170,8 +170,9 @@ classDiagram
 ```
 
 Everything a port returns is a `dpp::task`, a coroutine the caller
-`co_await`s, holding a `result<T>`: either the value or an `api_error`,
-never an exception. The adapters in `discord/` wrap DPP's own coroutine
+`co_await`s, holding a `result<T>`: `std::expected<T, api_error>`, so
+either the value or an `api_error`, never an exception. A failure is
+returned as `std::unexpected(api_error{...})`. The adapters in `discord/` wrap DPP's own coroutine
 calls (`co_message_create` and so on). `dectalk_engine` is ours: it queues
 the job for its worker thread and resumes the caller when that thread
 fulfils a promise (see [Execution_Flow.md §9](Execution_Flow.md#9-speech)).

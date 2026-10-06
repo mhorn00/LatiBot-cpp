@@ -99,7 +99,7 @@ TEST_CASE("DECtalk's audio matches the golden fingerprints", "[audio][golden][fs
     for (const phrase& each : phrases()) {
         const auto outcome = engine.synthesize(each.request).sync_wait_for(20s);
         REQUIRE(outcome.has_value());
-        REQUIRE(outcome->ok());
+        REQUIRE(outcome->has_value());
         const auto& audio = outcome->value();
 
         const fingerprint actual = fingerprint_of(audio.samples);

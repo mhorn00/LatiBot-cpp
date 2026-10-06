@@ -403,7 +403,7 @@ auto music_command::play(const dpp::slashcommand_t& event) -> dpp::task<void> {
     // Reading a link takes seconds, far past Discord's three.
     co_await defer(event);
     const auto lookup = co_await services_.resolver->lookup(link.url, music::max_playlist);
-    if (!lookup.ok()) {
+    if (!lookup.has_value()) {
         util::log().info("/music play from {} in guild {}: couldn't read {}: {}", describe_user(event.command.get_issuing_user()), guild,
                          link.url, lookup.error().message);
         co_await answer_deferred(event,

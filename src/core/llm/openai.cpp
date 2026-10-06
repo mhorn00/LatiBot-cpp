@@ -104,11 +104,11 @@ auto openai_body(const request& call) -> nlohmann::json {
 }
 
 auto read_openai_reply(int status, std::string_view body) -> ports::result<response> {
-    if (status < 200 || status >= 300) return error_of(status, body);
+    if (status < 200 || status >= 300) return std::unexpected(error_of(status, body));
 
     const json parsed = json::parse(body, nullptr, /*allow_exceptions=*/false);
     if (!parsed.is_object() || !parsed.contains("choices") || !parsed.at("choices").is_array() || parsed.at("choices").empty()) {
-        return ports::api_error{.http_status = status, .message = "OpenAI sent a reply with no choices"};
+        return std::unexpected(ports::api_error{.http_status = status, .message = "OpenAI sent a reply with no choices"});
     }
 
     const json& choice = parsed.at("choices").at(0);
@@ -156,7 +156,7 @@ auto openai_provider::complete(request call) -> dpp::task<ports::result<response
                                  .headers = {{"Authorization", "Bearer " + api_key_}}};
 
     const auto sent = co_await http_->send(std::move(outgoing));
-    if (!sent.ok()) co_return sent.error();
+    if (!sent.has_value()) co_return std::unexpected(sent.error());
     co_return read_openai_reply(sent.value().status, sent.value().body);
 }
 

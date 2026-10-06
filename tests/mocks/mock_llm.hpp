@@ -40,14 +40,16 @@ public:
     }
 
     auto fail(std::string message, int status = 500) -> void {
-        replies.emplace_back(ports::api_error{.http_status = status, .message = std::move(message)});
+        replies.emplace_back(std::unexpected(ports::api_error{.http_status = status, .message = std::move(message)}));
     }
 
     [[nodiscard]] auto name() const -> std::string_view override { return "mock"; }
 
     auto complete(llm::request call) -> dpp::task<ports::result<llm::response>> override {
         requests.push_back(std::move(call));
-        if (replies.empty()) co_return ports::api_error{.http_status = 0, .message = "mock_llm: no reply scripted for this request"};
+        if (replies.empty()) {
+            co_return std::unexpected(ports::api_error{.http_status = 0, .message = "mock_llm: no reply scripted for this request"});
+        }
         auto next = std::move(replies.front());
         replies.pop_front();
         co_return next;

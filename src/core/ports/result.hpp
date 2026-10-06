@@ -1,8 +1,7 @@
 #pragma once
 
+#include <expected>
 #include <string>
-#include <utility>
-#include <variant>
 
 namespace latibot::ports {
 
@@ -14,56 +13,14 @@ struct api_error {
     std::string message;
 };
 
-/// Either a value or an `api_error`.
+/// Either a value or an `api_error`; `result<void>` for a call that returns
+/// nothing but can still fail.
 ///
 /// Ports return this instead of throwing: a Discord call failing is ordinary
 /// and every caller has to handle it, which is easy to forget with exceptions
-/// and easy to see in the type. It was written before the project moved to
-/// C++23; std::expected would now do the same job, and moving to it is a
-/// change of its own.
+/// and easy to see in the type. A failure is returned as
+/// `std::unexpected(api_error{...})`.
 template <typename T>
-// Moving a result is only as noexcept as moving a T, and some of the DPP
-// payloads we carry allocate when moved (MSVC's node-based containers do).
-// No result is used where a throwing move would matter, so this is a property
-// of the payload types rather than something to fix here.
-// NOLINTNEXTLINE(bugprone-exception-escape)
-class result {
-public:
-    result(T value) : data_(std::move(value)) {}         // NOLINT(google-explicit-constructor)
-    result(api_error error) : data_(std::move(error)) {} // NOLINT(google-explicit-constructor)
-
-    [[nodiscard]] auto ok() const noexcept -> bool { return std::holds_alternative<T>(data_); }
-    explicit operator bool() const noexcept { return ok(); }
-
-    /// Throws std::bad_variant_access when the result holds an error.
-    [[nodiscard]] auto value() const -> const T& { return std::get<T>(data_); }
-    [[nodiscard]] auto value() -> T& { return std::get<T>(data_); }
-
-    [[nodiscard]] auto value_or(T fallback) const -> T { return ok() ? value() : std::move(fallback); }
-
-    /// Throws std::bad_variant_access when the result holds a value.
-    [[nodiscard]] auto error() const -> const api_error& { return std::get<api_error>(data_); }
-
-private:
-    std::variant<T, api_error> data_;
-};
-
-/// Specialisation for calls that return nothing but can still fail.
-template <>
-class result<void> {
-public:
-    result() = default;
-    result(api_error error) // NOLINT(google-explicit-constructor)
-        : error_(std::move(error)), ok_(false) {}
-
-    [[nodiscard]] auto ok() const noexcept -> bool { return ok_; }
-    explicit operator bool() const noexcept { return ok_; }
-
-    [[nodiscard]] auto error() const -> const api_error& { return error_; }
-
-private:
-    api_error error_;
-    bool ok_ = true;
-};
+using result = std::expected<T, api_error>;
 
 } // namespace latibot::ports

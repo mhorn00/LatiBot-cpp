@@ -105,7 +105,7 @@ TEST_CASE("a single track's details", "[music]") {
     const auto lookup = parse_lookup(R"({"title": "Song", "webpage_url": "https://youtube.com/watch?v=1", "duration": 212.6,
                                         "uploader": "Artist", "live_status": "not_live"})",
                                      100);
-    REQUIRE(lookup.ok());
+    REQUIRE(lookup.has_value());
     REQUIRE(lookup.value().items.size() == 1);
     const auto& item = lookup.value().items[0];
     CHECK(item.title == "Song");
@@ -118,7 +118,7 @@ TEST_CASE("a single track's details", "[music]") {
 
 TEST_CASE("a live stream has no length", "[music]") {
     const auto lookup = parse_lookup(R"({"title": "Radio", "webpage_url": "https://x.com/live", "is_live": true, "duration": 5})", 100);
-    REQUIRE(lookup.ok());
+    REQUIRE(lookup.has_value());
     CHECK(lookup.value().items[0].live);
     CHECK_FALSE(lookup.value().items[0].duration.has_value());
 }
@@ -132,7 +132,7 @@ TEST_CASE("a playlist's entries, in order, up to the limit", "[music]") {
         {"url": "https://x.com/3", "title": "Three"}]})";
 
     const auto all = parse_lookup(json, 100);
-    REQUIRE(all.ok());
+    REQUIRE(all.has_value());
     CHECK(all.value().is_playlist());
     CHECK(all.value().playlist_title == "Mix");
     CHECK(all.value().playlist_size == 250);
@@ -143,15 +143,15 @@ TEST_CASE("a playlist's entries, in order, up to the limit", "[music]") {
     CHECK(all.value().items[2].title == "Three");
 
     const auto two = parse_lookup(json, 2);
-    REQUIRE(two.ok());
+    REQUIRE(two.has_value());
     CHECK(two.value().items.size() == 2);
 }
 
 TEST_CASE("answers with nothing playable are errors", "[music]") {
-    CHECK_FALSE(parse_lookup("not json", 100).ok());
-    CHECK_FALSE(parse_lookup("[]", 100).ok());
-    CHECK_FALSE(parse_lookup(R"({"_type": "playlist", "title": "Empty", "entries": []})", 100).ok());
-    CHECK_FALSE(parse_lookup(R"({"title": "No link"})", 100).ok());
+    CHECK_FALSE(parse_lookup("not json", 100).has_value());
+    CHECK_FALSE(parse_lookup("[]", 100).has_value());
+    CHECK_FALSE(parse_lookup(R"({"_type": "playlist", "title": "Empty", "entries": []})", 100).has_value());
+    CHECK_FALSE(parse_lookup(R"({"title": "No link"})", 100).has_value());
 }
 
 TEST_CASE("yt-dlp's error line is what is shown", "[music]") {
@@ -168,36 +168,36 @@ TEST_CASE("the resolver runs yt-dlp and reads what it says", "[music][threads][c
     // looked up, so these need no network.
     SECTION("a track") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/song", 100);
-        REQUIRE(lookup.ok());
+        REQUIRE(lookup.has_value());
         CHECK(lookup.value().items[0].title == "A song");
         CHECK(lookup.value().items[0].duration == 61s);
     }
     SECTION("a playlist") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/list", 100);
-        REQUIRE(lookup.ok());
+        REQUIRE(lookup.has_value());
         CHECK(lookup.value().items.size() == 3);
     }
     SECTION("a failure, told as yt-dlp told it") {
         const auto lookup = resolver.lookup_now("https://203.0.113.5/fail", 100);
-        REQUIRE_FALSE(lookup.ok());
+        REQUIRE_FALSE(lookup.has_value());
         CHECK(lookup.error().message.contains("HTTP Error 404"));
     }
     SECTION("a private address, refused before yt-dlp runs") {
         const auto lookup = resolver.lookup_now("http://127.0.0.1/list", 100);
-        REQUIRE_FALSE(lookup.ok());
+        REQUIRE_FALSE(lookup.has_value());
         CHECK(lookup.error().message.contains("private network"));
     }
     SECTION("through the workers") {
         const auto lookup = resolver.lookup("https://203.0.113.5/song", 100).sync_wait_for(10s);
         REQUIRE(lookup.has_value());
-        CHECK(lookup->ok());
+        CHECK(lookup->has_value());
     }
 }
 
 TEST_CASE("a link yt-dlp takes too long over is given up on", "[music][threads]") {
     const ytdlp_resolver resolver(LATIBOT_TEST_CHILD, 300ms);
     const auto lookup = resolver.lookup_now("https://203.0.113.5/hang", 100);
-    REQUIRE_FALSE(lookup.ok());
+    REQUIRE_FALSE(lookup.has_value());
     CHECK(lookup.error().message.contains("took more than"));
 }
 

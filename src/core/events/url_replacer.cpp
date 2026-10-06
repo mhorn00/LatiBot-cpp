@@ -85,7 +85,7 @@ auto post_replacement(ports::discord_gateway& discord, replacement_store& replac
     ours.set_flags(dpp::m_suppress_notifications);
 
     const auto sent = co_await discord.send_message(ours);
-    if (!sent.ok()) {
+    if (!sent.has_value()) {
         util::log().warn("could not post a replacement in channel {}: {}", request.channel_id, sent.error().message);
         co_return;
     }
@@ -105,7 +105,7 @@ auto post_replacement(ports::discord_gateway& discord, replacement_store& replac
                      request.channel_id, ours_id);
 
     const auto suppressed = co_await discord.set_embeds_suppressed(request.channel_id, request.message_id, true);
-    if (!suppressed.ok()) {
+    if (!suppressed.has_value()) {
         // Almost always a missing Manage Messages, which the permission check
         // already warned about for this guild. Both previews showing is the
         // only consequence.
@@ -130,10 +130,10 @@ auto carry_out_embed_actions(ports::discord_gateway& discord, std::vector<embed_
     for (const embed_action& wanted : actions) {
         if (const auto* edit = std::get_if<edit_replacement>(&wanted)) {
             const auto edited = co_await discord.edit_message(build_edit(*edit));
-            if (!edited.ok()) util::log().warn("could not edit replacement {}: {}", edit->message_id, edited.error().message);
+            if (!edited.has_value()) util::log().warn("could not edit replacement {}: {}", edit->message_id, edited.error().message);
         } else if (const auto* original = std::get_if<set_original_embeds>(&wanted)) {
             const auto changed = co_await discord.set_embeds_suppressed(original->channel_id, original->message_id, original->suppressed);
-            if (!changed.ok()) {
+            if (!changed.has_value()) {
                 util::log().debug("could not turn the previews on message {} {}: {}", original->message_id,
                                   original->suppressed ? "off" : "back on", changed.error().message);
             }
@@ -150,7 +150,7 @@ auto settle_stranded(ports::discord_gateway& discord, replacement_store& replace
 
     for (replacement_record& record : stranded) {
         const auto fetched = co_await discord.get_message(record.channel_id, record.message_id);
-        if (!fetched.ok()) {
+        if (!fetched.has_value()) {
             // Waiting will not bring back a message that was deleted, or a
             // channel the bot can no longer see, and there is nothing left to
             // edit. Anything else may be passing, so it waits for next time.

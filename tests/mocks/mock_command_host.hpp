@@ -26,19 +26,19 @@ public:
     int deletes = 0;
 
     auto global_commands() -> dpp::task<ports::result<std::vector<std::string>>> override {
-        if (fail_global_list) co_return failure(*fail_global_list);
+        if (fail_global_list) co_return std::unexpected(failure(*fail_global_list));
         co_return global;
     }
 
     auto delete_global_commands() -> dpp::task<ports::result<void>> override {
         ++deletes;
-        if (fail_global_delete) co_return failure(*fail_global_delete);
+        if (fail_global_delete) co_return std::unexpected(failure(*fail_global_delete));
         global.clear();
         co_return ports::result<void>{};
     }
 
     auto guilds() -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override {
-        if (fail_guild_list) co_return failure(*fail_guild_list);
+        if (fail_guild_list) co_return std::unexpected(failure(*fail_guild_list));
         std::vector<dpp::snowflake> ids;
         ids.reserve(per_guild.size());
         for (const auto& [id, commands] : per_guild) {
@@ -53,7 +53,9 @@ public:
 
     auto delete_guild_commands(dpp::snowflake guild_id) -> dpp::task<ports::result<void>> override {
         ++deletes;
-        if (const auto found = fail_guild_delete.find(guild_id); found != fail_guild_delete.end()) co_return failure(found->second);
+        if (const auto found = fail_guild_delete.find(guild_id); found != fail_guild_delete.end()) {
+            co_return std::unexpected(failure(found->second));
+        }
         per_guild[guild_id].clear();
         co_return ports::result<void>{};
     }

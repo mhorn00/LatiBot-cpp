@@ -146,7 +146,7 @@ TEST_CASE("an assistant turn Anthropic wrote goes back exactly as it came, think
         "usage": {"input_tokens": 10, "output_tokens": 5}
     })";
     const auto read = latibot::llm::read_anthropic_reply(200, reply);
-    REQUIRE(read.ok());
+    REQUIRE(read.has_value());
 
     request call = one_question("claude-sonnet-5-5");
     call.conversation.push_back(read.value().reply);
@@ -169,7 +169,7 @@ TEST_CASE("an Anthropic reply is read into text, calls, usage and a stop reason"
     })";
 
     const auto read = latibot::llm::read_anthropic_reply(200, reply);
-    REQUIRE(read.ok());
+    REQUIRE(read.has_value());
     const auto& answer = read.value();
     CHECK(answer.reply.text == "let me look\nhm");
     REQUIRE(answer.reply.calls.size() == 1);
@@ -182,19 +182,19 @@ TEST_CASE("an Anthropic reply is read into text, calls, usage and a stop reason"
 TEST_CASE("an Anthropic error carries the status and the API's own message", "[llm]") {
     const auto read =
         latibot::llm::read_anthropic_reply(529, R"({"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}})");
-    REQUIRE_FALSE(read.ok());
+    REQUIRE_FALSE(read.has_value());
     CHECK(read.error().http_status == 529);
     CHECK(read.error().message == "Anthropic answered 529: overloaded_error: Overloaded");
 }
 
 TEST_CASE("an Anthropic reply of the wrong shape is an error, not a crash", "[llm]") {
-    CHECK_FALSE(latibot::llm::read_anthropic_reply(200, "not json").ok());
-    CHECK_FALSE(latibot::llm::read_anthropic_reply(200, R"({"content": 5})").ok());
+    CHECK_FALSE(latibot::llm::read_anthropic_reply(200, "not json").has_value());
+    CHECK_FALSE(latibot::llm::read_anthropic_reply(200, R"({"content": 5})").has_value());
 
     // Fields of the wrong type cost the field, not the reply.
     const auto odd =
         latibot::llm::read_anthropic_reply(200, R"({"content": [{"type": "text", "text": 5}], "usage": {"input_tokens": "x"}})");
-    REQUIRE(odd.ok());
+    REQUIRE(odd.has_value());
     CHECK(odd.value().reply.text.empty());
     CHECK(odd.value().used.input_tokens == 0);
 }
@@ -206,7 +206,7 @@ TEST_CASE("the Anthropic provider sends its key and version, and posts to the Me
 
     const auto answered = provider.complete(one_question("claude-haiku-4-5")).sync_wait_for(2s);
     REQUIRE(answered.has_value());
-    REQUIRE(answered->ok());
+    REQUIRE(answered->has_value());
     CHECK(answered->value().reply.text == "hi");
     CHECK(answered->value().stop == stop_reason::finished);
 
@@ -225,7 +225,7 @@ TEST_CASE("a transport failure reaches the caller as an error", "[llm][coro]") {
 
     const auto answered = provider.complete(one_question("claude-haiku-4-5")).sync_wait_for(2s);
     REQUIRE(answered.has_value());
-    REQUIRE_FALSE(answered->ok());
+    REQUIRE_FALSE(answered->has_value());
     CHECK(answered->error().message == "connection reset");
 }
 
@@ -274,7 +274,7 @@ TEST_CASE("an OpenAI reply is read into calls, and cached input is counted apart
     })";
 
     const auto read = latibot::llm::read_openai_reply(200, reply);
-    REQUIRE(read.ok());
+    REQUIRE(read.has_value());
     const auto& answer = read.value();
     CHECK(answer.stop == stop_reason::tool_use);
     REQUIRE(answer.reply.calls.size() == 1);
@@ -287,14 +287,14 @@ TEST_CASE("an OpenAI reply is read into calls, and cached input is counted apart
 TEST_CASE("an OpenAI refusal is a refusal, with its explanation as the text", "[llm]") {
     const auto read = latibot::llm::read_openai_reply(
         200, R"({"choices":[{"message":{"role":"assistant","content":null,"refusal":"no"},"finish_reason":"stop"}]})");
-    REQUIRE(read.ok());
+    REQUIRE(read.has_value());
     CHECK(read.value().stop == stop_reason::refusal);
     CHECK(read.value().reply.text == "no");
 }
 
 TEST_CASE("an OpenAI error carries the API's message", "[llm]") {
     const auto read = latibot::llm::read_openai_reply(401, R"({"error":{"message":"Incorrect API key provided"}})");
-    REQUIRE_FALSE(read.ok());
+    REQUIRE_FALSE(read.has_value());
     CHECK(read.error().message == "OpenAI answered 401: Incorrect API key provided");
 }
 
@@ -305,7 +305,7 @@ TEST_CASE("the OpenAI provider authenticates with a bearer token", "[llm][coro]"
 
     const auto answered = provider.complete(one_question("gpt-6-luna")).sync_wait_for(2s);
     REQUIRE(answered.has_value());
-    REQUIRE(answered->ok());
+    REQUIRE(answered->has_value());
     CHECK(answered->value().reply.text == "hey");
     REQUIRE(http.requests.size() == 1);
     CHECK(http.requests[0].url == latibot::llm::openai_url);

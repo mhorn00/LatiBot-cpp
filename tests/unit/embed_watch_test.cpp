@@ -490,7 +490,7 @@ TEST_CASE("posting sends the replacement, records it, and turns the original's p
 TEST_CASE("a replacement that cannot be posted leaves the original alone", "[events][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
-    discord.send_results.emplace_back(latibot::ports::api_error{.http_status = 403, .message = "Missing Permissions"});
+    discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 403, .message = "Missing Permissions"}));
 
     latibot::events::post_replacement(
         discord, test.replacements, test.tracker, test.clock,

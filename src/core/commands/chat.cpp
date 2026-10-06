@@ -93,7 +93,7 @@ auto chat_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> 
     // seconds, and synthesis takes milliseconds.
     auto spoken = co_await services_.engine->synthesize(
         {.text = std::string(chat_preamble) + clean.text, .voice = std::move(*voice), .max_duration = limits.max_duration});
-    if (!spoken.ok()) {
+    if (!spoken.has_value()) {
         util::log().warn("/chat in guild {} failed: {}", guild, spoken.error().message);
         co_await event.co_reply(refusal(event, std::format("couldn't say that: {}", spoken.error().message)));
         co_return;
@@ -107,7 +107,7 @@ auto chat_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> 
     const auto sent = co_await raw_->multipart(
         ports::http_method::post, std::format("/interactions/{}/{}/callback", event.command.id.str(), event.command.token),
         voice_message_response(flags, pcm.duration(), audio::waveform_base64(pcm.samples)), std::move(files));
-    if (!sent.ok()) {
+    if (!sent.has_value()) {
         // Nothing answered the interaction, so a refusal still can.
         util::log().error("/chat in guild {} could not send its voice message: {}", guild, sent.error().message);
         co_await event.co_reply(refusal(event, "couldn't send the voice message; it's in the log"));

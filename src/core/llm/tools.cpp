@@ -52,7 +52,7 @@ auto run_tool_loop(provider& model, request call, const tool_registry& tools, co
 
         auto answered = co_await model.complete(call);
         ++outcome.requests;
-        if (!answered.ok()) co_return answered.error();
+        if (!answered.has_value()) co_return std::unexpected(answered.error());
 
         response& reply = answered.value();
         outcome.used += reply.used;
