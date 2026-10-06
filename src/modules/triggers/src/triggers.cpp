@@ -1,4 +1,4 @@
-#include "core/events/triggers.hpp"
+#include "triggers.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

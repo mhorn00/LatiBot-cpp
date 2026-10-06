@@ -13,9 +13,10 @@ instead are [advanced triggers](Language_Model.md#26-advanced-triggers).
 
 | | |
 |---|---|
-| **Code** | `src/core/events/triggers.*`, `src/core/commands/trigger.*` (the command and `trigger_panel`) |
-| **Tests** | `tests/unit/triggers_test.cpp`, `tests/unit/trigger_command_test.cpp`, `tests/db/trigger_store_test.cpp`, the trigger panel in `tests/unit/panels_test.cpp` |
-| **Tables** | `triggers`, `trigger_responses` (migration 2); `respond_to_bots` (migration 3); `message_flags` (migration 9) |
+| **Module** | `triggers`: [its README](../../src/modules/triggers/README.md) lists what it owns |
+| **Code** | `src/modules/triggers/src/`: `triggers.*`, `trigger_command.*` (the command and `trigger_panel`), `module.cpp` |
+| **Tests** | `src/modules/triggers/tests/`, built as `latibot_triggers_tests`; a trigger beside a link in `tests/app` |
+| **Tables** | `triggers`, `trigger_responses`, the module's schema version 1 (was migrations 2, 3 and 9) |
 | **Plan** | Replaces plan §11 |
 | **Status** | Built in phase 1 (2026-09-21); the panel's forms were fixed on 2026-09-29 and have not been seen working in Discord since |
 

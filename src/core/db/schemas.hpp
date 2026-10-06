@@ -12,13 +12,12 @@ namespace latibot::db {
 // ALTER put them; the comparison test holds the two to that.
 //
 // These live in the core only until their module moves out of it: each then
-// takes its schema along, and offers it as `modules::schema`. Midnight's and
-// nicknames' have (src/modules/<name>/src/module.cpp).
+// takes its schema along, and offers it as `modules::schema`. Those that have
+// moved are in src/modules/<name>/src/module.cpp.
 
 /// `guild_settings` and `allowed_bots`.
 [[nodiscard]] auto core_schema() noexcept -> module_schema;
 
-[[nodiscard]] auto triggers_schema() noexcept -> module_schema;
 [[nodiscard]] auto links_schema() noexcept -> module_schema;
 /// Requires links': it counts reactions on `replacement_messages`.
 [[nodiscard]] auto linkstats_schema() noexcept -> module_schema;

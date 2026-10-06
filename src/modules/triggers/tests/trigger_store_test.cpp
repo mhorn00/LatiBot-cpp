@@ -1,7 +1,7 @@
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
-#include "core/events/triggers.hpp"
 #include "core/ports/clock.hpp"
+#include "triggers.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/schema.hpp"
@@ -33,7 +33,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     trigger_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::events::triggers_schema());
+    }
 };
 
 auto nice_trigger(dpp::snowflake in = guild) -> trigger {
@@ -60,7 +63,7 @@ auto message_from_allowed_bot(std::string content) -> latibot::events::incoming_
 
 } // namespace
 
-TEST_CASE("a trigger survives a round trip with its responses", "[db]") {
+TEST_CASE("a trigger survives a round trip with its responses", "[triggers]") {
     store_fixture fixture;
 
     trigger saved = nice_trigger();
@@ -79,7 +82,7 @@ TEST_CASE("a trigger survives a round trip with its responses", "[db]") {
     CHECK(loaded->responses[1].text == "very nice");
 }
 
-TEST_CASE("each trigger in a guild gets its own responses, in order", "[db]") {
+TEST_CASE("each trigger in a guild gets its own responses, in order", "[triggers]") {
     // They are read for the whole guild in one query and sorted out after.
     store_fixture fixture;
     trigger first = nice_trigger();
@@ -106,7 +109,7 @@ TEST_CASE("each trigger in a guild gets its own responses, in order", "[db]") {
     CHECK(all[2].responses.empty());
 }
 
-TEST_CASE("guilds cannot see or change each other's triggers", "[db]") {
+TEST_CASE("guilds cannot see or change each other's triggers", "[triggers]") {
     store_fixture fixture;
     const std::int64_t mine = fixture.store.add(nice_trigger(guild));
     fixture.store.add(nice_trigger(other_guild));
@@ -123,7 +126,7 @@ TEST_CASE("guilds cannot see or change each other's triggers", "[db]") {
     CHECK(fixture.store.find(mine, guild).has_value());
 }
 
-TEST_CASE("updating a trigger replaces its responses rather than adding to them", "[db]") {
+TEST_CASE("updating a trigger replaces its responses rather than adding to them", "[triggers]") {
     store_fixture fixture;
     trigger saved = nice_trigger();
     saved.responses = {{.text = "one", .weight = 1}, {.text = "two", .weight = 1}};
@@ -139,7 +142,7 @@ TEST_CASE("updating a trigger replaces its responses rather than adding to them"
     CHECK(loaded->responses[0].weight == 5);
 }
 
-TEST_CASE("removing a trigger takes its responses with it", "[db]") {
+TEST_CASE("removing a trigger takes its responses with it", "[triggers]") {
     store_fixture fixture;
     const std::int64_t id = fixture.store.add(nice_trigger());
 
@@ -151,7 +154,7 @@ TEST_CASE("removing a trigger takes its responses with it", "[db]") {
     CHECK(orphans.get<std::int64_t>(0) == 0);
 }
 
-TEST_CASE("a matching message gets one of the trigger's responses", "[db]") {
+TEST_CASE("a matching message gets one of the trigger's responses", "[triggers]") {
     store_fixture fixture;
     fixture.store.add(nice_trigger());
 
@@ -173,7 +176,7 @@ TEST_CASE("a matching message gets one of the trigger's responses", "[db]") {
     }
 }
 
-TEST_CASE("a trigger is quiet until its cooldown has passed", "[db]") {
+TEST_CASE("a trigger is quiet until its cooldown has passed", "[triggers]") {
     store_fixture fixture;
     fixture.store.add(nice_trigger());
 
@@ -190,7 +193,7 @@ TEST_CASE("a trigger is quiet until its cooldown has passed", "[db]") {
     CHECK(responder(message_saying("420")).actions.size() == 1);
 }
 
-TEST_CASE("cooldowns are per channel", "[db]") {
+TEST_CASE("cooldowns are per channel", "[triggers]") {
     // One busy channel should not silence the trigger everywhere else.
     store_fixture fixture;
     fixture.store.add(nice_trigger());
@@ -203,7 +206,7 @@ TEST_CASE("cooldowns are per channel", "[db]") {
     CHECK(responder(message_saying("420", channel)).actions.empty());
 }
 
-TEST_CASE("messages arriving at once still get one reply per cooldown", "[db][threads]") {
+TEST_CASE("messages arriving at once still get one reply per cooldown", "[triggers][threads]") {
     // DPP runs message handlers on several threads, and a trigger's busiest
     // moment is several people saying "420" together. The roll comes between
     // finding the trigger ready and claiming its cooldown, so a slow one holds
@@ -242,7 +245,7 @@ TEST_CASE("messages arriving at once still get one reply per cooldown", "[db][th
     CHECK(replies == 1);
 }
 
-TEST_CASE("a disabled trigger says nothing", "[db]") {
+TEST_CASE("a disabled trigger says nothing", "[triggers]") {
     store_fixture fixture;
     trigger off = nice_trigger();
     off.enabled = false;
@@ -254,7 +257,7 @@ TEST_CASE("a disabled trigger says nothing", "[db]") {
     CHECK(responder(message_saying("420")).actions.empty());
 }
 
-TEST_CASE("two triggers on one message both answer", "[db]") {
+TEST_CASE("two triggers on one message both answer", "[triggers]") {
     store_fixture fixture;
     fixture.store.add(nice_trigger());
 
@@ -269,7 +272,7 @@ TEST_CASE("two triggers on one message both answer", "[db]") {
     CHECK(responder(message_saying("420 and 69")).actions.size() == 2);
 }
 
-TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[db]") {
+TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[triggers]") {
     store_fixture fixture;
 
     const std::int64_t quiet = fixture.store.add(nice_trigger());
@@ -288,7 +291,7 @@ TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[db]") {
     CHECK_FALSE(fixture.store.find(loud, guild)->respond_to_bots);
 }
 
-TEST_CASE("a trigger only answers an allowed bot when it opts in", "[db]") {
+TEST_CASE("a trigger only answers an allowed bot when it opts in", "[triggers]") {
     // The allowlist got the message this far
     // (docs/features/Message_Pipeline.md §2.1); this is the second,
     // per-trigger decision.
@@ -307,7 +310,7 @@ TEST_CASE("a trigger only answers an allowed bot when it opts in", "[db]") {
     CHECK(responder(message_from_allowed_bot("420")).actions.size() == 1);
 }
 
-TEST_CASE("a trigger that answers bots still answers humans", "[db]") {
+TEST_CASE("a trigger that answers bots still answers humans", "[triggers]") {
     store_fixture fixture;
 
     trigger chatty = nice_trigger();
@@ -320,7 +323,7 @@ TEST_CASE("a trigger that answers bots still answers humans", "[db]") {
     CHECK(responder(message_saying("420")).actions.size() == 1);
 }
 
-TEST_CASE("a trigger's reply flags survive a round trip and default to silent", "[db]") {
+TEST_CASE("a trigger's reply flags survive a round trip and default to silent", "[triggers]") {
     store_fixture fixture;
 
     const std::int64_t quiet = fixture.store.add(nice_trigger());
@@ -345,7 +348,7 @@ TEST_CASE("a trigger's reply flags survive a round trip and default to silent", 
 
 // Through the old migrations, so remove after: you say so, with them
 // (docs/modules/Module_Plan_Final.md §7.2).
-TEST_CASE("triggers from before reply flags existed stay silent", "[db]") {
+TEST_CASE("triggers from before reply flags existed stay silent", "[triggers]") {
     latibot::db::database db{":memory:"};
 
     // Stop at the schema before message_flags, add a trigger the old way,
@@ -362,7 +365,7 @@ TEST_CASE("triggers from before reply flags existed stay silent", "[db]") {
     CHECK(found.front().message_flags == dpp::m_suppress_notifications);
 }
 
-TEST_CASE("a trigger's reply carries its flags", "[db]") {
+TEST_CASE("a trigger's reply carries its flags", "[triggers]") {
     store_fixture fixture;
     trigger loud = nice_trigger();
     loud.message_flags = dpp::m_suppress_embeds;
@@ -376,7 +379,7 @@ TEST_CASE("a trigger's reply carries its flags", "[db]") {
     CHECK(std::get<latibot::events::send_message>(result.actions.front()).flags == dpp::m_suppress_embeds);
 }
 
-TEST_CASE("a trigger's reply says which trigger it is from", "[db]") {
+TEST_CASE("a trigger's reply says which trigger it is from", "[triggers]") {
     // For the line saying whether it was posted.
     store_fixture fixture;
     const std::int64_t id = fixture.store.add(nice_trigger());
@@ -387,4 +390,31 @@ TEST_CASE("a trigger's reply says which trigger it is from", "[db]") {
     const auto result = responder(message_saying("420"));
     REQUIRE(result.actions.size() == 1);
     CHECK(std::get<latibot::events::send_message>(result.actions.front()).what == std::format("trigger {}'s reply", id));
+}
+
+// Through the old migrations, so remove after: you say so, with them
+// (docs/modules/Module_Plan_Final.md §7.2).
+TEST_CASE("an existing database gains the allowlist without losing its triggers", "[triggers]") {
+    // The upgrade every running install takes: version 2 has triggers in it
+    // already, and migration 3 adds a column to that table. Getting this
+    // wrong loses real data, and a fresh-database test would not notice.
+    latibot::db::database db{":memory:"};
+
+    const auto before_allowlist = latibot::db::schema().first(2);
+    REQUIRE(latibot::db::migrate(db, before_allowlist) == 2);
+
+    db.execute("INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) VALUES (1, '420', 'whole_word', 30, 1);");
+    db.execute("INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (last_insert_rowid(), 'nice', 1);");
+
+    REQUIRE(latibot::db::migrate(db) == static_cast<int>(latibot::db::schema().size()));
+
+    const latibot::events::trigger_store store(db);
+    const auto all = store.for_guild(dpp::snowflake{1});
+    REQUIRE(all.size() == 1);
+    CHECK(all[0].pattern == "420");
+    REQUIRE(all[0].responses.size() == 1);
+    CHECK(all[0].responses[0].text == "nice");
+
+    // A trigger that predates the column stays quiet around bots.
+    CHECK_FALSE(all[0].respond_to_bots);
 }

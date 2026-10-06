@@ -1,4 +1,4 @@
-#include "core/events/triggers.hpp"
+#include "triggers.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -16,7 +16,7 @@ using latibot::events::off_cooldown;
 using latibot::events::weighted_response;
 using namespace std::chrono_literals;
 
-TEST_CASE("whole word matching ignores the middle of longer words", "[events]") {
+TEST_CASE("whole word matching ignores the middle of longer words", "[triggers]") {
     CHECK(matches("it is 420 somewhere", "420", match_mode::whole_word));
     CHECK(matches("420", "420", match_mode::whole_word));
     CHECK(matches("(420)", "420", match_mode::whole_word));
@@ -26,36 +26,36 @@ TEST_CASE("whole word matching ignores the middle of longer words", "[events]") 
     CHECK_FALSE(matches("nothing here", "420", match_mode::whole_word));
 }
 
-TEST_CASE("a later occurrence still counts as a whole word", "[events]") {
+TEST_CASE("a later occurrence still counts as a whole word", "[triggers]") {
     // Checking only the first occurrence would miss this, and "4200" leading
     // is exactly the sort of message that turns up.
     CHECK(matches("4200 and also 420", "420", match_mode::whole_word));
 }
 
-TEST_CASE("substring matching does not care about boundaries", "[events]") {
+TEST_CASE("substring matching does not care about boundaries", "[triggers]") {
     CHECK(matches("4200 is not it", "420", match_mode::substring));
     CHECK(matches("catastrophe", "cat", match_mode::substring));
 }
 
-TEST_CASE("matching ignores case on both sides", "[events]") {
+TEST_CASE("matching ignores case on both sides", "[triggers]") {
     CHECK(matches("NICE Try", "nice", match_mode::whole_word));
     CHECK(matches("nice try", "NICE", match_mode::whole_word));
 }
 
-TEST_CASE("a pattern with punctuation matches as a word", "[events]") {
+TEST_CASE("a pattern with punctuation matches as a word", "[triggers]") {
     // "4:20" was one of the Java bot's patterns, and the colon is not a word
     // character, so the boundaries are the digits at either end.
     CHECK(matches("it's 4:20", "4:20", match_mode::whole_word));
     CHECK_FALSE(matches("14:205", "4:20", match_mode::whole_word));
 }
 
-TEST_CASE("an empty pattern never matches", "[events]") {
+TEST_CASE("an empty pattern never matches", "[triggers]") {
     // Otherwise a trigger saved with a blank pattern answers every message.
     CHECK_FALSE(matches("anything", "", match_mode::whole_word));
     CHECK_FALSE(matches("anything", "", match_mode::substring));
 }
 
-TEST_CASE("match modes parse from their stored and spoken names", "[events]") {
+TEST_CASE("match modes parse from their stored and spoken names", "[triggers]") {
     CHECK(match_mode_from_string("whole_word") == match_mode::whole_word);
     CHECK(match_mode_from_string("WORD") == match_mode::whole_word);
     CHECK(match_mode_from_string("substring") == match_mode::substring);
@@ -65,7 +65,7 @@ TEST_CASE("match modes parse from their stored and spoken names", "[events]") {
     CHECK_FALSE(match_mode_from_string("").has_value());
 }
 
-TEST_CASE("weighted responses are picked in proportion", "[events]") {
+TEST_CASE("weighted responses are picked in proportion", "[triggers]") {
     const std::array<weighted_response, 3> responses{{
         {.text = "a", .weight = 1},
         {.text = "b", .weight = 3},
@@ -94,7 +94,7 @@ TEST_CASE("weighted responses are picked in proportion", "[events]") {
     }
 }
 
-TEST_CASE("a trigger with nothing to say picks nothing", "[events]") {
+TEST_CASE("a trigger with nothing to say picks nothing", "[triggers]") {
     CHECK(choose({}, 0) == nullptr);
 
     SECTION("weights of zero are not a division by zero") {
@@ -106,7 +106,7 @@ TEST_CASE("a trigger with nothing to say picks nothing", "[events]") {
     }
 }
 
-TEST_CASE("a zero-weight response is skipped but its neighbours still work", "[events]") {
+TEST_CASE("a zero-weight response is skipped but its neighbours still work", "[triggers]") {
     const std::array<weighted_response, 3> responses{{
         {.text = "never", .weight = 0},
         {.text = "always", .weight = 2},
@@ -118,7 +118,7 @@ TEST_CASE("a zero-weight response is skipped but its neighbours still work", "[e
     CHECK(choose(responses, 2)->text == "sometimes");
 }
 
-TEST_CASE("cooldowns are measured from the last reply", "[events]") {
+TEST_CASE("cooldowns are measured from the last reply", "[triggers]") {
     const auto start = std::chrono::steady_clock::time_point{};
 
     CHECK(off_cooldown(std::nullopt, start, 30s));
@@ -127,7 +127,7 @@ TEST_CASE("cooldowns are measured from the last reply", "[events]") {
     CHECK(off_cooldown(start, start + 31s, 30s));
 }
 
-TEST_CASE("a zero cooldown means no cooldown", "[events]") {
+TEST_CASE("a zero cooldown means no cooldown", "[triggers]") {
     // docs/features/Triggers.md §2.2 allows 0 explicitly, and it must not
     // mean "never again".
     const auto start = std::chrono::steady_clock::time_point{};

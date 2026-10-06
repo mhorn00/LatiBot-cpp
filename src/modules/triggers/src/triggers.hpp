@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/db/schema_versions.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/util/match.hpp"
 
@@ -25,6 +26,10 @@ class clock;
 }
 
 namespace latibot::events {
+
+/// The module's tables, `triggers` and `trigger_responses`, version 1 first
+/// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp.
+[[nodiscard]] auto triggers_schema() noexcept -> db::module_schema;
 
 // How a pattern matches and when a trigger may fire again are shared with
 // the language model's advanced triggers, so they live in util/match; the

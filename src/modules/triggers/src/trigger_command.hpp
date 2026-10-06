@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/events/triggers.hpp"
 #include "core/ui/paginator.hpp"
+#include "triggers.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>

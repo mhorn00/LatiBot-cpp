@@ -31,7 +31,6 @@ add_library(latibot_core STATIC
     core/commands/bots.cpp
     core/commands/chat.cpp
     core/commands/music.cpp
-    core/commands/trigger.cpp
     core/commands/urlrepl.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
@@ -56,7 +55,6 @@ add_library(latibot_core STATIC
     core/events/media_posts.cpp
     core/events/message_pipeline.cpp
     core/events/reactions.cpp
-    core/events/triggers.cpp
     core/events/embed_watch.cpp
     core/events/emoji_copies.cpp
     core/events/replacements.cpp

@@ -61,7 +61,6 @@ latibot_test_executable(latibot_tests SOURCES
     db/database_test.cpp
     db/emoji_copies_test.cpp
     db/emote_reactions_test.cpp
-    db/trigger_store_test.cpp
     db/reaction_store_test.cpp
     db/replacement_store_test.cpp
     db/url_rule_store_test.cpp
@@ -122,8 +121,6 @@ latibot_test_executable(latibot_tests SOURCES
     unit/registry_test.cpp
     unit/speak_command_test.cpp
     unit/speech_queue_test.cpp
-    unit/trigger_command_test.cpp
-    unit/triggers_test.cpp
     unit/unregister_test.cpp
     unit/version_test.cpp
     unit/voice_lab_test.cpp

@@ -8,7 +8,9 @@
 #include "core/db/migrations.hpp"
 #include "core/db/schema_versions.hpp"
 #include "core/db/schemas.hpp"
-#include "core/events/triggers.hpp"
+#include "core/events/stage_order.hpp"
+#include "core/events/url_replacer.hpp"
+#include "core/events/url_rules.hpp"
 #include "core/modules/module.hpp"
 
 #include "support/test_host.hpp"
@@ -24,6 +26,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 using latibot::db::database;
@@ -212,7 +215,7 @@ TEST_CASE("an old database is brought to migration 15, then adopted with its dat
         CHECK(latibot::db::apply_schema(old, {.module = each->name(), .steps = each->schema()}) == 1);
     }
 
-    CHECK(latibot::events::trigger_store(old).for_guild(dpp::snowflake{1}).size() == 1);
+    CHECK(count_rows(old, "triggers") == 1);
     CHECK(count_rows(old, "midnight_messages") == 1);
 }
 
@@ -249,4 +252,42 @@ TEST_CASE("the example config is exactly what the bot writes, every module's sec
     std::erase(example, '\r');
 
     CHECK(example == latibot::config::bootstrap::default_json(latibot::modules::enabled_config_defaults()));
+}
+
+TEST_CASE("a message with a joke and a link gets both", "[app]") {
+    // The Java bot's early returns answered "nice" and skipped the link. The
+    // trigger's reply is the triggers module's stage; the replacement the
+    // core's, added as the bot adds it (docs/features/Message_Pipeline.md
+    // §2.2).
+    test_host bot;
+    const module_list modules = latibot::modules::start_modules(latibot::modules::enabled_modules, bot, bot.offered);
+    if (bot.registry.find("trigger") == nullptr) SKIP("this build leaves out the triggers module");
+
+    constexpr dpp::snowflake guild{1000};
+    latibot::events::url_rule_store rules(bot.data);
+    rules.set_enabled(guild, true);
+    rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
+    bot.data.execute(
+        "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) VALUES (1000, '420', 'whole_word', 30, 1);"
+        "INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (last_insert_rowid(), 'nice', 1);");
+    bot.stages.add(latibot::events::stage_order::rewrite, "url replacement",
+                   latibot::events::carried_out_by<latibot::events::replace_links>(
+                       latibot::events::url_replacer(rules), "posting a replacement",
+                       [](latibot::events::replace_links /*request*/) -> dpp::task<void> { co_return; }));
+
+    latibot::events::incoming_message message;
+    message.guild_id = guild;
+    message.channel_id = dpp::snowflake{3000};
+    message.author_id = dpp::snowflake{11};
+    message.message_id = dpp::snowflake{5000};
+    message.content = "420 https://x.com/a/status/1";
+
+    const auto actions = bot.stages.run(message);
+    REQUIRE(actions.size() == 2);
+    const auto* replacing = std::get_if<latibot::events::background_task>(&actions.front());
+    REQUIRE(replacing != nullptr);
+    CHECK(replacing->what == "posting a replacement");
+    const auto* reply = std::get_if<latibot::events::send_message>(&actions[1]);
+    REQUIRE(reply != nullptr);
+    CHECK(reply->content == "nice");
 }

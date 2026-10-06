@@ -1,4 +1,5 @@
-#include "core/commands/trigger.hpp"
+#include "trigger_command.hpp"
+#include "core/commands/registry.hpp"
 #include "core/db/database.hpp"
 #include "core/ui/paginator.hpp"
 
@@ -6,6 +7,8 @@
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <memory>
 
 #include <array>
 #include <chrono>
@@ -21,7 +24,7 @@ using latibot::commands::format_responses;
 using latibot::commands::parse_responses;
 using namespace std::chrono_literals;
 
-TEST_CASE("responses are one per line", "[commands]") {
+TEST_CASE("responses are one per line", "[triggers]") {
     const auto responses = parse_responses("nice\nvery nice\n");
 
     REQUIRE(responses.size() == 2);
@@ -30,7 +33,7 @@ TEST_CASE("responses are one per line", "[commands]") {
     CHECK(responses[1].text == "very nice");
 }
 
-TEST_CASE("a leading number and bar sets the weight", "[commands]") {
+TEST_CASE("a leading number and bar sets the weight", "[triggers]") {
     const auto responses = parse_responses("3 | common\nrare");
 
     REQUIRE(responses.size() == 2);
@@ -40,7 +43,7 @@ TEST_CASE("a leading number and bar sets the weight", "[commands]") {
     CHECK(responses[1].weight == 1);
 }
 
-TEST_CASE("a bar that is not a weight stays part of the response", "[commands]") {
+TEST_CASE("a bar that is not a weight stays part of the response", "[triggers]") {
     // People write "a | b" meaning the text, and losing half of it would be
     // worse than not supporting weights at all.
     const auto responses = parse_responses("this | that\n|leading bar");
@@ -51,7 +54,7 @@ TEST_CASE("a bar that is not a weight stays part of the response", "[commands]")
     CHECK(responses[1].text == "|leading bar");
 }
 
-TEST_CASE("blank lines are skipped", "[commands]") {
+TEST_CASE("blank lines are skipped", "[triggers]") {
     const auto responses = parse_responses("\n\nnice\n   \n\nalso nice\n\n");
 
     REQUIRE(responses.size() == 2);
@@ -59,14 +62,14 @@ TEST_CASE("blank lines are skipped", "[commands]") {
     CHECK(responses[1].text == "also nice");
 }
 
-TEST_CASE("nothing usable parses to nothing", "[commands]") {
+TEST_CASE("nothing usable parses to nothing", "[triggers]") {
     // The command turns this into an error rather than saving a trigger that
     // matches and then has nothing to say.
     CHECK(parse_responses("").empty());
     CHECK(parse_responses("   \n\t\n").empty());
 }
 
-TEST_CASE("responses round trip through their text form", "[commands]") {
+TEST_CASE("responses round trip through their text form", "[triggers]") {
     const std::string original = "3 | common\nrare";
     const auto responses = parse_responses(original);
 
@@ -76,7 +79,7 @@ TEST_CASE("responses round trip through their text form", "[commands]") {
     CHECK(format_responses(parse_responses("just this")) == "just this");
 }
 
-TEST_CASE("a trigger describes itself in one line", "[commands]") {
+TEST_CASE("a trigger describes itself in one line", "[triggers]") {
     latibot::events::trigger entry{.id = 7,
                                    .guild_id = dpp::snowflake{1},
                                    .pattern = "420",
@@ -103,7 +106,7 @@ TEST_CASE("a trigger describes itself in one line", "[commands]") {
     }
 }
 
-TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[commands]") {
+TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[triggers]") {
     using latibot::commands::apply_form;
     using latibot::commands::form_fields;
 
@@ -129,7 +132,7 @@ TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[
           "\"thirty\" isn't a number of seconds from 0 to 86400, so the cooldown stayed 45s");
 }
 
-TEST_CASE("the modal reads the mode however the panel writes it", "[commands]") {
+TEST_CASE("the modal reads the mode however the panel writes it", "[triggers]") {
     using latibot::commands::apply_form;
     using latibot::events::match_mode;
 
@@ -150,7 +153,7 @@ TEST_CASE("the modal reads the mode however the panel writes it", "[commands]") 
     }
 }
 
-TEST_CASE("the modal applies the fields it can read", "[commands]") {
+TEST_CASE("the modal applies the fields it can read", "[triggers]") {
     using latibot::commands::apply_form;
 
     latibot::events::trigger entry{.pattern = "420", .mode = latibot::events::match_mode::whole_word, .cooldown = 30s};
@@ -166,7 +169,7 @@ TEST_CASE("the modal applies the fields it can read", "[commands]") {
     CHECK(entry.responses[0].weight == 2);
 }
 
-TEST_CASE("the modal refuses a trigger that could not work", "[commands]") {
+TEST_CASE("the modal refuses a trigger that could not work", "[triggers]") {
     using latibot::commands::apply_form;
 
     latibot::events::trigger entry{.pattern = "420", .responses = {{.text = "nice", .weight = 1}}};
@@ -184,7 +187,7 @@ TEST_CASE("the modal refuses a trigger that could not work", "[commands]") {
     }
 }
 
-TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
+TEST_CASE("the trigger modal fits inside Discord's limits", "[triggers]") {
     // Production caught this one instead of a test: a label of 50 characters
     // came back as "50035 Invalid Form Body ... data.components[1].label:
     // Must be between 1 and 45 in length", which is only visible once the
@@ -201,9 +204,10 @@ TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
     }
 }
 
-TEST_CASE("a long trigger list pages", "[commands]") {
+TEST_CASE("a long trigger list pages", "[triggers]") {
     latibot::db::database db{":memory:"};
     latibot::testing::create_schema(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
     for (int index = 0; index < 20; ++index) {
@@ -224,7 +228,7 @@ TEST_CASE("a long trigger list pages", "[commands]") {
     CHECK(latibot::commands::render_trigger_list(store, dpp::snowflake{2000}, 0).components.empty());
 }
 
-TEST_CASE("a trigger that answers bots says so when described", "[commands]") {
+TEST_CASE("a trigger that answers bots says so when described", "[triggers]") {
     latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
 
     CHECK_FALSE(describe(entry).contains("answers bots"));
@@ -233,7 +237,7 @@ TEST_CASE("a trigger that answers bots says so when described", "[commands]") {
     CHECK(describe(entry).contains("answers bots"));
 }
 
-TEST_CASE("a trigger says when its replies notify or hide previews", "[commands]") {
+TEST_CASE("a trigger says when its replies notify or hide previews", "[triggers]") {
     latibot::events::trigger entry{.id = 3, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
 
     // Silent with previews is the default, and says nothing.
@@ -243,9 +247,10 @@ TEST_CASE("a trigger says when its replies notify or hide previews", "[commands]
     CHECK(describe(entry) == "`3` **420** (whole word, 30s, notifies, no previews) -> 1 response");
 }
 
-TEST_CASE("the panel offers to change how a trigger's replies are posted", "[commands]") {
+TEST_CASE("the panel offers to change how a trigger's replies are posted", "[triggers]") {
     latibot::db::database db{":memory:"};
     latibot::testing::create_schema(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
     const std::int64_t id =
@@ -283,11 +288,12 @@ TEST_CASE("the panel offers to change how a trigger's replies are posted", "[com
     CHECK(labels_for(latibot::commands::trigger_silent_view, confirming).empty());
 }
 
-TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the trigger picked", "[commands]") {
+TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the trigger picked", "[triggers]") {
     // Cancel once encoded the same state as ◀ on the first page and ▶ on
     // the last, and Discord refuses a message with a custom_id twice.
     latibot::db::database db{":memory:"};
     latibot::testing::create_schema(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 
@@ -319,11 +325,12 @@ TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps 
     }
 }
 
-TEST_CASE("the longest pattern the command takes still fits the panel", "[commands]") {
+TEST_CASE("the longest pattern the command takes still fits the panel", "[triggers]") {
     // /trigger add takes 200 characters and a menu option's label only 100.
     // One label too long and Discord refuses the whole panel, for everybody.
     latibot::db::database db{":memory:"};
     latibot::testing::create_schema(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 
@@ -342,11 +349,12 @@ TEST_CASE("the longest pattern the command takes still fits the panel", "[comman
     CHECK(panel.content.contains(std::string(200, 'a')));
 }
 
-TEST_CASE("a full page of the longest patterns still fits the panel and the list", "[commands]") {
+TEST_CASE("a full page of the longest patterns still fits the panel and the list", "[triggers]") {
     // Eight lines of 200-character patterns pass 2000 characters, and one
     // message too long and Discord refuses it, for everybody.
     latibot::db::database db{":memory:"};
     latibot::testing::create_schema(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 
@@ -364,7 +372,7 @@ TEST_CASE("a full page of the longest patterns still fits the panel and the list
     latibot::testing::check_message_fits(latibot::commands::render_trigger_list(store, guild, 0));
 }
 
-TEST_CASE("the trigger modal takes no more than the command does", "[commands]") {
+TEST_CASE("the trigger modal takes no more than the command does", "[triggers]") {
     const latibot::events::trigger existing{.id = 7, .pattern = "420", .cooldown = 30s, .responses = {{.text = "nice", .weight = 1}}};
     const auto form = latibot::commands::trigger_form(0, &existing);
 
@@ -381,7 +389,7 @@ TEST_CASE("the trigger modal takes no more than the command does", "[commands]")
     CHECK(max_length_of("responses") == 2000);
 }
 
-TEST_CASE("each panel toggle flips one thing and names it for the log", "[commands]") {
+TEST_CASE("each panel toggle flips one thing and names it for the log", "[triggers]") {
     using latibot::commands::toggle_for;
     // Each toggle changes it, through a pointer to function the check cannot
     // follow.
@@ -398,4 +406,17 @@ TEST_CASE("each panel toggle flips one thing and names it for the log", "[comman
     CHECK(entry.respond_to_bots);
 
     CHECK(toggle_for(latibot::commands::trigger_edit_view) == nullptr);
+}
+
+TEST_CASE("the trigger command passes the registry's checks, and its panel is private", "[triggers]") {
+    // The checks registry::add makes of every command, for this one
+    // (docs/modules/Module_Plan_Final.md §10).
+    latibot::db::database db{":memory:"};
+    latibot::events::trigger_store store(db);
+
+    latibot::commands::registry commands;
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::trigger_command>(store)));
+
+    const latibot::commands::trigger_command trigger(store);
+    CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
 }

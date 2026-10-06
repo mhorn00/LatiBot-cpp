@@ -34,6 +34,7 @@ $components = [ordered]@{
     'ui'       = 'Panels and paging (`src/core/ui`)'
     'module'   = 'The module interface and the host (`src/core/modules`)'
     'app'      = 'The bot as built, with every module this build includes (`tests/app`)'
+    'triggers' = 'The triggers module (`src/modules/triggers`)'
     'nicknames' = 'The nicknames module (`src/modules/nicknames`)'
     'midnight' = 'The midnight module (`src/modules/midnight`)'
     'discord'  = 'Discord plumbing (`src/core/discord`)'

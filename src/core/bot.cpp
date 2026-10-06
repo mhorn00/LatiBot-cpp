@@ -8,7 +8,6 @@
 #include "core/commands/music.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/speak.hpp"
-#include "core/commands/trigger.hpp"
 #include "core/commands/urlrepl.hpp"
 #include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
@@ -169,9 +168,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       http_(cluster_),
       raw_(cluster_),
       bot_allowlist_(database_),
-      triggers_(database_),
-      trigger_panel_(triggers_),
-      trigger_responder_(triggers_, clock_),
       url_rules_(database_),
       url_panel_(url_rules_),
       replacements_(database_),
@@ -328,7 +324,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
 
 auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
-    commands_.add(std::make_unique<commands::trigger_command>(triggers_));
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
     commands_.add(std::make_unique<commands::links_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
@@ -354,18 +349,17 @@ auto bot::register_commands() -> void {
 }
 
 auto bot::register_stages() -> void {
-    // The order of docs/features/Message_Pipeline.md §2.2, as a list so that
-    // changing it is one line. The model is last: it consumes what it
-    // answers, and a simple trigger's reply before it keeps an advanced
-    // trigger quiet.
+    // Each at its position, which decides where it runs, whatever order the
+    // lines are in (events/stage_order.hpp, docs/features/Message_Pipeline.md
+    // §2.2). Modules add theirs: the triggers module's replies, at `reply`.
+    // The model is last: it consumes what it answers, and a simple trigger's
+    // reply before it keeps an advanced trigger quiet.
     pipeline_.add(events::stage_order::stop, "goodbye", events::goodbye_stage(guild_settings_));
     pipeline_.add(events::stage_order::rewrite, "url replacement",
                   events::carried_out_by<events::replace_links>(
                       events::url_replacer(url_rules_), "posting a replacement", [this](events::replace_links request) {
                           return events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, std::move(request));
                       }));
-    pipeline_.add(events::stage_order::reply, "triggers",
-                  [this](const events::incoming_message& message) { return trigger_responder_(message); });
     pipeline_.add(events::stage_order::model, "language model",
                   events::carried_out_by<llm::ask_llm>([this](const events::incoming_message& message) { return llm_stage_(message); },
                                                        "answering with the language model",
@@ -426,8 +420,8 @@ auto bot::register_events() -> void {
         import_url_rules(guild);
         settle_stranded_replacements(guild.id);
 
-        util::log().debug("{}: {} trigger(s), {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
-                          triggers_.for_guild(guild.id).size(), bot_allowlist_.for_guild(guild.id).size(),
+        util::log().debug("{}: {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
+                          bot_allowlist_.for_guild(guild.id).size(),
                           guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase),
                           url_rules_.enabled(guild.id) ? "on" : "off", url_rules_.for_guild(guild.id).size());
     });
@@ -920,9 +914,9 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
         return panels_.on_component(event, state, chosen);
     } else {
         // Each panel's router says whether the view was one of its own.
-        return trigger_panel_.on_component(event, state, chosen) || url_panel_.on_component(event, state, chosen) ||
-               voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen) ||
-               commands::on_linkstats_component(reactions_, event, state, chosen) || commands::on_music_component(music_, event, state);
+        return url_panel_.on_component(event, state, chosen) || voice_lab_.on_component(event, state, chosen) ||
+               llm_panels_.on_component(event, state, chosen) || commands::on_linkstats_component(reactions_, event, state, chosen) ||
+               commands::on_music_component(music_, event, state);
     }
     return true;
 }
@@ -941,8 +935,8 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
 
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && (panels_.on_form(event, *state) || trigger_panel_.on_form(event, *state) || url_panel_.on_form(event, *state) ||
-                      voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
+        if (state && (panels_.on_form(event, *state) || url_panel_.on_form(event, *state) || voice_lab_.on_form(event, *state) ||
+                      llm_panels_.on_form(event, *state))) {
             // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);

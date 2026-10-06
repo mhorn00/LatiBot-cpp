@@ -3,6 +3,11 @@
 # bot builds them in. Each is on unless its switch is off; one whose
 # requirement is off stops the configure, naming both (cmake/modules.cmake).
 
+option(LATIBOT_WITH_TRIGGERS "Build the triggers module: /trigger and its replies" ON)
+if(LATIBOT_WITH_TRIGGERS)
+    add_subdirectory(triggers)
+endif()
+
 option(LATIBOT_WITH_NICKNAMES "Build the nicknames module: /nickname, /nicknames and the history" ON)
 if(LATIBOT_WITH_NICKNAMES)
     add_subdirectory(nicknames)

@@ -5,17 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-992 test cases across 16 components, including 206 sections.
+995 test cases across 17 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 130 | 23 |
+| [db](#db) | 111 | 22 |
 | [config](#config) | 43 | 23 |
-| [commands](#commands) | 185 | 55 |
-| [events](#events) | 150 | 35 |
+| [commands](#commands) | 157 | 50 |
+| [events](#events) | 137 | 32 |
 | [ui](#ui) | 15 | 0 |
 | [module](#module) | 7 | 0 |
-| [app](#app) | 5 | 0 |
+| [app](#app) | 6 | 0 |
+| [triggers](#triggers) | 62 | 9 |
 | [nicknames](#nicknames) | 67 | 5 |
 | [midnight](#midnight) | 39 | 0 |
 | [discord](#discord) | 8 | 0 |
@@ -91,13 +92,12 @@ Database (`src/core/db`)
 | a link waits for its preview to show whether it was an image |  | 4 | [tests/db/media_posts_test.cpp:157](../../tests/db/media_posts_test.cpp#L157) |
 | nothing is counted where images are off, or from bots |  |  | [tests/db/media_posts_test.cpp:188](../../tests/db/media_posts_test.cpp#L188) |
 | statistics count links, images, or both |  |  | [tests/db/media_posts_test.cpp:207](../../tests/db/media_posts_test.cpp#L207) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:42](../../tests/db/migrations_test.cpp#L42) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:55](../../tests/db/migrations_test.cpp#L55) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:66](../../tests/db/migrations_test.cpp#L66) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:80](../../tests/db/migrations_test.cpp#L80) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:97](../../tests/db/migrations_test.cpp#L97) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:110](../../tests/db/migrations_test.cpp#L110) |
-| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:123](../../tests/db/migrations_test.cpp#L123) |
+| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:41](../../tests/db/migrations_test.cpp#L41) |
+| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:54](../../tests/db/migrations_test.cpp#L54) |
+| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:65](../../tests/db/migrations_test.cpp#L65) |
+| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:79](../../tests/db/migrations_test.cpp#L79) |
+| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:96](../../tests/db/migrations_test.cpp#L96) |
+| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:109](../../tests/db/migrations_test.cpp#L109) |
 | only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:96](../../tests/db/reaction_store_test.cpp#L96) |
 | taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:108](../../tests/db/reaction_store_test.cpp#L108) |
 | a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:117](../../tests/db/reaction_store_test.cpp#L117) |
@@ -128,24 +128,6 @@ Database (`src/core/db`)
 | a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:151](../../tests/db/schema_versions_test.cpp#L151) |
 | a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
 | every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:179](../../tests/db/schema_versions_test.cpp#L179) |
-| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:63](../../tests/db/trigger_store_test.cpp#L63) |
-| each trigger in a guild gets its own responses, in order |  |  | [tests/db/trigger_store_test.cpp:82](../../tests/db/trigger_store_test.cpp#L82) |
-| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:109](../../tests/db/trigger_store_test.cpp#L109) |
-| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:126](../../tests/db/trigger_store_test.cpp#L126) |
-| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:142](../../tests/db/trigger_store_test.cpp#L142) |
-| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:154](../../tests/db/trigger_store_test.cpp#L154) |
-| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:176](../../tests/db/trigger_store_test.cpp#L176) |
-| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:193](../../tests/db/trigger_store_test.cpp#L193) |
-| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:206](../../tests/db/trigger_store_test.cpp#L206) |
-| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:245](../../tests/db/trigger_store_test.cpp#L245) |
-| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:257](../../tests/db/trigger_store_test.cpp#L257) |
-| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:272](../../tests/db/trigger_store_test.cpp#L272) |
-| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:291](../../tests/db/trigger_store_test.cpp#L291) |
-| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:310](../../tests/db/trigger_store_test.cpp#L310) |
-| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:323](../../tests/db/trigger_store_test.cpp#L323) |
-| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:348](../../tests/db/trigger_store_test.cpp#L348) |
-| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:365](../../tests/db/trigger_store_test.cpp#L365) |
-| a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:379](../../tests/db/trigger_store_test.cpp#L379) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
 | renaming a rule moves it to the new site |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
@@ -250,11 +232,11 @@ Command framework (`src/core/commands`)
 | an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
 | an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:46](../../tests/unit/command_responses_test.cpp#L46) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:66](../../tests/unit/command_responses_test.cpp#L66) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:102](../../tests/unit/command_responses_test.cpp#L102) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:114](../../tests/unit/command_responses_test.cpp#L114) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:135](../../tests/unit/command_responses_test.cpp#L135) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:43](../../tests/unit/command_responses_test.cpp#L43) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:62](../../tests/unit/command_responses_test.cpp#L62) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:95](../../tests/unit/command_responses_test.cpp#L95) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:107](../../tests/unit/command_responses_test.cpp#L107) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:128](../../tests/unit/command_responses_test.cpp#L128) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:66](../../tests/unit/linkstats_command_test.cpp#L66) |
 | custom emojis with names alike are listed a group at a time |  | 3 | [tests/unit/linkstats_command_test.cpp:95](../../tests/unit/linkstats_command_test.cpp#L95) |
 | emojis alike are merged from the list by somebody with Manage Server |  | 3 | [tests/unit/linkstats_command_test.cpp:135](../../tests/unit/linkstats_command_test.cpp#L135) |
@@ -301,27 +283,20 @@ Command framework (`src/core/commands`)
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:93](../../tests/unit/panels_test.cpp#L93) |
-| the trigger panel adds a trigger as it was typed |  |  | [tests/unit/panels_test.cpp:149](../../tests/unit/panels_test.cpp#L149) |
-| the trigger panel's form, sent back untouched, changes nothing |  |  | [tests/unit/panels_test.cpp:177](../../tests/unit/panels_test.cpp#L177) |
-| the trigger panel's form saves what it can read, and says what it kept |  |  | [tests/unit/panels_test.cpp:199](../../tests/unit/panels_test.cpp#L199) |
-| the trigger panel refuses a form that could not work, and keeps the trigger |  |  | [tests/unit/panels_test.cpp:216](../../tests/unit/panels_test.cpp#L216) |
-| the trigger panel's buttons flip what they say, and say the new state |  |  | [tests/unit/panels_test.cpp:226](../../tests/unit/panels_test.cpp#L226) |
-| the trigger panel deletes only once it is confirmed |  |  | [tests/unit/panels_test.cpp:252](../../tests/unit/panels_test.cpp#L252) |
-| a trigger added past the first page is shown on its own page, picked |  |  | [tests/unit/panels_test.cpp:268](../../tests/unit/panels_test.cpp#L268) |
-| the URL panel adds a rule |  |  | [tests/unit/panels_test.cpp:313](../../tests/unit/panels_test.cpp#L313) |
-| the URL panel edits a rule's mirrors, and an untouched form changes nothing |  |  | [tests/unit/panels_test.cpp:327](../../tests/unit/panels_test.cpp#L327) |
-| the URL panel renames a rule by editing its site |  |  | [tests/unit/panels_test.cpp:343](../../tests/unit/panels_test.cpp#L343) |
-| the URL panel will not save over another site's rule |  | 2 | [tests/unit/panels_test.cpp:353](../../tests/unit/panels_test.cpp#L353) |
-| the URL panel deletes a rule once confirmed, and turns replacement on and off |  |  | [tests/unit/panels_test.cpp:373](../../tests/unit/panels_test.cpp#L373) |
-| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:448](../../tests/unit/panels_test.cpp#L448) |
-| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:470](../../tests/unit/panels_test.cpp#L470) |
-| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:480](../../tests/unit/panels_test.cpp#L480) |
-| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:504](../../tests/unit/panels_test.cpp#L504) |
-| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:555](../../tests/unit/panels_test.cpp#L555) |
-| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:574](../../tests/unit/panels_test.cpp#L574) |
-| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:587](../../tests/unit/panels_test.cpp#L587) |
-| the memory list pages |  |  | [tests/unit/panels_test.cpp:620](../../tests/unit/panels_test.cpp#L620) |
+| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:63](../../tests/unit/panels_test.cpp#L63) |
+| the URL panel adds a rule |  |  | [tests/unit/panels_test.cpp:117](../../tests/unit/panels_test.cpp#L117) |
+| the URL panel edits a rule's mirrors, and an untouched form changes nothing |  |  | [tests/unit/panels_test.cpp:131](../../tests/unit/panels_test.cpp#L131) |
+| the URL panel renames a rule by editing its site |  |  | [tests/unit/panels_test.cpp:147](../../tests/unit/panels_test.cpp#L147) |
+| the URL panel will not save over another site's rule |  | 2 | [tests/unit/panels_test.cpp:157](../../tests/unit/panels_test.cpp#L157) |
+| the URL panel deletes a rule once confirmed, and turns replacement on and off |  |  | [tests/unit/panels_test.cpp:177](../../tests/unit/panels_test.cpp#L177) |
+| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:252](../../tests/unit/panels_test.cpp#L252) |
+| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:274](../../tests/unit/panels_test.cpp#L274) |
+| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:284](../../tests/unit/panels_test.cpp#L284) |
+| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:308](../../tests/unit/panels_test.cpp#L308) |
+| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:359](../../tests/unit/panels_test.cpp#L359) |
+| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:378](../../tests/unit/panels_test.cpp#L378) |
+| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:391](../../tests/unit/panels_test.cpp#L391) |
+| the memory list pages |  |  | [tests/unit/panels_test.cpp:424](../../tests/unit/panels_test.cpp#L424) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -345,27 +320,6 @@ Command framework (`src/core/commands`)
 | speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:72](../../tests/unit/speak_command_test.cpp#L72) |
 | the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:83](../../tests/unit/speak_command_test.cpp#L83) |
 | the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:117](../../tests/unit/speak_command_test.cpp#L117) |
-| responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
-| a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
-| a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
-| blank lines are skipped |  |  | [tests/unit/trigger_command_test.cpp:54](../../tests/unit/trigger_command_test.cpp#L54) |
-| nothing usable parses to nothing |  |  | [tests/unit/trigger_command_test.cpp:62](../../tests/unit/trigger_command_test.cpp#L62) |
-| responses round trip through their text form |  |  | [tests/unit/trigger_command_test.cpp:69](../../tests/unit/trigger_command_test.cpp#L69) |
-| a trigger describes itself in one line |  | 3 | [tests/unit/trigger_command_test.cpp:79](../../tests/unit/trigger_command_test.cpp#L79) |
-| the modal keeps fields it cannot read rather than resetting them |  |  | [tests/unit/trigger_command_test.cpp:106](../../tests/unit/trigger_command_test.cpp#L106) |
-| the modal reads the mode however the panel writes it |  |  | [tests/unit/trigger_command_test.cpp:132](../../tests/unit/trigger_command_test.cpp#L132) |
-| the modal applies the fields it can read |  |  | [tests/unit/trigger_command_test.cpp:153](../../tests/unit/trigger_command_test.cpp#L153) |
-| the modal refuses a trigger that could not work |  | 2 | [tests/unit/trigger_command_test.cpp:169](../../tests/unit/trigger_command_test.cpp#L169) |
-| the trigger modal fits inside Discord's limits |  |  | [tests/unit/trigger_command_test.cpp:187](../../tests/unit/trigger_command_test.cpp#L187) |
-| a long trigger list pages |  |  | [tests/unit/trigger_command_test.cpp:204](../../tests/unit/trigger_command_test.cpp#L204) |
-| a trigger that answers bots says so when described |  |  | [tests/unit/trigger_command_test.cpp:227](../../tests/unit/trigger_command_test.cpp#L227) |
-| a trigger says when its replies notify or hide previews |  |  | [tests/unit/trigger_command_test.cpp:236](../../tests/unit/trigger_command_test.cpp#L236) |
-| the panel offers to change how a trigger's replies are posted |  |  | [tests/unit/trigger_command_test.cpp:246](../../tests/unit/trigger_command_test.cpp#L246) |
-| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [tests/unit/trigger_command_test.cpp:286](../../tests/unit/trigger_command_test.cpp#L286) |
-| the longest pattern the command takes still fits the panel |  |  | [tests/unit/trigger_command_test.cpp:322](../../tests/unit/trigger_command_test.cpp#L322) |
-| a full page of the longest patterns still fits the panel and the list |  |  | [tests/unit/trigger_command_test.cpp:345](../../tests/unit/trigger_command_test.cpp#L345) |
-| the trigger modal takes no more than the command does |  |  | [tests/unit/trigger_command_test.cpp:367](../../tests/unit/trigger_command_test.cpp#L367) |
-| each panel toggle flips one thing and names it for the log |  |  | [tests/unit/trigger_command_test.cpp:384](../../tests/unit/trigger_command_test.cpp#L384) |
 | unregistering deletes the global commands and every server's own | `coro` |  | [tests/unit/unregister_test.cpp:29](../../tests/unit/unregister_test.cpp#L29) |
 | a set with no commands in it is not deleted | `coro` |  | [tests/unit/unregister_test.cpp:46](../../tests/unit/unregister_test.cpp#L46) |
 | a refused deletion is reported and the other servers still cleared | `coro` |  | [tests/unit/unregister_test.cpp:60](../../tests/unit/unregister_test.cpp#L60) |
@@ -443,36 +397,35 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:89](../../tests/db/media_posts_test.cpp#L89) |
 | only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:102](../../tests/db/media_posts_test.cpp#L102) |
 | a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:114](../../tests/db/media_posts_test.cpp#L114) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:121](../../tests/unit/embed_watch_test.cpp#L121) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:131](../../tests/unit/embed_watch_test.cpp#L131) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:139](../../tests/unit/embed_watch_test.cpp#L139) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:153](../../tests/unit/embed_watch_test.cpp#L153) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:163](../../tests/unit/embed_watch_test.cpp#L163) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:169](../../tests/unit/embed_watch_test.cpp#L169) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:178](../../tests/unit/embed_watch_test.cpp#L178) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:189](../../tests/unit/embed_watch_test.cpp#L189) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:202](../../tests/unit/embed_watch_test.cpp#L202) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:217](../../tests/unit/embed_watch_test.cpp#L217) |
-| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:255](../../tests/unit/embed_watch_test.cpp#L255) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:308](../../tests/unit/embed_watch_test.cpp#L308) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:333](../../tests/unit/embed_watch_test.cpp#L333) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:345](../../tests/unit/embed_watch_test.cpp#L345) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:355](../../tests/unit/embed_watch_test.cpp#L355) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:364](../../tests/unit/embed_watch_test.cpp#L364) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:378](../../tests/unit/embed_watch_test.cpp#L378) |
-| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:419](../../tests/unit/embed_watch_test.cpp#L419) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:460](../../tests/unit/embed_watch_test.cpp#L460) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:491](../../tests/unit/embed_watch_test.cpp#L491) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:505](../../tests/unit/embed_watch_test.cpp#L505) |
-| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:544](../../tests/unit/embed_watch_test.cpp#L544) |
-| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:568](../../tests/unit/embed_watch_test.cpp#L568) |
-| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:581](../../tests/unit/embed_watch_test.cpp#L581) |
-| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:607](../../tests/unit/embed_watch_test.cpp#L607) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:644](../../tests/unit/embed_watch_test.cpp#L644) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:660](../../tests/unit/embed_watch_test.cpp#L660) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:680](../../tests/unit/embed_watch_test.cpp#L680) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:714](../../tests/unit/embed_watch_test.cpp#L714) |
-| a message with a joke and a link gets both |  |  | [tests/unit/embed_watch_test.cpp:726](../../tests/unit/embed_watch_test.cpp#L726) |
+| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:120](../../tests/unit/embed_watch_test.cpp#L120) |
+| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:130](../../tests/unit/embed_watch_test.cpp#L130) |
+| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:138](../../tests/unit/embed_watch_test.cpp#L138) |
+| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:152](../../tests/unit/embed_watch_test.cpp#L152) |
+| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:162](../../tests/unit/embed_watch_test.cpp#L162) |
+| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:168](../../tests/unit/embed_watch_test.cpp#L168) |
+| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:177](../../tests/unit/embed_watch_test.cpp#L177) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:188](../../tests/unit/embed_watch_test.cpp#L188) |
+| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:201](../../tests/unit/embed_watch_test.cpp#L201) |
+| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:216](../../tests/unit/embed_watch_test.cpp#L216) |
+| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:254](../../tests/unit/embed_watch_test.cpp#L254) |
+| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
+| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:332](../../tests/unit/embed_watch_test.cpp#L332) |
+| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:344](../../tests/unit/embed_watch_test.cpp#L344) |
+| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:354](../../tests/unit/embed_watch_test.cpp#L354) |
+| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:363](../../tests/unit/embed_watch_test.cpp#L363) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:377](../../tests/unit/embed_watch_test.cpp#L377) |
+| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:418](../../tests/unit/embed_watch_test.cpp#L418) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:459](../../tests/unit/embed_watch_test.cpp#L459) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:490](../../tests/unit/embed_watch_test.cpp#L490) |
+| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:504](../../tests/unit/embed_watch_test.cpp#L504) |
+| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:543](../../tests/unit/embed_watch_test.cpp#L543) |
+| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:567](../../tests/unit/embed_watch_test.cpp#L567) |
+| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:580](../../tests/unit/embed_watch_test.cpp#L580) |
+| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:606](../../tests/unit/embed_watch_test.cpp#L606) |
+| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:643](../../tests/unit/embed_watch_test.cpp#L643) |
+| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:659](../../tests/unit/embed_watch_test.cpp#L659) |
+| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:679](../../tests/unit/embed_watch_test.cpp#L679) |
+| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:713](../../tests/unit/embed_watch_test.cpp#L713) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
@@ -528,18 +481,6 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | the colour-form selector does not make a second emoji |  |  | [tests/unit/reactions_test.cpp:21](../../tests/unit/reactions_test.cpp#L21) |
 | typed emojis are understood in every form a command sees |  |  | [tests/unit/reactions_test.cpp:26](../../tests/unit/reactions_test.cpp#L26) |
 | an emoji is shown the way Discord draws it |  |  | [tests/unit/reactions_test.cpp:39](../../tests/unit/reactions_test.cpp#L39) |
-| whole word matching ignores the middle of longer words |  |  | [tests/unit/triggers_test.cpp:19](../../tests/unit/triggers_test.cpp#L19) |
-| a later occurrence still counts as a whole word |  |  | [tests/unit/triggers_test.cpp:29](../../tests/unit/triggers_test.cpp#L29) |
-| substring matching does not care about boundaries |  |  | [tests/unit/triggers_test.cpp:35](../../tests/unit/triggers_test.cpp#L35) |
-| matching ignores case on both sides |  |  | [tests/unit/triggers_test.cpp:40](../../tests/unit/triggers_test.cpp#L40) |
-| a pattern with punctuation matches as a word |  |  | [tests/unit/triggers_test.cpp:45](../../tests/unit/triggers_test.cpp#L45) |
-| an empty pattern never matches |  |  | [tests/unit/triggers_test.cpp:52](../../tests/unit/triggers_test.cpp#L52) |
-| match modes parse from their stored and spoken names |  |  | [tests/unit/triggers_test.cpp:58](../../tests/unit/triggers_test.cpp#L58) |
-| weighted responses are picked in proportion |  | 2 | [tests/unit/triggers_test.cpp:68](../../tests/unit/triggers_test.cpp#L68) |
-| a trigger with nothing to say picks nothing |  | 1 | [tests/unit/triggers_test.cpp:97](../../tests/unit/triggers_test.cpp#L97) |
-| a zero-weight response is skipped but its neighbours still work |  |  | [tests/unit/triggers_test.cpp:109](../../tests/unit/triggers_test.cpp#L109) |
-| cooldowns are measured from the last reply |  |  | [tests/unit/triggers_test.cpp:121](../../tests/unit/triggers_test.cpp#L121) |
-| a zero cooldown means no cooldown |  |  | [tests/unit/triggers_test.cpp:130](../../tests/unit/triggers_test.cpp#L130) |
 | a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:31](../../tests/unit/url_rules_test.cpp#L31) |
 | each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:41](../../tests/unit/url_rules_test.cpp#L41) |
 | a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:52](../../tests/unit/url_rules_test.cpp#L52) |
@@ -604,11 +545,81 @@ The bot as built, with every module this build includes (`tests/app`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:135](../../tests/app/modules_test.cpp#L135) |
-| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:150](../../tests/app/modules_test.cpp#L150) |
-| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:182](../../tests/app/modules_test.cpp#L182) |
-| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:219](../../tests/app/modules_test.cpp#L219) |
-| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:237](../../tests/app/modules_test.cpp#L237) |
+| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:138](../../tests/app/modules_test.cpp#L138) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:153](../../tests/app/modules_test.cpp#L153) |
+| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:185](../../tests/app/modules_test.cpp#L185) |
+| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:222](../../tests/app/modules_test.cpp#L222) |
+| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:240](../../tests/app/modules_test.cpp#L240) |
+| a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:257](../../tests/app/modules_test.cpp#L257) |
+
+## triggers
+
+The triggers module (`src/modules/triggers`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| responses are one per line |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:27](../../src/modules/triggers/tests/trigger_command_test.cpp#L27) |
+| a leading number and bar sets the weight |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:36](../../src/modules/triggers/tests/trigger_command_test.cpp#L36) |
+| a bar that is not a weight stays part of the response |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:46](../../src/modules/triggers/tests/trigger_command_test.cpp#L46) |
+| blank lines are skipped |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:57](../../src/modules/triggers/tests/trigger_command_test.cpp#L57) |
+| nothing usable parses to nothing |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:65](../../src/modules/triggers/tests/trigger_command_test.cpp#L65) |
+| responses round trip through their text form |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:72](../../src/modules/triggers/tests/trigger_command_test.cpp#L72) |
+| a trigger describes itself in one line |  | 3 | [src/modules/triggers/tests/trigger_command_test.cpp:82](../../src/modules/triggers/tests/trigger_command_test.cpp#L82) |
+| the modal keeps fields it cannot read rather than resetting them |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:109](../../src/modules/triggers/tests/trigger_command_test.cpp#L109) |
+| the modal reads the mode however the panel writes it |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:135](../../src/modules/triggers/tests/trigger_command_test.cpp#L135) |
+| the modal applies the fields it can read |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:156](../../src/modules/triggers/tests/trigger_command_test.cpp#L156) |
+| the modal refuses a trigger that could not work |  | 2 | [src/modules/triggers/tests/trigger_command_test.cpp:172](../../src/modules/triggers/tests/trigger_command_test.cpp#L172) |
+| the trigger modal fits inside Discord's limits |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:190](../../src/modules/triggers/tests/trigger_command_test.cpp#L190) |
+| a long trigger list pages |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:207](../../src/modules/triggers/tests/trigger_command_test.cpp#L207) |
+| a trigger that answers bots says so when described |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:231](../../src/modules/triggers/tests/trigger_command_test.cpp#L231) |
+| a trigger says when its replies notify or hide previews |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:240](../../src/modules/triggers/tests/trigger_command_test.cpp#L240) |
+| the panel offers to change how a trigger's replies are posted |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:250](../../src/modules/triggers/tests/trigger_command_test.cpp#L250) |
+| confirming a delete on the first or last page fits, and Cancel keeps the trigger picked |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:291](../../src/modules/triggers/tests/trigger_command_test.cpp#L291) |
+| the longest pattern the command takes still fits the panel |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:328](../../src/modules/triggers/tests/trigger_command_test.cpp#L328) |
+| a full page of the longest patterns still fits the panel and the list |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:352](../../src/modules/triggers/tests/trigger_command_test.cpp#L352) |
+| the trigger modal takes no more than the command does |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:375](../../src/modules/triggers/tests/trigger_command_test.cpp#L375) |
+| each panel toggle flips one thing and names it for the log |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:392](../../src/modules/triggers/tests/trigger_command_test.cpp#L392) |
+| the trigger command passes the registry's checks, and its panel is private |  |  | [src/modules/triggers/tests/trigger_command_test.cpp:411](../../src/modules/triggers/tests/trigger_command_test.cpp#L411) |
+| the trigger panel adds a trigger as it was typed |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:75](../../src/modules/triggers/tests/trigger_panel_test.cpp#L75) |
+| the trigger panel's form, sent back untouched, changes nothing |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:103](../../src/modules/triggers/tests/trigger_panel_test.cpp#L103) |
+| the trigger panel's form saves what it can read, and says what it kept |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:125](../../src/modules/triggers/tests/trigger_panel_test.cpp#L125) |
+| the trigger panel refuses a form that could not work, and keeps the trigger |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:142](../../src/modules/triggers/tests/trigger_panel_test.cpp#L142) |
+| the trigger panel's buttons flip what they say, and say the new state |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:152](../../src/modules/triggers/tests/trigger_panel_test.cpp#L152) |
+| the trigger panel deletes only once it is confirmed |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:178](../../src/modules/triggers/tests/trigger_panel_test.cpp#L178) |
+| a trigger added past the first page is shown on its own page, picked |  |  | [src/modules/triggers/tests/trigger_panel_test.cpp:194](../../src/modules/triggers/tests/trigger_panel_test.cpp#L194) |
+| a trigger survives a round trip with its responses |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:66](../../src/modules/triggers/tests/trigger_store_test.cpp#L66) |
+| each trigger in a guild gets its own responses, in order |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:85](../../src/modules/triggers/tests/trigger_store_test.cpp#L85) |
+| guilds cannot see or change each other's triggers |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:112](../../src/modules/triggers/tests/trigger_store_test.cpp#L112) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:129](../../src/modules/triggers/tests/trigger_store_test.cpp#L129) |
+| removing a trigger takes its responses with it |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:145](../../src/modules/triggers/tests/trigger_store_test.cpp#L145) |
+| a matching message gets one of the trigger's responses |  | 1 | [src/modules/triggers/tests/trigger_store_test.cpp:157](../../src/modules/triggers/tests/trigger_store_test.cpp#L157) |
+| a trigger is quiet until its cooldown has passed |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:179](../../src/modules/triggers/tests/trigger_store_test.cpp#L179) |
+| cooldowns are per channel |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:196](../../src/modules/triggers/tests/trigger_store_test.cpp#L196) |
+| messages arriving at once still get one reply per cooldown | `threads` |  | [src/modules/triggers/tests/trigger_store_test.cpp:209](../../src/modules/triggers/tests/trigger_store_test.cpp#L209) |
+| a disabled trigger says nothing |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:248](../../src/modules/triggers/tests/trigger_store_test.cpp#L248) |
+| two triggers on one message both answer |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:260](../../src/modules/triggers/tests/trigger_store_test.cpp#L260) |
+| respond_to_bots survives a round trip and defaults to off |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:275](../../src/modules/triggers/tests/trigger_store_test.cpp#L275) |
+| a trigger only answers an allowed bot when it opts in |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:294](../../src/modules/triggers/tests/trigger_store_test.cpp#L294) |
+| a trigger that answers bots still answers humans |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:313](../../src/modules/triggers/tests/trigger_store_test.cpp#L313) |
+| a trigger's reply flags survive a round trip and default to silent |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:326](../../src/modules/triggers/tests/trigger_store_test.cpp#L326) |
+| triggers from before reply flags existed stay silent |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:351](../../src/modules/triggers/tests/trigger_store_test.cpp#L351) |
+| a trigger's reply carries its flags |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:368](../../src/modules/triggers/tests/trigger_store_test.cpp#L368) |
+| a trigger's reply says which trigger it is from |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:382](../../src/modules/triggers/tests/trigger_store_test.cpp#L382) |
+| an existing database gains the allowlist without losing its triggers |  |  | [src/modules/triggers/tests/trigger_store_test.cpp:397](../../src/modules/triggers/tests/trigger_store_test.cpp#L397) |
+| a trigger added to the database is answered by the module's stage |  |  | [src/modules/triggers/tests/triggers_module_test.cpp:43](../../src/modules/triggers/tests/triggers_module_test.cpp#L43) |
+| the triggers README lists what the module registers |  |  | [src/modules/triggers/tests/triggers_module_test.cpp:65](../../src/modules/triggers/tests/triggers_module_test.cpp#L65) |
+| whole word matching ignores the middle of longer words |  |  | [src/modules/triggers/tests/triggers_test.cpp:19](../../src/modules/triggers/tests/triggers_test.cpp#L19) |
+| a later occurrence still counts as a whole word |  |  | [src/modules/triggers/tests/triggers_test.cpp:29](../../src/modules/triggers/tests/triggers_test.cpp#L29) |
+| substring matching does not care about boundaries |  |  | [src/modules/triggers/tests/triggers_test.cpp:35](../../src/modules/triggers/tests/triggers_test.cpp#L35) |
+| matching ignores case on both sides |  |  | [src/modules/triggers/tests/triggers_test.cpp:40](../../src/modules/triggers/tests/triggers_test.cpp#L40) |
+| a pattern with punctuation matches as a word |  |  | [src/modules/triggers/tests/triggers_test.cpp:45](../../src/modules/triggers/tests/triggers_test.cpp#L45) |
+| an empty pattern never matches |  |  | [src/modules/triggers/tests/triggers_test.cpp:52](../../src/modules/triggers/tests/triggers_test.cpp#L52) |
+| match modes parse from their stored and spoken names |  |  | [src/modules/triggers/tests/triggers_test.cpp:58](../../src/modules/triggers/tests/triggers_test.cpp#L58) |
+| weighted responses are picked in proportion |  | 2 | [src/modules/triggers/tests/triggers_test.cpp:68](../../src/modules/triggers/tests/triggers_test.cpp#L68) |
+| a trigger with nothing to say picks nothing |  | 1 | [src/modules/triggers/tests/triggers_test.cpp:97](../../src/modules/triggers/tests/triggers_test.cpp#L97) |
+| a zero-weight response is skipped but its neighbours still work |  |  | [src/modules/triggers/tests/triggers_test.cpp:109](../../src/modules/triggers/tests/triggers_test.cpp#L109) |
+| cooldowns are measured from the last reply |  |  | [src/modules/triggers/tests/triggers_test.cpp:121](../../src/modules/triggers/tests/triggers_test.cpp#L121) |
+| a zero cooldown means no cooldown |  |  | [src/modules/triggers/tests/triggers_test.cpp:130](../../src/modules/triggers/tests/triggers_test.cpp#L130) |
 
 ## nicknames
 

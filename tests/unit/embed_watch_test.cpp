@@ -5,7 +5,6 @@
 #include "core/db/database.hpp"
 #include "core/events/replacements.hpp"
 #include "core/events/stage_order.hpp"
-#include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
 #include "core/ui/paginator.hpp"
@@ -721,44 +720,4 @@ TEST_CASE("a link too long to post is dropped rather than failing the post", "[e
 
     REQUIRE(result.actions.size() == 1);
     CHECK(std::get<latibot::events::replace_links>(result.actions[0]).links.size() == 1);
-}
-
-TEST_CASE("a message with a joke and a link gets both", "[events]") {
-    // The Java bot's early returns answered "nice" and skipped the link.
-    fixture test;
-    test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
-
-    latibot::events::trigger_store triggers(test.db);
-    triggers.add({.guild_id = guild,
-                  .pattern = "420",
-                  .mode = latibot::events::match_mode::whole_word,
-                  .cooldown = latibot::events::default_trigger_cooldown,
-                  .enabled = true,
-                  .responses = {{.text = "nice", .weight = 1}}});
-    latibot::events::trigger_responder responder(triggers, test.clock, [] { return std::uint64_t{0}; });
-
-    // Added as the shell adds it: the replacement is a background task that
-    // hands the plan to whatever posts it.
-    std::vector<latibot::events::replace_links> posted;
-    latibot::events::pipeline stages;
-    stages.add(latibot::events::stage_order::rewrite, "url replacement",
-               latibot::events::carried_out_by<latibot::events::replace_links>(
-                   latibot::events::url_replacer(test.rules), "posting a replacement",
-                   [&posted](latibot::events::replace_links request) -> dpp::task<void> {
-                       posted.push_back(std::move(request));
-                       co_return;
-                   }));
-    stages.add(latibot::events::stage_order::reply, "triggers",
-               [&](const latibot::events::incoming_message& message) { return responder(message); });
-
-    auto actions = stages.run(link_message("420 https://x.com/a/status/1"));
-    REQUIRE(actions.size() == 2);
-    auto* replacing = std::get_if<latibot::events::background_task>(&actions.front());
-    REQUIRE(replacing != nullptr);
-    CHECK(replacing->what == "posting a replacement");
-    CHECK(std::holds_alternative<latibot::events::send_message>(actions[1]));
-
-    replacing->run().sync_wait_for(2s);
-    REQUIRE(posted.size() == 1);
-    CHECK(posted.front().links.size() == 1);
 }

@@ -1,4 +1,4 @@
-#include "core/commands/trigger.hpp"
+#include "trigger_command.hpp"
 
 #include "core/commands/message_options.hpp"
 #include "core/commands/options.hpp"

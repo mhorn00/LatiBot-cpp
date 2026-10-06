@@ -7,7 +7,6 @@
 #include "core/audio/voice_store.hpp"
 #include "core/commands/llm.hpp"
 #include "core/commands/registry.hpp"
-#include "core/commands/trigger.hpp"
 #include "core/commands/urlrepl.hpp"
 #include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
@@ -25,7 +24,6 @@
 #include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/reactions.hpp"
-#include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
 #include "core/events/url_rules.hpp"
 #include "core/events/voice_sessions.hpp"
@@ -222,9 +220,6 @@ private:
     ports::system_clock clock_;
 
     events::bot_allowlist bot_allowlist_;
-    events::trigger_store triggers_;
-    commands::trigger_panel trigger_panel_;
-    events::trigger_responder trigger_responder_;
     events::url_rule_store url_rules_;
     commands::url_panel url_panel_;
     events::replacement_store replacements_;

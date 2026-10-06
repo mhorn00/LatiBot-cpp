@@ -28,40 +28,6 @@ constexpr std::array<migration, 1> core_steps{{
      )sql"},
 }};
 
-constexpr std::array<migration, 1> triggers_steps{{
-    {.version = 1, .name = "triggers", .sql = R"sql(
-        CREATE TABLE triggers (
-            id              INTEGER PRIMARY KEY,
-            guild_id        INTEGER NOT NULL,
-            pattern         TEXT    NOT NULL,
-            match_mode      TEXT    NOT NULL,
-            cooldown_s      INTEGER NOT NULL,
-            enabled         INTEGER NOT NULL,
-
-            -- Hearing a bot is not the same as answering it, so each trigger
-            -- opts in.
-            respond_to_bots INTEGER NOT NULL DEFAULT 0,
-
-            -- How its replies are posted, as Discord's message flags: 4096 is
-            -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS.
-            message_flags   INTEGER NOT NULL DEFAULT 4096
-        );
-
-        CREATE INDEX triggers_by_guild ON triggers (guild_id);
-
-        -- Rows rather than a list column, so each response can carry its own
-        -- weight and be edited on its own. rowid order is the order they were
-        -- added, which is the order the command and the panel show.
-        CREATE TABLE trigger_responses (
-            trigger_id INTEGER NOT NULL REFERENCES triggers (id) ON DELETE CASCADE,
-            response   TEXT    NOT NULL,
-            weight     INTEGER NOT NULL DEFAULT 1
-        );
-
-        CREATE INDEX trigger_responses_by_trigger ON trigger_responses (trigger_id);
-     )sql"},
-}};
-
 constexpr std::array<migration, 1> links_steps{{
     {.version = 1, .name = "url rules and replacements", .sql = R"sql(
         -- Where links to a site go instead, in the order to try them. A rule
@@ -394,9 +360,8 @@ constexpr auto schema_of(std::string_view module, std::span<const migration> ste
 }
 
 // Each after the modules it requires: linkstats after links.
-constexpr std::array<module_schema, 6> builtin{{
+constexpr std::array<module_schema, 5> builtin{{
     schema_of("core", core_steps),
-    schema_of("triggers", triggers_steps),
     schema_of("links", links_steps),
     schema_of("linkstats", linkstats_steps),
     schema_of("dectalk", dectalk_steps),
@@ -408,20 +373,17 @@ constexpr std::array<module_schema, 6> builtin{{
 auto core_schema() noexcept -> module_schema {
     return builtin[0];
 }
-auto triggers_schema() noexcept -> module_schema {
+auto links_schema() noexcept -> module_schema {
     return builtin[1];
 }
-auto links_schema() noexcept -> module_schema {
+auto linkstats_schema() noexcept -> module_schema {
     return builtin[2];
 }
-auto linkstats_schema() noexcept -> module_schema {
+auto dectalk_schema() noexcept -> module_schema {
     return builtin[3];
 }
-auto dectalk_schema() noexcept -> module_schema {
-    return builtin[4];
-}
 auto llm_schema() noexcept -> module_schema {
-    return builtin[5];
+    return builtin[4];
 }
 
 auto builtin_schemas() noexcept -> std::span<const module_schema> {
