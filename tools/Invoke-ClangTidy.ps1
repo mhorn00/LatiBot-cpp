@@ -69,6 +69,12 @@ try {
     if ($debugOnly.Count -eq 0) {
         throw "compile_commands.json in $build has no Debug entries; is it a Ninja Multi-Config build?"
     }
+    # Without MSVC's precompiled header, which clang cannot read: /Yu and /Fp
+    # name it, and /FI forces <dpp/dpp.h> into every file. So clang-tidy also
+    # sees each file with only the includes it writes itself.
+    foreach ($entry in $debugOnly) {
+        $entry.command = $entry.command -replace '\s[/-](Yu|Yc|Fp|FI)\S*cmake_pch\S*', ''
+    }
     ConvertTo-Json -InputObject $debugOnly -Depth 4 | Set-Content (Join-Path $tidyDatabase 'compile_commands.json') -Encoding utf8
 
     if ($Path) {

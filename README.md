@@ -714,6 +714,10 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   (`/external:I` with `/external:W0`). Our code builds with `/W4 /WX`, and
   DPP's public headers produce C4251/C4100 warnings that we can't fix from
   here.
+- **DPP's headers are precompiled** for `latibot_core` and the tests, which
+  takes a clean build of our code from about 124 s to 72 s. clang-tidy
+  analyses without it, so a file that forgets a DPP include still fails
+  there.
 - **Warnings are errors by default** for our targets
   (`-DLATIBOT_WARNINGS_AS_ERRORS=OFF` turns that off while experimenting).
 - **No preset names a Visual Studio version.** The compiler is whichever the

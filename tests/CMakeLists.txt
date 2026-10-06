@@ -105,6 +105,10 @@ latibot_target_warnings(latibot_test_child)
 add_dependencies(latibot_tests latibot_test_child)
 target_compile_definitions(latibot_tests PRIVATE LATIBOT_TEST_CHILD="$<TARGET_FILE:latibot_test_child>")
 
+# Its own precompiled header rather than latibot_core's: the tests' extra
+# definitions would make MSVC refuse to share one (src/CMakeLists.txt says
+# why there is one at all).
+target_precompile_headers(latibot_tests PRIVATE <dpp/dpp.h> <catch2/catch_test_macros.hpp>)
 latibot_target_warnings(latibot_tests)
 latibot_target_sanitizers(latibot_tests)
 latibot_copy_runtime_dlls(latibot_tests)

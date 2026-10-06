@@ -121,6 +121,11 @@ if(WIN32)
     target_link_libraries(latibot_core PRIVATE ws2_32)
 endif()
 
+# DPP's headers, compiled once rather than in every file: a clean build of
+# our code takes 72 s rather than 124 (docs/modules/Module_Plan_Final.md §9.1,
+# I8). clang-tidy leaves it out, so every file still has to include what it
+# uses (tools/Invoke-ClangTidy.ps1).
+target_precompile_headers(latibot_core PRIVATE <dpp/dpp.h>)
 latibot_target_warnings(latibot_core)
 latibot_target_sanitizers(latibot_core)
 
