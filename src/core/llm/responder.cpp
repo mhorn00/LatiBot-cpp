@@ -1,9 +1,6 @@
 #include "core/llm/responder.hpp"
 
-#include "core/audio/dectalk_sanitizer.hpp"
-#include "core/audio/pcm.hpp"
-#include "core/audio/speech_queue.hpp"
-#include "core/commands/speak.hpp"
+#include "core/capabilities/speech.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/llm/aliases.hpp"
@@ -14,7 +11,6 @@
 #include "core/llm/tools.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ports/discord_gateway.hpp"
-#include "core/ports/tts_engine.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
@@ -117,11 +113,8 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     // What is spoken is posted too, keeping the inline commands the
     // sanitizer allowed, so the channel sees what was said as it was said
     // (docs/features/Language_Model.md §2.5).
-    if (ask.speak) {
-        audio::sanitized_speech clean = audio::sanitize_speech(text, audio::speech_trust::llm);
-        commands::log_removed(clean, "the model's reply", ask.guild_id);
-        text = std::move(clean.text);
-    }
+    const bool speaking = ask.speak && services_.speech != nullptr;
+    if (speaking) text = services_.speech->prepare_for_model(text, ask.guild_id);
 
     if (util::is_blank(text)) {
         report.failure = "the model said nothing";
@@ -139,7 +132,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
                      why, report.used.input_tokens + report.used.cache_write_tokens, report.used.cache_read_tokens,
                      report.used.output_tokens, report.cost, tools);
 
-    if (ask.speak && !report.posted.empty()) co_await speak(ask, std::move(text));
+    if (speaking && !report.posted.empty()) co_await services_.speech->say(ask.guild_id, ask.author_id, std::move(text));
     co_return report;
 }
 
@@ -197,7 +190,7 @@ auto responder::build_request(const llm::ask_llm& ask, const llm_settings& setti
          .personality = cast.sanitize(services_.documents->text(ask.guild_id, document_kind::personality), false),
          .trigger_style =
              addressed ? std::string{} : cast.sanitize(services_.documents->text(ask.guild_id, document_kind::trigger_style), false),
-         .speaking = ask.speak});
+         .speaking_guide = ask.speak && services_.speech != nullptr ? services_.speech->guide_for_model() : std::string{}});
     call.varying_system = varying_instructions(memories, now, cast);
     call.conversation.push_back(
         {.from = speaker::user,
@@ -238,30 +231,6 @@ auto responder::post(const llm::ask_llm& ask, const std::vector<std::string>& pa
         }
         report.posted.push_back(parts[index]);
     }
-}
-
-auto responder::speak(const llm::ask_llm& ask, std::string text) const -> dpp::task<void> {
-    if (services_.engine == nullptr || services_.speech == nullptr) co_return;
-
-    const commands::speech_limits limits = commands::speech_limits_for(*services_.settings, ask.guild_id);
-    // Cut to the guild's limit on /speak, which exists for the same reason:
-    // nobody wants a minute of a paragraph read out.
-    text = util::truncate(text, limits.max_characters);
-    // The ellipsis is for reading; DECtalk would read it as noise.
-    if (text.ends_with("…")) text.resize(text.size() - std::string_view("…").size());
-
-    const std::uint64_t ticket = services_.speech->ticket(ask.guild_id);
-    auto spoken = co_await services_.engine->synthesize({.text = std::move(text), .voice = {}, .max_duration = limits.max_duration});
-    if (!spoken.has_value()) {
-        util::log().warn("could not speak the model's reply in guild {}: {}", ask.guild_id, spoken.error().message);
-        co_return;
-    }
-
-    const ports::pcm_audio& pcm = spoken.value();
-    // Queued under whoever asked, so they can /tts stop it
-    // (docs/features/Speech.md §2.4).
-    services_.speech->enqueue(ask.guild_id, ask.author_id, ticket, audio::to_discord(pcm.samples, pcm.sample_rate));
-    util::log().info("speaking the model's reply of {} in guild {}", pcm.duration(), ask.guild_id);
 }
 
 } // namespace latibot::llm

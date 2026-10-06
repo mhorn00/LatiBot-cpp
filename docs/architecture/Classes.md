@@ -1139,7 +1139,7 @@ classDiagram
         +blacklist : blacklist_store
         +triggers : advanced_trigger_store
         +usage : usage_store
-        +sessions : voice_sessions
+        +speech : capabilities::speech
         +has_provider(provider_kind) bool
         +me() bot_identity
     }
@@ -1233,8 +1233,7 @@ classDiagram
         +tools : tool_registry
         +aliases : alias_store
         +provider_for(provider_kind) provider
-        +engine : tts_engine
-        +speech : speech_queue
+        +speech : capabilities::speech
     }
     class provider {
         <<interface>>

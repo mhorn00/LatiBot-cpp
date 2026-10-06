@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-namespace latibot::audio {
-class speech_queue;
+namespace latibot::capabilities {
+class speech;
 }
 
 namespace latibot::config {
@@ -27,7 +27,6 @@ struct bootstrap;
 namespace latibot::ports {
 class clock;
 class discord_gateway;
-class tts_engine;
 } // namespace latibot::ports
 
 namespace latibot::llm {
@@ -45,8 +44,8 @@ struct bot_identity {
     std::string name;
 };
 
-/// Everything the responder works through. Every pointer but the speech
-/// pair must be set; without those, replies are posted and never spoken.
+/// Everything the responder works through. Every pointer but `speech` must
+/// be set; without it, replies are posted and never spoken.
 struct responder_services {
     ports::discord_gateway* discord = nullptr;
     ports::clock* clock = nullptr;
@@ -64,8 +63,9 @@ struct responder_services {
     /// key for it.
     std::function<provider*(provider_kind)> provider_for;
 
-    ports::tts_engine* engine = nullptr;
-    audio::speech_queue* speech = nullptr;
+    /// Saying replies aloud, when DECtalk is built in
+    /// (docs/modules/Module_Plan_Final.md §5.3).
+    capabilities::speech* speech = nullptr;
 };
 
 /// How many memories are put in front of the model before it answers.
@@ -121,8 +121,6 @@ private:
     /// Posts the reply's parts, the first as a reply, recording each in
     /// `report` and stopping at the first that fails.
     auto post(const llm::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void>;
-
-    auto speak(const llm::ask_llm& ask, std::string text) const -> dpp::task<void>;
 
     responder_services services_;
     std::function<bot_identity()> me_;

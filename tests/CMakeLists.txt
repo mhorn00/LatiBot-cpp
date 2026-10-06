@@ -34,6 +34,7 @@ add_executable(latibot_tests
     unit/dectalk_engine_test.cpp
     unit/dectalk_golden_test.cpp
     unit/dectalk_sanitizer_test.cpp
+    unit/dectalk_speech_test.cpp
     unit/embed_watch_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp

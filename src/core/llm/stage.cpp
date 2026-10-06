@@ -1,8 +1,8 @@
 #include "core/llm/stage.hpp"
 
+#include "core/capabilities/speech.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/events/voice_sessions.hpp"
 #include "core/llm/settings.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
@@ -129,20 +129,20 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const auto wait = admit(message, settings, addressed, result);
     if (!wait) return result;
 
-    const auto session = services_.sessions == nullptr ? std::nullopt : services_.sessions->find(message.guild_id);
     result.consumed = true;
     result.answered = true;
-    result.actions.emplace_back(llm::ask_llm{.guild_id = message.guild_id,
-                                             .channel_id = message.channel_id,
-                                             .message_id = message.message_id,
-                                             .author_id = message.author_id,
-                                             .author_name = message.author_name,
-                                             .content = message.content,
-                                             .author_is_bot = message.from_bot,
-                                             .trigger_id = fired ? fired->id : 0,
-                                             .context_prompt = fired ? fired->context_prompt : std::string{},
-                                             .speak = session && session->text_channel == message.channel_id,
-                                             .wait = *wait});
+    result.actions.emplace_back(
+        llm::ask_llm{.guild_id = message.guild_id,
+                     .channel_id = message.channel_id,
+                     .message_id = message.message_id,
+                     .author_id = message.author_id,
+                     .author_name = message.author_name,
+                     .content = message.content,
+                     .author_is_bot = message.from_bot,
+                     .trigger_id = fired ? fired->id : 0,
+                     .context_prompt = fired ? fired->context_prompt : std::string{},
+                     .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
+                     .wait = *wait});
     return result;
 }
 

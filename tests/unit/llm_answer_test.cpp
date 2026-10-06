@@ -1,9 +1,7 @@
-#include "core/audio/speech_queue.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
-#include "core/events/voice_sessions.hpp"
 #include "core/llm/advanced_triggers.hpp"
 #include "core/llm/aliases.hpp"
 #include "core/llm/documents.hpp"
@@ -20,8 +18,7 @@
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_llm.hpp"
-#include "mocks/mock_tts.hpp"
-#include "mocks/mock_voice.hpp"
+#include "mocks/mock_speech.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -61,14 +58,11 @@ struct fixture {
     latibot::llm::memory_store memories{db};
     latibot::llm::alias_store aliases{db};
     latibot::llm::tool_registry tools;
-    latibot::events::voice_sessions sessions;
 
     latibot::testing::mock_clock clock{noon};
     latibot::testing::mock_discord discord;
     latibot::testing::mock_llm model;
-    latibot::testing::mock_tts tts;
-    latibot::testing::mock_voice voice;
-    latibot::audio::speech_queue speech{voice};
+    latibot::testing::mock_speech speech;
 
     bool has_key = true;
     double roll = 0.0;
@@ -78,7 +72,7 @@ struct fixture {
                                    .blacklist = &blacklist,
                                    .triggers = &triggers,
                                    .usage = &usage,
-                                   .sessions = &sessions,
+                                   .speech = &speech,
                                    .has_provider = [this](latibot::llm::provider_kind) { return has_key; },
                                    .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }},
                                   clock,
@@ -94,7 +88,6 @@ struct fixture {
                                        .tools = &tools,
                                        .aliases = &aliases,
                                        .provider_for = [this](latibot::llm::provider_kind) -> latibot::llm::provider* { return &model; },
-                                       .engine = &tts,
                                        .speech = &speech},
                                       [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }};
 
@@ -317,7 +310,7 @@ TEST_CASE("another bot is answered at the pace the guild set, until a person spe
 
 TEST_CASE("a message in a voice session's text channel is answered out loud too", "[llm]") {
     fixture test;
-    test.sessions.start({.guild_id = guild, .voice_channel = dpp::snowflake{8000}, .text_channel = channel, .started_by = alice});
+    test.speech.session_channels[guild] = channel;
 
     const auto result = test.stage(from_alice("latibot say hi"));
     const ask_llm* ask = asked(result);
@@ -487,22 +480,49 @@ TEST_CASE("an advanced trigger's reply follows the style document, and posts sil
     CHECK_FALSE(reply.allowed_mentions.replied_user);
 }
 
-TEST_CASE("a spoken answer is sanitized as the model's, posted as spoken, and queued in voice", "[llm][coro]") {
+TEST_CASE("a spoken answer is prepared by the speech capability, posted as spoken, and said", "[llm][coro]") {
+    // What preparing does to the text is DECtalk's, tested with it
+    // (dectalk_speech_test); here, that the reply goes through it.
     fixture test;
-    test.voice.connected[guild] = true;
-    test.model.answer(R"([:play "C:\x.wav"][:rate 250]ahoy there)");
+    test.model.answer("ahoy there");
 
     ask_llm ask = ask_from_alice("latibot talk");
     ask.speak = true;
     const auto report = test.answer(ask);
 
     REQUIRE(report.posted.size() == 1);
-    CHECK_FALSE(report.posted[0].contains("play"));
-    CHECK(report.posted[0].contains("ahoy there"));
-    REQUIRE(test.tts.requests.size() == 1);
-    CHECK(test.tts.requests[0].text == report.posted[0]);
-    CHECK(test.voice.plays.size() == 1);
-    CHECK(test.model.requests.at(0).stable_system.contains("## Speaking"));
+    CHECK(report.posted[0] == "(prepared) ahoy there");
+    REQUIRE(test.speech.spoken.size() == 1);
+    CHECK(test.speech.spoken[0].text == report.posted[0]);
+    CHECK(test.speech.spoken[0].guild == guild);
+    CHECK(test.speech.spoken[0].for_user == alice);
+    CHECK(test.model.requests.at(0).stable_system.contains("## Speaking\nSay it plainly."));
+}
+
+TEST_CASE("without the speech capability a reply is only posted", "[llm][coro]") {
+    fixture test;
+    latibot::llm::responder silent{{.discord = &test.discord,
+                                    .clock = &test.clock,
+                                    .settings = &test.settings,
+                                    .bootstrap = &test.config,
+                                    .documents = &test.documents,
+                                    .memories = &test.memories,
+                                    .usage = &test.usage,
+                                    .tools = &test.tools,
+                                    .aliases = &test.aliases,
+                                    .provider_for = [&test](latibot::llm::provider_kind) -> latibot::llm::provider* { return &test.model; },
+                                    .speech = nullptr},
+                                   [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }};
+    test.model.answer("ahoy there");
+
+    ask_llm ask = ask_from_alice("latibot talk");
+    ask.speak = true;
+    const auto report = silent.answer(std::move(ask)).sync_wait_for(2s);
+    REQUIRE(report.has_value());
+    REQUIRE(report->posted.size() == 1);
+    CHECK(report->posted[0] == "ahoy there");
+    CHECK(test.speech.spoken.empty());
+    CHECK_FALSE(test.model.requests.at(0).stable_system.contains("## Speaking"));
 }
 
 TEST_CASE("a long answer is posted as several messages, only the first a reply", "[llm][coro]") {
@@ -563,7 +583,7 @@ TEST_CASE("a transcript line cannot pass itself off as someone else speaking", "
 
 TEST_CASE("the fixed rules come first, then the system document, then the personality", "[llm]") {
     const std::string text = latibot::llm::stable_instructions(
-        {.system_document = "Never discuss politics.", .personality = "Be cheerful.", .trigger_style = {}, .speaking = false});
+        {.system_document = "Never discuss politics.", .personality = "Be cheerful.", .trigger_style = {}, .speaking_guide = {}});
     const auto rules = text.find("You are LatiBot");
     const auto system = text.find("Never discuss politics.");
     const auto personality = text.find("Be cheerful.");

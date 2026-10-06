@@ -43,9 +43,10 @@ struct instruction_parts {
     /// The `trigger_style` document, when an advanced trigger fired.
     std::string trigger_style;
 
-    /// The reply will be spoken as well as posted
+    /// When the reply will be spoken as well as posted, what the speech
+    /// capability tells the model about speaking; empty otherwise
     /// (docs/features/Language_Model.md §2.5).
-    bool speaking = false;
+    std::string speaking_guide;
 };
 
 /// The instructions every request starts with, in the fixed order of

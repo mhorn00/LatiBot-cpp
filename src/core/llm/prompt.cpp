@@ -1,6 +1,5 @@
 #include "core/llm/prompt.hpp"
 
-#include "core/audio/voice_params.hpp"
 #include "core/llm/aliases.hpp"
 #include "core/llm/documents.hpp"
 #include "core/util/text.hpp"
@@ -31,24 +30,6 @@ constexpr std::string_view personality_preamble =
 /// The longest single message the transcript carries.
 constexpr std::size_t line_limit = 1000;
 
-/// What the speaking section says, with the voices DECtalk has.
-auto speaking_guide() -> std::string {
-    std::string voices;
-    for (const audio::builtin_voice& voice : audio::builtin_voices()) {
-        if (!voices.empty()) voices += ", ";
-        voices += std::format("{} {}", voice.command, voice.name);
-    }
-
-    return std::format(R"(## Speaking
-Your reply will also be spoken aloud by DECtalk in the server's voice channel. Write plain spoken text: no markdown, emoji, links or lists, and keep it to a few sentences. You may use a few DECtalk inline commands, which are kept in the posted message too:
-- [:rate 120] to [:rate 350] sets the speed in words per minute.
-- A voice: {}.
-- [:dv ap 180] sets the average pitch in Hz.
-- [:tone 440 300] plays a tone, frequency then milliseconds.
-Anything else in square brackets is removed before speaking.)",
-                       voices);
-}
-
 } // namespace
 
 auto stable_instructions(const instruction_parts& parts) -> std::string {
@@ -61,7 +42,7 @@ auto stable_instructions(const instruction_parts& parts) -> std::string {
     if (!util::is_blank(parts.trigger_style)) {
         text += std::format("\n\n## Speaking up unprompted\n{}", util::trim(parts.trigger_style));
     }
-    if (parts.speaking) text += "\n\n" + speaking_guide();
+    if (!util::is_blank(parts.speaking_guide)) text += std::format("\n\n{}", util::trim(parts.speaking_guide));
 
     return text;
 }

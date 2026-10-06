@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/audio/dectalk_engine.hpp"
+#include "core/audio/dectalk_speech.hpp"
 #include "core/audio/speech_queue.hpp"
 #include "core/audio/voice_mixer.hpp"
 #include "core/audio/voice_store.hpp"
@@ -245,6 +246,10 @@ private:
     audio::voice_store voices_;
     commands::voice_drafts voice_drafts_;
     commands::voice_lab voice_lab_;
+
+    /// The `speech` capability, which the language model speaks through
+    /// (docs/modules/Module_Plan_Final.md §5.3).
+    audio::dectalk_speech dectalk_speech_;
 
     // Music (docs/features/Music.md). yt-dlp and ffmpeg are looked for once,
     // at startup; without them the music commands say so and nothing plays.

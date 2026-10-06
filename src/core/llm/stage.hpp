@@ -19,12 +19,14 @@ class guild_settings;
 struct bootstrap;
 } // namespace latibot::config
 
-namespace latibot::events {
-class voice_sessions;
-}
+namespace latibot::events {}
 
 namespace latibot::ports {
 class clock;
+}
+
+namespace latibot::capabilities {
+class speech;
 }
 
 namespace latibot::llm {
@@ -48,7 +50,9 @@ struct stage_services {
     const blacklist_store* blacklist = nullptr;
     const advanced_trigger_store* triggers = nullptr;
     const usage_store* usage = nullptr;
-    const events::voice_sessions* sessions = nullptr;
+    /// Whether a channel's replies are spoken, when DECtalk is built in;
+    /// null otherwise, and then none is.
+    const capabilities::speech* speech = nullptr;
 
     /// Whether a key is set for this provider.
     std::function<bool(provider_kind)> has_provider;

@@ -144,6 +144,13 @@ posted**, in Paul's voice.
 - The spoken part is cut at the server's `/speak` character limit, and
   queued under whoever asked, so they can `/tts stop` it.
 
+All of that is DECtalk's, reached through the `speech` capability
+(`src/core/capabilities/speech.hpp`), which `audio::dectalk_speech`
+implements: whether a channel is spoken in, preparing the text, saying it,
+and the speaking section. The language model's code knows none of it, and
+without the capability a reply is only posted
+(docs/modules/Module_Plan_Final.md §5.3).
+
 ### 2.6 Advanced triggers
 
 A pattern (whole word or anywhere, ignoring case, as for

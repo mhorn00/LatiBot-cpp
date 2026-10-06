@@ -2,6 +2,7 @@ add_library(latibot_core STATIC
     core/version.cpp
     core/audio/dectalk_engine.cpp
     core/audio/dectalk_sanitizer.cpp
+    core/audio/dectalk_speech.cpp
     core/audio/pcm.cpp
     core/audio/speech_queue.cpp
     core/audio/voice_mixer.cpp
