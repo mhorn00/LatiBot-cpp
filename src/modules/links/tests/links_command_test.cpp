@@ -1,15 +1,19 @@
 // /links, its panel, and /urltoggle
 // (docs/features/Url_Replacement.md §2.6).
 
-#include "core/commands/urlrepl.hpp"
+#include "links_command.hpp"
+#include "core/commands/registry.hpp"
 #include "core/db/database.hpp"
-#include "core/events/url_rules.hpp"
 #include "core/ui/paginator.hpp"
+#include "links/url_rules.hpp"
 
+#include "links/module.hpp"
 #include "support/discord_limits.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <memory>
 
 #include <array>
 #include <optional>
@@ -42,7 +46,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     latibot::events::url_rule_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+    }
 };
 
 } // namespace
@@ -51,7 +58,7 @@ struct store_fixture {
 // Building a rule from what somebody typed
 // --------------------------------------------------------------------------
 
-TEST_CASE("mirrors may be typed on one line or one per line", "[commands]") {
+TEST_CASE("mirrors may be typed on one line or one per line", "[links]") {
     const auto spaced = rule_from("x.com", "fxtwitter.com/en vxtwitter.com");
     const auto commas = rule_from("x.com", "fxtwitter.com/en, vxtwitter.com");
     const auto lines = rule_from("x.com", "fxtwitter.com/en\nvxtwitter.com\n");
@@ -64,16 +71,16 @@ TEST_CASE("mirrors may be typed on one line or one per line", "[commands]") {
     }
 }
 
-TEST_CASE("the site is reduced to what links are matched by", "[commands]") {
+TEST_CASE("the site is reduced to what links are matched by", "[links]") {
     CHECK(rule_from("https://www.X.com/home", "fxtwitter.com").domain == "x.com");
 }
 
-TEST_CASE("a mirror listed twice is kept once, in its first place", "[commands]") {
+TEST_CASE("a mirror listed twice is kept once, in its first place", "[links]") {
     const auto rule = rule_from("x.com", "fxtwitter.com vxtwitter.com fxtwitter.com");
     CHECK(rule.mirrors.size() == 2);
 }
 
-TEST_CASE("rules that could not work are refused with a reason", "[commands]") {
+TEST_CASE("rules that could not work are refused with a reason", "[links]") {
     CHECK(problem_with("x.com", "") == "a rule needs at least one mirror to send links to");
     CHECK(problem_with("x.com", "x.com").contains("can't be its own mirror"));
     CHECK(problem_with("localhost", "fxtwitter.com").contains("doesn't look like a site"));
@@ -81,7 +88,7 @@ TEST_CASE("rules that could not work are refused with a reason", "[commands]") {
     CHECK(problem_with("x.com", "a.com b.com c.com d.com e.com f.com g.com h.com i.com").contains("most one rule takes"));
 }
 
-TEST_CASE("a rule describes itself in one line", "[commands]") {
+TEST_CASE("a rule describes itself in one line", "[links]") {
     CHECK(latibot::commands::describe(rule_from("x.com", "fxtwitter.com/en vxtwitter.com")) ==
           "**x.com** → fxtwitter.com/en, vxtwitter.com");
 }
@@ -90,7 +97,7 @@ TEST_CASE("a rule describes itself in one line", "[commands]") {
 // The dry run
 // --------------------------------------------------------------------------
 
-TEST_CASE("the dry run shows the post and accounts for every link", "[commands]") {
+TEST_CASE("the dry run shows the post and accounts for every link", "[links]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com vxtwitter.com")};
     const std::string reply = render_test("||https://x.com/a/status/1|| https://example.com/b <https://x.com/c>", rules, false, true);
 
@@ -101,12 +108,12 @@ TEST_CASE("the dry run shows the post and accounts for every link", "[commands]"
     CHECK_FALSE(reply.contains("opted out"));
 }
 
-TEST_CASE("the dry run says when the person running it has opted out", "[commands]") {
+TEST_CASE("the dry run says when the person running it has opted out", "[links]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     CHECK(render_test("https://x.com/a", rules, true, true).contains("opted out"));
 }
 
-TEST_CASE("the dry run works while replacement is off, and says that it is", "[commands]") {
+TEST_CASE("the dry run works while replacement is off, and says that it is", "[links]") {
     // Trying rules out before switching them on is the point of it.
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     const std::string off = render_test("https://x.com/a", rules, false, false);
@@ -116,13 +123,13 @@ TEST_CASE("the dry run works while replacement is off, and says that it is", "[c
     CHECK_FALSE(render_test("https://x.com/a", rules, false, true).contains("`/links enable`"));
 }
 
-TEST_CASE("the dry run says when there is nothing to do", "[commands]") {
+TEST_CASE("the dry run says when there is nothing to do", "[links]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     CHECK(render_test("no links here", rules, false, true) == "There are no links in that.");
     CHECK(render_test("https://example.com", rules, false, true).starts_with("**Nothing would be posted.**"));
 }
 
-TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]") {
+TEST_CASE("a dry run of a long message stays under Discord's limit", "[links]") {
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     std::string content;
     for (int index = 0; index < 200; ++index) {
@@ -138,14 +145,14 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
 // The list and the panel
 // --------------------------------------------------------------------------
 
-TEST_CASE("an empty list says how to start one", "[commands]") {
+TEST_CASE("an empty list says how to start one", "[links]") {
     const store_fixture fixture;
     const auto message = latibot::commands::render_url_rule_list(fixture.store, guild, 0);
     CHECK(message.content.contains("/links set"));
     CHECK(message.components.empty());
 }
 
-TEST_CASE("a long list pages", "[commands]") {
+TEST_CASE("a long list pages", "[links]") {
     store_fixture fixture;
     for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "f.com", "g.com", "h.com", "i.com", "j.com", "k.com"}) {
         fixture.store.set(guild, rule_from(domain, "mirror.example"));
@@ -159,7 +166,7 @@ TEST_CASE("a long list pages", "[commands]") {
     }
 }
 
-TEST_CASE("the list and the panel say whether replacement is on", "[commands]") {
+TEST_CASE("the list and the panel say whether replacement is on", "[links]") {
     store_fixture fixture;
     fixture.store.set(guild, rule_from("x.com", "fxtwitter.com"));
 
@@ -171,7 +178,7 @@ TEST_CASE("the list and the panel say whether replacement is on", "[commands]") 
     CHECK(latibot::commands::render_url_panel(fixture.store, guild, 0).content.contains("**on**"));
 }
 
-TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]") {
+TEST_CASE("the panel's switch asks for the opposite of what is set", "[links]") {
     store_fixture fixture;
 
     using label_and_argument = std::pair<std::string, std::string>;
@@ -194,7 +201,7 @@ TEST_CASE("the panel's switch asks for the opposite of what is set", "[commands]
     CHECK(find_switch() == label_and_argument{"Turn replacement off", "off"});
 }
 
-TEST_CASE("turning replacement on or off says what changed", "[commands]") {
+TEST_CASE("turning replacement on or off says what changed", "[links]") {
     store_fixture fixture;
     const latibot::commands::user_label who{.name = "someone", .id = dpp::snowflake{5000}};
 
@@ -213,7 +220,7 @@ TEST_CASE("turning replacement on or off says what changed", "[commands]") {
     CHECK(render_switch(true, false, 3).contains("rules are kept"));
 }
 
-TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]") {
+TEST_CASE("the panel lists a page of rules with a menu to pick one", "[links]") {
     store_fixture fixture;
     for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "f.com", "g.com"}) {
         fixture.store.set(guild, rule_from(domain, "mirror.example"));
@@ -229,7 +236,7 @@ TEST_CASE("the panel lists a page of rules with a menu to pick one", "[commands]
     CHECK(first.components[0].components[0].options.size() == latibot::commands::url_rules_per_page);
 }
 
-TEST_CASE("picking a rule offers Edit and Delete for it", "[commands]") {
+TEST_CASE("picking a rule offers Edit and Delete for it", "[links]") {
     store_fixture fixture;
     fixture.store.set(guild, rule_from("x.com", "fxtwitter.com"));
 
@@ -247,7 +254,7 @@ TEST_CASE("picking a rule offers Edit and Delete for it", "[commands]") {
     CHECK(latibot::ui::decode(confirming.components[1].components[0].custom_id)->view == latibot::commands::url_confirm_view);
 }
 
-TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the rule picked", "[commands]") {
+TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps the rule picked", "[links]") {
     // Cancel once encoded the same state as ◀ on the first page and ▶ on
     // the last, and Discord refuses a message with a custom_id twice.
     store_fixture fixture;
@@ -271,7 +278,7 @@ TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps 
     }
 }
 
-TEST_CASE("the panel follows a rule to the page it sorts onto", "[commands]") {
+TEST_CASE("the panel follows a rule to the page it sorts onto", "[links]") {
     store_fixture fixture;
     for (const char* domain : {"a.com", "b.com", "c.com", "d.com", "e.com", "z.com"}) {
         fixture.store.set(guild, rule_from(domain, "mirror.example"));
@@ -282,7 +289,7 @@ TEST_CASE("the panel follows a rule to the page it sorts onto", "[commands]") {
     CHECK(panel.content.contains("Page 2 of 2"));
 }
 
-TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {
+TEST_CASE("the URL rule modal fits inside Discord's limits", "[links]") {
     const url_rule existing = rule_from("x.com", "fxtwitter.com/en vxtwitter.com");
 
     const std::array<const url_rule*, 2> shapes{nullptr, &existing};
@@ -298,7 +305,7 @@ TEST_CASE("the URL rule modal fits inside Discord's limits", "[commands]") {
     CHECK(latibot::ui::decode(form.custom_id)->argument == "x.com");
 }
 
-TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebody else", "[commands]") {
+TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebody else", "[links]") {
     // Everyone may run /urltoggle, so Discord's permissions cannot tell the
     // two apart; this is the check
     // (docs/features/Commands_and_Panels.md §2.1).
@@ -313,7 +320,7 @@ TEST_CASE("anyone may opt themselves out, and only Manage Server may for somebod
     CHECK_FALSE(urltoggle_refusal(me, them, dpp::permission(dpp::p_administrator)).has_value());
 }
 
-TEST_CASE("a full page of rules with the most, longest mirrors still fits the panel and the list", "[commands]") {
+TEST_CASE("a full page of rules with the most, longest mirrors still fits the panel and the list", "[links]") {
     store_fixture fixture;
     for (std::size_t rule = 0; rule < latibot::commands::url_rules_per_page; ++rule) {
         url_rule made{.domain = std::format("{}.example.com", std::string(80, static_cast<char>('a' + rule))), .mirrors = {}};
@@ -328,7 +335,7 @@ TEST_CASE("a full page of rules with the most, longest mirrors still fits the pa
     latibot::testing::check_message_fits(latibot::commands::render_url_rule_list(fixture.store, guild, 0));
 }
 
-TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
+TEST_CASE("the commands are registered the way Discord expects", "[links]") {
     store_fixture fixture;
     const latibot::commands::links_command links(fixture.store);
     const latibot::commands::urltoggle_command toggle(fixture.store);
@@ -343,4 +350,22 @@ TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
     // Everybody may opt themselves out.
     CHECK_FALSE(toggle.info().default_member_permissions.has_value());
     CHECK(opt_out.options.size() == 1);
+}
+
+TEST_CASE("the links commands pass the registry's checks, private, and the dry run hides previews", "[links]") {
+    // The checks registry::add makes of every command, for these
+    // (docs/modules/Module_Plan_Final.md §10). The URL commands stay
+    // private, as they have been since the port.
+    latibot::db::database db{":memory:"};
+    latibot::events::url_rule_store rules(db);
+
+    latibot::commands::registry commands;
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::links_command>(rules)));
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::urltoggle_command>(rules)));
+
+    const latibot::commands::links_command links(rules);
+    CHECK(links.info().responses_for("test").result == (dpp::m_ephemeral | dpp::m_suppress_embeds));
+    CHECK(links.info().responses_for("list").result == dpp::m_ephemeral);
+    const latibot::commands::urltoggle_command urltoggle(rules);
+    CHECK(urltoggle.info().responses_for("").result == dpp::m_ephemeral);
 }

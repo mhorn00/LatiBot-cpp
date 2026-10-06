@@ -14,17 +14,18 @@
 # latibot_core because MSVC 14.51 crashes instrumenting bot.cpp, and nothing
 # here reaches it.
 set(core "${PROJECT_SOURCE_DIR}/src/core")
+set(modules "${PROJECT_SOURCE_DIR}/src/modules")
 add_library(latibot_fuzz_core STATIC
     # Fuzzed.
     ${core}/util/text.cpp
     ${core}/util/url_scan.cpp
-    ${core}/events/url_rules.cpp
-    ${core}/events/legacy_replacements.cpp
+    ${modules}/links/src/url_rules.cpp
+    ${modules}/linkstats/src/legacy_replacements.cpp
     ${core}/audio/dectalk_sanitizer.cpp
     # What those need to link. legacy_replacements asks media_posts whether
     # a message carries an image or a video.
-    ${core}/events/media_posts.cpp
-    ${core}/events/replacements.cpp
+    ${modules}/linkstats/src/media_posts.cpp
+    ${modules}/links/src/replacements.cpp
     ${core}/config/guild_settings.cpp
     ${core}/db/database.cpp
     ${core}/db/error.cpp
@@ -32,7 +33,8 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/env.cpp
     ${core}/util/log.cpp
 )
-target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
+# The modules' headers too: each fuzzer is about one module's code.
+target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src" "${modules}/links/include" "${modules}/linkstats/src")
 target_link_libraries(latibot_fuzz_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
 latibot_target_warnings(latibot_fuzz_core)
 latibot_target_sanitizers(latibot_fuzz_core)

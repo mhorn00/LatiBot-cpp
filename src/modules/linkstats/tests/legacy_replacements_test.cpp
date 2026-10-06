@@ -1,7 +1,7 @@
 // Recognising the bot's old replacements and finding whose link each one was
 // (docs/features/Link_Stats.md §4.1).
 
-#include "core/events/legacy_replacements.hpp"
+#include "legacy_replacements.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -66,13 +66,13 @@ auto recognised(const history_message& message) -> legacy_match {
 // The six formats
 // --------------------------------------------------------------------------
 
-TEST_CASE("format 1: a copy of the original, sent as a reply", "[events]") {
+TEST_CASE("format 1: a copy of the original, sent as a reply", "[linkstats]") {
     auto message = from_bot("lol look https://fxtwitter.com/a/status/1");
     message.replied_to = dpp::snowflake{800};
     CHECK(recognised(message).format == legacy_format::reply_copy);
 }
 
-TEST_CASE("format 2: webhook mode is counted and skipped", "[events]") {
+TEST_CASE("format 2: webhook mode is counted and skipped", "[linkstats]") {
     history_message message =
         from_person(alice, "lol look <https://x.com/a/status/1> [.](https://fxtwitter.com/a/status/1)", dpp::snowflake{900});
     message.author_is_bot = true;
@@ -83,20 +83,20 @@ TEST_CASE("format 2: webhook mode is counted and skipped", "[events]") {
     CHECK(match.format == legacy_format::webhook);
 }
 
-TEST_CASE("format 3: a copy of the original as a plain message", "[events]") {
+TEST_CASE("format 3: a copy of the original as a plain message", "[linkstats]") {
     CHECK(recognised(from_bot("lol look https://fxtwitter.com/a/status/1 isn't it good")).format == legacy_format::plain_copy);
 }
 
-TEST_CASE("format 4: a dot linking to the mirror", "[events]") {
+TEST_CASE("format 4: a dot linking to the mirror", "[linkstats]") {
     CHECK(recognised(from_bot("[.](https://fxtwitter.com/a/status/1)")).format == legacy_format::dot);
 }
 
-TEST_CASE("format 5: the link emoji and a dot", "[events]") {
+TEST_CASE("format 5: the link emoji and a dot", "[linkstats]") {
     CHECK(recognised(from_bot("🔗[.](https://fxtwitter.com/a/status/1)")).format == legacy_format::link_dot);
     CHECK(recognised(from_bot(":link: [.](https://fxtwitter.com/a/status/1)")).format == legacy_format::link_dot);
 }
 
-TEST_CASE("format 6: the link emoji and an underscore, which is still the format", "[events]") {
+TEST_CASE("format 6: the link emoji and an underscore, which is still the format", "[linkstats]") {
     CHECK(recognised(from_bot("🔗[_](https://fxtwitter.com/a/status/1)")).format == legacy_format::link_underscore);
     // The Java bot put the spoiler bars inside the emoji; this one outside.
     CHECK(recognised(from_bot("🔗||[_](https://fxtwitter.com/a/status/1)||")).format == legacy_format::link_underscore);
@@ -104,7 +104,7 @@ TEST_CASE("format 6: the link emoji and an underscore, which is still the format
           legacy_format::link_underscore);
 }
 
-TEST_CASE("the mirror links are collected whatever the format", "[events]") {
+TEST_CASE("the mirror links are collected whatever the format", "[linkstats]") {
     const auto match = recognised(from_bot("🔗 [_](https://fxtwitter.com/a/status/1)\n🔗 [_](https://tfxktok.com/@a/video/2)"));
     REQUIRE(match.mirror_urls.size() == 2);
     CHECK(match.mirror_urls[1] == "https://tfxktok.com/@a/video/2");
@@ -114,7 +114,7 @@ TEST_CASE("the mirror links are collected whatever the format", "[events]") {
 // What is not a replacement, and what is not understood
 // --------------------------------------------------------------------------
 
-TEST_CASE("only the bot's own messages with links count", "[events]") {
+TEST_CASE("only the bot's own messages with links count", "[linkstats]") {
     CHECK(classify(from_bot("no links"), bot, mirrors()).what == legacy_match::kind::not_ours);
     CHECK(classify(from_person(alice, "https://fxtwitter.com/a/status/1", dpp::snowflake{1}), bot, mirrors()).what ==
           legacy_match::kind::not_ours);
@@ -124,7 +124,7 @@ TEST_CASE("only the bot's own messages with links count", "[events]") {
     CHECK(classify(command_reply, bot, mirrors()).what == legacy_match::kind::not_ours);
 }
 
-TEST_CASE("a shape nobody wrote down is reported, not guessed at", "[events]") {
+TEST_CASE("a shape nobody wrote down is reported, not guessed at", "[linkstats]") {
     // An underscore without the link emoji never existed.
     CHECK(classify(from_bot("[_](https://fxtwitter.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::unrecognised);
     // Masked links with words around them.
@@ -140,7 +140,7 @@ TEST_CASE("a shape nobody wrote down is reported, not guessed at", "[events]") {
 // Mirrors no rule remembers
 // --------------------------------------------------------------------------
 
-TEST_CASE("the masked shapes are replacements whatever their mirror", "[events]") {
+TEST_CASE("the masked shapes are replacements whatever their mirror", "[linkstats]") {
     // Mirrors break and are swapped for others; one dropped before any rule
     // was written down is in none of them, but the shape is still the bot's.
     const auto match = classify(from_bot("🔗 [_](https://long-gone.example/a/status/1)"), bot, mirrors());
@@ -151,7 +151,7 @@ TEST_CASE("the masked shapes are replacements whatever their mirror", "[events]"
     CHECK(classify(from_bot("[.](https://long-gone.example/a/status/1)"), bot, mirrors()).format == legacy_format::dot);
 }
 
-TEST_CASE("a copy on no known mirror waits for what it answered", "[events]") {
+TEST_CASE("a copy on no known mirror waits for what it answered", "[linkstats]") {
     const auto plain = classify(from_bot("look https://oldfixer.com/a/status/1 and https://youtu.be/xyz"), bot, mirrors());
     CHECK(plain.what == legacy_match::kind::unconfirmed);
     CHECK(plain.format == legacy_format::plain_copy);
@@ -167,7 +167,7 @@ TEST_CASE("a copy on no known mirror waits for what it answered", "[events]") {
     CHECK(classify(from_bot("here [a tweet](https://oldfixer.com/a/status/1)"), bot, mirrors()).what == legacy_match::kind::not_ours);
 }
 
-TEST_CASE("what a replacement replaced is the same path on another host", "[events]") {
+TEST_CASE("what a replacement replaced is the same path on another host", "[linkstats]") {
     const auto match = classify(from_bot("look https://oldfixer.com/a/status/1 and https://youtu.be/xyz"), bot, mirrors());
     const auto replaced =
         latibot::events::replaced_links(match, "look https://www.x.com/a/status/1/ and https://youtu.be/xyz and https://x.com/b/status/2");
@@ -180,7 +180,7 @@ TEST_CASE("what a replacement replaced is the same path on another host", "[even
     CHECK(latibot::events::replaced_links(match, "no links here").empty());
 }
 
-TEST_CASE("a copy on no known mirror is credited only by a link it replaced", "[events]") {
+TEST_CASE("a copy on no known mirror is credited only by a link it replaced", "[linkstats]") {
     const auto ours = from_bot("look https://oldfixer.com/a/status/1");
     const auto match = classify(ours, bot, mirrors());
 
@@ -201,7 +201,7 @@ TEST_CASE("a copy on no known mirror is credited only by a link it replaced", "[
 // Whose link it was
 // --------------------------------------------------------------------------
 
-TEST_CASE("a reply names its original", "[events]") {
+TEST_CASE("a reply names its original", "[linkstats]") {
     auto ours = from_bot("look https://fxtwitter.com/a/status/1");
     ours.replied_to = dpp::snowflake{800};
     const auto match = recognised(ours);
@@ -223,7 +223,7 @@ TEST_CASE("a reply names its original", "[events]") {
     }
 }
 
-TEST_CASE("the original is the nearest earlier link, past any chat", "[events]") {
+TEST_CASE("the original is the nearest earlier link, past any chat", "[linkstats]") {
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
     const std::vector<history_message> older{
         from_person(bob, "lmao", dpp::snowflake{890}),
@@ -237,7 +237,7 @@ TEST_CASE("the original is the nearest earlier link, past any chat", "[events]")
     CHECK_FALSE(found.skipped_a_link);
 }
 
-TEST_CASE("a nearer link that is not ours does not take the credit", "[events]") {
+TEST_CASE("a nearer link that is not ours does not take the credit", "[linkstats]") {
     // Bob posted his link before the bot answered Alice's.
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
     const std::vector<history_message> older{
@@ -250,7 +250,7 @@ TEST_CASE("a nearer link that is not ours does not take the credit", "[events]")
     CHECK(found.skipped_a_link);
 }
 
-TEST_CASE("with no matching link the replacement stays unattributed", "[events]") {
+TEST_CASE("with no matching link the replacement stays unattributed", "[linkstats]") {
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
 
     SECTION("no earlier link at all") {
@@ -278,7 +278,7 @@ TEST_CASE("with no matching link the replacement stays unattributed", "[events]"
     }
 }
 
-TEST_CASE("other bots' links are never the original", "[events]") {
+TEST_CASE("other bots' links are never the original", "[linkstats]") {
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/a/status/1)");
     history_message other = from_person(other_bot, "https://x.com/a/status/1", dpp::snowflake{890});
     other.author_is_bot = true;
@@ -287,7 +287,7 @@ TEST_CASE("other bots' links are never the original", "[events]") {
     CHECK_FALSE(attribute(ours, recognised(ours), older, bot).author_id.has_value());
 }
 
-TEST_CASE("a front-page link proves nothing about which message was answered", "[events]") {
+TEST_CASE("a front-page link proves nothing about which message was answered", "[linkstats]") {
     const auto ours = from_bot("🔗 [_](https://fxtwitter.com/)");
     const std::vector<history_message> older{from_person(alice, "https://x.com", dpp::snowflake{890})};
     CHECK_FALSE(attribute(ours, recognised(ours), older, bot).author_id.has_value());
@@ -297,7 +297,7 @@ TEST_CASE("a front-page link proves nothing about which message was answered", "
 // Times from ids
 // --------------------------------------------------------------------------
 
-TEST_CASE("a message's time comes from its id", "[events]") {
+TEST_CASE("a message's time comes from its id", "[linkstats]") {
     const std::chrono::sys_seconds when{std::chrono::sys_days{std::chrono::year{2022} / 6 / 1}};
     const dpp::snowflake first = latibot::events::first_id_at(when);
 

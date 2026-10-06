@@ -2,12 +2,13 @@
 // post, or a reply to it (docs/features/Link_Stats.md §12). What counts as
 // one, which messages count, storing them, and counting them as they arrive.
 
-#include "core/events/emote_reactions.hpp"
+#include "emote_reactions.hpp"
 #include "core/db/database.hpp"
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
+#include "legacy_replacements.hpp"
+#include "links/replacements.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -75,7 +76,11 @@ struct fixture {
     latibot::events::reaction_store reactions{db};
     latibot::events::emote_tracker tracker{posts, reactions};
 
-    fixture() { latibot::testing::create_schema(db); }
+    fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
+    }
 
     /// Alice's image, posted `later` after day one.
     auto post(std::chrono::seconds later) -> dpp::snowflake {
@@ -94,7 +99,7 @@ struct fixture {
 // What is a message of nothing but emotes
 // --------------------------------------------------------------------------
 
-TEST_CASE("a message of nothing but emojis is read as its emojis", "[events]") {
+TEST_CASE("a message of nothing but emojis is read as its emojis", "[linkstats]") {
     CHECK(keys_of(message_emotes("💀")) == std::vector<std::string>{"u:💀"});
     CHECK(keys_of(message_emotes("<:kekw:123> <a:party:456>")) == std::vector<std::string>{"c:123", "c:456"});
     CHECK(message_emotes("<a:party:456>")[0].animated);
@@ -110,7 +115,7 @@ TEST_CASE("a message of nothing but emojis is read as its emojis", "[events]") {
     CHECK(keys_of(message_emotes("❤")) == std::vector<std::string>{"u:❤"});
 }
 
-TEST_CASE("joined emojis, skin tones, flags and keycaps are one emoji each", "[events]") {
+TEST_CASE("joined emojis, skin tones, flags and keycaps are one emoji each", "[linkstats]") {
     // A thumbs up with a skin tone; a family joined by U+200D; a flag of two
     // regional indicators; England's flag, made of tags; a keycap.
     const std::string thumbs = "\U0001F44D\U0001F3FD";
@@ -127,7 +132,7 @@ TEST_CASE("joined emojis, skin tones, flags and keycaps are one emoji each", "[e
     CHECK(message_emotes(thumbs + family + flag).size() == 3);
 }
 
-TEST_CASE("anything else in a message makes it not a reaction", "[events]") {
+TEST_CASE("anything else in a message makes it not a reaction", "[linkstats]") {
     for (const char* text :
          {"lol 💀", "💀 lol", "<@11> 💀", "1", "", "   ", ":kekw:", "<:kekw:>", "<:kekw:123", "<#2000>", "💀!", "\U0001F468‍"}) {
         INFO(text);
@@ -139,7 +144,7 @@ TEST_CASE("anything else in a message makes it not a reaction", "[events]") {
 // Which messages count
 // --------------------------------------------------------------------------
 
-TEST_CASE("each person's first message after a post counts, when it is all emotes", "[events]") {
+TEST_CASE("each person's first message after a post counts, when it is all emotes", "[linkstats]") {
     const dpp::snowflake post{100};
     const std::vector<emote_message> after{
         said(dpp::snowflake{101}, bob, "💀🔥"),      said(dpp::snowflake{102}, alice, "lol"), said(dpp::snowflake{103}, alice, "😂"),
@@ -152,7 +157,7 @@ TEST_CASE("each person's first message after a post counts, when it is all emote
     CHECK(described(emote_reactions(post, after, {})) == std::vector<std::string>{"12 u:💀 101", "12 u:🔥 101"});
 }
 
-TEST_CASE("only the first 25 messages after a post are looked at", "[events]") {
+TEST_CASE("only the first 25 messages after a post are looked at", "[linkstats]") {
     const dpp::snowflake post{100};
     std::vector<emote_message> after;
     after.reserve(latibot::events::emote_window + 1);
@@ -167,7 +172,7 @@ TEST_CASE("only the first 25 messages after a post are looked at", "[events]") {
     CHECK(emote_reactions(post, after, {}).empty());
 }
 
-TEST_CASE("a reply to the post counts wherever it is, and a reply to anything else does not", "[events]") {
+TEST_CASE("a reply to the post counts wherever it is, and a reply to anything else does not", "[linkstats]") {
     const dpp::snowflake post{100};
 
     // Bob's first message answers something else, so it is about that, and
@@ -188,7 +193,7 @@ TEST_CASE("a reply to the post counts wherever it is, and a reply to anything el
 // Stored
 // --------------------------------------------------------------------------
 
-TEST_CASE("an emote sent as a reaction counts as one, and not twice beside the same reaction", "[db]") {
+TEST_CASE("an emote sent as a reaction counts as one, and not twice beside the same reaction", "[linkstats]") {
     fixture test;
     const dpp::snowflake post = test.post(0s);
     test.reactions.add(post, bob, reaction_emoji({}, "💀"), day_one + 1s);
@@ -219,7 +224,7 @@ TEST_CASE("an emote sent as a reaction counts as one, and not twice beside the s
     CHECK(test.reactions.add_emotes(at(9s), sent) == 0);
 }
 
-TEST_CASE("an emote is dated by the message it was sent in", "[db]") {
+TEST_CASE("an emote is dated by the message it was sent in", "[linkstats]") {
     fixture test;
     const dpp::snowflake post = test.post(0s);
     test.reactions.add_emotes(
@@ -229,7 +234,7 @@ TEST_CASE("an emote is dated by the message it was sent in", "[db]") {
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .until = day_one + 24h}) == 0);
 }
 
-TEST_CASE("a recompute's emotes replace what was there, but not what it did not read", "[db]") {
+TEST_CASE("a recompute's emotes replace what was there, but not what it did not read", "[linkstats]") {
     fixture test;
     const dpp::snowflake post = test.post(0s);
     const auto emote = [](dpp::snowflake who, const char* emoji, std::chrono::seconds sent) {
@@ -255,7 +260,7 @@ TEST_CASE("a recompute's emotes replace what was there, but not what it did not 
 // As they arrive
 // --------------------------------------------------------------------------
 
-TEST_CASE("emotes after a post are counted as they arrive", "[db]") {
+TEST_CASE("emotes after a post are counted as they arrive", "[linkstats]") {
     fixture test;
     test.tracker.on_message(channel, said(at(0s), carol, "look at this"));
     const dpp::snowflake post = test.post(1s);
@@ -275,7 +280,7 @@ TEST_CASE("emotes after a post are counted as they arrive", "[db]") {
     CHECK(test.tracker.on_message(dpp::snowflake{2001}, said(at(7s), carol, "💀")) == 0);
 }
 
-TEST_CASE("the next post, or 25 messages, ends a post's window", "[db]") {
+TEST_CASE("the next post, or 25 messages, ends a post's window", "[linkstats]") {
     fixture test;
     const dpp::snowflake first = test.post(0s);
     test.tracker.on_message(channel, said(first, alice, ""));
@@ -300,7 +305,7 @@ TEST_CASE("the next post, or 25 messages, ends a post's window", "[db]") {
     }
 }
 
-TEST_CASE("a reply to a post is counted however late it comes", "[db]") {
+TEST_CASE("a reply to a post is counted however late it comes", "[linkstats]") {
     fixture test;
     const dpp::snowflake post = test.post(0s);
     test.tracker.on_message(channel, said(post, alice, ""));
@@ -314,7 +319,7 @@ TEST_CASE("a reply to a post is counted however late it comes", "[db]") {
     CHECK(test.received() == 1);
 }
 
-TEST_CASE("a link shown to be an image later counts the emotes sent before that", "[db]") {
+TEST_CASE("a link shown to be an image later counts the emotes sent before that", "[linkstats]") {
     fixture test;
     // Alice's link, which Discord has not shown to be an image yet.
     test.tracker.on_message(channel, said(at(0s), alice, ""));
@@ -325,7 +330,7 @@ TEST_CASE("a link shown to be an image later counts the emotes sent before that"
     CHECK(test.received() == 1);
 }
 
-TEST_CASE("a deleted message is no longer counted as a reaction", "[db]") {
+TEST_CASE("a deleted message is no longer counted as a reaction", "[linkstats]") {
     fixture test;
     const dpp::snowflake post = test.post(0s);
     test.tracker.on_message(channel, said(post, alice, ""));

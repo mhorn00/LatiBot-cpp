@@ -1,8 +1,8 @@
 // Fuzzes the link scanner and replacement planning, which see every message
 // (docs/features/Url_Replacement.md §3.1).
 
-#include "core/events/url_rules.hpp"
 #include "core/util/url_scan.hpp"
+#include "links/url_rules.hpp"
 
 #include <algorithm>
 #include <cstddef>

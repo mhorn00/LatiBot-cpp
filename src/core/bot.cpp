@@ -3,12 +3,10 @@
 #include "core/commands/basic.hpp"
 #include "core/commands/bots.hpp"
 #include "core/commands/chat.hpp"
-#include "core/commands/linkstats.hpp"
 #include "core/commands/logs.hpp"
 #include "core/commands/music.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/speak.hpp"
-#include "core/commands/urlrepl.hpp"
 #include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/schema_versions.hpp"
@@ -30,7 +28,6 @@
 #include "core/util/log.hpp"
 #include "core/util/process.hpp"
 #include "core/util/text.hpp"
-#include "core/util/url_scan.hpp"
 #include "core/version.hpp"
 
 #include <algorithm>
@@ -81,38 +78,6 @@ using ui::answer_privately;
 /// since Discord only sends the bot its own, so it is from a build whose
 /// panels were different.
 constexpr std::string_view stale_component_reply = "that's from an older version of me; run the command again for a fresh one";
-
-/// The URLs of a message's previews, which is all the embed tracker needs.
-auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
-    std::vector<std::string> urls;
-    urls.reserve(message.embeds.size());
-    for (const dpp::embed& embed : message.embeds) {
-        urls.push_back(embed.url);
-    }
-    return urls;
-}
-
-/// Every channel in a guild that holds ordinary messages, from DPP's cache,
-/// for a recompute that was not given one. Threads are left out: listing the
-/// archived ones is its own set of calls, and links in them are rare.
-auto text_channels(dpp::snowflake guild_id) -> std::vector<dpp::snowflake> {
-    std::vector<dpp::snowflake> found;
-    const dpp::guild* guild = dpp::find_guild(guild_id);
-    if (guild == nullptr) return found;
-
-    for (const dpp::snowflake id : guild->channels) {
-        const dpp::channel* channel = dpp::find_channel(id);
-        if (channel != nullptr && (channel->is_text_channel() || channel->is_news_channel())) found.push_back(id);
-    }
-    return found;
-}
-
-/// The Java bot's rules, if its file was left beside the database.
-constexpr std::string_view legacy_url_rules_file = "UrlReplacements.txt";
-
-/// Set once a guild has had the Java bot's rules, so that removing one later
-/// is not undone by the next restart.
-constexpr std::string_view url_rules_imported_key = "url_rules_imported";
 
 /// Makes sure the folder holding the database exists, so a first run on a
 /// clean machine works without setup. Returns by value: handing back a
@@ -168,17 +133,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       http_(cluster_),
       raw_(cluster_),
       bot_allowlist_(database_),
-      url_rules_(database_),
-      url_panel_(url_rules_),
-      replacements_(database_),
-      media_(replacements_, guild_settings_, clock_),
-      reactions_(database_),
-      emotes_(replacements_, reactions_),
-      backfill_progress_(database_),
-      backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
-      emoji_copies_(database_),
-      emoji_copier_(emoji_copies_, http_, gateway_, clock_, settings_.linkstats.emoji_copy_min_uses),
-      embed_tracker_(replacements_, clock_),
       voice_output_(cluster_),
       mixer_(voice_output_),
       speech_(mixer_),
@@ -250,15 +204,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     util::log().debug("log level {}; {} trusted guild(s), {} trusted user(s)", util::to_string(settings_.log_level),
                       settings_.trusted_guilds.size(), settings_.trusted_users.size());
 
-    // A warning rather than info: it changes what a recompute records, and
-    // it should not be the kind of thing that stays set by accident.
-    if (settings_.recompute_bot_id) {
-        util::log().warn(
-            "LATIBOT_DEBUG_RECOMPUTE_BOT_ID is set: /linkstats recompute reads replacements posted by {}, not this bot's own. "
-            "Pass fresh:true to go over channels already recomputed without it.",
-            *settings_.recompute_bot_id);
-    }
-
     // After the line above, so that any migration it applies is logged under a
     // heading rather than before the bot has said it is starting.
     // The core's tables and those of the features not yet in modules; each
@@ -296,18 +241,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
                          util::to_string(destination->level));
     }
 
-    // Read before the connection starts, so everything found was cut off by
-    // the last run rather than being watched by this one. Each guild's are
-    // settled once it connects.
-    const std::vector<events::replacement_record> unsettled = replacements_.unsettled();
-    for (const events::replacement_record& record : unsettled) {
-        stranded_[record.guild_id].push_back(record);
-    }
-    if (!unsettled.empty()) {
-        util::log().info("the last run left {} replacement(s) waiting on a preview; settling them as their servers connect",
-                         unsettled.size());
-    }
-
     register_commands();
     register_stages();
     register_events();
@@ -325,8 +258,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
 auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
-    commands_.add(std::make_unique<commands::links_command>(url_rules_));
-    commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
     commands_.add(std::make_unique<commands::llm_command>(llm_services()));
     commands_.add(std::make_unique<commands::memory_command>(llm_services()));
@@ -339,27 +270,16 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_));
     commands_.add(std::make_unique<commands::music_command>(commands::music_services{
         .player = &music_, .resolver = &music_resolver_, .settings = &guild_settings_, .unavailable = music_unavailable()}));
-    commands_.add(std::make_unique<commands::linkstats_command>(
-        reactions_,
-        commands::recompute_support{.service = &backfill_,
-                                    .discord = &gateway_,
-                                    .channels_of = [](dpp::snowflake guild) { return text_channels(guild); },
-                                    .bot_id = [this] { return settings_.recompute_bot_id.value_or(cluster_.me.id); }},
-        &guild_settings_));
 }
 
 auto bot::register_stages() -> void {
     // Each at its position, which decides where it runs, whatever order the
     // lines are in (events/stage_order.hpp, docs/features/Message_Pipeline.md
-    // §2.2). Modules add theirs: the triggers module's replies, at `reply`.
+    // §2.2). Modules add theirs: links' replacement at `rewrite`, triggers' replies
+    // at `reply`.
     // The model is last: it consumes what it answers, and a simple trigger's
     // reply before it keeps an advanced trigger quiet.
     pipeline_.add(events::stage_order::stop, "goodbye", events::goodbye_stage(guild_settings_));
-    pipeline_.add(events::stage_order::rewrite, "url replacement",
-                  events::carried_out_by<events::replace_links>(
-                      events::url_replacer(url_rules_), "posting a replacement", [this](events::replace_links request) {
-                          return events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, std::move(request));
-                      }));
     pipeline_.add(events::stage_order::model, "language model",
                   events::carried_out_by<llm::ask_llm>([this](const events::incoming_message& message) { return llm_stage_(message); },
                                                        "answering with the language model",
@@ -417,80 +337,16 @@ auto bot::register_events() -> void {
         util::log().info("in guild {} ({})", guild.name, guild.id);
 
         check_permissions(guild);
-        import_url_rules(guild);
-        settle_stranded_replacements(guild.id);
 
-        util::log().debug("{}: {} allowed bot(s), goodbye phrase \"{}\", URL replacement {} with {} rule(s)", guild.name,
-                          bot_allowlist_.for_guild(guild.id).size(),
-                          guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase),
-                          url_rules_.enabled(guild.id) ? "on" : "off", url_rules_.for_guild(guild.id).size());
+        util::log().debug("{}: {} allowed bot(s), goodbye phrase \"{}\"", guild.name, bot_allowlist_.for_guild(guild.id).size(),
+                          guild_settings_.get(guild.id, events::goodbye_phrase_key, events::default_goodbye_phrase));
     });
 
     // Every message: reduce it to plain data, let the stages decide, then do
     // what they asked. Handlers run on DPP's thread pool, so two messages
     // can be in here at once.
-    cluster_.on_message_create([this](const dpp::message_create_t& event) {
-        carry_out(pipeline_.run(describe(event.msg, event.raw_event)));
-        // Somebody's image or video, in a server that counts reactions on
-        // them (docs/features/Link_Stats.md §9).
-        const dpp::message& message = event.msg;
-        media_.on_message({.message_id = message.id,
-                           .guild_id = message.guild_id,
-                           .channel_id = message.channel_id,
-                           .author_id = message.author.id,
-                           .from_person = !message.author.is_bot() && message.webhook_id.empty(),
-                           .has_media = events::has_media(message),
-                           .has_links = !util::find_links(message.content).empty()});
-        // Emotes sent as a message of their own after a post, which count
-        // as reactions to it (docs/features/Link_Stats.md §12).
-        if (!message.guild_id.empty()) emotes_.on_message(message.channel_id, events::as_emote_message(events::describe_history(message)));
-    });
-
-    // Discord adds link previews by updating the message a moment after it
-    // was posted, which is how the embed tracker learns that a mirror worked
-    // (docs/features/Url_Replacement.md §3.3). Every update goes to it: the
-    // one for our message often arrives without an author, so there is
-    // nothing to filter on here.
-    cluster_.on_message_update([this](const dpp::message_update_t& event) {
-        const std::vector<std::string> urls = embed_urls_of(event.msg);
-        carry_out(embed_tracker_.on_embeds(event.msg.id, urls));
-        // The preview that shows a link was an image arrives here too, and
-        // emotes already sent after it are counted then.
-        if (media_.on_update(event.msg.id, events::has_media(event.msg))) emotes_.on_post(event.msg.channel_id, event.msg.id);
-    });
-    cluster_.on_message_delete([this](const dpp::message_delete_t& event) {
-        embed_tracker_.forget(event.id);
-        emotes_.on_delete(event.channel_id, event.id);
-    });
-
-    // Reaction statistics (docs/features/Link_Stats.md §3). Every reaction in
-    // every channel arrives here; the store counts the ones on our
-    // replacements and ignores the rest in the same statement that would have
-    // recorded them.
-    cluster_.on_message_reaction_add([this](const dpp::message_reaction_add_t& event) {
-        const dpp::emoji& emoji = event.reacting_emoji;
-        const auto reacted = events::reaction_emoji(emoji.id, emoji.name, emoji.is_animated());
-        if (reactions_.add(event.message_id, event.reacting_user.id, reacted, now_seconds())) {
-            util::log().debug("{} reacted {} to replacement {}", event.reacting_user.id, reacted.key, event.message_id);
-        }
-    });
-    cluster_.on_message_reaction_remove([this](const dpp::message_reaction_remove_t& event) {
-        const auto reacted = events::reaction_emoji(event.reacting_emoji.id, event.reacting_emoji.name);
-        if (reactions_.remove(event.message_id, event.reacting_user_id, reacted.key, now_seconds())) {
-            util::log().debug("{} took back {} on replacement {}", event.reacting_user_id, reacted.key, event.message_id);
-        }
-    });
-    cluster_.on_message_reaction_remove_emoji([this](const dpp::message_reaction_remove_emoji_t& event) {
-        const auto reacted = events::reaction_emoji(event.reacting_emoji.id, event.reacting_emoji.name);
-        if (const int gone = reactions_.remove_emoji(event.message_id, reacted.key, now_seconds()); gone > 0) {
-            util::log().debug("{} cleared from replacement {}: {} reaction(s)", reacted.key, event.message_id, gone);
-        }
-    });
-    cluster_.on_message_reaction_remove_all([this](const dpp::message_reaction_remove_all_t& event) {
-        if (const int gone = reactions_.remove_all(event.message_id, now_seconds()); gone > 0) {
-            util::log().debug("every reaction cleared from replacement {}: {}", event.message_id, gone);
-        }
-    });
+    cluster_.on_message_create(
+        [this](const dpp::message_create_t& event) { carry_out(pipeline_.run(describe(event.msg, event.raw_event))); });
 
     cluster_.on_autocomplete([this](const dpp::autocomplete_t& event) { commands_.offer_completions(event.name, event); });
 
@@ -589,11 +445,6 @@ auto bot::after(std::chrono::seconds delay, std::string name, std::function<void
 }
 
 auto bot::register_timers() -> void {
-    // One timer for every replacement being watched, rather than one each:
-    // the tracker knows whose time is up, and a second is as fine as DPP's
-    // timers go. Most ticks find nothing and cost a lock.
-    every(std::chrono::seconds{1}, "the preview tracker's tick", [this] { carry_out(embed_tracker_.tick()); });
-
     // Keeps a few seconds of music queued on each connection playing it
     // (docs/features/Music.md §4.2). Most ticks find nothing to do.
     every(std::chrono::seconds{1}, "feeding music", [this] { mixer_.tick(); });
@@ -615,19 +466,6 @@ auto bot::register_timers() -> void {
             util::log().info("left voice in guild {}: nobody else was there for {}", guild, grace(guild));
         }
     });
-
-    // The bot's own copies of the emojis it has seen, a few at a time. The
-    // copies belong to the bot's application, which it only knows once
-    // connected.
-    if (emoji_copier_.enabled()) {
-        every(events::copy_round_interval, "copying emojis", [this] {
-            if (!cluster_.me.id.empty()) detach(copy_emojis(), "copying emojis");
-        });
-        util::log().info("keeping copies of emojis used at least {} time{}", settings_.linkstats.emoji_copy_min_uses,
-                         settings_.linkstats.emoji_copy_min_uses == 1 ? "" : "s");
-    } else {
-        util::log().info("copying emojis is off");
-    }
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -670,54 +508,6 @@ auto bot::on_voice_state(const dpp::voicestate& state) -> void {
     // sees the channel as it is now.
     const dpp::snowflake channel = about_the_bot ? state.channel_id : discord::bot_voice_channel(cluster_, guild);
     auto_leave_.observe(guild, !channel.empty(), discord::humans_in(guild, channel, cluster_.me.id));
-}
-
-auto bot::import_url_rules(const dpp::guild& guild) -> void {
-    if (guild_settings_.get_bool(guild.id, url_rules_imported_key, false)) return;
-
-    // Marked only once a file was actually read, so dropping the file in
-    // after a first run still works.
-    const std::filesystem::path legacy = settings_.database_path.parent_path() / legacy_url_rules_file;
-    const auto imported = events::import_url_rules_file(url_rules_, guild.id, legacy);
-    if (!imported) return;
-
-    guild_settings_.set_bool(guild.id, url_rules_imported_key, true);
-    util::log().info("{}: imported {} URL rule(s) from {}{}", guild.name, *imported, legacy.generic_string(),
-                     url_rules_.enabled(guild.id) ? "" : "; they apply once someone runs /links enable there");
-}
-
-auto bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void {
-    auto plan = events::plan_retry(replacements_, url_rules_, message_id, event.command.guild_id);
-    if (const auto* reason = std::get_if<std::string>(&plan)) {
-        dpp::message note(*reason);
-        note.set_flags(dpp::m_ephemeral);
-        event.reply(note);
-        return;
-    }
-
-    auto& retry = std::get<events::retry_plan>(plan);
-    replacements_.set_state(message_id, events::replacement_state::retrying);
-    util::log().info("{} pressed Retry on replacement {} in guild {}", who, message_id, event.command.guild_id);
-
-    // Answering the button with the edit is the first attempt, so it cannot
-    // be overtaken by another press. Anyone may press it
-    // (docs/features/Url_Replacement.md §2.4).
-    event.reply(dpp::ir_update_message, events::build_edit(retry.first));
-    carry_out(embed_tracker_.watch(std::move(retry.request)));
-}
-
-auto bot::settle_stranded_replacements(dpp::snowflake guild_id) -> void {
-    std::vector<events::replacement_record> mine;
-    {
-        const std::scoped_lock guard(stranded_mutex_);
-        const auto found = stranded_.find(guild_id);
-        if (found == stranded_.end()) return;
-        mine = std::move(found->second);
-        stranded_.erase(found);
-    }
-
-    detach(events::settle_stranded(gateway_, replacements_, url_rules_, embed_tracker_, std::move(mine)),
-           "settling replacements the last run left unfinished");
 }
 
 auto bot::log_music_tools() -> void {
@@ -860,18 +650,6 @@ auto bot::music_unavailable() const -> std::string {
         missing);
 }
 
-auto bot::now_seconds() const -> std::chrono::sys_seconds {
-    return std::chrono::floor<std::chrono::seconds>(clock_.now());
-}
-
-auto bot::copy_emojis() -> dpp::task<void> {
-    co_await emoji_copier_.run_round();
-}
-
-auto bot::carry_out(std::vector<events::embed_action> actions) -> void {
-    if (!actions.empty()) detach(events::carry_out_embed_actions(gateway_, std::move(actions)), "updating a replacement");
-}
-
 auto bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) -> void {
     const auto state = ui::decode(custom_id);
     if (!state) {
@@ -892,7 +670,7 @@ auto bot::on_component(const dpp::interaction_create_t& event, const std::string
     // branch answer here, so nothing a panel already answered is answered
     // twice, unless it threw after answering.
     try {
-        if (!route_component(event, *state, chosen, who)) {
+        if (!route_component(event, *state, chosen)) {
             util::log().debug("no panel handles the view {} with argument '{}'", state->view, state->argument);
             answer_privately(event, stale_component_reply);
         }
@@ -902,23 +680,16 @@ auto bot::on_component(const dpp::interaction_create_t& event, const std::string
     }
 }
 
-auto bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                          const commands::user_label& who) -> bool {
+auto bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool {
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
     // is nothing here to expire, leak, or lose across a restart.
-    if (state.view == events::url_retry_view) {
-        retry_replacement(event, dpp::snowflake(state.argument), who);
-    } else if (panels_.claimed(state.view)) {
-        // A module's panel (docs/modules/Module_Plan_Final.md §4.6).
-        return panels_.on_component(event, state, chosen);
-    } else {
-        // Each panel's router says whether the view was one of its own.
-        return url_panel_.on_component(event, state, chosen) || voice_lab_.on_component(event, state, chosen) ||
-               llm_panels_.on_component(event, state, chosen) || commands::on_linkstats_component(reactions_, event, state, chosen) ||
-               commands::on_music_component(music_, event, state);
-    }
-    return true;
+    // A module's panel, by the view it claimed (docs/modules/Module_Plan_Final.md
+    // §4.6), and then those still in the core, each saying whether the view
+    // was one of its own.
+    if (panels_.claimed(state.view)) return panels_.on_component(event, state, chosen);
+    return voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen) ||
+           commands::on_music_component(music_, event, state);
 }
 
 auto bot::on_form(const dpp::form_submit_t& event) -> void {
@@ -935,8 +706,7 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
 
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && (panels_.on_form(event, *state) || url_panel_.on_form(event, *state) || voice_lab_.on_form(event, *state) ||
-                      llm_panels_.on_form(event, *state))) {
+        if (state && (panels_.on_form(event, *state) || voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
             // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);

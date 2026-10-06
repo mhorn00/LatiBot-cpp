@@ -18,9 +18,6 @@ namespace latibot::db {
 /// `guild_settings` and `allowed_bots`.
 [[nodiscard]] auto core_schema() noexcept -> module_schema;
 
-[[nodiscard]] auto links_schema() noexcept -> module_schema;
-/// Requires links': it counts reactions on `replacement_messages`.
-[[nodiscard]] auto linkstats_schema() noexcept -> module_schema;
 [[nodiscard]] auto dectalk_schema() noexcept -> module_schema;
 [[nodiscard]] auto llm_schema() noexcept -> module_schema;
 

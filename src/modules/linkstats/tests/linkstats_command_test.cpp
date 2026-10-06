@@ -1,18 +1,22 @@
 // /linkstats: leaderboards, emoji lists and aliases
 // (docs/features/Link_Stats.md §1).
 
-#include "core/commands/linkstats.hpp"
+#include "linkstats_command.hpp"
+#include "core/commands/registry.hpp"
 #include "core/db/database.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/text.hpp"
+#include "links/replacements.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "support/discord_limits.hpp"
 #include "support/panel_harness.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+
+#include <memory>
 
 #include <chrono>
 #include <cstdint>
@@ -46,6 +50,8 @@ struct fixture {
 
     fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
         replacements.record({.message_id = dpp::snowflake{501},
                              .guild_id = guild,
                              .channel_id = dpp::snowflake{2},
@@ -63,7 +69,7 @@ struct fixture {
 
 } // namespace
 
-TEST_CASE("changing aliases and recomputing need Manage Server, and reading does not", "[commands]") {
+TEST_CASE("changing aliases and recomputing need Manage Server, and reading does not", "[linkstats]") {
     // Discord's default permissions cover the whole command, and the command
     // is open to everyone, so this is the only thing standing between anybody
     // and a recompute of years of history
@@ -92,7 +98,7 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     CHECK(linkstats_refusal("recompute start", nobody) == "recomputing link stats needs Manage Server");
 }
 
-TEST_CASE("custom emojis with names alike are listed a group at a time", "[commands]") {
+TEST_CASE("custom emojis with names alike are listed a group at a time", "[linkstats]") {
     fixture test;
     CHECK(latibot::commands::render_similar(test.reactions, guild, 0, {}, true)
               .content.starts_with("No two custom emojis here have names alike"));
@@ -132,7 +138,7 @@ TEST_CASE("custom emojis with names alike are listed a group at a time", "[comma
     }
 }
 
-TEST_CASE("emojis alike are merged from the list by somebody with Manage Server", "[commands]") {
+TEST_CASE("emojis alike are merged from the list by somebody with Manage Server", "[linkstats]") {
     fixture test;
     test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{78}, "Skull"), day_one);
     test.reactions.add(dpp::snowflake{501}, alice, reaction_emoji(dpp::snowflake{79}, "skul"), day_one);
@@ -177,7 +183,7 @@ TEST_CASE("emojis alike are merged from the list by somebody with Manage Server"
     }
 }
 
-TEST_CASE("aliases are listed as what counts as what, within Discord's limit", "[commands]") {
+TEST_CASE("aliases are listed as what counts as what, within Discord's limit", "[linkstats]") {
     fixture test;
     CHECK(latibot::commands::render_aliases(test.reactions, guild).starts_with("No emoji aliases here."));
 
@@ -198,7 +204,7 @@ TEST_CASE("aliases are listed as what counts as what, within Discord's limit", "
     CHECK(many.ends_with("…and more\n"));
 }
 
-TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
+TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[linkstats]") {
     CHECK(parse_day("2024-02-29") == std::chrono::sys_days{std::chrono::year{2024} / 2 / 29});
     CHECK_FALSE(parse_day("2023-02-29").has_value());
     CHECK_FALSE(parse_day("2024-13-01").has_value());
@@ -207,7 +213,7 @@ TEST_CASE("dates are read as YYYY-MM-DD and must exist", "[commands]") {
     CHECK_FALSE(parse_day("yesterday").has_value());
 }
 
-TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
+TEST_CASE("the leaderboard names people without pinging them", "[linkstats]") {
     const fixture test;
     const std::string text =
         latibot::commands::render_board(test.reactions, guild, board::received, {.kind = stat_kind::received, .source = links_only})
@@ -219,7 +225,7 @@ TEST_CASE("the leaderboard names people without pinging them", "[commands]") {
     CHECK_FALSE(text.contains("<@12>"));
 }
 
-TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]") {
+TEST_CASE("the emoji leaderboard shows emojis rather than people", "[linkstats]") {
     const fixture test;
     const std::string text = latibot::commands::render_board(test.reactions, guild, board::emoji, {.kind = stat_kind::received}).content;
 
@@ -228,14 +234,14 @@ TEST_CASE("the emoji leaderboard shows emojis rather than people", "[commands]")
     CHECK_FALSE(text.contains("😂"));
 }
 
-TEST_CASE("an empty leaderboard says how to fill it", "[commands]") {
+TEST_CASE("an empty leaderboard says how to fill it", "[linkstats]") {
     const fixture test;
     const std::string text =
         latibot::commands::render_board(test.reactions, dpp::snowflake{5}, board::given, {.kind = stat_kind::given}).content;
     CHECK(text.contains("/linkstats recompute"));
 }
 
-TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
+TEST_CASE("a date range shows in the title as it was typed", "[linkstats]") {
     const fixture test;
     const latibot::events::stat_query query{.kind = stat_kind::received,
                                             .since = std::chrono::sys_days{std::chrono::year{2026} / 1 / 1},
@@ -244,7 +250,7 @@ TEST_CASE("a date range shows in the title as it was typed", "[commands]") {
     CHECK(text.contains("since 2026-01-01 until 2026-01-31"));
 }
 
-TEST_CASE("an emoji can be named rather than drawn", "[commands]") {
+TEST_CASE("an emoji can be named rather than drawn", "[linkstats]") {
     const fixture test;
 
     const auto by_name = latibot::commands::resolve_emoji(test.reactions, guild, "Skull");
@@ -260,7 +266,7 @@ TEST_CASE("an emoji can be named rather than drawn", "[commands]") {
     CHECK_FALSE(latibot::commands::resolve_emoji(test.reactions, guild, "nothing_like_it").has_value());
 }
 
-TEST_CASE("link stats are open to everyone, with aliases in a group", "[commands]") {
+TEST_CASE("link stats are open to everyone, with aliases in a group", "[linkstats]") {
     fixture test;
     const latibot::commands::linkstats_command command(test.reactions);
 
@@ -273,7 +279,7 @@ TEST_CASE("link stats are open to everyone, with aliases in a group", "[commands
     CHECK(alias->options.size() == 3);
 }
 
-TEST_CASE("the longest site filter still leaves room for a board's paging", "[commands]") {
+TEST_CASE("the longest site filter still leaves room for a board's paging", "[linkstats]") {
     // The filters ride in the ◀ / ▶ buttons' custom_id; a site too long for it
     // used to drop the paging without a word.
     fixture test;
@@ -299,7 +305,7 @@ TEST_CASE("the longest site filter still leaves room for a board's paging", "[co
               .has_value());
 }
 
-TEST_CASE("a recompute's report says what it found and what it could not read", "[commands]") {
+TEST_CASE("a recompute's report says what it found and what it could not read", "[linkstats]") {
     const latibot::events::backfill_request request{.guild_id = guild,
                                                     .channel_ids = {dpp::snowflake{1}, dpp::snowflake{2}},
                                                     .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
@@ -368,7 +374,7 @@ TEST_CASE("a recompute's report says what it found and what it could not read", 
     }
 }
 
-TEST_CASE("recompute is its own group, with a required start date", "[commands]") {
+TEST_CASE("recompute is its own group, with a required start date", "[linkstats]") {
     fixture test;
     const latibot::commands::linkstats_command command(test.reactions);
     const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
@@ -387,7 +393,7 @@ TEST_CASE("recompute is its own group, with a required start date", "[commands]"
     CHECK((command.info().required_bot_permissions & dpp::p_read_message_history) != 0);
 }
 
-TEST_CASE("a long leaderboard pages, and every page is the same board", "[commands]") {
+TEST_CASE("a long leaderboard pages, and every page is the same board", "[linkstats]") {
     fixture test;
     // Twelve more posters, each with one skull from Bob.
     for (std::uint64_t index = 0; index < 12; ++index) {
@@ -429,7 +435,7 @@ TEST_CASE("a long leaderboard pages, and every page is the same board", "[comman
     latibot::testing::check_message_fits(second);
 }
 
-TEST_CASE("a board's filters survive the trip through a button", "[commands]") {
+TEST_CASE("a board's filters survive the trip through a button", "[linkstats]") {
     const latibot::events::stat_query query{.kind = stat_kind::given,
                                             .emoji_key = "c:77",
                                             .user_id = {},
@@ -454,7 +460,7 @@ TEST_CASE("a board's filters survive the trip through a button", "[commands]") {
     CHECK_FALSE(latibot::commands::decode_board("r;;;soon;").has_value());
 }
 
-TEST_CASE("a board can be limited to one site", "[commands]") {
+TEST_CASE("a board can be limited to one site", "[linkstats]") {
     fixture test;
     test.replacements.record(
         {.message_id = dpp::snowflake{700},
@@ -477,7 +483,7 @@ TEST_CASE("a board can be limited to one site", "[commands]") {
     CHECK(test.reactions.known_domains(guild) == std::vector<std::string>{"tiktok.com"});
 }
 
-TEST_CASE("what a leaderboard ranks is read from its option", "[commands]") {
+TEST_CASE("what a leaderboard ranks is read from its option", "[linkstats]") {
     CHECK(latibot::commands::board_from_string("") == board::received);
     CHECK(latibot::commands::board_from_string("given") == board::given);
     CHECK(latibot::commands::board_from_string("self") == board::self);
@@ -485,7 +491,7 @@ TEST_CASE("what a leaderboard ranks is read from its option", "[commands]") {
     CHECK_FALSE(latibot::commands::board_from_string("bogus").has_value());
 }
 
-TEST_CASE("a finished recompute is answered with a ping to whoever started it", "[commands]") {
+TEST_CASE("a finished recompute is answered with a ping to whoever started it", "[linkstats]") {
     const latibot::events::backfill_request request{.guild_id = guild,
                                                     .channel_ids = {dpp::snowflake{1}},
                                                     .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
@@ -535,7 +541,7 @@ TEST_CASE("a finished recompute is answered with a ping to whoever started it", 
     }
 }
 
-TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands]") {
+TEST_CASE("every reaction, by emoji, for everyone or for one person", "[linkstats]") {
     fixture test;
     // A link of Bob's, which Alice reacted to.
     test.replacements.record({.message_id = dpp::snowflake{502},
@@ -576,7 +582,7 @@ TEST_CASE("every reaction, by emoji, for everyone or for one person", "[commands
     }
 }
 
-TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
+TEST_CASE("a page of one person's reactions stays theirs", "[linkstats]") {
     fixture test;
     // Thirty emojis from Bob on Alice's link: two pages.
     for (std::uint64_t index = 0; index < 30; ++index) {
@@ -604,7 +610,7 @@ TEST_CASE("a page of one person's reactions stays theirs", "[commands]") {
     CHECK(second.content.contains("32. "));
 }
 
-TEST_CASE("a board's buttons from before people could be named still page", "[commands]") {
+TEST_CASE("a board's buttons from before people could be named still page", "[linkstats]") {
     const auto old = latibot::commands::decode_board("g;c:77;x.com;20089;");
     REQUIRE(old.has_value());
     CHECK(old->which == board::given);
@@ -618,7 +624,7 @@ TEST_CASE("a board's buttons from before people could be named still page", "[co
 // Images and videos (docs/features/Link_Stats.md §9)
 // --------------------------------------------------------------------------
 
-TEST_CASE("a board says what it counts: links, images, or both", "[commands]") {
+TEST_CASE("a board says what it counts: links, images, or both", "[linkstats]") {
     using latibot::events::stat_source;
     const fixture test;
     const auto title = [&](board which, stat_source source) {
@@ -639,7 +645,7 @@ TEST_CASE("a board says what it counts: links, images, or both", "[commands]") {
     CHECK(site.starts_with("**Most reactions received on replaced x.com links**"));
 }
 
-TEST_CASE("what a board counts survives the trip through a button", "[commands]") {
+TEST_CASE("what a board counts survives the trip through a button", "[linkstats]") {
     using latibot::events::stat_source;
     for (const stat_source source : {stat_source::both, stat_source::links, stat_source::images}) {
         const auto decoded = latibot::commands::decode_board(
@@ -655,7 +661,7 @@ TEST_CASE("what a board counts survives the trip through a button", "[commands]"
     CHECK_FALSE(latibot::commands::decode_board("e;;;;;11;q").has_value());
 }
 
-TEST_CASE("images are turned on per server, and the boards can ask for them", "[commands]") {
+TEST_CASE("images are turned on per server, and the boards can ask for them", "[linkstats]") {
     fixture test;
     const latibot::commands::linkstats_command command(test.reactions);
     const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
@@ -680,7 +686,7 @@ TEST_CASE("images are turned on per server, and the boards can ask for them", "[
     CHECK(command.info().responses_for("images off").result == dpp::m_ephemeral);
 }
 
-TEST_CASE("a recompute that counts images says what it found", "[commands]") {
+TEST_CASE("a recompute that counts images says what it found", "[linkstats]") {
     latibot::events::backfill_request request{.guild_id = guild,
                                               .channel_ids = {dpp::snowflake{1}},
                                               .since = std::chrono::sys_days{std::chrono::year{2021} / 1 / 1},
@@ -708,7 +714,7 @@ TEST_CASE("a recompute that counts images says what it found", "[commands]") {
 // Page size
 // --------------------------------------------------------------------------
 
-TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[commands]") {
+TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[linkstats]") {
     fixture test;
     for (std::uint64_t index = 0; index < 30; ++index) {
         test.reactions.add(dpp::snowflake{501}, bob, reaction_emoji(dpp::snowflake{900 + index}, std::format("e{}", index)), day_one);
@@ -736,7 +742,7 @@ TEST_CASE("per_page sets how many to a page, and the buttons remember it", "[com
     CHECK(latibot::commands::render_board(test.reactions, guild, board::emoji, alices, 0, 100).components.empty());
 }
 
-TEST_CASE("a page size is only as big as fits in a message", "[commands]") {
+TEST_CASE("a page size is only as big as fits in a message", "[linkstats]") {
     fixture test;
     // 150 emojis with the longest names Discord allows.
     for (std::uint64_t index = 0; index < 150; ++index) {
@@ -764,7 +770,7 @@ TEST_CASE("a page size is only as big as fits in a message", "[commands]") {
     }
 }
 
-TEST_CASE("a page size survives the trip through a button, and nothing else passes for one", "[commands]") {
+TEST_CASE("a page size survives the trip through a button, and nothing else passes for one", "[linkstats]") {
     const latibot::events::stat_query query{.kind = stat_kind::received, .user_id = alice, .source = latibot::events::stat_source::both};
     CHECK(latibot::commands::decode_board(latibot::commands::encode_board(board::emoji, query, 60))->per_page == 60);
     CHECK(latibot::commands::decode_board(latibot::commands::encode_board(board::emoji, query))->per_page == 0);
@@ -790,7 +796,7 @@ TEST_CASE("a page size survives the trip through a button, and nothing else pass
               .has_value());
 }
 
-TEST_CASE("top and reactions take a page size, and there is no user subcommand", "[commands]") {
+TEST_CASE("top and reactions take a page size, and there is no user subcommand", "[linkstats]") {
     fixture test;
     const latibot::commands::linkstats_command command(test.reactions);
     const dpp::slashcommand payload = command.build("linkstats", dpp::snowflake{1});
@@ -809,4 +815,28 @@ TEST_CASE("top and reactions take a page size, and there is no user subcommand",
         CHECK(std::get<std::int64_t>(per_page->min_value) == 1);
         CHECK(std::cmp_equal(std::get<std::int64_t>(per_page->max_value), latibot::commands::max_page_size));
     }
+}
+
+TEST_CASE("linkstats passes the registry's checks, and its boards are for the room", "[linkstats]") {
+    // The checks registry::add makes of every command, for this one
+    // (docs/modules/Module_Plan_Final.md §10).
+    latibot::db::database db{":memory:"};
+    latibot::events::reaction_store reactions(db);
+
+    latibot::commands::registry commands;
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::linkstats_command>(reactions)));
+
+    const latibot::commands::linkstats_command linkstats(reactions);
+    const latibot::commands::command_info& stats = linkstats.info();
+    for (const char* board : {"top", "reactions", "alias list"}) {
+        INFO(board);
+        CHECK(stats.responses_for(board).result == dpp::m_suppress_notifications);
+    }
+    for (const char* private_answer :
+         {"duplicates", "alias add", "alias remove", "recompute start", "recompute cancel", "images on", "images off"}) {
+        INFO(private_answer);
+        CHECK(stats.responses_for(private_answer).result == dpp::m_ephemeral);
+    }
+    CHECK(stats.responses_for("top").refusal == dpp::m_ephemeral);
+    CHECK(stats.responses_for("recompute start").post == dpp::m_suppress_notifications);
 }

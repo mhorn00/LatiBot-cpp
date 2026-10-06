@@ -7,7 +7,6 @@
 #include "core/audio/voice_store.hpp"
 #include "core/commands/llm.hpp"
 #include "core/commands/registry.hpp"
-#include "core/commands/urlrepl.hpp"
 #include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
@@ -16,16 +15,9 @@
 #include "core/discord/dpp_http_client.hpp"
 #include "core/discord/dpp_voice_output.hpp"
 #include "core/discord/raw_api.hpp"
-#include "core/events/backfill.hpp"
 #include "core/events/bot_allowlist.hpp"
-#include "core/events/emoji_copies.hpp"
-#include "core/events/emote_reactions.hpp"
 #include "core/events/log_channel.hpp"
-#include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/url_replacer.hpp"
-#include "core/events/url_rules.hpp"
 #include "core/events/voice_sessions.hpp"
 #include "core/llm/advanced_triggers.hpp"
 #include "core/llm/aliases.hpp"
@@ -174,8 +166,7 @@ private:
 
     /// Does what a decoded component asks. False when no panel claims it,
     /// which `on_component` answers.
-    auto route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
-                         const commands::user_label& who) -> bool;
+    auto route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool;
 
     /// Modal submissions.
     auto on_form(const dpp::form_submit_t& event) -> void;
@@ -184,28 +175,6 @@ private:
     /// bot leaves a channel, however that happened, and tells the auto-leave
     /// check whether it is on its own (docs/features/Voice_Channels.md §2.3).
     auto on_voice_state(const dpp::voicestate& state) -> void;
-
-    /// Copies the Java bot's URL rules into a guild, once
-    /// (docs/features/Url_Replacement.md §2.7).
-    auto import_url_rules(const dpp::guild& guild) -> void;
-
-    /// Somebody pressed Retry on a replacement that found no preview.
-    auto retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void;
-
-    /// Settles this guild's replacements the last run left mid-watch, once:
-    /// its first guild_create hands them over
-    /// (docs/features/Url_Replacement.md §2.5).
-    auto settle_stranded_replacements(dpp::snowflake guild_id) -> void;
-
-    /// Runs what the embed tracker decided, without holding up the caller.
-    auto carry_out(std::vector<events::embed_action> actions) -> void;
-
-    /// One round of keeping the bot's own copies of emojis
-    /// (docs/features/Link_Stats.md §10).
-    auto copy_emojis() -> dpp::task<void>;
-
-    /// The clock's time to the second, which is what the database stores.
-    [[nodiscard]] auto now_seconds() const -> std::chrono::sys_seconds;
 
     config::bootstrap settings_;
     db::database database_;
@@ -220,17 +189,6 @@ private:
     ports::system_clock clock_;
 
     events::bot_allowlist bot_allowlist_;
-    events::url_rule_store url_rules_;
-    commands::url_panel url_panel_;
-    events::replacement_store replacements_;
-    events::media_tracker media_;
-    events::reaction_store reactions_;
-    events::emote_tracker emotes_;
-    events::backfill_progress_store backfill_progress_;
-    events::backfill_service backfill_;
-    events::emoji_copy_store emoji_copies_;
-    events::emoji_copier emoji_copier_;
-    events::embed_tracker embed_tracker_;
     events::pipeline pipeline_;
 
     // Speech (docs/features/Speech.md, docs/features/Voice_Channels.md). The
@@ -294,12 +252,6 @@ private:
     /// the rest shuts down reaches the console and nothing else.
     events::log_destination_store log_destinations_;
     events::log_channel log_channel_;
-
-    /// Replacements the last run left `pending` or `retrying`, by guild. Read
-    /// in the constructor, before anything can be posted, so none of them is
-    /// one this run is still watching.
-    std::mutex stranded_mutex_;
-    std::map<dpp::snowflake, std::vector<events::replacement_record>> stranded_;
 
     /// Asks yt-dlp and ffmpeg their versions at startup, for the log, without
     /// holding startup up.

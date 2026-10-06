@@ -2,13 +2,14 @@
 // (docs/features/Link_Stats.md §4), against the Discord mock and a real
 // database.
 
-#include "core/events/backfill.hpp"
+#include "backfill.hpp"
 #include "core/db/database.hpp"
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
-#include "core/events/url_rules.hpp"
+#include "legacy_replacements.hpp"
+#include "links/replacements.hpp"
+#include "links/url_rules.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "support/schema.hpp"
@@ -91,6 +92,8 @@ struct fixture {
     /// that broke before this database existed.
     explicit fixture(bool with_rules = true) {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
         if (!with_rules) return;
         // A rule long since changed: the old mirror is still known.
         rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
@@ -109,7 +112,7 @@ struct fixture {
 
 } // namespace
 
-TEST_CASE("a recompute credits an old replacement to whoever posted the link", "[events][coro]") {
+TEST_CASE("a recompute credits an old replacement to whoever posted the link", "[linkstats][coro]") {
     fixture test;
     test.script_history();
 
@@ -138,7 +141,7 @@ TEST_CASE("a recompute credits an old replacement to whoever posted the link", "
     CHECK(test.discord.reaction_requests[1].emoji == "skull:7001");
 }
 
-TEST_CASE("an old replacement is filed under the site its mirror stood in for", "[events][coro]") {
+TEST_CASE("an old replacement is filed under the site its mirror stood in for", "[linkstats][coro]") {
     fixture test;
     test.script_history();
     test.run(request());
@@ -154,7 +157,7 @@ TEST_CASE("an old replacement is filed under the site its mirror stood in for", 
     CHECK(test.reactions.total(guild, on_tiktok) == 0);
 }
 
-TEST_CASE("a replacement after somebody else's link is reported, not credited to them", "[events][coro]") {
+TEST_CASE("a replacement after somebody else's link is reported, not credited to them", "[linkstats][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(std::vector<dpp::message>{
         message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true),
@@ -168,7 +171,7 @@ TEST_CASE("a replacement after somebody else's link is reported, not credited to
     CHECK_FALSE(test.replacements.find(id_at(10s))->original_author_id.has_value());
 }
 
-TEST_CASE("a recompute is safe to run twice", "[events][coro]") {
+TEST_CASE("a recompute is safe to run twice", "[linkstats][coro]") {
     fixture test;
     test.script_history();
     test.run(request());
@@ -180,7 +183,7 @@ TEST_CASE("a recompute is safe to run twice", "[events][coro]") {
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 2);
 }
 
-TEST_CASE("a finished channel is not scanned again unless asked", "[events][coro]") {
+TEST_CASE("a finished channel is not scanned again unless asked", "[linkstats][coro]") {
     fixture test;
     test.script_history();
     test.run(request());
@@ -191,7 +194,7 @@ TEST_CASE("a finished channel is not scanned again unless asked", "[events][coro
     CHECK(test.discord.history_requests.size() == 1);
 }
 
-TEST_CASE("the walk stops at the start of the range", "[events][coro]") {
+TEST_CASE("the walk stops at the start of the range", "[linkstats][coro]") {
     fixture test;
     test.script_history();
 
@@ -205,7 +208,7 @@ TEST_CASE("the walk stops at the start of the range", "[events][coro]") {
     CHECK(test.replacements.find(id_at(10s))->original_author_id == alice);
 }
 
-TEST_CASE("the end of the range is where paging starts", "[events][coro]") {
+TEST_CASE("the end of the range is where paging starts", "[linkstats][coro]") {
     fixture test;
     backfill_request wanted = request();
     wanted.until = day_one + 24h;
@@ -215,7 +218,7 @@ TEST_CASE("the end of the range is where paging starts", "[events][coro]") {
     CHECK(test.discord.history_requests[0].before == first_id_at(day_one + 24h));
 }
 
-TEST_CASE("a replacement the bot recorded itself is not re-attributed", "[events][coro]") {
+TEST_CASE("a replacement the bot recorded itself is not re-attributed", "[linkstats][coro]") {
     fixture test;
     test.replacements.record({.message_id = id_at(10s),
                               .guild_id = guild,
@@ -232,7 +235,7 @@ TEST_CASE("a replacement the bot recorded itself is not re-attributed", "[events
     CHECK(test.replacements.find(id_at(10s))->original_author_id == carol);
 }
 
-TEST_CASE("messages in no known format are listed with where they are", "[events][coro]") {
+TEST_CASE("messages in no known format are listed with where they are", "[linkstats][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(
         std::vector<dpp::message>{message(id_at(10s), bot, "here [tweet](https://fxtwitter.com/alice/status/1)", true)});
@@ -245,7 +248,7 @@ TEST_CASE("messages in no known format are listed with where they are", "[events
           std::format("https://discord.com/channels/1000/2000/{}", static_cast<std::uint64_t>(id_at(10s))));
 }
 
-TEST_CASE("a replacement with nobody to credit still counts its reactions", "[events][coro]") {
+TEST_CASE("a replacement with nobody to credit still counts its reactions", "[linkstats][coro]") {
     fixture test;
     dpp::message lonely = message(id_at(10s), bot, "🔗[_](https://fxtwitter.com/alice/status/1)", true);
     lonely.reactions = {reaction("💀", 1)};
@@ -258,7 +261,7 @@ TEST_CASE("a replacement with nobody to credit still counts its reactions", "[ev
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 0);
 }
 
-TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[events][coro]") {
+TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[linkstats][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 403, .message = "Missing Access"}));
     test.script_history();
@@ -272,7 +275,7 @@ TEST_CASE("a channel the bot cannot read is reported and the rest carry on", "[e
     CHECK(report.replacements == 1);
 }
 
-TEST_CASE("a failed reaction lookup keeps the counts that were there", "[events][coro]") {
+TEST_CASE("a failed reaction lookup keeps the counts that were there", "[linkstats][coro]") {
     fixture test;
     test.script_history();
     test.run(request());
@@ -286,7 +289,7 @@ TEST_CASE("a failed reaction lookup keeps the counts that were there", "[events]
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received}) == 2);
 }
 
-TEST_CASE("one recompute per guild, and it can be cancelled", "[events][coro]") {
+TEST_CASE("one recompute per guild, and it can be cancelled", "[linkstats][coro]") {
     fixture test;
 
     CHECK(test.service.begin(guild));
@@ -304,7 +307,7 @@ TEST_CASE("one recompute per guild, and it can be cancelled", "[events][coro]") 
     CHECK_FALSE(test.service.cancel(guild));
 }
 
-TEST_CASE("an old mirror no rule remembers is found by what it answered, and remembered", "[events][coro]") {
+TEST_CASE("an old mirror no rule remembers is found by what it answered, and remembered", "[linkstats][coro]") {
     fixture test(/*with_rules=*/false);
     dpp::message copy = message(id_at(10s), bot, "look https://oldfixer.com/alice/status/1", true);
     copy.reactions = {reaction("💀", 1)};
@@ -329,7 +332,7 @@ TEST_CASE("an old mirror no rule remembers is found by what it answered, and rem
     CHECK(stored->links[0].domain == "x.com");
 }
 
-TEST_CASE("a masked replacement is recognised by its shape, whatever its mirror", "[events][coro]") {
+TEST_CASE("a masked replacement is recognised by its shape, whatever its mirror", "[linkstats][coro]") {
     fixture test(/*with_rules=*/false);
     dpp::message lonely = message(id_at(10s), bot, "🔗 [_](https://long-gone.example/alice/status/1)", true);
     lonely.reactions = {reaction("💀", 1)};
@@ -342,7 +345,7 @@ TEST_CASE("a masked replacement is recognised by its shape, whatever its mirror"
     CHECK(test.reactions.total(guild, {.kind = stat_kind::given, .user_id = bob}) == 1);
 }
 
-TEST_CASE("the bot's own links are not replacements unless they answered one", "[events][coro]") {
+TEST_CASE("the bot's own links are not replacements unless they answered one", "[linkstats][coro]") {
     fixture test(/*with_rules=*/false);
 
     SECTION("a link in something it said") {
@@ -401,7 +404,7 @@ auto history_with_images() -> std::vector<dpp::message> {
 
 } // namespace
 
-TEST_CASE("where images are counted, a recompute finds them and their reactions", "[events][coro]") {
+TEST_CASE("where images are counted, a recompute finds them and their reactions", "[linkstats][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(history_with_images());
     test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob});
@@ -429,7 +432,7 @@ TEST_CASE("where images are counted, a recompute finds them and their reactions"
     CHECK(test.reactions.total(guild, {.kind = stat_kind::received, .user_id = alice, .source = stat_source::both}) == 3);
 }
 
-TEST_CASE("where images are not counted, a recompute leaves them alone", "[events][coro]") {
+TEST_CASE("where images are not counted, a recompute leaves them alone", "[linkstats][coro]") {
     fixture test;
     test.discord.message_pages.emplace_back(history_with_images());
     test.discord.reaction_pages.emplace_back(std::vector<dpp::snowflake>{bob, carol});
@@ -458,7 +461,7 @@ auto reply(dpp::snowflake id, dpp::snowflake author, const std::string& content,
 
 } // namespace
 
-TEST_CASE("a recompute counts emotes sent after a replacement as reactions to it", "[events][coro]") {
+TEST_CASE("a recompute counts emotes sent after a replacement as reactions to it", "[linkstats][coro]") {
     fixture test;
     std::vector<dpp::message> page{
         reply(id_at(40s), alice, "👀", id_at(10s)),
@@ -488,7 +491,7 @@ TEST_CASE("a recompute counts emotes sent after a replacement as reactions to it
     }
 }
 
-TEST_CASE("the messages after a post are carried across a page of history", "[events][coro]") {
+TEST_CASE("the messages after a post are carried across a page of history", "[linkstats][coro]") {
     fixture test;
 
     // A full page, its oldest message Bob's skull just after the

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/reactions.hpp"
+#include "legacy_replacements.hpp"
+#include "reactions.hpp"
 
 #include <dpp/snowflake.h>
 

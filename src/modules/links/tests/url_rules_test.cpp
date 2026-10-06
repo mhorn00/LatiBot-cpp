@@ -1,7 +1,7 @@
 // Deciding which links in a message get replaced, and with what
 // (docs/features/Url_Replacement.md §3.1).
 
-#include "core/events/url_rules.hpp"
+#include "links/url_rules.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -28,7 +28,7 @@ auto sample_rules() -> std::vector<url_rule> {
 
 } // namespace
 
-TEST_CASE("a link to a site without a rule does not stop the others", "[events]") {
+TEST_CASE("a link to a site without a rule does not stop the others", "[links]") {
     // The Java bot returned null from the whole message the moment it met a
     // domain it had no rule for.
     const auto planned = plan_replacements("https://example.com/a then https://x.com/b/status/1", sample_rules());
@@ -38,7 +38,7 @@ TEST_CASE("a link to a site without a rule does not stop the others", "[events]"
     CHECK(planned[0].domain == "x.com");
 }
 
-TEST_CASE("each link picks its mirror on its own", "[events]") {
+TEST_CASE("each link picks its mirror on its own", "[links]") {
     // The Java loop reassigned one shared index as it went, so the second
     // link's mirror depended on how many the first one had.
     const auto planned = plan_replacements("https://tiktok.com/@a/video/1 https://x.com/b/status/2", sample_rules());
@@ -49,35 +49,35 @@ TEST_CASE("each link picks its mirror on its own", "[events]") {
     CHECK(mirror_url(planned[1], 1) == "https://vxtwitter.com/b/status/2");
 }
 
-TEST_CASE("a mirror index past the end uses the last mirror", "[events]") {
+TEST_CASE("a mirror index past the end uses the last mirror", "[links]") {
     const auto planned = plan_replacements("https://tiktok.com/@a/video/1", sample_rules());
     REQUIRE(planned.size() == 1);
     CHECK(mirror_url(planned[0], 7) == "https://tfxktok.com/@a/video/1");
 }
 
-TEST_CASE("www and letter case do not hide a link from its rule", "[events]") {
+TEST_CASE("www and letter case do not hide a link from its rule", "[links]") {
     const auto planned = plan_replacements("https://WWW.X.com/b/status/1", sample_rules());
     REQUIRE(planned.size() == 1);
     CHECK(mirror_url(planned[0], 1) == "https://vxtwitter.com/b/status/1");
 }
 
-TEST_CASE("the spoiler survives into the plan", "[events]") {
+TEST_CASE("the spoiler survives into the plan", "[links]") {
     const auto planned = plan_replacements("||https://x.com/b/status/1||", sample_rules());
     REQUIRE(planned.size() == 1);
     CHECK(planned[0].spoilered);
 }
 
-TEST_CASE("links Discord would not have embedded are left alone", "[events]") {
+TEST_CASE("links Discord would not have embedded are left alone", "[links]") {
     CHECK(plan_replacements("<https://x.com/b/status/1>", sample_rules()).empty());
     CHECK(plan_replacements("`https://x.com/b/status/1`", sample_rules()).empty());
 }
 
-TEST_CASE("the same link twice is replaced once", "[events]") {
+TEST_CASE("the same link twice is replaced once", "[links]") {
     const auto planned = plan_replacements("https://x.com/b/status/1 https://x.com/b/status/1", sample_rules());
     CHECK(planned.size() == 1);
 }
 
-TEST_CASE("a message of links is capped", "[events]") {
+TEST_CASE("a message of links is capped", "[links]") {
     std::string content;
     for (int index = 0; index < 20; ++index) {
         content += "https://x.com/a/status/" + std::to_string(index) + " ";
@@ -85,7 +85,7 @@ TEST_CASE("a message of links is capped", "[events]") {
     CHECK(plan_replacements(content, sample_rules()).size() == latibot::events::max_links_per_message);
 }
 
-TEST_CASE("every link gets a verdict, and the plan is the replaced ones", "[events]") {
+TEST_CASE("every link gets a verdict, and the plan is the replaced ones", "[links]") {
     using latibot::events::link_decision;
 
     std::string content = "https://x.com/a/status/1 https://x.com/a/status/1 https://example.com/b <https://x.com/c> `https://x.com/d` ";
@@ -108,11 +108,11 @@ TEST_CASE("every link gets a verdict, and the plan is the replaced ones", "[even
     CHECK(plan_replacements(content, sample_rules()).size() == latibot::events::max_links_per_message);
 }
 
-TEST_CASE("no rules means no plan", "[events]") {
+TEST_CASE("no rules means no plan", "[links]") {
     CHECK(plan_replacements("https://x.com/b/status/1", {}).empty());
 }
 
-TEST_CASE("a mirror is its host plus an optional suffix", "[events]") {
+TEST_CASE("a mirror is its host plus an optional suffix", "[links]") {
     CHECK(parse_mirror("fxtwitter.com") == mirror{.host = "fxtwitter.com", .translate_suffix = ""});
     CHECK(parse_mirror("fxtwitter.com/en") == mirror{.host = "fxtwitter.com", .translate_suffix = "/en"});
     CHECK(parse_mirror("  https://www.FXtwitter.com/en/ ") == mirror{.host = "fxtwitter.com", .translate_suffix = "/en"});
@@ -120,13 +120,13 @@ TEST_CASE("a mirror is its host plus an optional suffix", "[events]") {
     CHECK_FALSE(parse_mirror("https:///en").has_value());
 }
 
-TEST_CASE("a typed domain is reduced to its rule host", "[events]") {
+TEST_CASE("a typed domain is reduced to its rule host", "[links]") {
     CHECK(normalise_domain("x.com") == "x.com");
     CHECK(normalise_domain("https://www.X.com/some/path") == "x.com");
     CHECK_FALSE(normalise_domain("   ").has_value());
 }
 
-TEST_CASE("the Java rule file is read line by line", "[events]") {
+TEST_CASE("the Java rule file is read line by line", "[links]") {
     const auto parsed = parse_legacy_rules(
         "tiktok.com|tfxktok.com^vxtiktok.com\n"
         "x.com|fxtwitter.com\r\n"

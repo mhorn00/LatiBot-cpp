@@ -1,7 +1,7 @@
-#include "core/events/legacy_replacements.hpp"
+#include "legacy_replacements.hpp"
 
-#include "core/events/media_posts.hpp"
 #include "core/util/url_scan.hpp"
+#include "media_posts.hpp"
 
 #include <algorithm>
 #include <array>

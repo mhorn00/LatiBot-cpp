@@ -1,4 +1,4 @@
-#include "core/events/emoji_copies.hpp"
+#include "emoji_copies.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

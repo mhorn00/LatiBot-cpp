@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/events/url_rules.hpp"
+#include "links/url_rules.hpp"
 
 #include <dpp/message.h>
 #include <dpp/snowflake.h>

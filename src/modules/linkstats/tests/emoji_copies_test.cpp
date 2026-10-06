@@ -2,12 +2,13 @@
 // (docs/features/Link_Stats.md §10): what to copy, downloading and uploading
 // them, and pruning.
 
-#include "core/events/emoji_copies.hpp"
-#include "core/commands/linkstats.hpp"
+#include "emoji_copies.hpp"
 #include "core/db/database.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
+#include "links/replacements.hpp"
+#include "linkstats_command.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_http.hpp"
@@ -53,6 +54,8 @@ struct fixture {
 
     fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
         replacements.record({.message_id = post,
                              .guild_id = guild,
                              .channel_id = dpp::snowflake{2},
@@ -88,18 +91,18 @@ struct fixture {
 // The pieces
 // --------------------------------------------------------------------------
 
-TEST_CASE("a GIF moves when it has more than one frame", "[events]") {
+TEST_CASE("a GIF moves when it has more than one frame", "[linkstats]") {
     CHECK(latibot::events::is_animated_gif(moving_gif()));
     CHECK_FALSE(latibot::events::is_animated_gif("GIF89a\x21\xF9\x04still"));
     CHECK_FALSE(latibot::events::is_animated_gif(still_png()));
 }
 
-TEST_CASE("images are told apart by their SHA-256", "[events]") {
+TEST_CASE("images are told apart by their SHA-256", "[linkstats]") {
     CHECK(latibot::events::sha256_hex("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     CHECK(latibot::events::sha256_hex("") == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 }
 
-TEST_CASE("a copy's name is one Discord accepts", "[events]") {
+TEST_CASE("a copy's name is one Discord accepts", "[linkstats]") {
     CHECK(latibot::events::copy_name("kekw", dpp::snowflake{1}) == "kekw");
     CHECK(latibot::events::copy_name("pepe-sad!", dpp::snowflake{1}) == "pepesad");
     CHECK(latibot::events::copy_name("?", dpp::snowflake{123456789}) == "emoji_456789");
@@ -110,7 +113,7 @@ TEST_CASE("a copy's name is one Discord accepts", "[events]") {
 // What to copy
 // --------------------------------------------------------------------------
 
-TEST_CASE("every emote used enough is copied, most used first", "[db]") {
+TEST_CASE("every emote used enough is copied, most used first", "[linkstats]") {
     fixture test;
     test.react(1, "kekw", 3);
     test.react(2, "pog", 5);
@@ -124,7 +127,7 @@ TEST_CASE("every emote used enough is copied, most used first", "[db]") {
     CHECK(test.plan(0).fetch.empty());
 }
 
-TEST_CASE("an emote merged by an alias gets one copy between its emojis", "[db]") {
+TEST_CASE("an emote merged by an alias gets one copy between its emojis", "[linkstats]") {
     fixture test;
     test.react(1, "kekw", 1);
     test.react(2, "KEKW", 2);
@@ -150,7 +153,7 @@ TEST_CASE("an emote merged by an alias gets one copy between its emojis", "[db]"
     }
 }
 
-TEST_CASE("copies nothing wants are pruned, once nothing is left to fetch", "[db]") {
+TEST_CASE("copies nothing wants are pruned, once nothing is left to fetch", "[linkstats]") {
     fixture test;
     test.react(1, "kekw", 1);
     test.react(2, "pog", 5);
@@ -175,7 +178,7 @@ TEST_CASE("copies nothing wants are pruned, once nothing is left to fetch", "[db
 // Copying
 // --------------------------------------------------------------------------
 
-TEST_CASE("an animated emoji is copied as a GIF, a still one as a PNG", "[db][coro]") {
+TEST_CASE("an animated emoji is copied as a GIF, a still one as a PNG", "[linkstats][coro]") {
     fixture test;
     test.react(1, "dance", 2);
     test.react(2, "kekw", 1);
@@ -209,7 +212,7 @@ TEST_CASE("an animated emoji is copied as a GIF, a still one as a PNG", "[db][co
     CHECK(test.discord.emoji_uploads.size() == 2);
 }
 
-TEST_CASE("the same image is copied once, and names stay unique", "[db][coro]") {
+TEST_CASE("the same image is copied once, and names stay unique", "[linkstats][coro]") {
     fixture test;
     test.react(1, "kekw", 3);
     test.react(2, "kekw", 2);
@@ -234,7 +237,7 @@ TEST_CASE("the same image is copied once, and names stay unique", "[db][coro]") 
     CHECK(test.reactions.copy_of("c:1")->id == test.reactions.copy_of("c:2")->id);
 }
 
-TEST_CASE("an emoji the CDN no longer has is lost, after both hosts are tried", "[db][coro]") {
+TEST_CASE("an emoji the CDN no longer has is lost, after both hosts are tried", "[linkstats][coro]") {
     fixture test;
     test.react(1, "gone", 1);
     for (int attempt = 0; attempt < 4; ++attempt) {
@@ -251,7 +254,7 @@ TEST_CASE("an emoji the CDN no longer has is lost, after both hosts are tried", 
     CHECK(test.plan().fetch.empty());
 }
 
-TEST_CASE("the media proxy is tried when the CDN refuses", "[db][coro]") {
+TEST_CASE("the media proxy is tried when the CDN refuses", "[linkstats][coro]") {
     fixture test;
     test.react(1, "saved", 1);
     test.http.queue(404, "");
@@ -263,7 +266,7 @@ TEST_CASE("the media proxy is tried when the CDN refuses", "[db][coro]") {
     CHECK(test.http.requests.back().url == "https://media.discordapp.net/emojis/1.png");
 }
 
-TEST_CASE("an image too big even when smaller is not uploaded", "[db][coro]") {
+TEST_CASE("an image too big even when smaller is not uploaded", "[linkstats][coro]") {
     fixture test;
     test.react(1, "huge", 1);
     const std::string huge(latibot::events::emoji_image_limit + 1, 'x');
@@ -279,7 +282,7 @@ TEST_CASE("an image too big even when smaller is not uploaded", "[db][coro]") {
     CHECK(test.http.requests[2].url == "https://cdn.discordapp.com/emojis/1.png?size=96");
 }
 
-TEST_CASE("a failed download or upload is tried again the next day", "[db][coro]") {
+TEST_CASE("a failed download or upload is tried again the next day", "[linkstats][coro]") {
     fixture test;
     test.react(1, "flaky", 1);
 
@@ -304,7 +307,7 @@ TEST_CASE("a failed download or upload is tried again the next day", "[db][coro]
     CHECK(test.plan().fetch == std::vector<std::string>{"c:1"});
 }
 
-TEST_CASE("raising the threshold deletes the copies that no longer qualify", "[db][coro]") {
+TEST_CASE("raising the threshold deletes the copies that no longer qualify", "[linkstats][coro]") {
     fixture test;
     test.react(1, "kekw", 1);
     test.react(2, "pog", 5);
@@ -322,7 +325,7 @@ TEST_CASE("raising the threshold deletes the copies that no longer qualify", "[d
     CHECK(test.reactions.copy_of("c:2").has_value());
 }
 
-TEST_CASE("with copying off, a round does nothing at all", "[db][coro]") {
+TEST_CASE("with copying off, a round does nothing at all", "[linkstats][coro]") {
     fixture test;
     test.react(1, "kekw", 1);
     CHECK_FALSE(emoji_copier(test.store, test.http, test.discord, test.clock, 0).enabled());
@@ -331,7 +334,7 @@ TEST_CASE("with copying off, a round does nothing at all", "[db][coro]") {
     CHECK(test.discord.emoji_uploads.empty());
 }
 
-TEST_CASE("the duplicates menus show each emote's picture once the bot has a copy", "[db]") {
+TEST_CASE("the duplicates menus show each emote's picture once the bot has a copy", "[linkstats]") {
     fixture test;
     test.react(1, "kekw", 2);
     test.react(2, "KEKW", 1);

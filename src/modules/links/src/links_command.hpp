@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/events/url_rules.hpp"
 #include "core/ui/paginator.hpp"
+#include "links/url_rules.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>

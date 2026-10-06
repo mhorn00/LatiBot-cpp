@@ -1,14 +1,15 @@
 // Posting a replacement and following it until its previews appear or its
 // mirrors run out (docs/features/Url_Replacement.md §2.2–§2.4).
 
-#include "core/events/embed_watch.hpp"
+#include "embed_watch.hpp"
 #include "core/db/database.hpp"
-#include "core/events/replacements.hpp"
 #include "core/events/stage_order.hpp"
-#include "core/events/url_replacer.hpp"
-#include "core/events/url_rules.hpp"
 #include "core/ui/paginator.hpp"
+#include "links/replacements.hpp"
+#include "links/url_rules.hpp"
+#include "url_replacer.hpp"
 
+#include "links/module.hpp"
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "support/capture_log.hpp"
@@ -77,6 +78,7 @@ struct fixture {
     // tests for off turn it back off.
     fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
         rules.set_enabled(guild, true);
     }
 
@@ -117,7 +119,7 @@ auto only_edit(const std::vector<embed_action>& actions) -> const edit_replaceme
 // What gets posted
 // --------------------------------------------------------------------------
 
-TEST_CASE("a replacement is one link line per link", "[events]") {
+TEST_CASE("a replacement is one link line per link", "[links]") {
     const std::vector<watched_link> links{
         {.link = x_link(), .attempt = 0, .progress = latibot::events::link_progress::waiting},
         {.link = x_link("/b/status/2", true), .attempt = 2, .progress = latibot::events::link_progress::waiting}};
@@ -127,7 +129,7 @@ TEST_CASE("a replacement is one link line per link", "[events]") {
           "🔗 ||[_](https://vxtwitter.com/b/status/2)||");
 }
 
-TEST_CASE("the failure note names the mirrors that were tried", "[events]") {
+TEST_CASE("the failure note names the mirrors that were tried", "[links]") {
     const std::vector<planned_link> one{x_link()};
     CHECK(latibot::events::render_failure(one).starts_with("🔗 couldn't get a preview for that link from fxtwitter.com or vxtwitter.com."));
 
@@ -135,7 +137,7 @@ TEST_CASE("the failure note names the mirrors that were tried", "[events]") {
     CHECK(latibot::events::render_failure(two).contains("those links from fxtwitter.com, vxtwitter.com or tfxktok.com"));
 }
 
-TEST_CASE("a failure note turns its own previews off and carries Retry", "[events]") {
+TEST_CASE("a failure note turns its own previews off and carries Retry", "[links]") {
     const dpp::message edit = latibot::events::build_edit({.channel_id = channel, .message_id = ours, .content = "nope", .failed = true});
 
     CHECK((edit.flags & dpp::m_suppress_embeds) != 0);
@@ -149,7 +151,7 @@ TEST_CASE("a failure note turns its own previews off and carries Retry", "[event
     CHECK(state->argument == ours.str());
 }
 
-TEST_CASE("a working replacement has no button and its previews on", "[events]") {
+TEST_CASE("a working replacement has no button and its previews on", "[links]") {
     const dpp::message edit = latibot::events::build_edit({.channel_id = channel, .message_id = ours, .content = "ok", .failed = false});
     CHECK(edit.flags == 0);
     CHECK(edit.components.empty());
@@ -159,13 +161,13 @@ TEST_CASE("a working replacement has no button and its previews on", "[events]")
 // Matching previews to links
 // --------------------------------------------------------------------------
 
-TEST_CASE("with one link, any preview counts", "[events]") {
+TEST_CASE("with one link, any preview counts", "[links]") {
     const std::vector<watched_link> links{{.link = tiktok_link(), .attempt = 0, .progress = latibot::events::link_progress::waiting}};
     CHECK(latibot::events::embedded_links(links, embeds({"https://www.tiktok.com/@someone/video/123"})) == std::vector<bool>{true});
     CHECK(latibot::events::embedded_links(links, {}) == std::vector<bool>{false});
 }
 
-TEST_CASE("previews are matched to links by path", "[events]") {
+TEST_CASE("previews are matched to links by path", "[links]") {
     const std::vector<watched_link> links{
         {.link = x_link("/a/status/1"), .attempt = 0, .progress = latibot::events::link_progress::waiting},
         {.link = x_link("/b/status/2"), .attempt = 0, .progress = latibot::events::link_progress::waiting}};
@@ -174,7 +176,7 @@ TEST_CASE("previews are matched to links by path", "[events]") {
     CHECK(latibot::events::embedded_links(links, embeds({"https://twitter.com/b/status/2"})) == std::vector<bool>{false, true});
 }
 
-TEST_CASE("several previews of one post do not spill onto the next link", "[events]") {
+TEST_CASE("several previews of one post do not spill onto the next link", "[links]") {
     const std::vector<watched_link> links{
         {.link = x_link("/a/status/1"), .attempt = 0, .progress = latibot::events::link_progress::waiting},
         {.link = x_link("/b/status/2"), .attempt = 0, .progress = latibot::events::link_progress::waiting}};
@@ -185,7 +187,7 @@ TEST_CASE("several previews of one post do not spill onto the next link", "[even
     CHECK(latibot::events::embedded_links(links, urls) == std::vector<bool>{true, false});
 }
 
-TEST_CASE("a preview that matches nothing goes to the first link still waiting", "[events]") {
+TEST_CASE("a preview that matches nothing goes to the first link still waiting", "[links]") {
     const std::vector<watched_link> links{
         {.link = x_link("/a/status/1"), .attempt = 0, .progress = latibot::events::link_progress::waiting},
         {.link = tiktok_link(), .attempt = 0, .progress = latibot::events::link_progress::waiting}};
@@ -198,7 +200,7 @@ TEST_CASE("a preview that matches nothing goes to the first link still waiting",
 // The tracker
 // --------------------------------------------------------------------------
 
-TEST_CASE("a preview on the first try settles the replacement", "[events]") {
+TEST_CASE("a preview on the first try settles the replacement", "[links]") {
     fixture test;
     test.record({x_link()});
 
@@ -213,7 +215,7 @@ TEST_CASE("a preview on the first try settles the replacement", "[events]") {
     CHECK(test.time_out().empty());
 }
 
-TEST_CASE("each mirror gets two tries, then the next one", "[events]") {
+TEST_CASE("each mirror gets two tries, then the next one", "[links]") {
     fixture test;
     test.record({x_link()});
     CHECK(test.tracker.watch(request({x_link()})).empty());
@@ -251,7 +253,7 @@ TEST_CASE("each mirror gets two tries, then the next one", "[events]") {
     }
 }
 
-TEST_CASE("a watch whose ending cannot be recorded waits, and the others still finish", "[events]") {
+TEST_CASE("a watch whose ending cannot be recorded waits, and the others still finish", "[links]") {
     // What a tick has gathered is only carried out if it returns, so an error
     // on one watch that escaped would lose the others' Retry notes, after
     // they had already been dropped from the tracker.
@@ -304,7 +306,7 @@ TEST_CASE("a watch whose ending cannot be recorded waits, and the others still f
     CHECK(test.replacements.find(broken)->state == replacement_state::failed);
 }
 
-TEST_CASE("each link in a message is tracked on its own", "[events]") {
+TEST_CASE("each link in a message is tracked on its own", "[links]") {
     fixture test;
     const std::vector<planned_link> links{x_link("/a/status/1"), x_link("/b/status/2")};
     test.record(links);
@@ -329,7 +331,7 @@ TEST_CASE("each link in a message is tracked on its own", "[events]") {
     CHECK(test.state() == replacement_state::ok);
 }
 
-TEST_CASE("a preview that arrives before the watch starts is not lost", "[events]") {
+TEST_CASE("a preview that arrives before the watch starts is not lost", "[links]") {
     // The update can overtake the reply to the post that created the message.
     fixture test;
     test.record({x_link()});
@@ -341,7 +343,7 @@ TEST_CASE("a preview that arrives before the watch starts is not lost", "[events
     CHECK(test.state() == replacement_state::ok);
 }
 
-TEST_CASE("an early preview is forgotten after a while", "[events]") {
+TEST_CASE("an early preview is forgotten after a while", "[links]") {
     fixture test;
     test.record({x_link()});
 
@@ -351,7 +353,7 @@ TEST_CASE("an early preview is forgotten after a while", "[events]") {
     CHECK(test.tracker.watching(ours));
 }
 
-TEST_CASE("previews already on the posted message count", "[events]") {
+TEST_CASE("previews already on the posted message count", "[links]") {
     fixture test;
     test.record({x_link()});
     const auto urls = embeds({"https://x.com/a/status/1"});
@@ -360,7 +362,7 @@ TEST_CASE("previews already on the posted message count", "[events]") {
     CHECK(test.state() == replacement_state::ok);
 }
 
-TEST_CASE("a deleted replacement is no longer followed", "[events]") {
+TEST_CASE("a deleted replacement is no longer followed", "[links]") {
     fixture test;
     test.record({x_link()});
     CHECK(test.tracker.watch(request({x_link()})).empty());
@@ -374,7 +376,7 @@ TEST_CASE("a deleted replacement is no longer followed", "[events]") {
 // Retry
 // --------------------------------------------------------------------------
 
-TEST_CASE("Retry uses the rule as it is now, one try per mirror", "[events]") {
+TEST_CASE("Retry uses the rule as it is now, one try per mirror", "[links]") {
     fixture test;
     test.record({x_link()}, replacement_state::failed);
     test.rules.set(guild, {.domain = "x.com",
@@ -415,7 +417,7 @@ TEST_CASE("Retry uses the rule as it is now, one try per mirror", "[events]") {
     }
 }
 
-TEST_CASE("Retry says why there is nothing to retry", "[events]") {
+TEST_CASE("Retry says why there is nothing to retry", "[links]") {
     fixture test;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
 
@@ -456,7 +458,7 @@ TEST_CASE("Retry says why there is nothing to retry", "[events]") {
 // Posting, through the Discord mock
 // --------------------------------------------------------------------------
 
-TEST_CASE("posting sends the replacement, records it, and turns the original's preview off", "[events][coro]") {
+TEST_CASE("posting sends the replacement, records it, and turns the original's preview off", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
 
@@ -487,7 +489,7 @@ TEST_CASE("posting sends the replacement, records it, and turns the original's p
     CHECK(test.tracker.watching(dpp::snowflake{1001}));
 }
 
-TEST_CASE("a replacement that cannot be posted leaves the original alone", "[events][coro]") {
+TEST_CASE("a replacement that cannot be posted leaves the original alone", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
     discord.send_results.emplace_back(std::unexpected(latibot::ports::api_error{.http_status = 403, .message = "Missing Permissions"}));
@@ -501,7 +503,7 @@ TEST_CASE("a replacement that cannot be posted leaves the original alone", "[eve
     CHECK_FALSE(test.replacements.contains(dpp::snowflake{1001}));
 }
 
-TEST_CASE("a failure's actions reach Discord", "[events][coro]") {
+TEST_CASE("a failure's actions reach Discord", "[links][coro]") {
     latibot::testing::mock_discord discord;
     const std::vector<embed_action> actions{set_original_embeds{.channel_id = channel, .message_id = original, .suppressed = false},
                                             edit_replacement{.channel_id = channel, .message_id = ours, .content = "note", .failed = true}};
@@ -540,7 +542,7 @@ auto settle(fixture& test, latibot::testing::mock_discord& discord) -> void {
 
 } // namespace
 
-TEST_CASE("a replacement stranded without a preview gets its note, and the original's preview back", "[events][coro]") {
+TEST_CASE("a replacement stranded without a preview gets its note, and the original's preview back", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
@@ -564,7 +566,7 @@ TEST_CASE("a replacement stranded without a preview gets its note, and the origi
     CHECK(test.replacements.unsettled().empty());
 }
 
-TEST_CASE("a replacement stranded after its preview appeared is simply marked working", "[events][coro]") {
+TEST_CASE("a replacement stranded after its preview appeared is simply marked working", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
     test.record({x_link()}, replacement_state::pending);
@@ -577,7 +579,7 @@ TEST_CASE("a replacement stranded after its preview appeared is simply marked wo
     CHECK(discord.suppressions.empty());
 }
 
-TEST_CASE("a Retry a restart cut off ends as a Retry would", "[events][coro]") {
+TEST_CASE("a Retry a restart cut off ends as a Retry would", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
     test.record({x_link()}, replacement_state::retrying);
@@ -603,7 +605,7 @@ TEST_CASE("a Retry a restart cut off ends as a Retry would", "[events][coro]") {
     }
 }
 
-TEST_CASE("a stranded replacement that is gone is marked failed, and one Discord will not show yet waits", "[events][coro]") {
+TEST_CASE("a stranded replacement that is gone is marked failed, and one Discord will not show yet waits", "[links][coro]") {
     fixture test;
     latibot::testing::mock_discord discord;
     test.record({x_link()}, replacement_state::pending);
@@ -640,7 +642,7 @@ auto link_message(std::string content) -> latibot::events::incoming_message {
 
 } // namespace
 
-TEST_CASE("the stage asks for a replacement and lets the message carry on", "[events]") {
+TEST_CASE("the stage asks for a replacement and lets the message carry on", "[links]") {
     fixture test;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
     const latibot::events::url_replacer stage(test.rules);
@@ -656,7 +658,7 @@ TEST_CASE("the stage asks for a replacement and lets the message carry on", "[ev
     CHECK(wanted.links[0].original_url == "https://x.com/a/status/1");
 }
 
-TEST_CASE("the stage replaces nothing until the server turns it on", "[events]") {
+TEST_CASE("the stage replaces nothing until the server turns it on", "[links]") {
     fixture test;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
     const latibot::events::url_replacer stage(test.rules);
@@ -676,7 +678,7 @@ TEST_CASE("the stage replaces nothing until the server turns it on", "[events]")
     CHECK(stage(elsewhere).actions.empty());
 }
 
-TEST_CASE("the stage leaves some messages alone", "[events]") {
+TEST_CASE("the stage leaves some messages alone", "[links]") {
     fixture test;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
     const latibot::events::url_replacer stage(test.rules);
@@ -710,7 +712,7 @@ TEST_CASE("the stage leaves some messages alone", "[events]") {
     }
 }
 
-TEST_CASE("a link too long to post is dropped rather than failing the post", "[events]") {
+TEST_CASE("a link too long to post is dropped rather than failing the post", "[links]") {
     fixture test;
     test.rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});
     const latibot::events::url_replacer stage(test.rules);

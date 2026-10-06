@@ -1,4 +1,4 @@
-#include "core/events/reactions.hpp"
+#include "reactions.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

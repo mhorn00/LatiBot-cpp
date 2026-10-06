@@ -14,9 +14,10 @@ draws its classes.
 
 | | |
 |---|---|
-| **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements,media_posts,emoji_copies,emote_reactions}.*` |
-| **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies,emote_reactions}_test.cpp` |
-| **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `emote_reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies`; the view `counted_reactions` |
+| **Module** | `linkstats`, which requires `links`: [its README](../../src/modules/linkstats/README.md) lists what it owns |
+| **Code** | `src/modules/linkstats/src/`: `linkstats_command.*`, `{reactions,backfill,legacy_replacements,media_posts,emoji_copies,emote_reactions}.*`, `module.cpp` |
+| **Tests** | `src/modules/linkstats/tests/` (`latibot_linkstats_tests`), `tests/fuzz/fuzz_legacy_parser.cpp` |
+| **Tables** | its own: `reactions`, `emote_reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `backfill_progress`, `emoji_images`, `emoji_copies`, the view `counted_reactions`; links': `replacement_messages`, `replacement_links`, `known_mirrors` |
 | **Config** | `emoji_copy_min_uses` in the `linkstats` section of `config.json`; `linkstats_images` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.6, §9.7 and §21.12 |
 | **Status** | Built and tested offline. Not yet run against real Discord. |

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "backfill.hpp"
 #include "core/commands/registry.hpp"
-#include "core/events/backfill.hpp"
-#include "core/events/reactions.hpp"
+#include "reactions.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>

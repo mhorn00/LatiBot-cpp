@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/events/embed_watch.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/events/replacements.hpp"
-#include "core/events/url_rules.hpp"
+#include "embed_watch.hpp"
+#include "links/replacements.hpp"
+#include "links/url_rules.hpp"
 
 #include <dpp/coro/task.h>
 

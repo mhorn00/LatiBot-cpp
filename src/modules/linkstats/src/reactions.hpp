@@ -2,6 +2,8 @@
 
 #include "core/db/statement.hpp"
 
+#include "core/db/schema_versions.hpp"
+
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -18,6 +20,11 @@ class database;
 } // namespace latibot::db
 
 namespace latibot::events {
+
+/// The linkstats module's tables, version 1 first
+/// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp. They
+/// refer to links' `replacement_messages`, so links' come first.
+[[nodiscard]] auto linkstats_schema() noexcept -> db::module_schema;
 
 // --------------------------------------------------------------------------
 // Emoji

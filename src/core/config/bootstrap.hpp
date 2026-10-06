@@ -40,7 +40,6 @@ struct bootstrap {
 
     // The sections of the features still inside the core
     // (core/config/feature_sections.hpp). Each moves to its module.
-    linkstats_config linkstats;
     llm_config llm;
     music_config music;
 
@@ -49,15 +48,6 @@ struct bootstrap {
     /// (`modules::host::section`). One no module reads is warned about and
     /// ignored. JSON rather than a std::map, whose move can throw.
     nlohmann::json sections = nlohmann::json::object();
-
-    /// The account whose messages `/linkstats recompute` reads as the bot's
-    /// replacements, in place of the bot's own.
-    ///
-    /// For testing the statistics with a second bot while the production one
-    /// is still running: the history worth reading was written by the other
-    /// account. Set from `LATIBOT_DEBUG_RECOMPUTE_BOT_ID` in debug builds only,
-    /// never from the file (see `recompute_bot_id_from_environment`).
-    std::optional<dpp::snowflake> recompute_bot_id;
 
     /// Parses config text. Throws `config_error` naming the offending key.
     ///

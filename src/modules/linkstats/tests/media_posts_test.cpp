@@ -2,13 +2,14 @@
 // (docs/features/Link_Stats.md §9): what counts as one, and recording them as
 // they are posted.
 
-#include "core/events/media_posts.hpp"
+#include "media_posts.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
+#include "legacy_replacements.hpp"
+#include "links/replacements.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "mocks/mock_clock.hpp"
 #include "support/schema.hpp"
 
@@ -66,6 +67,8 @@ struct fixture {
 
     fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
         latibot::events::set_images_enabled(settings, guild, true);
     }
 
@@ -86,7 +89,7 @@ struct fixture {
 // What counts
 // --------------------------------------------------------------------------
 
-TEST_CASE("an image or a video counts, whatever its kind", "[events]") {
+TEST_CASE("an image or a video counts, whatever its kind", "[linkstats]") {
     CHECK(is_media_attachment("image/png", "cat.png"));
     CHECK(is_media_attachment("image/gif", "dance.gif"));
     CHECK(is_media_attachment("video/mp4", "clip.mp4"));
@@ -99,7 +102,7 @@ TEST_CASE("an image or a video counts, whatever its kind", "[events]") {
     CHECK_FALSE(is_media_attachment("", "archive.zip"));
 }
 
-TEST_CASE("only a link's own picture or video counts, not a site's preview", "[events]") {
+TEST_CASE("only a link's own picture or video counts, not a site's preview", "[linkstats]") {
     CHECK(is_direct_media_embed("image", false));
     CHECK(is_direct_media_embed("video", false));
 
@@ -111,7 +114,7 @@ TEST_CASE("only a link's own picture or video counts, not a site's preview", "[e
     CHECK_FALSE(is_direct_media_embed("article", false));
 }
 
-TEST_CASE("a message has media when something attached or embedded is", "[events]") {
+TEST_CASE("a message has media when something attached or embedded is", "[linkstats]") {
     dpp::message message;
     CHECK_FALSE(has_media(message));
 
@@ -131,7 +134,7 @@ TEST_CASE("a message has media when something attached or embedded is", "[events
 // Recording them as they are posted
 // --------------------------------------------------------------------------
 
-TEST_CASE("an upload is counted from the moment it is posted", "[db]") {
+TEST_CASE("an upload is counted from the moment it is posted", "[linkstats]") {
     fixture test;
     const dpp::snowflake id = posted_at(5s);
 
@@ -154,7 +157,7 @@ TEST_CASE("an upload is counted from the moment it is posted", "[db]") {
     CHECK_FALSE(test.tracker.on_message(fixture::post(id, true, false)));
 }
 
-TEST_CASE("a link waits for its preview to show whether it was an image", "[db]") {
+TEST_CASE("a link waits for its preview to show whether it was an image", "[linkstats]") {
     fixture test;
     const dpp::snowflake id = posted_at(5s);
 
@@ -185,7 +188,7 @@ TEST_CASE("a link waits for its preview to show whether it was an image", "[db]"
     }
 }
 
-TEST_CASE("nothing is counted where images are off, or from bots", "[db]") {
+TEST_CASE("nothing is counted where images are off, or from bots", "[linkstats]") {
     fixture test;
 
     CHECK_FALSE(test.tracker.on_message(fixture::post(posted_at(1s), true, false, /*person=*/false)));
@@ -204,7 +207,7 @@ TEST_CASE("nothing is counted where images are off, or from bots", "[db]") {
 // Statistics by kind of post
 // --------------------------------------------------------------------------
 
-TEST_CASE("statistics count links, images, or both", "[db]") {
+TEST_CASE("statistics count links, images, or both", "[linkstats]") {
     fixture test;
 
     // Bob's replaced link, and Alice's image.

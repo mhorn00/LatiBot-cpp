@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/events/replacements.hpp"
-#include "core/events/url_rules.hpp"
+#include "links/replacements.hpp"
+#include "links/url_rules.hpp"
 
 #include <dpp/message.h>
 #include <dpp/snowflake.h>

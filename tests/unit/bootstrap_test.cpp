@@ -155,7 +155,6 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
         REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm": {"tool_rounds": 0}})"), config_error,
                                Catch::Matchers::MessageMatches(ContainsSubstring("llm.tool_rounds\" must be at least 1")));
         REQUIRE_THROWS_AS(bootstrap::from_json(R"({"backups_to_keep": -1})"), config_error);
-        REQUIRE_THROWS_AS(bootstrap::from_json(R"({"linkstats": {"emoji_copy_min_uses": -1}})"), config_error);
     }
 
     SECTION("not JSON at all") {
@@ -175,13 +174,6 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
 TEST_CASE("the spend caps cannot be negative", "[config]") {
     REQUIRE_THROWS_AS(bootstrap::from_json(R"({"llm": {"spend_cap_daily_usd": -1}})"), config_error);
     REQUIRE_THROWS_AS(bootstrap::from_json(R"({"llm": {"spend_cap_monthly_usd": -1}})"), config_error);
-}
-
-TEST_CASE("emoji copies are kept for every emote used, unless the config says otherwise", "[config]") {
-    CHECK(bootstrap::from_json("{}").linkstats.emoji_copy_min_uses == 1);
-    CHECK(bootstrap::from_json(R"({"linkstats": {"emoji_copy_min_uses": 5}})").linkstats.emoji_copy_min_uses == 5);
-    // Nought turns copying off.
-    CHECK(bootstrap::from_json(R"({"linkstats": {"emoji_copy_min_uses": 0}})").linkstats.emoji_copy_min_uses == 0);
 }
 
 TEST_CASE("music's programs are looked for unless the config names them", "[config]") {
@@ -214,7 +206,7 @@ TEST_CASE("a key from before sections still works, and the log says where it wen
     CHECK(config.llm.model == "claude-sonnet-5");
     CHECK(config.llm.tool_rounds == 2);
     CHECK(config.llm.spend_cap_daily_usd == 1.5);
-    CHECK(config.linkstats.emoji_copy_min_uses == 3);
+    CHECK(config.sections.at("linkstats").at("emoji_copy_min_uses") == 3);
     CHECK(config.music.pot_provider_port == 8080);
     CHECK(config.music.ytdlp_path == std::filesystem::path("C:/tools/yt-dlp.exe"));
     CHECK(captured.contains(latibot::util::log_level::warn, R"("llm_model" is now "model" inside "llm")"));
@@ -371,18 +363,6 @@ TEST_CASE("the recompute bot override is read by debug builds only", "[config]")
     }
 }
 
-TEST_CASE("loading the configuration applies the recompute bot override as the build allows", "[config][fs]") {
-    const scoped_env set("LATIBOT_DEBUG_RECOMPUTE_BOT_ID", "123456789012345678");
-    const temp_directory folder;
-    const auto loaded = bootstrap::load(folder.path() / "missing.json");
-
-    if (latibot::config::reads_debug_overrides) {
-        CHECK(loaded.recompute_bot_id == dpp::snowflake{123456789012345678});
-    } else {
-        CHECK_FALSE(loaded.recompute_bot_id.has_value());
-    }
-}
-
 TEST_CASE("the written defaults load as the defaults", "[config]") {
     // log_level is left out of the file on purpose: writing it would replace
     // the build's own default.
@@ -401,7 +381,6 @@ TEST_CASE("the written defaults load as the defaults", "[config]") {
     CHECK(written.llm.spend_cap_daily_usd == defaults.llm.spend_cap_daily_usd);
     CHECK(written.llm.spend_cap_monthly_usd == defaults.llm.spend_cap_monthly_usd);
     CHECK(written.llm.tool_rounds == defaults.llm.tool_rounds);
-    CHECK(written.linkstats.emoji_copy_min_uses == defaults.linkstats.emoji_copy_min_uses);
     CHECK(written.music.ytdlp_path == defaults.music.ytdlp_path);
     CHECK(written.music.pot_provider_port == defaults.music.pot_provider_port);
     CHECK(written.sections.empty());

@@ -1,14 +1,14 @@
-#include "core/commands/linkstats.hpp"
+#include "linkstats_command.hpp"
 
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/discord/message_flags.hpp"
-#include "core/events/media_posts.hpp"
 #include "core/ports/discord_gateway.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "media_posts.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/dispatcher.h>

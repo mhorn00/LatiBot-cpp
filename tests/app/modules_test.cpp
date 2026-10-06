@@ -8,9 +8,6 @@
 #include "core/db/migrations.hpp"
 #include "core/db/schema_versions.hpp"
 #include "core/db/schemas.hpp"
-#include "core/events/stage_order.hpp"
-#include "core/events/url_replacer.hpp"
-#include "core/events/url_rules.hpp"
 #include "core/modules/module.hpp"
 
 #include "support/test_host.hpp"
@@ -254,11 +251,15 @@ TEST_CASE("the example config is exactly what the bot writes, every module's sec
     CHECK(example == latibot::config::bootstrap::default_json(latibot::modules::enabled_config_defaults()));
 }
 
+// Links' rules are set through its public header, which is only there when
+// links is built.
+#if __has_include("links/url_rules.hpp")
+#include "links/url_rules.hpp"
+
 TEST_CASE("a message with a joke and a link gets both", "[app]") {
     // The Java bot's early returns answered "nice" and skipped the link. The
-    // trigger's reply is the triggers module's stage; the replacement the
-    // core's, added as the bot adds it (docs/features/Message_Pipeline.md
-    // §2.2).
+    // replacement is the links module's stage and the reply the triggers
+    // module's (docs/features/Message_Pipeline.md §2.2).
     test_host bot;
     const module_list modules = latibot::modules::start_modules(latibot::modules::enabled_modules, bot, bot.offered);
     if (bot.registry.find("trigger") == nullptr) SKIP("this build leaves out the triggers module");
@@ -270,10 +271,6 @@ TEST_CASE("a message with a joke and a link gets both", "[app]") {
     bot.data.execute(
         "INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) VALUES (1000, '420', 'whole_word', 30, 1);"
         "INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (last_insert_rowid(), 'nice', 1);");
-    bot.stages.add(latibot::events::stage_order::rewrite, "url replacement",
-                   latibot::events::carried_out_by<latibot::events::replace_links>(
-                       latibot::events::url_replacer(rules), "posting a replacement",
-                       [](latibot::events::replace_links /*request*/) -> dpp::task<void> { co_return; }));
 
     latibot::events::incoming_message message;
     message.guild_id = guild;
@@ -291,3 +288,5 @@ TEST_CASE("a message with a joke and a link gets both", "[app]") {
     REQUIRE(reply != nullptr);
     CHECK(reply->content == "nice");
 }
+
+#endif

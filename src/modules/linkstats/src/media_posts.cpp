@@ -1,11 +1,11 @@
-#include "core/events/media_posts.hpp"
+#include "media_posts.hpp"
 
 #include "core/config/guild_settings.hpp"
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/replacements.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "legacy_replacements.hpp"
+#include "links/replacements.hpp"
 
 #include <algorithm>
 #include <array>

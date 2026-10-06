@@ -12,14 +12,6 @@
 
 namespace latibot::config {
 
-/// "linkstats" (docs/features/Link_Stats.md §10).
-struct linkstats_config {
-    /// How many reactions an emote needs before the bot keeps its own copy
-    /// of it, as an application emoji. 0 turns copying off. Raising it
-    /// deletes the copies that no longer qualify, on the next rounds.
-    std::int64_t emoji_copy_min_uses = 1;
-};
-
 /// "llm": which model answers, and what it is allowed to cost
 /// (docs/features/Language_Model.md §3.2). Which providers and models are
 /// allowed is the language model's to say (`llm::check_config`).
@@ -46,7 +38,6 @@ struct music_config {
     int pot_provider_port = 4416;
 };
 
-[[nodiscard]] auto linkstats_section() -> const section<linkstats_config>&;
 [[nodiscard]] auto llm_section() -> const section<llm_config>&;
 [[nodiscard]] auto music_section() -> const section<music_config>&;
 

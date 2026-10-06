@@ -1,11 +1,11 @@
-#include "core/commands/urlrepl.hpp"
+#include "links_command.hpp"
 
 #include "core/commands/options.hpp"
-#include "core/events/embed_watch.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "embed_watch.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/dispatcher.h>

@@ -73,7 +73,7 @@ TEST_CASE("a new database gets schema_versions, and every module its version 1",
 
     CHECK(versions_of(db) == every_module_at_one());
     CHECK(table_exists(db, "guild_settings"));
-    CHECK(table_exists(db, "url_rules"));
+    CHECK(table_exists(db, "tts_voices"));
     CHECK(table_exists(db, "llm_aliases"));
     // The old numbering is never used.
     CHECK(db.user_version() == 0);

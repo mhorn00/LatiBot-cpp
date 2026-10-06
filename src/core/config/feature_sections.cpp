@@ -2,16 +2,6 @@
 
 namespace latibot::config {
 
-auto linkstats_section() -> const section<linkstats_config>& {
-    static const section<linkstats_config> table{
-        "linkstats",
-        {
-            key("emoji_copy_min_uses", &linkstats_config::emoji_copy_min_uses,
-                "Reactions an emote needs before the bot keeps its own copy of it; 0 turns copying off.", at_least(0)),
-        }};
-    return table;
-}
-
 auto llm_section() -> const section<llm_config>& {
     static const section<llm_config> table{
         "llm",

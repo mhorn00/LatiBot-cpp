@@ -55,19 +55,12 @@ endfunction()
 
 # The core, and the features not yet moved into modules.
 latibot_test_executable(latibot_tests SOURCES
-    db/backfill_test.cpp
     db/backup_test.cpp
     db/bot_allowlist_test.cpp
     db/database_test.cpp
-    db/emoji_copies_test.cpp
-    db/emote_reactions_test.cpp
-    db/reaction_store_test.cpp
-    db/replacement_store_test.cpp
-    db/url_rule_store_test.cpp
     db/voice_store_test.cpp
     db/guild_settings_test.cpp
     db/llm_store_test.cpp
-    db/media_posts_test.cpp
     db/migrations_test.cpp
     db/schema_versions_test.cpp
     unit/basic_commands_test.cpp
@@ -85,10 +78,8 @@ latibot_test_executable(latibot_tests SOURCES
     unit/dectalk_golden_test.cpp
     unit/dectalk_sanitizer_test.cpp
     unit/dectalk_speech_test.cpp
-    unit/embed_watch_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp
-    unit/legacy_replacements_test.cpp
     unit/message_pipeline_test.cpp
     unit/module_test.cpp
     unit/music_command_test.cpp
@@ -101,7 +92,6 @@ latibot_test_executable(latibot_tests SOURCES
     unit/panels_test.cpp
     unit/panel_routes_test.cpp
     unit/pcm_test.cpp
-    unit/linkstats_command_test.cpp
     unit/llm_answer_test.cpp
     unit/llm_aliases_test.cpp
     unit/llm_command_test.cpp
@@ -117,7 +107,6 @@ latibot_test_executable(latibot_tests SOURCES
     unit/preflight_test.cpp
     unit/process_test.cpp
     unit/raw_api_test.cpp
-    unit/reactions_test.cpp
     unit/registry_test.cpp
     unit/speak_command_test.cpp
     unit/speech_queue_test.cpp
@@ -131,8 +120,6 @@ latibot_test_executable(latibot_tests SOURCES
     unit/yt_dlp_live_test.cpp
     unit/yt_dlp_test.cpp
     unit/text_test.cpp
-    unit/url_rules_test.cpp
-    unit/urlrepl_command_test.cpp
     unit/url_scan_test.cpp
 )
 

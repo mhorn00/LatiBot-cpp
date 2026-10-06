@@ -2,9 +2,10 @@
 // (docs/features/Link_Stats.md §3, §4).
 
 #include "core/db/database.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
+#include "links/replacements.hpp"
+#include "reactions.hpp"
 
+#include "links/module.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -64,6 +65,8 @@ struct store_fixture {
 
     store_fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+        latibot::db::apply_schema(db, latibot::events::linkstats_schema());
         replacement(alices_link, alice, day_one);
         replacement(bobs_link, bob, day_one + 24h);
         replacement(unattributed, std::nullopt, day_one + 48h);
@@ -93,7 +96,7 @@ struct store_fixture {
 // Recording
 // --------------------------------------------------------------------------
 
-TEST_CASE("only reactions on our replacements are counted", "[db]") {
+TEST_CASE("only reactions on our replacements are counted", "[linkstats]") {
     store_fixture fixture;
 
     CHECK(fixture.reactions.add(alices_link, bob, skull(), day_one));
@@ -105,7 +108,7 @@ TEST_CASE("only reactions on our replacements are counted", "[db]") {
     CHECK(fixture.count(stat_kind::received) == 1);
 }
 
-TEST_CASE("taking a reaction back removes it", "[db]") {
+TEST_CASE("taking a reaction back removes it", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, skull(), day_one);
 
@@ -114,7 +117,7 @@ TEST_CASE("taking a reaction back removes it", "[db]") {
     CHECK(fixture.count(stat_kind::received) == 0);
 }
 
-TEST_CASE("a moderator clearing reactions clears the counts", "[db]") {
+TEST_CASE("a moderator clearing reactions clears the counts", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, skull(), day_one);
     fixture.reactions.add(alices_link, carol, skull(), day_one);
@@ -131,7 +134,7 @@ TEST_CASE("a moderator clearing reactions clears the counts", "[db]") {
 // Received, given and self
 // --------------------------------------------------------------------------
 
-TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
+TEST_CASE("received, given and self-reactions are counted apart", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, skull(), day_one);    // bob gives alice a skull
     fixture.reactions.add(alices_link, carol, skull(), day_one);  // carol gives alice a skull
@@ -171,7 +174,7 @@ TEST_CASE("received, given and self-reactions are counted apart", "[db]") {
     }
 }
 
-TEST_CASE("a backfilled reaction is dated by its message", "[db]") {
+TEST_CASE("a backfilled reaction is dated by its message", "[linkstats]") {
     // Discord never says when a reaction was added
     // (docs/features/Link_Stats.md §2).
     store_fixture fixture;
@@ -184,7 +187,7 @@ TEST_CASE("a backfilled reaction is dated by its message", "[db]") {
     CHECK(fixture.reactions.total(guild, from_bob) == 1);
 }
 
-TEST_CASE("a live reaction is dated when it was added", "[db]") {
+TEST_CASE("a live reaction is dated when it was added", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, skull(), day_one + 30 * 24h);
 
@@ -196,7 +199,7 @@ TEST_CASE("a live reaction is dated when it was added", "[db]") {
 // Backfill
 // --------------------------------------------------------------------------
 
-TEST_CASE("rebuilding a message's reactions is safe to repeat", "[db]") {
+TEST_CASE("rebuilding a message's reactions is safe to repeat", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, skull(), day_one + 10 * 24h);
 
@@ -222,7 +225,7 @@ TEST_CASE("rebuilding a message's reactions is safe to repeat", "[db]") {
 // Aliases
 // --------------------------------------------------------------------------
 
-TEST_CASE("an alias merges one emoji into another across all history, and can be undone", "[db]") {
+TEST_CASE("an alias merges one emoji into another across all history, and can be undone", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, custom_skull(), day_one);
     fixture.reactions.add(alices_link, carol, custom_skull_again(), day_one);
@@ -243,7 +246,7 @@ TEST_CASE("an alias merges one emoji into another across all history, and can be
     CHECK_FALSE(fixture.reactions.remove_alias(guild, custom_skull_again().key));
 }
 
-TEST_CASE("alias chains are flattened as they are written", "[db]") {
+TEST_CASE("alias chains are flattened as they are written", "[linkstats]") {
     store_fixture fixture;
     const std::string first = "c:1";
     const std::string second = "c:2";
@@ -262,7 +265,7 @@ TEST_CASE("alias chains are flattened as they are written", "[db]") {
     }
 }
 
-TEST_CASE("an alias that would loop is refused", "[db]") {
+TEST_CASE("an alias that would loop is refused", "[linkstats]") {
     store_fixture fixture;
     REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:2").has_value());
 
@@ -270,7 +273,7 @@ TEST_CASE("an alias that would loop is refused", "[db]") {
     CHECK(fixture.reactions.set_alias(guild, "c:1", "c:1").has_value());
 }
 
-TEST_CASE("an emoji already merged into another is not quietly moved", "[db]") {
+TEST_CASE("an emoji already merged into another is not quietly moved", "[linkstats]") {
     store_fixture fixture;
     REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:2").has_value());
 
@@ -284,7 +287,7 @@ TEST_CASE("an emoji already merged into another is not quietly moved", "[db]") {
     CHECK(fixture.reactions.canonical(guild, "c:1") == "c:3");
 }
 
-TEST_CASE("aliases belong to one guild", "[db]") {
+TEST_CASE("aliases belong to one guild", "[linkstats]") {
     store_fixture fixture;
     REQUIRE_FALSE(fixture.reactions.set_alias(guild, "c:1", "c:2").has_value());
     CHECK(fixture.reactions.canonical(dpp::snowflake{77}, "c:1") == "c:1");
@@ -294,7 +297,7 @@ TEST_CASE("aliases belong to one guild", "[db]") {
 // Knowing the emojis
 // --------------------------------------------------------------------------
 
-TEST_CASE("emojis are known by name once somebody has used them", "[db]") {
+TEST_CASE("emojis are known by name once somebody has used them", "[linkstats]") {
     store_fixture fixture;
     fixture.reactions.add(alices_link, bob, custom_skull(), day_one);
     fixture.reactions.add(alices_link, carol, custom_skull_again(), day_one);
@@ -312,7 +315,7 @@ TEST_CASE("emojis are known by name once somebody has used them", "[db]") {
     CHECK(duplicates[0].size() == 2);
 }
 
-TEST_CASE("emojis are listed apart, merged, or only the aliases", "[db]") {
+TEST_CASE("emojis are listed apart, merged, or only the aliases", "[linkstats]") {
     using latibot::events::emoji_listing;
 
     store_fixture fixture;
@@ -340,7 +343,7 @@ TEST_CASE("emojis are listed apart, merged, or only the aliases", "[db]") {
     CHECK(aliases[0].count == 1);
 }
 
-TEST_CASE("names alike are the same ignoring case, or a letter or two apart", "[db]") {
+TEST_CASE("names alike are the same ignoring case, or a letter or two apart", "[linkstats]") {
     using latibot::events::names_look_alike;
 
     CHECK(names_look_alike("skull", "SKULL"));
@@ -361,7 +364,7 @@ TEST_CASE("names alike are the same ignoring case, or a letter or two apart", "[
     CHECK_FALSE(names_look_alike("skull", "skullemoji"));
 }
 
-TEST_CASE("emojis with names alike are grouped, and merged ones count as their keeper", "[db]") {
+TEST_CASE("emojis with names alike are grouped, and merged ones count as their keeper", "[linkstats]") {
     store_fixture fixture;
     const auto custom = [](std::uint64_t id, std::string_view name) { return reaction_emoji(dpp::snowflake{id}, name); };
 

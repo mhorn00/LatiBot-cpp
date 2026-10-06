@@ -30,18 +30,14 @@ constexpr std::array<std::pair<std::uint64_t, std::string_view>, 16> permission_
     {dpp::p_manage_webhooks, "Manage Webhooks"},
 }};
 
-// Passive features, as they land: the message pipeline reads messages and
-// answers in the same channel, and URL replacement posts previews and turns
-// off the original's. Modules ask for their own through
-// `modules::host::permission`: nicknames, View Audit Log. The voice commands declare Connect and Speak themselves, so a
+// The core's own passive need: the message pipeline reads messages and
+// answers in the same channel. Modules ask for theirs through
+// `modules::host::permission`: nicknames, View Audit Log; links, Embed Links
+// and Manage Messages. The voice commands declare Connect and Speak themselves, so a
 // warning always names something that actually exists
 // (docs/features/Operations.md §6).
-constexpr std::array<requirement, 3> passive{{
+constexpr std::array<requirement, 1> passive{{
     {.permissions = dpp::p_view_channel | dpp::p_send_messages, .purpose = "replying to messages"},
-    // Without it the replacement posts but shows nothing, which looks like a
-    // broken mirror rather than a missing permission.
-    {.permissions = dpp::p_embed_links, .purpose = "showing link previews in URL replacements"},
-    {.permissions = dpp::p_manage_messages, .purpose = "turning off the original preview when a link is replaced"},
 }};
 
 } // namespace

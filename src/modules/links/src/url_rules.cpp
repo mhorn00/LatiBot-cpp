@@ -1,4 +1,4 @@
-#include "core/events/url_rules.hpp"
+#include "links/url_rules.hpp"
 
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"

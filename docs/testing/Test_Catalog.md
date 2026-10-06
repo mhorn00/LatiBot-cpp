@@ -5,20 +5,22 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-995 test cases across 17 components, including 206 sections.
+999 test cases across 19 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 111 | 22 |
-| [config](#config) | 43 | 23 |
-| [commands](#commands) | 157 | 50 |
-| [events](#events) | 137 | 32 |
+| [db](#db) | 53 | 6 |
+| [config](#config) | 41 | 23 |
+| [commands](#commands) | 98 | 32 |
+| [events](#events) | 39 | 5 |
 | [ui](#ui) | 15 | 0 |
 | [module](#module) | 7 | 0 |
 | [app](#app) | 6 | 0 |
 | [triggers](#triggers) | 62 | 9 |
 | [nicknames](#nicknames) | 67 | 5 |
 | [midnight](#midnight) | 39 | 0 |
+| [links](#links) | 91 | 21 |
+| [linkstats](#linkstats) | 130 | 40 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
@@ -55,26 +57,6 @@ Database (`src/core/db`)
 | a rollback that fails is logged rather than thrown |  |  | [tests/db/database_test.cpp:180](../../tests/db/database_test.cpp#L180) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:193](../../tests/db/database_test.cpp#L193) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:207](../../tests/db/database_test.cpp#L207) |
-| every emote used enough is copied, most used first |  |  | [tests/db/emoji_copies_test.cpp:113](../../tests/db/emoji_copies_test.cpp#L113) |
-| an emote merged by an alias gets one copy between its emojis |  | 1 | [tests/db/emoji_copies_test.cpp:127](../../tests/db/emoji_copies_test.cpp#L127) |
-| copies nothing wants are pruned, once nothing is left to fetch |  |  | [tests/db/emoji_copies_test.cpp:153](../../tests/db/emoji_copies_test.cpp#L153) |
-| an animated emoji is copied as a GIF, a still one as a PNG | `coro` |  | [tests/db/emoji_copies_test.cpp:178](../../tests/db/emoji_copies_test.cpp#L178) |
-| the same image is copied once, and names stay unique | `coro` |  | [tests/db/emoji_copies_test.cpp:212](../../tests/db/emoji_copies_test.cpp#L212) |
-| an emoji the CDN no longer has is lost, after both hosts are tried | `coro` |  | [tests/db/emoji_copies_test.cpp:237](../../tests/db/emoji_copies_test.cpp#L237) |
-| the media proxy is tried when the CDN refuses | `coro` |  | [tests/db/emoji_copies_test.cpp:254](../../tests/db/emoji_copies_test.cpp#L254) |
-| an image too big even when smaller is not uploaded | `coro` |  | [tests/db/emoji_copies_test.cpp:266](../../tests/db/emoji_copies_test.cpp#L266) |
-| a failed download or upload is tried again the next day | `coro` | 2 | [tests/db/emoji_copies_test.cpp:282](../../tests/db/emoji_copies_test.cpp#L282) |
-| raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:307](../../tests/db/emoji_copies_test.cpp#L307) |
-| with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:325](../../tests/db/emoji_copies_test.cpp#L325) |
-| the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:334](../../tests/db/emoji_copies_test.cpp#L334) |
-| an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [tests/db/emote_reactions_test.cpp:191](../../tests/db/emote_reactions_test.cpp#L191) |
-| an emote is dated by the message it was sent in |  |  | [tests/db/emote_reactions_test.cpp:222](../../tests/db/emote_reactions_test.cpp#L222) |
-| a recompute's emotes replace what was there, but not what it did not read |  |  | [tests/db/emote_reactions_test.cpp:232](../../tests/db/emote_reactions_test.cpp#L232) |
-| emotes after a post are counted as they arrive |  |  | [tests/db/emote_reactions_test.cpp:258](../../tests/db/emote_reactions_test.cpp#L258) |
-| the next post, or 25 messages, ends a post's window |  | 2 | [tests/db/emote_reactions_test.cpp:278](../../tests/db/emote_reactions_test.cpp#L278) |
-| a reply to a post is counted however late it comes |  |  | [tests/db/emote_reactions_test.cpp:303](../../tests/db/emote_reactions_test.cpp#L303) |
-| a link shown to be an image later counts the emotes sent before that |  |  | [tests/db/emote_reactions_test.cpp:317](../../tests/db/emote_reactions_test.cpp#L317) |
-| a deleted message is no longer counted as a reaction |  |  | [tests/db/emote_reactions_test.cpp:328](../../tests/db/emote_reactions_test.cpp#L328) |
 | a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:52](../../tests/db/llm_store_test.cpp#L52) |
 | reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:71](../../tests/db/llm_store_test.cpp#L71) |
 | a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:95](../../tests/db/llm_store_test.cpp#L95) |
@@ -88,38 +70,12 @@ Database (`src/core/db`)
 | the blacklist blocks a user or anyone with a role |  |  | [tests/db/llm_store_test.cpp:223](../../tests/db/llm_store_test.cpp#L223) |
 | advanced triggers are stored per guild and edited in place |  |  | [tests/db/llm_store_test.cpp:244](../../tests/db/llm_store_test.cpp#L244) |
 | a guild's model settings are read clamped, with the model falling back to the config's |  |  | [tests/db/llm_store_test.cpp:276](../../tests/db/llm_store_test.cpp#L276) |
-| an upload is counted from the moment it is posted |  |  | [tests/db/media_posts_test.cpp:134](../../tests/db/media_posts_test.cpp#L134) |
-| a link waits for its preview to show whether it was an image |  | 4 | [tests/db/media_posts_test.cpp:157](../../tests/db/media_posts_test.cpp#L157) |
-| nothing is counted where images are off, or from bots |  |  | [tests/db/media_posts_test.cpp:188](../../tests/db/media_posts_test.cpp#L188) |
-| statistics count links, images, or both |  |  | [tests/db/media_posts_test.cpp:207](../../tests/db/media_posts_test.cpp#L207) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:41](../../tests/db/migrations_test.cpp#L41) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:54](../../tests/db/migrations_test.cpp#L54) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:65](../../tests/db/migrations_test.cpp#L65) |
 | a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:79](../../tests/db/migrations_test.cpp#L79) |
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:96](../../tests/db/migrations_test.cpp#L96) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:109](../../tests/db/migrations_test.cpp#L109) |
-| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:96](../../tests/db/reaction_store_test.cpp#L96) |
-| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:108](../../tests/db/reaction_store_test.cpp#L108) |
-| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:117](../../tests/db/reaction_store_test.cpp#L117) |
-| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:134](../../tests/db/reaction_store_test.cpp#L134) |
-| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:174](../../tests/db/reaction_store_test.cpp#L174) |
-| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:187](../../tests/db/reaction_store_test.cpp#L187) |
-| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:199](../../tests/db/reaction_store_test.cpp#L199) |
-| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:225](../../tests/db/reaction_store_test.cpp#L225) |
-| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:246](../../tests/db/reaction_store_test.cpp#L246) |
-| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:265](../../tests/db/reaction_store_test.cpp#L265) |
-| an emoji already merged into another is not quietly moved |  |  | [tests/db/reaction_store_test.cpp:273](../../tests/db/reaction_store_test.cpp#L273) |
-| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:287](../../tests/db/reaction_store_test.cpp#L287) |
-| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:297](../../tests/db/reaction_store_test.cpp#L297) |
-| emojis are listed apart, merged, or only the aliases |  |  | [tests/db/reaction_store_test.cpp:315](../../tests/db/reaction_store_test.cpp#L315) |
-| names alike are the same ignoring case, or a letter or two apart |  |  | [tests/db/reaction_store_test.cpp:343](../../tests/db/reaction_store_test.cpp#L343) |
-| emojis with names alike are grouped, and merged ones count as their keeper |  |  | [tests/db/reaction_store_test.cpp:364](../../tests/db/reaction_store_test.cpp#L364) |
-| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:42](../../tests/db/replacement_store_test.cpp#L42) |
-| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:62](../../tests/db/replacement_store_test.cpp#L62) |
-| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:75](../../tests/db/replacement_store_test.cpp#L75) |
-| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:90](../../tests/db/replacement_store_test.cpp#L90) |
-| unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:103](../../tests/db/replacement_store_test.cpp#L103) |
-| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:124](../../tests/db/replacement_store_test.cpp#L124) |
 | a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:65](../../tests/db/schema_versions_test.cpp#L65) |
 | starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:82](../../tests/db/schema_versions_test.cpp#L82) |
 | an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:95](../../tests/db/schema_versions_test.cpp#L95) |
@@ -128,18 +84,6 @@ Database (`src/core/db`)
 | a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:151](../../tests/db/schema_versions_test.cpp#L151) |
 | a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
 | every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:179](../../tests/db/schema_versions_test.cpp#L179) |
-| a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
-| setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
-| renaming a rule moves it to the new site |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
-| a rename that fails leaves the old rule where it was |  |  | [tests/db/url_rule_store_test.cpp:72](../../tests/db/url_rule_store_test.cpp#L72) |
-| rules belong to one guild |  |  | [tests/db/url_rule_store_test.cpp:91](../../tests/db/url_rule_store_test.cpp#L91) |
-| removing a rule says whether there was one |  |  | [tests/db/url_rule_store_test.cpp:104](../../tests/db/url_rule_store_test.cpp#L104) |
-| a mirror is remembered after its rule is gone |  |  | [tests/db/url_rule_store_test.cpp:113](../../tests/db/url_rule_store_test.cpp#L113) |
-| an opt-out toggles, and is kept per guild |  |  | [tests/db/url_rule_store_test.cpp:125](../../tests/db/url_rule_store_test.cpp#L125) |
-| replacement is off in a guild until it is turned on, per guild |  |  | [tests/db/url_rule_store_test.cpp:137](../../tests/db/url_rule_store_test.cpp#L137) |
-| turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:152](../../tests/db/url_rule_store_test.cpp#L152) |
-| the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:169](../../tests/db/url_rule_store_test.cpp#L169) |
-| a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:188](../../tests/db/url_rule_store_test.cpp#L188) |
 | a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:39](../../tests/db/voice_store_test.cpp#L39) |
 | voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:51](../../tests/db/voice_store_test.cpp#L51) |
 | saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:62](../../tests/db/voice_store_test.cpp#L62) |
@@ -167,24 +111,22 @@ Configuration (`src/core/config`)
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:110](../../tests/unit/bootstrap_test.cpp#L110) |
 | a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:118](../../tests/unit/bootstrap_test.cpp#L118) |
 | bad config is reported with the key that caused it |  | 8 | [tests/unit/bootstrap_test.cpp:133](../../tests/unit/bootstrap_test.cpp#L133) |
-| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:175](../../tests/unit/bootstrap_test.cpp#L175) |
-| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:180](../../tests/unit/bootstrap_test.cpp#L180) |
-| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:187](../../tests/unit/bootstrap_test.cpp#L187) |
-| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
-| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:228](../../tests/unit/bootstrap_test.cpp#L228) |
-| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:234](../../tests/unit/bootstrap_test.cpp#L234) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:252](../../tests/unit/bootstrap_test.cpp#L252) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:260](../../tests/unit/bootstrap_test.cpp#L260) |
-| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:294](../../tests/unit/bootstrap_test.cpp#L294) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:347](../../tests/unit/bootstrap_test.cpp#L347) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:374](../../tests/unit/bootstrap_test.cpp#L374) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:386](../../tests/unit/bootstrap_test.cpp#L386) |
-| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:410](../../tests/unit/bootstrap_test.cpp#L410) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:423](../../tests/unit/bootstrap_test.cpp#L423) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:432](../../tests/unit/bootstrap_test.cpp#L432) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:444](../../tests/unit/bootstrap_test.cpp#L444) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:457](../../tests/unit/bootstrap_test.cpp#L457) |
+| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
+| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:179](../../tests/unit/bootstrap_test.cpp#L179) |
+| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
+| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:220](../../tests/unit/bootstrap_test.cpp#L220) |
+| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:226](../../tests/unit/bootstrap_test.cpp#L226) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:236](../../tests/unit/bootstrap_test.cpp#L236) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:252](../../tests/unit/bootstrap_test.cpp#L252) |
+| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:286](../../tests/unit/bootstrap_test.cpp#L286) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:339](../../tests/unit/bootstrap_test.cpp#L339) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
+| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:389](../../tests/unit/bootstrap_test.cpp#L389) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:402](../../tests/unit/bootstrap_test.cpp#L402) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:411](../../tests/unit/bootstrap_test.cpp#L411) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:423](../../tests/unit/bootstrap_test.cpp#L423) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:436](../../tests/unit/bootstrap_test.cpp#L436) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -232,41 +174,10 @@ Command framework (`src/core/commands`)
 | an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
 | an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:43](../../tests/unit/command_responses_test.cpp#L43) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:62](../../tests/unit/command_responses_test.cpp#L62) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:95](../../tests/unit/command_responses_test.cpp#L95) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:107](../../tests/unit/command_responses_test.cpp#L107) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:128](../../tests/unit/command_responses_test.cpp#L128) |
-| changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:66](../../tests/unit/linkstats_command_test.cpp#L66) |
-| custom emojis with names alike are listed a group at a time |  | 3 | [tests/unit/linkstats_command_test.cpp:95](../../tests/unit/linkstats_command_test.cpp#L95) |
-| emojis alike are merged from the list by somebody with Manage Server |  | 3 | [tests/unit/linkstats_command_test.cpp:135](../../tests/unit/linkstats_command_test.cpp#L135) |
-| aliases are listed as what counts as what, within Discord's limit |  |  | [tests/unit/linkstats_command_test.cpp:180](../../tests/unit/linkstats_command_test.cpp#L180) |
-| dates are read as YYYY-MM-DD and must exist |  |  | [tests/unit/linkstats_command_test.cpp:201](../../tests/unit/linkstats_command_test.cpp#L201) |
-| the leaderboard names people without pinging them |  |  | [tests/unit/linkstats_command_test.cpp:210](../../tests/unit/linkstats_command_test.cpp#L210) |
-| the emoji leaderboard shows emojis rather than people |  |  | [tests/unit/linkstats_command_test.cpp:222](../../tests/unit/linkstats_command_test.cpp#L222) |
-| an empty leaderboard says how to fill it |  |  | [tests/unit/linkstats_command_test.cpp:231](../../tests/unit/linkstats_command_test.cpp#L231) |
-| a date range shows in the title as it was typed |  |  | [tests/unit/linkstats_command_test.cpp:238](../../tests/unit/linkstats_command_test.cpp#L238) |
-| an emoji can be named rather than drawn |  |  | [tests/unit/linkstats_command_test.cpp:247](../../tests/unit/linkstats_command_test.cpp#L247) |
-| link stats are open to everyone, with aliases in a group |  |  | [tests/unit/linkstats_command_test.cpp:263](../../tests/unit/linkstats_command_test.cpp#L263) |
-| the longest site filter still leaves room for a board's paging |  |  | [tests/unit/linkstats_command_test.cpp:276](../../tests/unit/linkstats_command_test.cpp#L276) |
-| a recompute's report says what it found and what it could not read |  | 3 | [tests/unit/linkstats_command_test.cpp:302](../../tests/unit/linkstats_command_test.cpp#L302) |
-| recompute is its own group, with a required start date |  |  | [tests/unit/linkstats_command_test.cpp:371](../../tests/unit/linkstats_command_test.cpp#L371) |
-| a long leaderboard pages, and every page is the same board |  |  | [tests/unit/linkstats_command_test.cpp:390](../../tests/unit/linkstats_command_test.cpp#L390) |
-| a board's filters survive the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:432](../../tests/unit/linkstats_command_test.cpp#L432) |
-| a board can be limited to one site |  |  | [tests/unit/linkstats_command_test.cpp:457](../../tests/unit/linkstats_command_test.cpp#L457) |
-| what a leaderboard ranks is read from its option |  |  | [tests/unit/linkstats_command_test.cpp:480](../../tests/unit/linkstats_command_test.cpp#L480) |
-| a finished recompute is answered with a ping to whoever started it |  | 3 | [tests/unit/linkstats_command_test.cpp:488](../../tests/unit/linkstats_command_test.cpp#L488) |
-| every reaction, by emoji, for everyone or for one person |  | 3 | [tests/unit/linkstats_command_test.cpp:538](../../tests/unit/linkstats_command_test.cpp#L538) |
-| a page of one person's reactions stays theirs |  |  | [tests/unit/linkstats_command_test.cpp:579](../../tests/unit/linkstats_command_test.cpp#L579) |
-| a board's buttons from before people could be named still page |  |  | [tests/unit/linkstats_command_test.cpp:607](../../tests/unit/linkstats_command_test.cpp#L607) |
-| a board says what it counts: links, images, or both |  |  | [tests/unit/linkstats_command_test.cpp:621](../../tests/unit/linkstats_command_test.cpp#L621) |
-| what a board counts survives the trip through a button |  |  | [tests/unit/linkstats_command_test.cpp:642](../../tests/unit/linkstats_command_test.cpp#L642) |
-| images are turned on per server, and the boards can ask for them |  |  | [tests/unit/linkstats_command_test.cpp:658](../../tests/unit/linkstats_command_test.cpp#L658) |
-| a recompute that counts images says what it found |  |  | [tests/unit/linkstats_command_test.cpp:683](../../tests/unit/linkstats_command_test.cpp#L683) |
-| per_page sets how many to a page, and the buttons remember it |  |  | [tests/unit/linkstats_command_test.cpp:711](../../tests/unit/linkstats_command_test.cpp#L711) |
-| a page size is only as big as fits in a message |  | 1 | [tests/unit/linkstats_command_test.cpp:739](../../tests/unit/linkstats_command_test.cpp#L739) |
-| a page size survives the trip through a button, and nothing else passes for one |  |  | [tests/unit/linkstats_command_test.cpp:767](../../tests/unit/linkstats_command_test.cpp#L767) |
-| top and reactions take a page size, and there is no user subcommand |  |  | [tests/unit/linkstats_command_test.cpp:793](../../tests/unit/linkstats_command_test.cpp#L793) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:37](../../tests/unit/command_responses_test.cpp#L37) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:53](../../tests/unit/command_responses_test.cpp#L53) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:70](../../tests/unit/command_responses_test.cpp#L70) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:91](../../tests/unit/command_responses_test.cpp#L91) |
 | the personality is open to everyone until an admin narrows it to a role |  |  | [tests/unit/llm_command_test.cpp:67](../../tests/unit/llm_command_test.cpp#L67) |
 | a document is cut into form parts between lines, and joins back the same |  |  | [tests/unit/llm_command_test.cpp:78](../../tests/unit/llm_command_test.cpp#L78) |
 | a document too long for a form has no form, and a line longer than a part is cut |  |  | [tests/unit/llm_command_test.cpp:98](../../tests/unit/llm_command_test.cpp#L98) |
@@ -283,20 +194,15 @@ Command framework (`src/core/commands`)
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:63](../../tests/unit/panels_test.cpp#L63) |
-| the URL panel adds a rule |  |  | [tests/unit/panels_test.cpp:117](../../tests/unit/panels_test.cpp#L117) |
-| the URL panel edits a rule's mirrors, and an untouched form changes nothing |  |  | [tests/unit/panels_test.cpp:131](../../tests/unit/panels_test.cpp#L131) |
-| the URL panel renames a rule by editing its site |  |  | [tests/unit/panels_test.cpp:147](../../tests/unit/panels_test.cpp#L147) |
-| the URL panel will not save over another site's rule |  | 2 | [tests/unit/panels_test.cpp:157](../../tests/unit/panels_test.cpp#L157) |
-| the URL panel deletes a rule once confirmed, and turns replacement on and off |  |  | [tests/unit/panels_test.cpp:177](../../tests/unit/panels_test.cpp#L177) |
-| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:252](../../tests/unit/panels_test.cpp#L252) |
-| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:274](../../tests/unit/panels_test.cpp#L274) |
-| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:284](../../tests/unit/panels_test.cpp#L284) |
-| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:308](../../tests/unit/panels_test.cpp#L308) |
-| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:359](../../tests/unit/panels_test.cpp#L359) |
-| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:378](../../tests/unit/panels_test.cpp#L378) |
-| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:391](../../tests/unit/panels_test.cpp#L391) |
-| the memory list pages |  |  | [tests/unit/panels_test.cpp:424](../../tests/unit/panels_test.cpp#L424) |
+| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:61](../../tests/unit/panels_test.cpp#L61) |
+| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:144](../../tests/unit/panels_test.cpp#L144) |
+| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:166](../../tests/unit/panels_test.cpp#L166) |
+| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:176](../../tests/unit/panels_test.cpp#L176) |
+| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:200](../../tests/unit/panels_test.cpp#L200) |
+| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:251](../../tests/unit/panels_test.cpp#L251) |
+| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:270](../../tests/unit/panels_test.cpp#L270) |
+| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:283](../../tests/unit/panels_test.cpp#L283) |
+| the memory list pages |  |  | [tests/unit/panels_test.cpp:316](../../tests/unit/panels_test.cpp#L316) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -325,29 +231,6 @@ Command framework (`src/core/commands`)
 | a refused deletion is reported and the other servers still cleared | `coro` |  | [tests/unit/unregister_test.cpp:60](../../tests/unit/unregister_test.cpp#L60) |
 | the servers not being listable still leaves the global commands deleted | `coro` |  | [tests/unit/unregister_test.cpp:79](../../tests/unit/unregister_test.cpp#L79) |
 | the global commands not being listable is reported and nothing global deleted | `coro` |  | [tests/unit/unregister_test.cpp:93](../../tests/unit/unregister_test.cpp#L93) |
-| mirrors may be typed on one line or one per line |  |  | [tests/unit/urlrepl_command_test.cpp:54](../../tests/unit/urlrepl_command_test.cpp#L54) |
-| the site is reduced to what links are matched by |  |  | [tests/unit/urlrepl_command_test.cpp:67](../../tests/unit/urlrepl_command_test.cpp#L67) |
-| a mirror listed twice is kept once, in its first place |  |  | [tests/unit/urlrepl_command_test.cpp:71](../../tests/unit/urlrepl_command_test.cpp#L71) |
-| rules that could not work are refused with a reason |  |  | [tests/unit/urlrepl_command_test.cpp:76](../../tests/unit/urlrepl_command_test.cpp#L76) |
-| a rule describes itself in one line |  |  | [tests/unit/urlrepl_command_test.cpp:84](../../tests/unit/urlrepl_command_test.cpp#L84) |
-| the dry run shows the post and accounts for every link |  |  | [tests/unit/urlrepl_command_test.cpp:93](../../tests/unit/urlrepl_command_test.cpp#L93) |
-| the dry run says when the person running it has opted out |  |  | [tests/unit/urlrepl_command_test.cpp:104](../../tests/unit/urlrepl_command_test.cpp#L104) |
-| the dry run works while replacement is off, and says that it is |  |  | [tests/unit/urlrepl_command_test.cpp:109](../../tests/unit/urlrepl_command_test.cpp#L109) |
-| the dry run says when there is nothing to do |  |  | [tests/unit/urlrepl_command_test.cpp:119](../../tests/unit/urlrepl_command_test.cpp#L119) |
-| a dry run of a long message stays under Discord's limit |  |  | [tests/unit/urlrepl_command_test.cpp:125](../../tests/unit/urlrepl_command_test.cpp#L125) |
-| an empty list says how to start one |  |  | [tests/unit/urlrepl_command_test.cpp:141](../../tests/unit/urlrepl_command_test.cpp#L141) |
-| a long list pages |  |  | [tests/unit/urlrepl_command_test.cpp:148](../../tests/unit/urlrepl_command_test.cpp#L148) |
-| the list and the panel say whether replacement is on |  |  | [tests/unit/urlrepl_command_test.cpp:162](../../tests/unit/urlrepl_command_test.cpp#L162) |
-| the panel's switch asks for the opposite of what is set |  |  | [tests/unit/urlrepl_command_test.cpp:174](../../tests/unit/urlrepl_command_test.cpp#L174) |
-| turning replacement on or off says what changed |  |  | [tests/unit/urlrepl_command_test.cpp:197](../../tests/unit/urlrepl_command_test.cpp#L197) |
-| the panel lists a page of rules with a menu to pick one |  |  | [tests/unit/urlrepl_command_test.cpp:216](../../tests/unit/urlrepl_command_test.cpp#L216) |
-| picking a rule offers Edit and Delete for it |  |  | [tests/unit/urlrepl_command_test.cpp:232](../../tests/unit/urlrepl_command_test.cpp#L232) |
-| confirming a delete on the first or last page fits, and Cancel keeps the rule picked |  |  | [tests/unit/urlrepl_command_test.cpp:250](../../tests/unit/urlrepl_command_test.cpp#L250) |
-| the panel follows a rule to the page it sorts onto |  |  | [tests/unit/urlrepl_command_test.cpp:274](../../tests/unit/urlrepl_command_test.cpp#L274) |
-| the URL rule modal fits inside Discord's limits |  |  | [tests/unit/urlrepl_command_test.cpp:285](../../tests/unit/urlrepl_command_test.cpp#L285) |
-| anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [tests/unit/urlrepl_command_test.cpp:301](../../tests/unit/urlrepl_command_test.cpp#L301) |
-| a full page of rules with the most, longest mirrors still fits the panel and the list |  |  | [tests/unit/urlrepl_command_test.cpp:316](../../tests/unit/urlrepl_command_test.cpp#L316) |
-| the commands are registered the way Discord expects |  |  | [tests/unit/urlrepl_command_test.cpp:331](../../tests/unit/urlrepl_command_test.cpp#L331) |
 | the voice lab shows the voice as groups and as inline commands |  |  | [tests/unit/voice_lab_test.cpp:44](../../tests/unit/voice_lab_test.cpp#L44) |
 | an untouched voice says so, and a note shows once under it |  |  | [tests/unit/voice_lab_test.cpp:55](../../tests/unit/voice_lab_test.cpp#L55) |
 | the voice lab says which voice it is editing, and whether it still matches what is saved |  | 4 | [tests/unit/voice_lab_test.cpp:66](../../tests/unit/voice_lab_test.cpp#L66) |
@@ -365,92 +248,11 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a recompute credits an old replacement to whoever posted the link | `coro` |  | [tests/db/backfill_test.cpp:112](../../tests/db/backfill_test.cpp#L112) |
-| an old replacement is filed under the site its mirror stood in for | `coro` |  | [tests/db/backfill_test.cpp:141](../../tests/db/backfill_test.cpp#L141) |
-| a replacement after somebody else's link is reported, not credited to them | `coro` |  | [tests/db/backfill_test.cpp:157](../../tests/db/backfill_test.cpp#L157) |
-| a recompute is safe to run twice | `coro` |  | [tests/db/backfill_test.cpp:171](../../tests/db/backfill_test.cpp#L171) |
-| a finished channel is not scanned again unless asked | `coro` |  | [tests/db/backfill_test.cpp:183](../../tests/db/backfill_test.cpp#L183) |
-| the walk stops at the start of the range | `coro` |  | [tests/db/backfill_test.cpp:194](../../tests/db/backfill_test.cpp#L194) |
-| the end of the range is where paging starts | `coro` |  | [tests/db/backfill_test.cpp:208](../../tests/db/backfill_test.cpp#L208) |
-| a replacement the bot recorded itself is not re-attributed | `coro` |  | [tests/db/backfill_test.cpp:218](../../tests/db/backfill_test.cpp#L218) |
-| messages in no known format are listed with where they are | `coro` |  | [tests/db/backfill_test.cpp:235](../../tests/db/backfill_test.cpp#L235) |
-| a replacement with nobody to credit still counts its reactions | `coro` |  | [tests/db/backfill_test.cpp:248](../../tests/db/backfill_test.cpp#L248) |
-| a channel the bot cannot read is reported and the rest carry on | `coro` |  | [tests/db/backfill_test.cpp:261](../../tests/db/backfill_test.cpp#L261) |
-| a failed reaction lookup keeps the counts that were there | `coro` |  | [tests/db/backfill_test.cpp:275](../../tests/db/backfill_test.cpp#L275) |
-| one recompute per guild, and it can be cancelled | `coro` |  | [tests/db/backfill_test.cpp:289](../../tests/db/backfill_test.cpp#L289) |
-| an old mirror no rule remembers is found by what it answered, and remembered | `coro` |  | [tests/db/backfill_test.cpp:307](../../tests/db/backfill_test.cpp#L307) |
-| a masked replacement is recognised by its shape, whatever its mirror | `coro` |  | [tests/db/backfill_test.cpp:332](../../tests/db/backfill_test.cpp#L332) |
-| the bot's own links are not replacements unless they answered one | `coro` | 3 | [tests/db/backfill_test.cpp:345](../../tests/db/backfill_test.cpp#L345) |
-| where images are counted, a recompute finds them and their reactions | `coro` |  | [tests/db/backfill_test.cpp:404](../../tests/db/backfill_test.cpp#L404) |
-| where images are not counted, a recompute leaves them alone | `coro` |  | [tests/db/backfill_test.cpp:432](../../tests/db/backfill_test.cpp#L432) |
-| a recompute counts emotes sent after a replacement as reactions to it | `coro` |  | [tests/db/backfill_test.cpp:461](../../tests/db/backfill_test.cpp#L461) |
-| the messages after a post are carried across a page of history | `coro` |  | [tests/db/backfill_test.cpp:491](../../tests/db/backfill_test.cpp#L491) |
-| a GIF moves when it has more than one frame |  |  | [tests/db/emoji_copies_test.cpp:91](../../tests/db/emoji_copies_test.cpp#L91) |
-| images are told apart by their SHA-256 |  |  | [tests/db/emoji_copies_test.cpp:97](../../tests/db/emoji_copies_test.cpp#L97) |
-| a copy's name is one Discord accepts |  |  | [tests/db/emoji_copies_test.cpp:102](../../tests/db/emoji_copies_test.cpp#L102) |
-| a message of nothing but emojis is read as its emojis |  |  | [tests/db/emote_reactions_test.cpp:97](../../tests/db/emote_reactions_test.cpp#L97) |
-| joined emojis, skin tones, flags and keycaps are one emoji each |  |  | [tests/db/emote_reactions_test.cpp:113](../../tests/db/emote_reactions_test.cpp#L113) |
-| anything else in a message makes it not a reaction |  |  | [tests/db/emote_reactions_test.cpp:130](../../tests/db/emote_reactions_test.cpp#L130) |
-| each person's first message after a post counts, when it is all emotes |  |  | [tests/db/emote_reactions_test.cpp:142](../../tests/db/emote_reactions_test.cpp#L142) |
-| only the first 25 messages after a post are looked at |  |  | [tests/db/emote_reactions_test.cpp:155](../../tests/db/emote_reactions_test.cpp#L155) |
-| a reply to the post counts wherever it is, and a reply to anything else does not |  |  | [tests/db/emote_reactions_test.cpp:170](../../tests/db/emote_reactions_test.cpp#L170) |
-| an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:89](../../tests/db/media_posts_test.cpp#L89) |
-| only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:102](../../tests/db/media_posts_test.cpp#L102) |
-| a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:114](../../tests/db/media_posts_test.cpp#L114) |
-| a replacement is one link line per link |  |  | [tests/unit/embed_watch_test.cpp:120](../../tests/unit/embed_watch_test.cpp#L120) |
-| the failure note names the mirrors that were tried |  |  | [tests/unit/embed_watch_test.cpp:130](../../tests/unit/embed_watch_test.cpp#L130) |
-| a failure note turns its own previews off and carries Retry |  |  | [tests/unit/embed_watch_test.cpp:138](../../tests/unit/embed_watch_test.cpp#L138) |
-| a working replacement has no button and its previews on |  |  | [tests/unit/embed_watch_test.cpp:152](../../tests/unit/embed_watch_test.cpp#L152) |
-| with one link, any preview counts |  |  | [tests/unit/embed_watch_test.cpp:162](../../tests/unit/embed_watch_test.cpp#L162) |
-| previews are matched to links by path |  |  | [tests/unit/embed_watch_test.cpp:168](../../tests/unit/embed_watch_test.cpp#L168) |
-| several previews of one post do not spill onto the next link |  |  | [tests/unit/embed_watch_test.cpp:177](../../tests/unit/embed_watch_test.cpp#L177) |
-| a preview that matches nothing goes to the first link still waiting |  |  | [tests/unit/embed_watch_test.cpp:188](../../tests/unit/embed_watch_test.cpp#L188) |
-| a preview on the first try settles the replacement |  |  | [tests/unit/embed_watch_test.cpp:201](../../tests/unit/embed_watch_test.cpp#L201) |
-| each mirror gets two tries, then the next one |  | 3 | [tests/unit/embed_watch_test.cpp:216](../../tests/unit/embed_watch_test.cpp#L216) |
-| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [tests/unit/embed_watch_test.cpp:254](../../tests/unit/embed_watch_test.cpp#L254) |
-| each link in a message is tracked on its own |  |  | [tests/unit/embed_watch_test.cpp:307](../../tests/unit/embed_watch_test.cpp#L307) |
-| a preview that arrives before the watch starts is not lost |  |  | [tests/unit/embed_watch_test.cpp:332](../../tests/unit/embed_watch_test.cpp#L332) |
-| an early preview is forgotten after a while |  |  | [tests/unit/embed_watch_test.cpp:344](../../tests/unit/embed_watch_test.cpp#L344) |
-| previews already on the posted message count |  |  | [tests/unit/embed_watch_test.cpp:354](../../tests/unit/embed_watch_test.cpp#L354) |
-| a deleted replacement is no longer followed |  |  | [tests/unit/embed_watch_test.cpp:363](../../tests/unit/embed_watch_test.cpp#L363) |
-| Retry uses the rule as it is now, one try per mirror |  | 2 | [tests/unit/embed_watch_test.cpp:377](../../tests/unit/embed_watch_test.cpp#L377) |
-| Retry says why there is nothing to retry |  | 5 | [tests/unit/embed_watch_test.cpp:418](../../tests/unit/embed_watch_test.cpp#L418) |
-| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [tests/unit/embed_watch_test.cpp:459](../../tests/unit/embed_watch_test.cpp#L459) |
-| a replacement that cannot be posted leaves the original alone | `coro` |  | [tests/unit/embed_watch_test.cpp:490](../../tests/unit/embed_watch_test.cpp#L490) |
-| a failure's actions reach Discord | `coro` |  | [tests/unit/embed_watch_test.cpp:504](../../tests/unit/embed_watch_test.cpp#L504) |
-| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [tests/unit/embed_watch_test.cpp:543](../../tests/unit/embed_watch_test.cpp#L543) |
-| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [tests/unit/embed_watch_test.cpp:567](../../tests/unit/embed_watch_test.cpp#L567) |
-| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [tests/unit/embed_watch_test.cpp:580](../../tests/unit/embed_watch_test.cpp#L580) |
-| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [tests/unit/embed_watch_test.cpp:606](../../tests/unit/embed_watch_test.cpp#L606) |
-| the stage asks for a replacement and lets the message carry on |  |  | [tests/unit/embed_watch_test.cpp:643](../../tests/unit/embed_watch_test.cpp#L643) |
-| the stage replaces nothing until the server turns it on |  |  | [tests/unit/embed_watch_test.cpp:659](../../tests/unit/embed_watch_test.cpp#L659) |
-| the stage leaves some messages alone |  | 5 | [tests/unit/embed_watch_test.cpp:679](../../tests/unit/embed_watch_test.cpp#L679) |
-| a link too long to post is dropped rather than failing the post |  |  | [tests/unit/embed_watch_test.cpp:713](../../tests/unit/embed_watch_test.cpp#L713) |
 | the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
 | the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
 | a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
 | a custom phrase replaces the default |  |  | [tests/unit/goodbye_test.cpp:42](../../tests/unit/goodbye_test.cpp#L42) |
 | an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
-| format 1: a copy of the original, sent as a reply |  |  | [tests/unit/legacy_replacements_test.cpp:69](../../tests/unit/legacy_replacements_test.cpp#L69) |
-| format 2: webhook mode is counted and skipped |  |  | [tests/unit/legacy_replacements_test.cpp:75](../../tests/unit/legacy_replacements_test.cpp#L75) |
-| format 3: a copy of the original as a plain message |  |  | [tests/unit/legacy_replacements_test.cpp:86](../../tests/unit/legacy_replacements_test.cpp#L86) |
-| format 4: a dot linking to the mirror |  |  | [tests/unit/legacy_replacements_test.cpp:90](../../tests/unit/legacy_replacements_test.cpp#L90) |
-| format 5: the link emoji and a dot |  |  | [tests/unit/legacy_replacements_test.cpp:94](../../tests/unit/legacy_replacements_test.cpp#L94) |
-| format 6: the link emoji and an underscore, which is still the format |  |  | [tests/unit/legacy_replacements_test.cpp:99](../../tests/unit/legacy_replacements_test.cpp#L99) |
-| the mirror links are collected whatever the format |  |  | [tests/unit/legacy_replacements_test.cpp:107](../../tests/unit/legacy_replacements_test.cpp#L107) |
-| only the bot's own messages with links count |  |  | [tests/unit/legacy_replacements_test.cpp:117](../../tests/unit/legacy_replacements_test.cpp#L117) |
-| a shape nobody wrote down is reported, not guessed at |  |  | [tests/unit/legacy_replacements_test.cpp:127](../../tests/unit/legacy_replacements_test.cpp#L127) |
-| the masked shapes are replacements whatever their mirror |  |  | [tests/unit/legacy_replacements_test.cpp:143](../../tests/unit/legacy_replacements_test.cpp#L143) |
-| a copy on no known mirror waits for what it answered |  |  | [tests/unit/legacy_replacements_test.cpp:154](../../tests/unit/legacy_replacements_test.cpp#L154) |
-| what a replacement replaced is the same path on another host |  |  | [tests/unit/legacy_replacements_test.cpp:170](../../tests/unit/legacy_replacements_test.cpp#L170) |
-| a copy on no known mirror is credited only by a link it replaced |  |  | [tests/unit/legacy_replacements_test.cpp:183](../../tests/unit/legacy_replacements_test.cpp#L183) |
-| a reply names its original |  | 2 | [tests/unit/legacy_replacements_test.cpp:204](../../tests/unit/legacy_replacements_test.cpp#L204) |
-| the original is the nearest earlier link, past any chat |  |  | [tests/unit/legacy_replacements_test.cpp:226](../../tests/unit/legacy_replacements_test.cpp#L226) |
-| a nearer link that is not ours does not take the credit |  |  | [tests/unit/legacy_replacements_test.cpp:240](../../tests/unit/legacy_replacements_test.cpp#L240) |
-| with no matching link the replacement stays unattributed |  | 3 | [tests/unit/legacy_replacements_test.cpp:253](../../tests/unit/legacy_replacements_test.cpp#L253) |
-| other bots' links are never the original |  |  | [tests/unit/legacy_replacements_test.cpp:281](../../tests/unit/legacy_replacements_test.cpp#L281) |
-| a front-page link proves nothing about which message was answered |  |  | [tests/unit/legacy_replacements_test.cpp:290](../../tests/unit/legacy_replacements_test.cpp#L290) |
-| a message's time comes from its id |  |  | [tests/unit/legacy_replacements_test.cpp:300](../../tests/unit/legacy_replacements_test.cpp#L300) |
 | a waiting line has its time and level, in a code block |  |  | [tests/unit/log_channel_test.cpp:51](../../tests/unit/log_channel_test.cpp#L51) |
 | lines are packed into as few messages as fit, in order |  |  | [tests/unit/log_channel_test.cpp:59](../../tests/unit/log_channel_test.cpp#L59) |
 | what does not fit this time keeps waiting |  |  | [tests/unit/log_channel_test.cpp:77](../../tests/unit/log_channel_test.cpp#L77) |
@@ -477,23 +279,6 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
 | a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
-| a reaction is keyed by id when custom, by itself when Unicode |  |  | [tests/unit/reactions_test.cpp:12](../../tests/unit/reactions_test.cpp#L12) |
-| the colour-form selector does not make a second emoji |  |  | [tests/unit/reactions_test.cpp:21](../../tests/unit/reactions_test.cpp#L21) |
-| typed emojis are understood in every form a command sees |  |  | [tests/unit/reactions_test.cpp:26](../../tests/unit/reactions_test.cpp#L26) |
-| an emoji is shown the way Discord draws it |  |  | [tests/unit/reactions_test.cpp:39](../../tests/unit/reactions_test.cpp#L39) |
-| a link to a site without a rule does not stop the others |  |  | [tests/unit/url_rules_test.cpp:31](../../tests/unit/url_rules_test.cpp#L31) |
-| each link picks its mirror on its own |  |  | [tests/unit/url_rules_test.cpp:41](../../tests/unit/url_rules_test.cpp#L41) |
-| a mirror index past the end uses the last mirror |  |  | [tests/unit/url_rules_test.cpp:52](../../tests/unit/url_rules_test.cpp#L52) |
-| www and letter case do not hide a link from its rule |  |  | [tests/unit/url_rules_test.cpp:58](../../tests/unit/url_rules_test.cpp#L58) |
-| the spoiler survives into the plan |  |  | [tests/unit/url_rules_test.cpp:64](../../tests/unit/url_rules_test.cpp#L64) |
-| links Discord would not have embedded are left alone |  |  | [tests/unit/url_rules_test.cpp:70](../../tests/unit/url_rules_test.cpp#L70) |
-| the same link twice is replaced once |  |  | [tests/unit/url_rules_test.cpp:75](../../tests/unit/url_rules_test.cpp#L75) |
-| a message of links is capped |  |  | [tests/unit/url_rules_test.cpp:80](../../tests/unit/url_rules_test.cpp#L80) |
-| every link gets a verdict, and the plan is the replaced ones |  |  | [tests/unit/url_rules_test.cpp:88](../../tests/unit/url_rules_test.cpp#L88) |
-| no rules means no plan |  |  | [tests/unit/url_rules_test.cpp:111](../../tests/unit/url_rules_test.cpp#L111) |
-| a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:115](../../tests/unit/url_rules_test.cpp#L115) |
-| a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:123](../../tests/unit/url_rules_test.cpp#L123) |
-| the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:129](../../tests/unit/url_rules_test.cpp#L129) |
 | a voice session is kept until it ends, one per guild |  |  | [tests/unit/voice_sessions_test.cpp:29](../../tests/unit/voice_sessions_test.cpp#L29) |
 | a session follows the bot when it is moved |  |  | [tests/unit/voice_sessions_test.cpp:50](../../tests/unit/voice_sessions_test.cpp#L50) |
 | the bot leaves once it has been alone for the grace period |  |  | [tests/unit/voice_sessions_test.cpp:62](../../tests/unit/voice_sessions_test.cpp#L62) |
@@ -545,12 +330,12 @@ The bot as built, with every module this build includes (`tests/app`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:138](../../tests/app/modules_test.cpp#L138) |
-| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:153](../../tests/app/modules_test.cpp#L153) |
-| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:185](../../tests/app/modules_test.cpp#L185) |
-| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:222](../../tests/app/modules_test.cpp#L222) |
-| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:240](../../tests/app/modules_test.cpp#L240) |
-| a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:257](../../tests/app/modules_test.cpp#L257) |
+| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:135](../../tests/app/modules_test.cpp#L135) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:150](../../tests/app/modules_test.cpp#L150) |
+| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:182](../../tests/app/modules_test.cpp#L182) |
+| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:219](../../tests/app/modules_test.cpp#L219) |
+| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:237](../../tests/app/modules_test.cpp#L237) |
+| a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:259](../../tests/app/modules_test.cpp#L259) |
 
 ## triggers
 
@@ -740,6 +525,241 @@ The midnight module (`src/modules/midnight`)
 | timezone completion matches anywhere in the name |  |  | [src/modules/midnight/tests/midnight_test.cpp:177](../../src/modules/midnight/tests/midnight_test.cpp#L177) |
 | timezone completion never offers more than it is asked for |  |  | [src/modules/midnight/tests/midnight_test.cpp:184](../../src/modules/midnight/tests/midnight_test.cpp#L184) |
 | timezone completion finds nothing for nonsense |  |  | [src/modules/midnight/tests/midnight_test.cpp:191](../../src/modules/midnight/tests/midnight_test.cpp#L191) |
+
+## links
+
+The links module (`src/modules/links`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| a replacement is one link line per link |  |  | [src/modules/links/tests/embed_watch_test.cpp:122](../../src/modules/links/tests/embed_watch_test.cpp#L122) |
+| the failure note names the mirrors that were tried |  |  | [src/modules/links/tests/embed_watch_test.cpp:132](../../src/modules/links/tests/embed_watch_test.cpp#L132) |
+| a failure note turns its own previews off and carries Retry |  |  | [src/modules/links/tests/embed_watch_test.cpp:140](../../src/modules/links/tests/embed_watch_test.cpp#L140) |
+| a working replacement has no button and its previews on |  |  | [src/modules/links/tests/embed_watch_test.cpp:154](../../src/modules/links/tests/embed_watch_test.cpp#L154) |
+| with one link, any preview counts |  |  | [src/modules/links/tests/embed_watch_test.cpp:164](../../src/modules/links/tests/embed_watch_test.cpp#L164) |
+| previews are matched to links by path |  |  | [src/modules/links/tests/embed_watch_test.cpp:170](../../src/modules/links/tests/embed_watch_test.cpp#L170) |
+| several previews of one post do not spill onto the next link |  |  | [src/modules/links/tests/embed_watch_test.cpp:179](../../src/modules/links/tests/embed_watch_test.cpp#L179) |
+| a preview that matches nothing goes to the first link still waiting |  |  | [src/modules/links/tests/embed_watch_test.cpp:190](../../src/modules/links/tests/embed_watch_test.cpp#L190) |
+| a preview on the first try settles the replacement |  |  | [src/modules/links/tests/embed_watch_test.cpp:203](../../src/modules/links/tests/embed_watch_test.cpp#L203) |
+| each mirror gets two tries, then the next one |  | 3 | [src/modules/links/tests/embed_watch_test.cpp:218](../../src/modules/links/tests/embed_watch_test.cpp#L218) |
+| a watch whose ending cannot be recorded waits, and the others still finish |  |  | [src/modules/links/tests/embed_watch_test.cpp:256](../../src/modules/links/tests/embed_watch_test.cpp#L256) |
+| each link in a message is tracked on its own |  |  | [src/modules/links/tests/embed_watch_test.cpp:309](../../src/modules/links/tests/embed_watch_test.cpp#L309) |
+| a preview that arrives before the watch starts is not lost |  |  | [src/modules/links/tests/embed_watch_test.cpp:334](../../src/modules/links/tests/embed_watch_test.cpp#L334) |
+| an early preview is forgotten after a while |  |  | [src/modules/links/tests/embed_watch_test.cpp:346](../../src/modules/links/tests/embed_watch_test.cpp#L346) |
+| previews already on the posted message count |  |  | [src/modules/links/tests/embed_watch_test.cpp:356](../../src/modules/links/tests/embed_watch_test.cpp#L356) |
+| a deleted replacement is no longer followed |  |  | [src/modules/links/tests/embed_watch_test.cpp:365](../../src/modules/links/tests/embed_watch_test.cpp#L365) |
+| Retry uses the rule as it is now, one try per mirror |  | 2 | [src/modules/links/tests/embed_watch_test.cpp:379](../../src/modules/links/tests/embed_watch_test.cpp#L379) |
+| Retry says why there is nothing to retry |  | 5 | [src/modules/links/tests/embed_watch_test.cpp:420](../../src/modules/links/tests/embed_watch_test.cpp#L420) |
+| posting sends the replacement, records it, and turns the original's preview off | `coro` |  | [src/modules/links/tests/embed_watch_test.cpp:461](../../src/modules/links/tests/embed_watch_test.cpp#L461) |
+| a replacement that cannot be posted leaves the original alone | `coro` |  | [src/modules/links/tests/embed_watch_test.cpp:492](../../src/modules/links/tests/embed_watch_test.cpp#L492) |
+| a failure's actions reach Discord | `coro` |  | [src/modules/links/tests/embed_watch_test.cpp:506](../../src/modules/links/tests/embed_watch_test.cpp#L506) |
+| a replacement stranded without a preview gets its note, and the original's preview back | `coro` |  | [src/modules/links/tests/embed_watch_test.cpp:545](../../src/modules/links/tests/embed_watch_test.cpp#L545) |
+| a replacement stranded after its preview appeared is simply marked working | `coro` |  | [src/modules/links/tests/embed_watch_test.cpp:569](../../src/modules/links/tests/embed_watch_test.cpp#L569) |
+| a Retry a restart cut off ends as a Retry would | `coro` | 2 | [src/modules/links/tests/embed_watch_test.cpp:582](../../src/modules/links/tests/embed_watch_test.cpp#L582) |
+| a stranded replacement that is gone is marked failed, and one Discord will not show yet waits | `coro` | 2 | [src/modules/links/tests/embed_watch_test.cpp:608](../../src/modules/links/tests/embed_watch_test.cpp#L608) |
+| the stage asks for a replacement and lets the message carry on |  |  | [src/modules/links/tests/embed_watch_test.cpp:645](../../src/modules/links/tests/embed_watch_test.cpp#L645) |
+| the stage replaces nothing until the server turns it on |  |  | [src/modules/links/tests/embed_watch_test.cpp:661](../../src/modules/links/tests/embed_watch_test.cpp#L661) |
+| the stage leaves some messages alone |  | 5 | [src/modules/links/tests/embed_watch_test.cpp:681](../../src/modules/links/tests/embed_watch_test.cpp#L681) |
+| a link too long to post is dropped rather than failing the post |  |  | [src/modules/links/tests/embed_watch_test.cpp:715](../../src/modules/links/tests/embed_watch_test.cpp#L715) |
+| mirrors may be typed on one line or one per line |  |  | [src/modules/links/tests/links_command_test.cpp:61](../../src/modules/links/tests/links_command_test.cpp#L61) |
+| the site is reduced to what links are matched by |  |  | [src/modules/links/tests/links_command_test.cpp:74](../../src/modules/links/tests/links_command_test.cpp#L74) |
+| a mirror listed twice is kept once, in its first place |  |  | [src/modules/links/tests/links_command_test.cpp:78](../../src/modules/links/tests/links_command_test.cpp#L78) |
+| rules that could not work are refused with a reason |  |  | [src/modules/links/tests/links_command_test.cpp:83](../../src/modules/links/tests/links_command_test.cpp#L83) |
+| a rule describes itself in one line |  |  | [src/modules/links/tests/links_command_test.cpp:91](../../src/modules/links/tests/links_command_test.cpp#L91) |
+| the dry run shows the post and accounts for every link |  |  | [src/modules/links/tests/links_command_test.cpp:100](../../src/modules/links/tests/links_command_test.cpp#L100) |
+| the dry run says when the person running it has opted out |  |  | [src/modules/links/tests/links_command_test.cpp:111](../../src/modules/links/tests/links_command_test.cpp#L111) |
+| the dry run works while replacement is off, and says that it is |  |  | [src/modules/links/tests/links_command_test.cpp:116](../../src/modules/links/tests/links_command_test.cpp#L116) |
+| the dry run says when there is nothing to do |  |  | [src/modules/links/tests/links_command_test.cpp:126](../../src/modules/links/tests/links_command_test.cpp#L126) |
+| a dry run of a long message stays under Discord's limit |  |  | [src/modules/links/tests/links_command_test.cpp:132](../../src/modules/links/tests/links_command_test.cpp#L132) |
+| an empty list says how to start one |  |  | [src/modules/links/tests/links_command_test.cpp:148](../../src/modules/links/tests/links_command_test.cpp#L148) |
+| a long list pages |  |  | [src/modules/links/tests/links_command_test.cpp:155](../../src/modules/links/tests/links_command_test.cpp#L155) |
+| the list and the panel say whether replacement is on |  |  | [src/modules/links/tests/links_command_test.cpp:169](../../src/modules/links/tests/links_command_test.cpp#L169) |
+| the panel's switch asks for the opposite of what is set |  |  | [src/modules/links/tests/links_command_test.cpp:181](../../src/modules/links/tests/links_command_test.cpp#L181) |
+| turning replacement on or off says what changed |  |  | [src/modules/links/tests/links_command_test.cpp:204](../../src/modules/links/tests/links_command_test.cpp#L204) |
+| the panel lists a page of rules with a menu to pick one |  |  | [src/modules/links/tests/links_command_test.cpp:223](../../src/modules/links/tests/links_command_test.cpp#L223) |
+| picking a rule offers Edit and Delete for it |  |  | [src/modules/links/tests/links_command_test.cpp:239](../../src/modules/links/tests/links_command_test.cpp#L239) |
+| confirming a delete on the first or last page fits, and Cancel keeps the rule picked |  |  | [src/modules/links/tests/links_command_test.cpp:257](../../src/modules/links/tests/links_command_test.cpp#L257) |
+| the panel follows a rule to the page it sorts onto |  |  | [src/modules/links/tests/links_command_test.cpp:281](../../src/modules/links/tests/links_command_test.cpp#L281) |
+| the URL rule modal fits inside Discord's limits |  |  | [src/modules/links/tests/links_command_test.cpp:292](../../src/modules/links/tests/links_command_test.cpp#L292) |
+| anyone may opt themselves out, and only Manage Server may for somebody else |  |  | [src/modules/links/tests/links_command_test.cpp:308](../../src/modules/links/tests/links_command_test.cpp#L308) |
+| a full page of rules with the most, longest mirrors still fits the panel and the list |  |  | [src/modules/links/tests/links_command_test.cpp:323](../../src/modules/links/tests/links_command_test.cpp#L323) |
+| the commands are registered the way Discord expects |  |  | [src/modules/links/tests/links_command_test.cpp:338](../../src/modules/links/tests/links_command_test.cpp#L338) |
+| the links commands pass the registry's checks, private, and the dry run hides previews |  |  | [src/modules/links/tests/links_command_test.cpp:355](../../src/modules/links/tests/links_command_test.cpp#L355) |
+| links asks for Embed Links and Manage Messages in every server |  |  | [src/modules/links/tests/links_module_test.cpp:43](../../src/modules/links/tests/links_module_test.cpp#L43) |
+| the links README lists what the module registers |  |  | [src/modules/links/tests/links_module_test.cpp:58](../../src/modules/links/tests/links_module_test.cpp#L58) |
+| the URL panel adds a rule |  |  | [src/modules/links/tests/links_panel_test.cpp:70](../../src/modules/links/tests/links_panel_test.cpp#L70) |
+| the URL panel edits a rule's mirrors, and an untouched form changes nothing |  |  | [src/modules/links/tests/links_panel_test.cpp:84](../../src/modules/links/tests/links_panel_test.cpp#L84) |
+| the URL panel renames a rule by editing its site |  |  | [src/modules/links/tests/links_panel_test.cpp:100](../../src/modules/links/tests/links_panel_test.cpp#L100) |
+| the URL panel will not save over another site's rule |  | 2 | [src/modules/links/tests/links_panel_test.cpp:110](../../src/modules/links/tests/links_panel_test.cpp#L110) |
+| the URL panel deletes a rule once confirmed, and turns replacement on and off |  |  | [src/modules/links/tests/links_panel_test.cpp:130](../../src/modules/links/tests/links_panel_test.cpp#L130) |
+| a replacement round-trips with its links in order |  |  | [src/modules/links/tests/replacement_store_test.cpp:46](../../src/modules/links/tests/replacement_store_test.cpp#L46) |
+| an unattributed replacement stores no author |  |  | [src/modules/links/tests/replacement_store_test.cpp:66](../../src/modules/links/tests/replacement_store_test.cpp#L66) |
+| state changes and retries are recorded |  |  | [src/modules/links/tests/replacement_store_test.cpp:79](../../src/modules/links/tests/replacement_store_test.cpp#L79) |
+| recording a replacement again replaces its links |  |  | [src/modules/links/tests/replacement_store_test.cpp:94](../../src/modules/links/tests/replacement_store_test.cpp#L94) |
+| unsettled replacements are the pending and retrying ones, with their links |  |  | [src/modules/links/tests/replacement_store_test.cpp:107](../../src/modules/links/tests/replacement_store_test.cpp#L107) |
+| replacement states have stable names |  |  | [src/modules/links/tests/replacement_store_test.cpp:128](../../src/modules/links/tests/replacement_store_test.cpp#L128) |
+| a rule comes back with its mirrors in order |  |  | [src/modules/links/tests/url_rule_store_test.cpp:39](../../src/modules/links/tests/url_rule_store_test.cpp#L39) |
+| setting a rule replaces its mirrors, which is how reordering works |  |  | [src/modules/links/tests/url_rule_store_test.cpp:52](../../src/modules/links/tests/url_rule_store_test.cpp#L52) |
+| renaming a rule moves it to the new site |  |  | [src/modules/links/tests/url_rule_store_test.cpp:63](../../src/modules/links/tests/url_rule_store_test.cpp#L63) |
+| a rename that fails leaves the old rule where it was |  |  | [src/modules/links/tests/url_rule_store_test.cpp:76](../../src/modules/links/tests/url_rule_store_test.cpp#L76) |
+| rules belong to one guild |  |  | [src/modules/links/tests/url_rule_store_test.cpp:95](../../src/modules/links/tests/url_rule_store_test.cpp#L95) |
+| removing a rule says whether there was one |  |  | [src/modules/links/tests/url_rule_store_test.cpp:108](../../src/modules/links/tests/url_rule_store_test.cpp#L108) |
+| a mirror is remembered after its rule is gone |  |  | [src/modules/links/tests/url_rule_store_test.cpp:117](../../src/modules/links/tests/url_rule_store_test.cpp#L117) |
+| an opt-out toggles, and is kept per guild |  |  | [src/modules/links/tests/url_rule_store_test.cpp:129](../../src/modules/links/tests/url_rule_store_test.cpp#L129) |
+| replacement is off in a guild until it is turned on, per guild |  |  | [src/modules/links/tests/url_rule_store_test.cpp:141](../../src/modules/links/tests/url_rule_store_test.cpp#L141) |
+| turning replacement on outlasts a restart | `fs` |  | [src/modules/links/tests/url_rule_store_test.cpp:156](../../src/modules/links/tests/url_rule_store_test.cpp#L156) |
+| the Java rule file imports once, and never over an existing rule | `fs` |  | [src/modules/links/tests/url_rule_store_test.cpp:175](../../src/modules/links/tests/url_rule_store_test.cpp#L175) |
+| a missing rule file is not an error | `fs` |  | [src/modules/links/tests/url_rule_store_test.cpp:194](../../src/modules/links/tests/url_rule_store_test.cpp#L194) |
+| a link to a site without a rule does not stop the others |  |  | [src/modules/links/tests/url_rules_test.cpp:31](../../src/modules/links/tests/url_rules_test.cpp#L31) |
+| each link picks its mirror on its own |  |  | [src/modules/links/tests/url_rules_test.cpp:41](../../src/modules/links/tests/url_rules_test.cpp#L41) |
+| a mirror index past the end uses the last mirror |  |  | [src/modules/links/tests/url_rules_test.cpp:52](../../src/modules/links/tests/url_rules_test.cpp#L52) |
+| www and letter case do not hide a link from its rule |  |  | [src/modules/links/tests/url_rules_test.cpp:58](../../src/modules/links/tests/url_rules_test.cpp#L58) |
+| the spoiler survives into the plan |  |  | [src/modules/links/tests/url_rules_test.cpp:64](../../src/modules/links/tests/url_rules_test.cpp#L64) |
+| links Discord would not have embedded are left alone |  |  | [src/modules/links/tests/url_rules_test.cpp:70](../../src/modules/links/tests/url_rules_test.cpp#L70) |
+| the same link twice is replaced once |  |  | [src/modules/links/tests/url_rules_test.cpp:75](../../src/modules/links/tests/url_rules_test.cpp#L75) |
+| a message of links is capped |  |  | [src/modules/links/tests/url_rules_test.cpp:80](../../src/modules/links/tests/url_rules_test.cpp#L80) |
+| every link gets a verdict, and the plan is the replaced ones |  |  | [src/modules/links/tests/url_rules_test.cpp:88](../../src/modules/links/tests/url_rules_test.cpp#L88) |
+| no rules means no plan |  |  | [src/modules/links/tests/url_rules_test.cpp:111](../../src/modules/links/tests/url_rules_test.cpp#L111) |
+| a mirror is its host plus an optional suffix |  |  | [src/modules/links/tests/url_rules_test.cpp:115](../../src/modules/links/tests/url_rules_test.cpp#L115) |
+| a typed domain is reduced to its rule host |  |  | [src/modules/links/tests/url_rules_test.cpp:123](../../src/modules/links/tests/url_rules_test.cpp#L123) |
+| the Java rule file is read line by line |  |  | [src/modules/links/tests/url_rules_test.cpp:129](../../src/modules/links/tests/url_rules_test.cpp#L129) |
+
+## linkstats
+
+The linkstats module (`src/modules/linkstats`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| a recompute credits an old replacement to whoever posted the link | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:115](../../src/modules/linkstats/tests/backfill_test.cpp#L115) |
+| an old replacement is filed under the site its mirror stood in for | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:144](../../src/modules/linkstats/tests/backfill_test.cpp#L144) |
+| a replacement after somebody else's link is reported, not credited to them | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:160](../../src/modules/linkstats/tests/backfill_test.cpp#L160) |
+| a recompute is safe to run twice | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:174](../../src/modules/linkstats/tests/backfill_test.cpp#L174) |
+| a finished channel is not scanned again unless asked | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:186](../../src/modules/linkstats/tests/backfill_test.cpp#L186) |
+| the walk stops at the start of the range | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:197](../../src/modules/linkstats/tests/backfill_test.cpp#L197) |
+| the end of the range is where paging starts | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:211](../../src/modules/linkstats/tests/backfill_test.cpp#L211) |
+| a replacement the bot recorded itself is not re-attributed | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:221](../../src/modules/linkstats/tests/backfill_test.cpp#L221) |
+| messages in no known format are listed with where they are | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:238](../../src/modules/linkstats/tests/backfill_test.cpp#L238) |
+| a replacement with nobody to credit still counts its reactions | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:251](../../src/modules/linkstats/tests/backfill_test.cpp#L251) |
+| a channel the bot cannot read is reported and the rest carry on | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:264](../../src/modules/linkstats/tests/backfill_test.cpp#L264) |
+| a failed reaction lookup keeps the counts that were there | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:278](../../src/modules/linkstats/tests/backfill_test.cpp#L278) |
+| one recompute per guild, and it can be cancelled | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:292](../../src/modules/linkstats/tests/backfill_test.cpp#L292) |
+| an old mirror no rule remembers is found by what it answered, and remembered | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:310](../../src/modules/linkstats/tests/backfill_test.cpp#L310) |
+| a masked replacement is recognised by its shape, whatever its mirror | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:335](../../src/modules/linkstats/tests/backfill_test.cpp#L335) |
+| the bot's own links are not replacements unless they answered one | `coro` | 3 | [src/modules/linkstats/tests/backfill_test.cpp:348](../../src/modules/linkstats/tests/backfill_test.cpp#L348) |
+| where images are counted, a recompute finds them and their reactions | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:407](../../src/modules/linkstats/tests/backfill_test.cpp#L407) |
+| where images are not counted, a recompute leaves them alone | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:435](../../src/modules/linkstats/tests/backfill_test.cpp#L435) |
+| a recompute counts emotes sent after a replacement as reactions to it | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:464](../../src/modules/linkstats/tests/backfill_test.cpp#L464) |
+| the messages after a post are carried across a page of history | `coro` |  | [src/modules/linkstats/tests/backfill_test.cpp:494](../../src/modules/linkstats/tests/backfill_test.cpp#L494) |
+| a GIF moves when it has more than one frame |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:94](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L94) |
+| images are told apart by their SHA-256 |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:100](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L100) |
+| a copy's name is one Discord accepts |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:105](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L105) |
+| every emote used enough is copied, most used first |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:116](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L116) |
+| an emote merged by an alias gets one copy between its emojis |  | 1 | [src/modules/linkstats/tests/emoji_copies_test.cpp:130](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L130) |
+| copies nothing wants are pruned, once nothing is left to fetch |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:156](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L156) |
+| an animated emoji is copied as a GIF, a still one as a PNG | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:181](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L181) |
+| the same image is copied once, and names stay unique | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:215](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L215) |
+| an emoji the CDN no longer has is lost, after both hosts are tried | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:240](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L240) |
+| the media proxy is tried when the CDN refuses | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:257](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L257) |
+| an image too big even when smaller is not uploaded | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:269](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L269) |
+| a failed download or upload is tried again the next day | `coro` | 2 | [src/modules/linkstats/tests/emoji_copies_test.cpp:285](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L285) |
+| raising the threshold deletes the copies that no longer qualify | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:310](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L310) |
+| with copying off, a round does nothing at all | `coro` |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:328](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L328) |
+| the duplicates menus show each emote's picture once the bot has a copy |  |  | [src/modules/linkstats/tests/emoji_copies_test.cpp:337](../../src/modules/linkstats/tests/emoji_copies_test.cpp#L337) |
+| a message of nothing but emojis is read as its emojis |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:102](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L102) |
+| joined emojis, skin tones, flags and keycaps are one emoji each |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:118](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L118) |
+| anything else in a message makes it not a reaction |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:135](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L135) |
+| each person's first message after a post counts, when it is all emotes |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:147](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L147) |
+| only the first 25 messages after a post are looked at |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:160](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L160) |
+| a reply to the post counts wherever it is, and a reply to anything else does not |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:175](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L175) |
+| an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:196](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L196) |
+| an emote is dated by the message it was sent in |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:227](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L227) |
+| a recompute's emotes replace what was there, but not what it did not read |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:237](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L237) |
+| emotes after a post are counted as they arrive |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:263](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L263) |
+| the next post, or 25 messages, ends a post's window |  | 2 | [src/modules/linkstats/tests/emote_reactions_test.cpp:283](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L283) |
+| a reply to a post is counted however late it comes |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:308](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L308) |
+| a link shown to be an image later counts the emotes sent before that |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:322](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L322) |
+| a deleted message is no longer counted as a reaction |  |  | [src/modules/linkstats/tests/emote_reactions_test.cpp:333](../../src/modules/linkstats/tests/emote_reactions_test.cpp#L333) |
+| format 1: a copy of the original, sent as a reply |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:69](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L69) |
+| format 2: webhook mode is counted and skipped |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:75](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L75) |
+| format 3: a copy of the original as a plain message |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:86](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L86) |
+| format 4: a dot linking to the mirror |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:90](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L90) |
+| format 5: the link emoji and a dot |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:94](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L94) |
+| format 6: the link emoji and an underscore, which is still the format |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:99](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L99) |
+| the mirror links are collected whatever the format |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:107](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L107) |
+| only the bot's own messages with links count |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:117](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L117) |
+| a shape nobody wrote down is reported, not guessed at |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:127](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L127) |
+| the masked shapes are replacements whatever their mirror |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:143](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L143) |
+| a copy on no known mirror waits for what it answered |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:154](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L154) |
+| what a replacement replaced is the same path on another host |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:170](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L170) |
+| a copy on no known mirror is credited only by a link it replaced |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:183](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L183) |
+| a reply names its original |  | 2 | [src/modules/linkstats/tests/legacy_replacements_test.cpp:204](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L204) |
+| the original is the nearest earlier link, past any chat |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:226](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L226) |
+| a nearer link that is not ours does not take the credit |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:240](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L240) |
+| with no matching link the replacement stays unattributed |  | 3 | [src/modules/linkstats/tests/legacy_replacements_test.cpp:253](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L253) |
+| other bots' links are never the original |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:281](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L281) |
+| a front-page link proves nothing about which message was answered |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:290](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L290) |
+| a message's time comes from its id |  |  | [src/modules/linkstats/tests/legacy_replacements_test.cpp:300](../../src/modules/linkstats/tests/legacy_replacements_test.cpp#L300) |
+| changing aliases and recomputing need Manage Server, and reading does not |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:72](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L72) |
+| custom emojis with names alike are listed a group at a time |  | 3 | [src/modules/linkstats/tests/linkstats_command_test.cpp:101](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L101) |
+| emojis alike are merged from the list by somebody with Manage Server |  | 3 | [src/modules/linkstats/tests/linkstats_command_test.cpp:141](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L141) |
+| aliases are listed as what counts as what, within Discord's limit |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:186](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L186) |
+| dates are read as YYYY-MM-DD and must exist |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:207](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L207) |
+| the leaderboard names people without pinging them |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:216](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L216) |
+| the emoji leaderboard shows emojis rather than people |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:228](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L228) |
+| an empty leaderboard says how to fill it |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:237](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L237) |
+| a date range shows in the title as it was typed |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:244](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L244) |
+| an emoji can be named rather than drawn |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:253](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L253) |
+| link stats are open to everyone, with aliases in a group |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:269](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L269) |
+| the longest site filter still leaves room for a board's paging |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:282](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L282) |
+| a recompute's report says what it found and what it could not read |  | 3 | [src/modules/linkstats/tests/linkstats_command_test.cpp:308](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L308) |
+| recompute is its own group, with a required start date |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:377](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L377) |
+| a long leaderboard pages, and every page is the same board |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:396](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L396) |
+| a board's filters survive the trip through a button |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:438](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L438) |
+| a board can be limited to one site |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:463](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L463) |
+| what a leaderboard ranks is read from its option |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:486](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L486) |
+| a finished recompute is answered with a ping to whoever started it |  | 3 | [src/modules/linkstats/tests/linkstats_command_test.cpp:494](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L494) |
+| every reaction, by emoji, for everyone or for one person |  | 3 | [src/modules/linkstats/tests/linkstats_command_test.cpp:544](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L544) |
+| a page of one person's reactions stays theirs |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:585](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L585) |
+| a board's buttons from before people could be named still page |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:613](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L613) |
+| a board says what it counts: links, images, or both |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:627](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L627) |
+| what a board counts survives the trip through a button |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:648](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L648) |
+| images are turned on per server, and the boards can ask for them |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:664](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L664) |
+| a recompute that counts images says what it found |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:689](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L689) |
+| per_page sets how many to a page, and the buttons remember it |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:717](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L717) |
+| a page size is only as big as fits in a message |  | 1 | [src/modules/linkstats/tests/linkstats_command_test.cpp:745](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L745) |
+| a page size survives the trip through a button, and nothing else passes for one |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:773](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L773) |
+| top and reactions take a page size, and there is no user subcommand |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:799](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L799) |
+| linkstats passes the registry's checks, and its boards are for the room |  |  | [src/modules/linkstats/tests/linkstats_command_test.cpp:820](../../src/modules/linkstats/tests/linkstats_command_test.cpp#L820) |
+| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [src/modules/linkstats/tests/linkstats_module_test.cpp:56](../../src/modules/linkstats/tests/linkstats_module_test.cpp#L56) |
+| with copying off, there is no copying timer |  |  | [src/modules/linkstats/tests/linkstats_module_test.cpp:67](../../src/modules/linkstats/tests/linkstats_module_test.cpp#L67) |
+| the linkstats README lists what the module registers |  |  | [src/modules/linkstats/tests/linkstats_module_test.cpp:77](../../src/modules/linkstats/tests/linkstats_module_test.cpp#L77) |
+| an image or a video counts, whatever its kind |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:92](../../src/modules/linkstats/tests/media_posts_test.cpp#L92) |
+| only a link's own picture or video counts, not a site's preview |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:105](../../src/modules/linkstats/tests/media_posts_test.cpp#L105) |
+| a message has media when something attached or embedded is |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:117](../../src/modules/linkstats/tests/media_posts_test.cpp#L117) |
+| an upload is counted from the moment it is posted |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:137](../../src/modules/linkstats/tests/media_posts_test.cpp#L137) |
+| a link waits for its preview to show whether it was an image |  | 4 | [src/modules/linkstats/tests/media_posts_test.cpp:160](../../src/modules/linkstats/tests/media_posts_test.cpp#L160) |
+| nothing is counted where images are off, or from bots |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:191](../../src/modules/linkstats/tests/media_posts_test.cpp#L191) |
+| statistics count links, images, or both |  |  | [src/modules/linkstats/tests/media_posts_test.cpp:210](../../src/modules/linkstats/tests/media_posts_test.cpp#L210) |
+| only reactions on our replacements are counted |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:99](../../src/modules/linkstats/tests/reaction_store_test.cpp#L99) |
+| taking a reaction back removes it |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:111](../../src/modules/linkstats/tests/reaction_store_test.cpp#L111) |
+| a moderator clearing reactions clears the counts |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:120](../../src/modules/linkstats/tests/reaction_store_test.cpp#L120) |
+| received, given and self-reactions are counted apart |  | 5 | [src/modules/linkstats/tests/reaction_store_test.cpp:137](../../src/modules/linkstats/tests/reaction_store_test.cpp#L137) |
+| a backfilled reaction is dated by its message |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:177](../../src/modules/linkstats/tests/reaction_store_test.cpp#L177) |
+| a live reaction is dated when it was added |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:190](../../src/modules/linkstats/tests/reaction_store_test.cpp#L190) |
+| rebuilding a message's reactions is safe to repeat |  | 1 | [src/modules/linkstats/tests/reaction_store_test.cpp:202](../../src/modules/linkstats/tests/reaction_store_test.cpp#L202) |
+| an alias merges one emoji into another across all history, and can be undone |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:228](../../src/modules/linkstats/tests/reaction_store_test.cpp#L228) |
+| alias chains are flattened as they are written |  | 1 | [src/modules/linkstats/tests/reaction_store_test.cpp:249](../../src/modules/linkstats/tests/reaction_store_test.cpp#L249) |
+| an alias that would loop is refused |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:268](../../src/modules/linkstats/tests/reaction_store_test.cpp#L268) |
+| an emoji already merged into another is not quietly moved |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:276](../../src/modules/linkstats/tests/reaction_store_test.cpp#L276) |
+| aliases belong to one guild |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:290](../../src/modules/linkstats/tests/reaction_store_test.cpp#L290) |
+| emojis are known by name once somebody has used them |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:300](../../src/modules/linkstats/tests/reaction_store_test.cpp#L300) |
+| emojis are listed apart, merged, or only the aliases |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:318](../../src/modules/linkstats/tests/reaction_store_test.cpp#L318) |
+| names alike are the same ignoring case, or a letter or two apart |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:346](../../src/modules/linkstats/tests/reaction_store_test.cpp#L346) |
+| emojis with names alike are grouped, and merged ones count as their keeper |  |  | [src/modules/linkstats/tests/reaction_store_test.cpp:367](../../src/modules/linkstats/tests/reaction_store_test.cpp#L367) |
+| a reaction is keyed by id when custom, by itself when Unicode |  |  | [src/modules/linkstats/tests/reactions_test.cpp:12](../../src/modules/linkstats/tests/reactions_test.cpp#L12) |
+| the colour-form selector does not make a second emoji |  |  | [src/modules/linkstats/tests/reactions_test.cpp:21](../../src/modules/linkstats/tests/reactions_test.cpp#L21) |
+| typed emojis are understood in every form a command sees |  |  | [src/modules/linkstats/tests/reactions_test.cpp:26](../../src/modules/linkstats/tests/reactions_test.cpp#L26) |
+| an emoji is shown the way Discord draws it |  |  | [src/modules/linkstats/tests/reactions_test.cpp:39](../../src/modules/linkstats/tests/reactions_test.cpp#L39) |
 
 ## discord
 

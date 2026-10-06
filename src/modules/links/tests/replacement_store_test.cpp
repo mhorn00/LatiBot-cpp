@@ -1,6 +1,7 @@
 #include "core/db/database.hpp"
-#include "core/events/replacements.hpp"
+#include "links/replacements.hpp"
 
+#include "links/module.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -21,7 +22,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     replacement_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::links::schema());
+    }
 };
 
 auto sample() -> replacement_record {
@@ -39,7 +43,7 @@ auto sample() -> replacement_record {
 
 } // namespace
 
-TEST_CASE("a replacement round-trips with its links in order", "[db]") {
+TEST_CASE("a replacement round-trips with its links in order", "[links]") {
     store_fixture fixture;
     fixture.store.record(sample());
 
@@ -59,7 +63,7 @@ TEST_CASE("a replacement round-trips with its links in order", "[db]") {
     CHECK(found->links[1].domain == "tiktok.com");
 }
 
-TEST_CASE("an unattributed replacement stores no author", "[db]") {
+TEST_CASE("an unattributed replacement stores no author", "[links]") {
     store_fixture fixture;
     auto entry = sample();
     entry.original_message_id.reset();
@@ -72,7 +76,7 @@ TEST_CASE("an unattributed replacement stores no author", "[db]") {
     CHECK_FALSE(found->original_message_id.has_value());
 }
 
-TEST_CASE("state changes and retries are recorded", "[db]") {
+TEST_CASE("state changes and retries are recorded", "[links]") {
     store_fixture fixture;
     fixture.store.record(sample());
 
@@ -87,7 +91,7 @@ TEST_CASE("state changes and retries are recorded", "[db]") {
     CHECK_FALSE(fixture.store.set_state(dpp::snowflake{1}, replacement_state::ok));
 }
 
-TEST_CASE("recording a replacement again replaces its links", "[db]") {
+TEST_CASE("recording a replacement again replaces its links", "[links]") {
     store_fixture fixture;
     fixture.store.record(sample());
 
@@ -100,7 +104,7 @@ TEST_CASE("recording a replacement again replaces its links", "[db]") {
     CHECK_FALSE(fixture.store.contains(dpp::snowflake{1}));
 }
 
-TEST_CASE("unsettled replacements are the pending and retrying ones, with their links", "[db]") {
+TEST_CASE("unsettled replacements are the pending and retrying ones, with their links", "[links]") {
     store_fixture fixture;
 
     const std::array states{replacement_state::pending, replacement_state::ok, replacement_state::failed, replacement_state::retrying};
@@ -121,7 +125,7 @@ TEST_CASE("unsettled replacements are the pending and retrying ones, with their 
     CHECK(unsettled[1].state == replacement_state::retrying);
 }
 
-TEST_CASE("replacement states have stable names", "[db]") {
+TEST_CASE("replacement states have stable names", "[links]") {
     for (const auto state : {replacement_state::pending, replacement_state::ok, replacement_state::failed, replacement_state::retrying}) {
         CHECK(latibot::events::replacement_state_from_string(latibot::events::to_string(state)) == state);
     }

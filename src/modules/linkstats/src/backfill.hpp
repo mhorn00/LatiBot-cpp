@@ -1,10 +1,10 @@
 #pragma once
 
-#include "core/events/emote_reactions.hpp"
-#include "core/events/legacy_replacements.hpp"
-#include "core/events/reactions.hpp"
-#include "core/events/replacements.hpp"
-#include "core/events/url_rules.hpp"
+#include "emote_reactions.hpp"
+#include "legacy_replacements.hpp"
+#include "links/replacements.hpp"
+#include "links/url_rules.hpp"
+#include "reactions.hpp"
 
 #include <dpp/coro/task.h>
 #include <dpp/snowflake.h>

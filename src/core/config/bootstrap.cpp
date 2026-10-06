@@ -90,7 +90,7 @@ constexpr std::array<moved_key, 12> moved_keys{{
 
 /// The sections the core reads itself, for the features still inside it.
 /// Each leaves this list when its module takes it.
-constexpr std::array<std::string_view, 3> feature_sections{"linkstats", "llm", "music"};
+constexpr std::array<std::string_view, 2> feature_sections{"llm", "music"};
 
 /// Every section in config.json, by name, with any old flat key moved into
 /// its own. A top-level key that is neither the core's, a section, nor an
@@ -195,7 +195,6 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
 
     read_storage_keys(parsed, config);
 
-    config.linkstats = linkstats_section().read(take_section(gathered, "linkstats"));
     config.llm = llm_section().read(take_section(gathered, "llm"));
     config.music = music_section().read(take_section(gathered, "music"));
     // What is left is the modules'.
@@ -217,7 +216,6 @@ auto bootstrap::default_json(const nlohmann::ordered_json& module_sections) -> s
     file["backup_interval_minutes"] = defaults.backup_interval.count();
     file["trusted_guilds"] = nlohmann::ordered_json::array();
     file["trusted_users"] = nlohmann::ordered_json::array();
-    file["linkstats"] = linkstats_section().defaults();
     file["llm"] = llm_section().defaults();
     file["music"] = music_section().defaults();
     for (const auto& [name, section] : module_sections.items()) {
@@ -250,8 +248,6 @@ auto bootstrap::load(const std::filesystem::path& path, const nlohmann::ordered_
     // Last word goes to the environment, so the level can be raised for one
     // run without editing a file the bot is about to read again.
     if (const auto wanted = log_level_from_environment()) config.log_level = *wanted;
-
-    config.recompute_bot_id = recompute_bot_id_from_environment();
 
     return config;
 }

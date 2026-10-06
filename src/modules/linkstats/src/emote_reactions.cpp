@@ -1,7 +1,7 @@
-#include "core/events/emote_reactions.hpp"
+#include "emote_reactions.hpp"
 
-#include "core/events/replacements.hpp"
 #include "core/util/log.hpp"
+#include "links/replacements.hpp"
 
 #include <algorithm>
 #include <array>
