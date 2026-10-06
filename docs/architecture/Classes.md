@@ -1345,7 +1345,7 @@ A few things that are easy to miss:
 - **The tool loop.** `run_tool_loop` (in `tools.hpp`) calls
   `provider::complete` repeatedly. Each time the model stops to use tools,
   the loop runs them through `tool_registry::run`, adds a `turn` with the
-  results, and asks again, up to `llm_tool_rounds` times.
+  results, and asks again, up to `llm.tool_rounds` times.
 - **Tools.** The only tools are the model's memory: `remember`, `recall` and
   `forget`, added by `add_memory_tools` at startup.
 - **Prompt caching.** The system prompt is in two parts. `stable_system`
@@ -1480,11 +1480,11 @@ classDiagram
         +database_path, backup_directory : path
         +backups_to_keep : int
         +backup_interval : minutes
-        +track_nicknames : bool
-        +llm_provider, llm_model : string
-        +spend_cap_daily_usd, spend_cap_monthly_usd : double
-        +llm_tool_rounds : int
-        +emoji_copy_min_uses : int64
+        +nicknames : nicknames_config
+        +linkstats : linkstats_config
+        +llm : llm_config
+        +music : music_config
+        +sections : map~string, json~
         +trusted_guilds, trusted_users : vector~snowflake~
         +load(path)$ bootstrap
         +is_trusted(guild, user, administrator) bool

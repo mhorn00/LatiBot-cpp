@@ -696,7 +696,7 @@ flowchart TB
     fetch -- "each entry about this member" --> entry
 ```
 
-Both DPP handlers are attached only when `track_nicknames` is on, because
+Both DPP handlers are attached only when `nicknames.track_changes` is on, because
 the events need the privileged Server Members intent.
 
 ## 13. The timers
@@ -729,7 +729,7 @@ flowchart LR
     c -- "images from the CDN,<br/>then upload or delete" --> copies["http_client, then<br/>discord_gateway"]
 ```
 
-The emoji copier's timer exists only when `emoji_copy_min_uses` is above 0.
+The emoji copier's timer exists only when `linkstats.emoji_copy_min_uses` is above 0.
 A round does at most ten emojis, so a long backlog is worked through a
 minute at a time (docs/features/Link_Stats.md §10).
 

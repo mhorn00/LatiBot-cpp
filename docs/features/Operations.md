@@ -100,12 +100,12 @@ Privileged Gateway Intents* in the developer portal:
 | Intent | Without it |
 |---|---|
 | **Message Content** | Every guild message arrives with empty text. Slash commands keep working while the goodbye phrase, triggers, URL replacement and the model silently do nothing. DPP's startup warning is the only clue |
-| **Server Members** | No nickname change is ever seen. Asked for only while `track_nicknames` is on |
+| **Server Members** | No nickname change is ever seen. Asked for only while `nicknames.track_changes` is on |
 
 **A privileged intent not granted is refused, not degraded.** Discord closes
 the gateway with **4014** and the bot reconnects in a loop, which DPP logs
 as `OOF! Error from underlying websocket: 4014`. The bot watches for 4014,
-and logs the setting and the portal page by name. `track_nicknames: false`
+and logs the setting and the portal page by name. `nicknames.track_changes: false`
 is the way out if the Server Members toggle cannot be turned on.
 
 ## 4. Configuration
@@ -124,18 +124,26 @@ Three layers, separated by how often each changes and who changes it:
   release is only the executable. A folder that cannot be written to is a
   warning, and the bot runs on the defaults.
 - **Rejected at startup, naming the problem:** an unknown key, a value of
-  the wrong type, an unreadable file, a `llm_model` whose price the bot does
+  the wrong type, an unreadable file, an `llm.model` whose price the bot does
   not know, and an id that is a number or not exactly an id. Ids are
   **strings**, because a JSON number cannot hold a snowflake exactly.
 - **Never overwritten**, and git-ignored, since it holds real ids.
   `config.example.json` is the same text, kept identical by a test.
+- **Sections:** each feature's keys are an object of their own, such as
+  `"llm": {"model": ...}`, declared once in a table of keys
+  (`core/config/section.hpp`) that reads, range-checks and writes the
+  defaults. A key from before sections (`llm_model`, `track_nicknames`, ...)
+  is still read into its section, with a warning naming its new place;
+  setting both is refused. Any other object is a module's section, which the
+  module reads with its own table when it starts; one no module reads is
+  warned about and ignored (docs/modules/Module_Plan_Final.md §8).
 
 The README's [configuration table](../../README.md#configuration) is the
 reference for every key.
 
 **Other programs.** Music runs yt-dlp and ffmpeg, and yt-dlp uses Deno for
 YouTube ([Music.md §5](Music.md#5-dependencies-and-running-it)). Each is
-looked for once at startup: at `ytdlp_path`, `ffmpeg_path` or `deno_path` in
+looked for once at startup: at `music.ytdlp_path`, `music.ffmpeg_path` or `music.deno_path` in
 `config.json` if set, else beside `LatiBot.exe`, else on `PATH`. Without
 yt-dlp or ffmpeg the bot starts, warns, and `/music play` says what is
 missing; without Deno it warns, and music plays what it can. Their versions

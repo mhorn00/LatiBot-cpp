@@ -251,7 +251,7 @@ TEST_CASE("a blacklisted user or role is not answered, and the message is still 
 
 TEST_CASE("past a spend cap the bot says so once, then stays quiet", "[llm]") {
     fixture test;
-    test.config.spend_cap_daily_usd = 0.5;
+    test.config.llm.spend_cap_daily_usd = 0.5;
     const auto* haiku = latibot::llm::find_model("claude-haiku-4-5");
     REQUIRE(haiku != nullptr);
     test.usage.record(guild, *haiku, {.input_tokens = 600'000, .output_tokens = 0, .cache_write_tokens = 0, .cache_read_tokens = 0}, noon);

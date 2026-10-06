@@ -235,8 +235,8 @@ The bot needs two **privileged intents**, both enabled for the application at
   `content`, and everything that reads a message — the goodbye phrase, the
   triggers — goes quiet while the slash commands keep working.
 - **Server Members.** Without it no nickname change is ever seen. Set
-  `"track_nicknames": false` in `config.json` to turn nickname tracking off
-  and stop the bot asking for this one.
+  `"track_changes": false` in the `nicknames` section of `config.json` to
+  turn nickname tracking off and stop the bot asking for this one.
 
 An intent the application was not granted is not a warning: Discord refuses the
 gateway outright and the bot reconnects in a loop. The log says which toggle to
@@ -330,7 +330,14 @@ each build keeps its own; add it to set one. Keys can be removed too, since a
 missing key is its default. A key the bot does not know, or a value of the
 wrong type, stops startup with a message naming it, so a typo is never
 silently ignored. JSON has no comments, so the table below is the
-documentation. To use the trusted commands, including [`/logs`](docs/features/README.md#logs),
+documentation.
+
+Each feature's keys are in an object of their own, its **section**:
+`"llm": {"model": ...}`. Below, `llm.model` means the key `model` in the
+`llm` section. A file from before sections, with `llm_model` and the like at
+the top, still works: each old key is read where it now belongs, and the log
+says where to move it. Setting a key both ways stops startup. A section for a
+module this build leaves out is ignored, with a warning. To use the trusted commands, including [`/logs`](docs/features/README.md#logs),
 put your own user ID in `trusted_users`:
 
 ```json
@@ -344,20 +351,20 @@ put your own user ID in `trusted_users`:
 | `backup_directory` | text | `data/backups` | where database backups are written |
 | `backups_to_keep` | whole number | `7` | how many backups to keep, oldest removed first; `0` turns backups off |
 | `backup_interval_minutes` | whole number | `360` | how often a backup is taken; must be positive |
-| `track_nicknames` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above) |
 | `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands: `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` |
 | `trusted_users` | list of IDs, as text | none | users who may use those commands in any server, and the only ones who may choose the log channel (`/logs`) |
-| `llm_provider` | text | `anthropic` | `anthropic` or `openai`: whose model `llm_model` is |
-| `llm_model` | text | `claude-haiku-4-5` | the model a server uses until `/llm model` picks another; must be one the bot [knows the price of](docs/features/README.md#llm) |
-| `spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
-| `spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
-| `llm_tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1 |
-| `ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
-| `ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
-| `deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
-| `pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](docs/features/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
-| `pot_provider_port` | number | `4416` | the port the provider listens on, on this machine only |
-| `emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
+| `nicknames.track_changes` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above); was `track_nicknames` |
+| `linkstats.emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
+| `llm.provider` | text | `anthropic` | `anthropic` or `openai`: whose model `llm.model` is; was `llm_provider` |
+| `llm.model` | text | `claude-haiku-4-5` | the model a server uses until `/llm model` picks another; must be one the bot [knows the price of](docs/features/README.md#llm); was `llm_model` |
+| `llm.spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
+| `llm.spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
+| `llm.tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1; was `llm_tool_rounds` |
+| `music.ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
+| `music.ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
+| `music.deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
+| `music.pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](docs/features/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
+| `music.pot_provider_port` | number | `4416` | the port the provider listens on, on this machine only; 1 to 65535 |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
 cannot hold a Discord ID exactly; a number, or text that is not exactly an ID,

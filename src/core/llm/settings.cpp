@@ -94,8 +94,8 @@ auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake gu
 
     // A model since removed from the table, or a hand-edited typo, falls
     // back rather than failing every message with a 404 from the provider.
-    loaded.model = settings.get(guild, model_key, bootstrap.llm_model);
-    if (find_model(loaded.model) == nullptr) loaded.model = bootstrap.llm_model;
+    loaded.model = settings.get(guild, model_key, bootstrap.llm.model);
+    if (find_model(loaded.model) == nullptr) loaded.model = bootstrap.llm.model;
 
     loaded.context_messages = as_int(settings, guild, "llm_context_messages");
     loaded.context_tokens = as_int(settings, guild, "llm_context_tokens");

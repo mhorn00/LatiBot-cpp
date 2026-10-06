@@ -5,12 +5,12 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-972 test cases across 13 components, including 204 sections.
+979 test cases across 13 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 165 | 23 |
-| [config](#config) | 37 | 21 |
+| [config](#config) | 44 | 23 |
 | [commands](#commands) | 197 | 55 |
 | [events](#events) | 200 | 40 |
 | [ui](#ui) | 15 | 0 |
@@ -211,33 +211,40 @@ Configuration (`src/core/config`)
 | partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:108](../../tests/db/guild_settings_test.cpp#L108) |
 | all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:118](../../tests/db/guild_settings_test.cpp#L118) |
 | the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:131](../../tests/db/guild_settings_test.cpp#L131) |
-| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:55](../../tests/unit/bootstrap_test.cpp#L55) |
-| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:67](../../tests/unit/bootstrap_test.cpp#L67) |
-| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:79](../../tests/unit/bootstrap_test.cpp#L79) |
-| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:108](../../tests/unit/bootstrap_test.cpp#L108) |
-| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:116](../../tests/unit/bootstrap_test.cpp#L116) |
-| bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:131](../../tests/unit/bootstrap_test.cpp#L131) |
-| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:162](../../tests/unit/bootstrap_test.cpp#L162) |
-| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:167](../../tests/unit/bootstrap_test.cpp#L167) |
-| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:189](../../tests/unit/bootstrap_test.cpp#L189) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:200](../../tests/unit/bootstrap_test.cpp#L200) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:208](../../tests/unit/bootstrap_test.cpp#L208) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:216](../../tests/unit/bootstrap_test.cpp#L216) |
-| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:250](../../tests/unit/bootstrap_test.cpp#L250) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:303](../../tests/unit/bootstrap_test.cpp#L303) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:330](../../tests/unit/bootstrap_test.cpp#L330) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:342](../../tests/unit/bootstrap_test.cpp#L342) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:364](../../tests/unit/bootstrap_test.cpp#L364) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:373](../../tests/unit/bootstrap_test.cpp#L373) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:382](../../tests/unit/bootstrap_test.cpp#L382) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:394](../../tests/unit/bootstrap_test.cpp#L394) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:407](../../tests/unit/bootstrap_test.cpp#L407) |
+| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:56](../../tests/unit/bootstrap_test.cpp#L56) |
+| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:69](../../tests/unit/bootstrap_test.cpp#L69) |
+| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:81](../../tests/unit/bootstrap_test.cpp#L81) |
+| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:110](../../tests/unit/bootstrap_test.cpp#L110) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:118](../../tests/unit/bootstrap_test.cpp#L118) |
+| bad config is reported with the key that caused it |  | 8 | [tests/unit/bootstrap_test.cpp:133](../../tests/unit/bootstrap_test.cpp#L133) |
+| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:175](../../tests/unit/bootstrap_test.cpp#L175) |
+| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:180](../../tests/unit/bootstrap_test.cpp#L180) |
+| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:187](../../tests/unit/bootstrap_test.cpp#L187) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
+| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:215](../../tests/unit/bootstrap_test.cpp#L215) |
+| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:238](../../tests/unit/bootstrap_test.cpp#L238) |
+| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:254](../../tests/unit/bootstrap_test.cpp#L254) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:262](../../tests/unit/bootstrap_test.cpp#L262) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:270](../../tests/unit/bootstrap_test.cpp#L270) |
+| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:304](../../tests/unit/bootstrap_test.cpp#L304) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:357](../../tests/unit/bootstrap_test.cpp#L357) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:384](../../tests/unit/bootstrap_test.cpp#L384) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:396](../../tests/unit/bootstrap_test.cpp#L396) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:421](../../tests/unit/bootstrap_test.cpp#L421) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:430](../../tests/unit/bootstrap_test.cpp#L430) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:439](../../tests/unit/bootstrap_test.cpp#L439) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:451](../../tests/unit/bootstrap_test.cpp#L451) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:464](../../tests/unit/bootstrap_test.cpp#L464) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
 | an unknown option is refused rather than read as a config file |  |  | [tests/unit/command_line_test.cpp:52](../../tests/unit/command_line_test.cpp#L52) |
 | two config files are refused |  |  | [tests/unit/command_line_test.cpp:57](../../tests/unit/command_line_test.cpp#L57) |
+| a section reads each key as its member's type, and keeps defaults for the rest |  |  | [tests/unit/config_section_test.cpp:51](../../tests/unit/config_section_test.cpp#L51) |
+| a section refuses what its table does not say, naming the key in full |  |  | [tests/unit/config_section_test.cpp:63](../../tests/unit/config_section_test.cpp#L63) |
+| a section's defaults are every key, in the table's order |  |  | [tests/unit/config_section_test.cpp:76](../../tests/unit/config_section_test.cpp#L76) |
+| every key of every feature section says what it is for |  |  | [tests/unit/config_section_test.cpp:85](../../tests/unit/config_section_test.cpp#L85) |
 
 ## commands
 

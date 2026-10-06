@@ -18,7 +18,7 @@ and [Speech.md](Speech.md).
 | **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies,pot_provider}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
 | **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,pot_provider,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
-| **Config** | `ytdlp_path`, `ffmpeg_path`, `deno_path`, `pot_provider_path`, `pot_provider_port` in `config.json`; `LATIBOT_YTDLP_FIREFOX_PROFILE` or `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
+| **Config** | the `music` section of `config.json`: `ytdlp_path`, `ffmpeg_path`, `deno_path`, `pot_provider_path`, `pot_provider_port`; `LATIBOT_YTDLP_FIREFOX_PROFILE` or `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
 | **Runtime** | `yt-dlp.exe`, `ffmpeg.exe` and `deno.exe`, beside the bot or on `PATH`; bgutil's PO token provider and plugin; Firefox. `deploy/Install-Dependencies.ps1` installs them all (§5) |
 | **Plan** | Replaces plan §15, and the mixer half of §13 |
 | **Status** | Built on 2026-09-30. **Not yet run in Discord, or against the real yt-dlp and ffmpeg**: see §7 |
@@ -546,8 +546,8 @@ of not being flagged.
   `--extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:<port>`
   when the plugin is installed, so the plugin asks the provider on the
   configured port.
-- **Config:** `pot_provider_path` (its `server` folder; empty for beside the
-  bot) and `pot_provider_port` (4416).
+- **Config:** `music.pot_provider_path` (its `server` folder; empty for
+  beside the bot) and `music.pot_provider_port` (4416).
 - **Startup** says what it found: the provider started; the plugin without
   a provider, which a provider run some other way, such as bgutil's Docker
   image, can serve on the same port; a provider without the plugin, or
@@ -563,7 +563,7 @@ poor with runs at once.
 
 - **yt-dlp** and **ffmpeg** are external executables, not linked libraries.
   A release gains two files beside the four it has, or they are found on
-  `PATH`. `config.json` has `ytdlp_path` and `ffmpeg_path`, empty by
+  `PATH`. `config.json` has `music.ytdlp_path` and `music.ffmpeg_path`, empty by
   default, meaning "beside the bot, then `PATH`".
 - **The bot starts without them.** Startup warns, naming what is missing,
   and `/music play` says the same. Nothing else is affected.
@@ -572,7 +572,7 @@ poor with runs at once.
   `yt-dlp -U` updates it.
 - **Deno**, 2.3 or newer, for YouTube: yt-dlp solves YouTube's JavaScript
   challenges with it, and without it some of YouTube fails, age-restricted
-  videos above all. It is looked for like the others: `deno_path` in
+  videos above all. It is looked for like the others: `music.deno_path` in
   `config.json`, beside the bot, then `PATH`
   (`winget install DenoLand.Deno`). The official `yt-dlp.exe` carries the
   challenge scripts itself (yt-dlp's EJS wiki). Without Deno, startup warns

@@ -494,7 +494,8 @@ auto llm_command::status(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.bootstrap);
     const auto now = seconds_now(*services_.clock);
     const llm::model_info* model = llm::find_model(settings.model);
-    const llm::spend_caps caps{.daily = services_.bootstrap->spend_cap_daily_usd, .monthly = services_.bootstrap->spend_cap_monthly_usd};
+    const llm::spend_caps caps{.daily = services_.bootstrap->llm.spend_cap_daily_usd,
+                               .monthly = services_.bootstrap->llm.spend_cap_monthly_usd};
 
     const llm_overview overview{
         .enabled = settings.enabled,

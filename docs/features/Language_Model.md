@@ -20,7 +20,7 @@ follows an answer.
 | **Code** | `src/core/llm/*`, `src/core/commands/llm.*` (`/llm`, `/memory` and their panels), `src/core/discord/dpp_http_client.*` |
 | **Tests** | `tests/unit/{llm_answer,llm_aliases,llm_command,llm_guards,llm_provider,llm_tools}_test.cpp`, `tests/db/llm_store_test.cpp`, `tests/mocks/{mock_llm,mock_http}.hpp` |
 | **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers` (migration 11); `llm_aliases` (migration 15); settings as `llm_*` rows in `guild_settings` |
-| **Config** | `llm_provider`, `llm_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `llm_tool_rounds` in `config.json`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
+| **Config** | the `llm` section of `config.json`: `provider`, `model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
 | **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
 | **Status** | Built in phase 5 (2026-09-28). **Never called a real API or run in Discord**: see §5 |
 
@@ -245,7 +245,7 @@ The responder:
 2. fetches the recent messages and trims them to the budget;
 3. finds the memories to show;
 4. builds the prompt;
-5. runs the **tool loop**: at most `llm_tool_rounds` (4) rounds, after
+5. runs the **tool loop**: at most `llm.tool_rounds` (4) rounds, after
    which the request forbids tools (`tool_choice: none`) so the model has to
    answer;
 6. writes each call's usage and price to `llm_usage` **as it arrives**, so a
@@ -261,7 +261,7 @@ and each exists only when its key is set. The provider follows from the
 model, so a server picks a model and `config.json` has the default.
 
 A model is usable only if it is in `llm::known_models`, **with its prices**,
-because the caps are worked out from them. Startup refuses a `llm_model` it
+because the caps are worked out from them. Startup refuses an `llm.model` it
 does not know. Prices, per million tokens, checked in September 2026:
 
 | Model | ID | In | Out | Cache write / read | Effort |
@@ -464,7 +464,7 @@ saved before 2026-10-02 may hold a name the model wrote then.
 ## 5. Limits, and what is still to check
 
 - **Claude Haiku 4.5 may be retired from 15 October 2026.** When it goes,
-  every server still on it gets a 404, so `llm_model` in `config.json` has
+  every server still on it gets a 404, so `llm.model` in `config.json` has
   to move before then. Sonnet 5.5 is the likely replacement, at twice the
   price. **Open: the owner has not decided.**
 - It has never called a real API. The request shapes follow the providers'
@@ -480,7 +480,7 @@ saved before 2026-10-02 may hold a name the model wrote then.
     `about` as an alias, and how often a name gets through in what people
     type (§3.8);
   - that the cache has nicknames for the authors of fetched messages, which
-    needs the Server Members intent (`track_nicknames`);
+    needs the Server Members intent (`nicknames.track_changes`);
   - that `/llm` registers, since it is the largest command and Discord allows
     8,000 characters per command;
   - that the `/llm settings` panel routes, and whether its group menu sticks

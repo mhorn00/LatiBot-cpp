@@ -91,7 +91,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     const tool_context context{
         .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
     auto outcome = co_await run_tool_loop(
-        *answering, std::move(call), *services_.tools, context, services_.bootstrap->llm_tool_rounds, [&](const usage& used) {
+        *answering, std::move(call), *services_.tools, context, services_.bootstrap->llm.tool_rounds, [&](const usage& used) {
             report.used += used;
             report.cost += services_.usage->record(ask.guild_id, *model, used, seconds_now(*services_.clock));
         });

@@ -66,6 +66,11 @@ public:
     /// config.json's core keys. Not `config()`: in the bot, which is the
     /// host, that name would hide the `config` namespace.
     [[nodiscard]] virtual auto bootstrap() const -> const latibot::config::bootstrap& = 0;
+    /// The module's own object in config.json, an empty object when there is
+    /// none, to read with its `config::section` table, which refuses what it
+    /// does not know (docs/modules/Module_Plan_Final.md §8). A section no
+    /// module asks for is warned about and ignored.
+    [[nodiscard]] virtual auto section(std::string_view name) -> const nlohmann::json& = 0;
     [[nodiscard]] virtual auto gateway() -> ports::discord_gateway& = 0;
     [[nodiscard]] virtual auto http() -> ports::http_client& = 0;
     [[nodiscard]] virtual auto raw() -> discord::raw_api& = 0;

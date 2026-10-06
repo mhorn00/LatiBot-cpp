@@ -58,6 +58,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -89,6 +90,7 @@ public:
     [[nodiscard]] auto database() -> db::database& override { return database_; }
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings_; }
     [[nodiscard]] auto bootstrap() const -> const config::bootstrap& override { return settings_; }
+    [[nodiscard]] auto section(std::string_view name) -> const nlohmann::json& override;
     [[nodiscard]] auto gateway() -> ports::discord_gateway& override { return gateway_; }
     [[nodiscard]] auto http() -> ports::http_client& override { return http_; }
     [[nodiscard]] auto raw() -> discord::raw_api& override { return raw_; }
@@ -350,6 +352,8 @@ private:
     std::vector<std::pair<std::uint64_t, std::string>> module_permissions_;
     /// Who listens to which DPP event, for the startup log.
     std::vector<std::string> listeners_;
+    /// The config.json sections modules asked for; any other is warned about.
+    std::set<std::string, std::less<>> claimed_sections_;
 
     /// The modules, in dependency order. After everything they were given,
     /// so they are destroyed before any of it.

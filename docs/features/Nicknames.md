@@ -17,7 +17,7 @@ follows a change through.
 | **Code** | `src/core/events/nicknames.*`, `src/core/events/nickname_import.*`, `src/core/commands/nickname.*`; the gateway handlers in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/{nicknames,nickname_import,nickname_command}_test.cpp`, `tests/db/{nickname_store,nickname_import}_test.cpp` |
 | **Tables** | `nickname_history` (migration 4) |
-| **Config** | `track_nicknames` in `config.json` (on by default) |
+| **Config** | `track_changes` in the `nicknames` section of `config.json` (on by default; was `track_nicknames`) |
 | **Plan** | Replaces plan §8, §21.8 and §21.9 |
 | **Status** | Built in phase 2 (2026-09-23). `/nickname` has been deferred since 2026-09-25 and not seen working in Discord since |
 
@@ -157,7 +157,7 @@ why loading waited for the gateway and broke for people who had left.
 **The intent.** Member updates arrive only with the privileged **Server
 Members** intent. A bot that asks for an intent it was not granted is
 refused the gateway (close code 4014) and reconnects in a loop, so the
-intent is asked for only when `track_nicknames` is on. The member handlers
+intent is asked for only when `nicknames.track_changes` is on. The member handlers
 are attached only then, too, and the log names the portal toggle if 4014
 happens. With tracking off, `/nickname` still records its own changes.
 

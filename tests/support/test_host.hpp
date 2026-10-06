@@ -80,6 +80,11 @@ public:
     [[nodiscard]] auto database() -> db::database& override { return data; }
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings; }
     [[nodiscard]] auto bootstrap() const -> const config::bootstrap& override { return bootstrap_settings; }
+    [[nodiscard]] auto section(std::string_view name) -> const nlohmann::json& override {
+        static const nlohmann::json none = nlohmann::json::object();
+        const auto found = bootstrap_settings.sections.find(std::string(name));
+        return found != bootstrap_settings.sections.end() ? *found : none;
+    }
     [[nodiscard]] auto gateway() -> ports::discord_gateway& override { return fake_discord; }
     [[nodiscard]] auto http() -> ports::http_client& override { return fake_http; }
     [[nodiscard]] auto raw() -> discord::raw_api& override { return raw_calls; }

@@ -48,9 +48,10 @@ llm_stage::llm_stage(stage_services services, ports::clock& clock, std::function
       pacing_(clock) {}
 
 auto llm_stage::over_spend_cap(const events::incoming_message& message, bool addressed, stage_result& result) -> bool {
-    const spend_status spend = spend_status_at(
-        *services_.usage, {.daily = services_.bootstrap->spend_cap_daily_usd, .monthly = services_.bootstrap->spend_cap_monthly_usd},
-        std::chrono::floor<std::chrono::seconds>(clock_->now()));
+    const spend_status spend =
+        spend_status_at(*services_.usage,
+                        {.daily = services_.bootstrap->llm.spend_cap_daily_usd, .monthly = services_.bootstrap->llm.spend_cap_monthly_usd},
+                        std::chrono::floor<std::chrono::seconds>(clock_->now()));
     if (!spend.over()) return false;
 
     // Said once per guild per period, where it was asked, and warned about in

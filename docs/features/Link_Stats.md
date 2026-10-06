@@ -17,7 +17,7 @@ draws its classes.
 | **Code** | `src/core/commands/linkstats.*`, `src/core/events/{reactions,backfill,legacy_replacements,media_posts,emoji_copies,emote_reactions}.*` |
 | **Tests** | `tests/unit/linkstats_command_test.cpp`, `tests/unit/legacy_replacements_test.cpp`, `tests/db/{reaction_store,backfill,media_posts,emoji_copies,emote_reactions}_test.cpp` |
 | **Tables** | `replacement_messages`, `replacement_links`, `reactions`, `emote_reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `known_mirrors`, `backfill_progress`, `emoji_images`, `emoji_copies`; the view `counted_reactions` |
-| **Config** | `emoji_copy_min_uses` in `config.json`; `linkstats_images` per server in `guild_settings` |
+| **Config** | `emoji_copy_min_uses` in the `linkstats` section of `config.json`; `linkstats_images` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.6, §9.7 and §21.12 |
 | **Status** | Built and tested offline. Not yet run against real Discord. |
 
@@ -464,7 +464,7 @@ underscores, and an image of at most 256 KiB. People cannot use them. DPP
 
 - An **emote** is an emoji and every emoji merged into it by an alias. Its
   uses are all their reactions together, in every server.
-- Each emote used at least `emoji_copy_min_uses` times (1 by default) gets
+- Each emote used at least `linkstats.emoji_copy_min_uses` times (1 by default) gets
   **one copy**: of the one kept, or when that one's image is lost, of the
   next of its emojis, most used first.
 - Emojis with the **same image** share a copy, by the SHA-256 of the file,
@@ -474,7 +474,7 @@ underscores, and an image of at most 256 KiB. People cannot use them. DPP
   nothing is left to download, since an image not yet downloaded may be one
   of them.
 
-`emoji_copy_min_uses` of 0 turns copying off and leaves the copies alone.
+`linkstats.emoji_copy_min_uses` of 0 turns copying off and leaves the copies alone.
 
 ### 10.3 How
 
@@ -513,7 +513,7 @@ None of this has met real Discord history yet:
 - a recompute with images on, and its report;
 - the first rounds of emoji copies: uploads, a GIF that still moves, the log's
   "lost" count, and the copies showing in a board and in the duplicates menus;
-- raising `emoji_copy_min_uses` and seeing copies deleted;
+- raising `linkstats.emoji_copy_min_uses` and seeing copies deleted;
 - emotes sent after a replacement and after an image counting, a reply to one
   from much later counting, and a deleted one coming off;
 - a recompute's "Emotes sent as reactions" line, against a channel where it is

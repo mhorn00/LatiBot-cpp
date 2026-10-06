@@ -1418,7 +1418,7 @@ not count. Deleting the message takes its emotes back off the count.
 **Emoji copies.** The bot keeps its own copy of every custom emoji used here,
 as an emoji its application owns, so the statistics can still show an emote
 after its server deletes it. Emojis with the same picture, or merged by an
-alias, share one copy. `emoji_copy_min_uses` in `config.json` sets how many
+alias, share one copy. `linkstats.emoji_copy_min_uses` in `config.json` sets how many
 reactions an emote needs first (one, to start with).
 
 **History.** [`/linkstats recompute`](#linkstats-recompute) recovers the
@@ -1482,7 +1482,8 @@ starts and recorded with nobody against them, since there is no way to know.
 **This needs the Server Members intent**, which is privileged: it has to be
 enabled for the application under *Bot → Privileged Gateway Intents* in the
 Discord developer portal. Without it, nickname changes never arrive.
-`"track_nicknames": false` in `config.json` turns the whole thing off,
+`"track_changes": false` in the `nicknames` section of `config.json` turns
+the whole thing off,
 including the request for that intent — `/nickname` still works and still
 records its own changes, but changes made anywhere else go unseen. A bot that
 asks for an intent it was not granted is refused the gateway outright, which
@@ -1709,7 +1710,8 @@ under *Bot → Privileged Gateway Intents* in the Discord developer portal:
 - **Message Content.** Without it every message arrives empty: slash commands
   keep working while the goodbye phrase and every trigger silently do nothing.
 - **Server Members.** Without it no nickname change is ever seen. This one can
-  be turned off with `"track_nicknames": false`, which also stops the bot
+  be turned off with `"track_changes": false` in the `nicknames` section,
+  which also stops the bot
   asking for it.
 
 A bot that asks for an intent it was not granted is refused the gateway

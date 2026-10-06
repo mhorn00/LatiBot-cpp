@@ -66,7 +66,7 @@ namespace {
 /// is refused the gateway outright.
 auto intents_for(const config::bootstrap& settings) -> std::uint32_t {
     std::uint32_t intents = dpp::i_default_intents | dpp::i_message_content;
-    if (settings.track_nicknames) intents |= dpp::i_guild_members;
+    if (settings.nicknames.track_changes) intents |= dpp::i_guild_members;
     return intents;
 }
 
@@ -172,7 +172,7 @@ auto prepare(const std::filesystem::path& database_path) -> std::filesystem::pat
 /// bgutil's PO token provider's `server` folder: where config.json says, or
 /// beside the bot. Nothing when it is not there.
 auto locate_pot_server(const config::bootstrap& settings) -> std::optional<std::filesystem::path> {
-    std::filesystem::path server = settings.pot_provider_path;
+    std::filesystem::path server = settings.music.pot_provider_path;
     if (server.empty()) {
         const auto directory = util::executable_directory();
         if (!directory) return std::nullopt;
@@ -227,7 +227,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       backfill_progress_(database_),
       backfill_(gateway_, url_rules_, replacements_, reactions_, backfill_progress_, clock_),
       emoji_copies_(database_),
-      emoji_copier_(emoji_copies_, http_, gateway_, clock_, settings_.emoji_copy_min_uses),
+      emoji_copier_(emoji_copies_, http_, gateway_, clock_, settings_.linkstats.emoji_copy_min_uses),
       embed_tracker_(replacements_, clock_),
       voice_output_(cluster_),
       mixer_(voice_output_),
@@ -238,16 +238,16 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       voice_lab_(voice_drafts_, voices_, clock_,
                  {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
       dectalk_speech_(tts_, speech_, voice_sessions_, guild_settings_),
-      ytdlp_(util::locate_program("yt-dlp", settings_.ytdlp_path)),
-      ffmpeg_(util::locate_program("ffmpeg", settings_.ffmpeg_path)),
-      deno_(util::locate_program("deno", settings_.deno_path)),
+      ytdlp_(util::locate_program("yt-dlp", settings_.music.ytdlp_path)),
+      ffmpeg_(util::locate_program("ffmpeg", settings_.music.ffmpeg_path)),
+      deno_(util::locate_program("deno", settings_.music.deno_path)),
       pot_server_(locate_pot_server(settings_)),
       ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, credentials.ytdlp_firefox_profile,
                                          settings_.database_path.parent_path() / "yt-dlp-runs")),
       music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source,
-                      music_extras(deno_, ytdlp_, settings_.pot_provider_port)),
+                      music_extras(deno_, ytdlp_, settings_.music.pot_provider_port)),
       music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source,
-                    music_extras(deno_, ytdlp_, settings_.pot_provider_port)),
+                    music_extras(deno_, ytdlp_, settings_.music.pot_provider_port)),
       music_(music_opener_, mixer_,
              {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
               .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
@@ -303,7 +303,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     // Worth an info line rather than a debug one: it is the difference between
     // a bot that connects and one that Discord turns away, and the reason is
     // a toggle on a web page nobody looks at twice a year.
-    if (settings_.track_nicknames) {
+    if (settings_.nicknames.track_changes) {
         util::log().info("nickname tracking is on; this needs the Server Members intent enabled in the Discord developer portal");
     } else {
         util::log().info("nickname tracking is off; /nickname still works, but changes made elsewhere are not recorded");
@@ -338,8 +338,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     } else {
         util::log().info("the language model can use {}{}{}; {} by default, capped at ${:.2f} a day and ${:.2f} a month",
                          anthropic_ != nullptr ? "Anthropic" : "", anthropic_ != nullptr && openai_ != nullptr ? " and " : "",
-                         openai_ != nullptr ? "OpenAI" : "", settings_.llm_model, settings_.spend_cap_daily_usd,
-                         settings_.spend_cap_monthly_usd);
+                         openai_ != nullptr ? "OpenAI" : "", settings_.llm.model, settings_.llm.spend_cap_daily_usd,
+                         settings_.llm.spend_cap_monthly_usd);
     }
 
     // Music plays through the mixer, which reads it from the player.
@@ -475,10 +475,10 @@ auto bot::register_events() -> void {
         // it as a websocket number in a reconnect loop. The cause is always
         // the same toggle, so say which one rather than leaving somebody to
         // look the code up (docs/features/Operations.md §3).
-        if (settings_.track_nicknames && event.message.contains("4014")) {
+        if (settings_.nicknames.track_changes && event.message.contains("4014")) {
             util::log().error(
                 "Discord refused the Server Members intent. Enable it under Bot > Privileged Gateway Intents "
-                "in the Discord developer portal, or set \"track_nicknames\": false in config.json.");
+                "in the Discord developer portal, or set \"track_changes\": false in the \"nicknames\" section of config.json.");
         }
     });
 
@@ -582,7 +582,7 @@ auto bot::register_events() -> void {
     // Recording and attributing are separate events on purpose: the change is
     // written down the moment it is seen, and the audit log fills in who did
     // it if and when it arrives (docs/features/Nicknames.md §3).
-    if (settings_.track_nicknames) {
+    if (settings_.nicknames.track_changes) {
         cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
         cluster_.on_guild_audit_log_entry_create(
             [this](const dpp::guild_audit_log_entry_create_t& event) { on_audit_entry(event.entry, guild_of(event)); });
@@ -727,8 +727,8 @@ auto bot::register_timers() -> void {
         every(events::copy_round_interval, "copying emojis", [this] {
             if (!cluster_.me.id.empty()) detach(copy_emojis(), "copying emojis");
         });
-        util::log().info("keeping copies of emojis used at least {} time{}", settings_.emoji_copy_min_uses,
-                         settings_.emoji_copy_min_uses == 1 ? "" : "s");
+        util::log().info("keeping copies of emojis used at least {} time{}", settings_.linkstats.emoji_copy_min_uses,
+                         settings_.linkstats.emoji_copy_min_uses == 1 ? "" : "s");
     } else {
         util::log().info("copying emojis is off");
     }
@@ -881,7 +881,7 @@ auto bot::on_voice_state(const dpp::voicestate& state) -> void {
 }
 
 auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
-    if (!settings_.track_nicknames) return;
+    if (!settings_.nicknames.track_changes) return;
 
     // Changes made while the bot was not running have nobody to attribute
     // them to, which is why they are marked as their own source rather than
@@ -962,7 +962,7 @@ auto bot::log_music_tools() -> void {
         util::log().warn(
             "Deno was not found, so yt-dlp cannot solve YouTube's JavaScript challenges, and some YouTube videos will fail, "
             "age-restricted ones above all. Install Deno 2.3 or newer (winget install DenoLand.Deno), beside the bot or on PATH, "
-            "or name it in config.json (deno_path)");
+            "or name it in config.json (music.deno_path)");
     }
     log_music_account();
     // Which versions, off the startup path: an old yt-dlp is the usual
@@ -1031,14 +1031,14 @@ auto bot::log_music_account() const -> void {
 
 auto bot::start_pot_provider() -> void {
     if (!ytdlp_ || !ffmpeg_) return;
-    const std::string address = music::pot_provider_address(settings_.pot_provider_port);
+    const std::string address = music::pot_provider_address(settings_.music.pot_provider_port);
     const bool plugin = music::pot_plugin_installed(*ytdlp_);
     const std::string plugins = (ytdlp_->parent_path() / "yt-dlp-plugins").string();
 
     if (!pot_server_) {
-        if (!settings_.pot_provider_path.empty()) {
-            util::log().warn("pot_provider_path in config.json names {}, which is not a folder, so no PO token provider runs",
-                             settings_.pot_provider_path.generic_string());
+        if (!settings_.music.pot_provider_path.empty()) {
+            util::log().warn("music.pot_provider_path in config.json names {}, which is not a folder, so no PO token provider runs",
+                             settings_.music.pot_provider_path.generic_string());
         } else if (plugin) {
             util::log().info(
                 "bgutil's PO token plugin is in {}, but its provider is not beside the bot; yt-dlp asks {} for tokens, "
@@ -1070,7 +1070,8 @@ auto bot::start_pot_provider() -> void {
             server);
         return;
     }
-    pot_provider_ = std::make_unique<music::pot_provider>(music::pot_provider_program(*deno_, *pot_server_, settings_.pot_provider_port));
+    pot_provider_ =
+        std::make_unique<music::pot_provider>(music::pot_provider_program(*deno_, *pot_server_, settings_.music.pot_provider_port));
     util::log().info("yt-dlp gets PO tokens from bgutil's provider, run with Deno from {}, at {}", server, address);
 }
 
@@ -1081,7 +1082,7 @@ auto bot::music_unavailable() const -> std::string {
     if (ffmpeg_) missing = "yt-dlp";
     return std::format(
         "i can't play music: {} isn't installed where i can find it. Put it beside the bot or on PATH, or name it in "
-        "config.json (ytdlp_path, ffmpeg_path)",
+        "config.json (music.ytdlp_path, music.ffmpeg_path)",
         missing);
 }
 
@@ -1229,6 +1230,13 @@ auto bot::add_stage(int position, std::string name, events::pipeline::stage_fn s
     pipeline_.add(position, std::move(name), std::move(stage));
 }
 
+auto bot::section(std::string_view name) -> const nlohmann::json& {
+    claimed_sections_.emplace(name);
+    static const nlohmann::json none = nlohmann::json::object();
+    const auto found = settings_.sections.find(std::string(name));
+    return found != settings_.sections.end() ? *found : none;
+}
+
 auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
     module_permissions_.emplace_back(bits, std::move(purpose));
 }
@@ -1244,6 +1252,10 @@ auto bot::start_modules(const module::module_factory& make_modules) -> void {
         names += each->name();
     }
     util::log().info("{} module(s){}{}", modules_.size(), names.empty() ? "" : ": ", names);
+    for (const auto& [name, unused] : settings_.sections.items()) {
+        if (claimed_sections_.contains(name)) continue;
+        util::log().warn(R"(config.json has a "{}" section, but this build has no module that reads it; it is ignored)", name);
+    }
 
     std::string versions;
     for (const auto& [name, version] : db::recorded_versions(database_)) {

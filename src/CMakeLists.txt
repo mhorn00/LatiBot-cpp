@@ -12,7 +12,9 @@ add_library(latibot_core STATIC
     core/bot.cpp
     core/config/bootstrap.cpp
     core/config/command_line.cpp
+    core/config/feature_sections.cpp
     core/config/guild_settings.cpp
+    core/config/section.cpp
     core/db/backup.cpp
     core/db/database.cpp
     core/db/error.cpp

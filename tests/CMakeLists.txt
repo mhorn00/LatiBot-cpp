@@ -24,6 +24,7 @@ add_executable(latibot_tests
     db/nickname_store_test.cpp
     unit/basic_commands_test.cpp
     unit/bootstrap_test.cpp
+    unit/config_section_test.cpp
     unit/bots_command_test.cpp
     unit/chat_command_test.cpp
     unit/ca_certificates_test.cpp

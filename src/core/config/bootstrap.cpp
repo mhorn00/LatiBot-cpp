@@ -6,9 +6,11 @@
 #include <dpp/json.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -26,12 +28,6 @@ auto require_string(const json& object, std::string_view key) -> std::string {
     const auto& value = object.at(std::string(key));
     if (!value.is_string()) wrong_type(key, "a string");
     return value.get<std::string>();
-}
-
-auto require_number(const json& object, std::string_view key) -> double {
-    const auto& value = object.at(std::string(key));
-    if (!value.is_number()) wrong_type(key, "a number");
-    return value.get<double>();
 }
 
 auto require_int(const json& object, std::string_view key) -> int {
@@ -63,39 +59,73 @@ auto require_snowflakes(const json& object, std::string_view key) -> std::vector
     return ids;
 }
 
-auto require_bool(const json& object, std::string_view key) -> bool {
-    const auto& value = object.at(std::string(key));
-    if (!value.is_boolean()) wrong_type(key, "true or false");
-    return value.get<bool>();
-}
+/// The core's own keys, at the top of config.json. A key added here belongs
+/// in `bootstrap::default_json` too, at its default.
+constexpr std::array<std::string_view, 7> core_keys{
+    "log_level", "database_path", "backup_directory", "backups_to_keep", "backup_interval_minutes", "trusted_guilds", "trusted_users",
+};
 
-/// Rejects anything we do not recognise, so a typo in a hand-edited file is
-/// reported instead of silently doing nothing. A key added here belongs in
-/// `bootstrap::default_json` too, at its default.
-auto reject_unknown_keys(const json& parsed) -> void {
-    static constexpr std::array<std::string_view, 19> known_keys{
-        "log_level",       "database_path",  "backup_directory",  "backups_to_keep",     "backup_interval_minutes",
-        "track_nicknames", "llm_provider",   "llm_model",         "spend_cap_daily_usd", "spend_cap_monthly_usd",
-        "llm_tool_rounds", "trusted_guilds", "trusted_users",     "emoji_copy_min_uses", "ytdlp_path",
-        "ffmpeg_path",     "deno_path",      "pot_provider_path", "pot_provider_port",
-    };
+/// A key from before config.json had sections, and where it lives now
+/// (docs/modules/Module_Plan_Final.md §8.1). Still read, with a warning.
+/// Remove after: you say so.
+struct moved_key {
+    std::string_view old_name;
+    std::string_view section;
+    std::string_view name;
+};
 
-    for (const auto& [key, unused] : parsed.items()) {
-        if (std::ranges::find(known_keys, key) == known_keys.end()) throw config_error("unknown config key \"" + key + "\"");
+constexpr std::array<moved_key, 12> moved_keys{{
+    {.old_name = "track_nicknames", .section = "nicknames", .name = "track_changes"},
+    {.old_name = "emoji_copy_min_uses", .section = "linkstats", .name = "emoji_copy_min_uses"},
+    {.old_name = "llm_provider", .section = "llm", .name = "provider"},
+    {.old_name = "llm_model", .section = "llm", .name = "model"},
+    {.old_name = "llm_tool_rounds", .section = "llm", .name = "tool_rounds"},
+    {.old_name = "spend_cap_daily_usd", .section = "llm", .name = "spend_cap_daily_usd"},
+    {.old_name = "spend_cap_monthly_usd", .section = "llm", .name = "spend_cap_monthly_usd"},
+    {.old_name = "ytdlp_path", .section = "music", .name = "ytdlp_path"},
+    {.old_name = "ffmpeg_path", .section = "music", .name = "ffmpeg_path"},
+    {.old_name = "deno_path", .section = "music", .name = "deno_path"},
+    {.old_name = "pot_provider_path", .section = "music", .name = "pot_provider_path"},
+    {.old_name = "pot_provider_port", .section = "music", .name = "pot_provider_port"},
+}};
+
+/// The sections the core reads itself, for the features still inside it.
+constexpr std::array<std::string_view, 4> feature_sections{"nicknames", "linkstats", "llm", "music"};
+
+/// Each feature section's object, with any old flat key moved into it.
+auto gather_feature_sections(const json& parsed) -> std::map<std::string_view, json> {
+    std::map<std::string_view, json> gathered;
+    for (const std::string_view name : feature_sections) {
+        const auto found = parsed.find(std::string(name));
+        gathered[name] = found != parsed.end() ? *found : json::object();
     }
+    for (const moved_key& moved : moved_keys) {
+        const auto found = parsed.find(std::string(moved.old_name));
+        if (found == parsed.end()) continue;
+        json& into = gathered[moved.section];
+        if (!into.is_object()) continue; // the section's own read says what is wrong
+        if (into.contains(std::string(moved.name))) {
+            throw config_error(
+                std::format(R"(config.json sets both "{}" and "{}.{}"; keep the second)", moved.old_name, moved.section, moved.name));
+        }
+        into[std::string(moved.name)] = *found;
+        util::log().warn(R"(config key "{}" is now "{}" inside "{}"; it still works, but move it there)", moved.old_name, moved.name,
+                         moved.section);
+    }
+    return gathered;
 }
 
-/// Where music's programs are (docs/features/Music.md §5, §4.10).
-auto read_music_keys(const json& parsed, bootstrap& config) -> void {
-    if (parsed.contains("ytdlp_path")) config.ytdlp_path = require_string(parsed, "ytdlp_path");
-    if (parsed.contains("ffmpeg_path")) config.ffmpeg_path = require_string(parsed, "ffmpeg_path");
-    if (parsed.contains("deno_path")) config.deno_path = require_string(parsed, "deno_path");
-    if (parsed.contains("pot_provider_path")) config.pot_provider_path = require_string(parsed, "pot_provider_path");
-    if (parsed.contains("pot_provider_port")) {
-        config.pot_provider_port = require_int(parsed, "pot_provider_port");
-        if (config.pot_provider_port < 1 || config.pot_provider_port > 65535) {
-            throw config_error(R"(config key "pot_provider_port" must be a port, 1 to 65535)");
+/// Sorts every top-level key: the core's, a feature section, an old flat
+/// key, or a module's section. Anything else is a typo, and stops startup.
+auto sort_keys(const json& parsed, bootstrap& config) -> void {
+    for (const auto& [key, value] : parsed.items()) {
+        if (std::ranges::contains(core_keys, key) || std::ranges::contains(feature_sections, key)) continue;
+        if (std::ranges::contains(moved_keys, std::string_view{key}, &moved_key::old_name)) continue;
+        if (value.is_object()) {
+            config.sections[key] = value;
+            continue;
         }
+        throw config_error("unknown config key \"" + key + "\"");
     }
 }
 
@@ -114,25 +144,6 @@ auto read_storage_keys(const json& parsed, bootstrap& config) -> void {
         if (minutes <= 0) throw config_error("config key \"backup_interval_minutes\" must be positive");
         config.backup_interval = std::chrono::minutes{minutes};
     }
-}
-
-/// Which model answers, and what it is allowed to cost
-/// (docs/features/Language_Model.md §3.2).
-auto read_llm_keys(const json& parsed, bootstrap& config) -> void {
-    if (parsed.contains("llm_provider")) config.llm_provider = require_string(parsed, "llm_provider");
-    if (parsed.contains("llm_model")) config.llm_model = require_string(parsed, "llm_model");
-    if (parsed.contains("spend_cap_daily_usd")) config.spend_cap_daily_usd = require_number(parsed, "spend_cap_daily_usd");
-    if (parsed.contains("spend_cap_monthly_usd")) config.spend_cap_monthly_usd = require_number(parsed, "spend_cap_monthly_usd");
-
-    if (parsed.contains("llm_tool_rounds")) {
-        config.llm_tool_rounds = require_int(parsed, "llm_tool_rounds");
-        if (config.llm_tool_rounds < 1) throw config_error("config key \"llm_tool_rounds\" must be at least 1");
-    }
-
-    if (config.spend_cap_daily_usd < 0 || config.spend_cap_monthly_usd < 0) throw config_error("the spend caps cannot be negative");
-
-    // Which provider and model are allowed is the language model's to say
-    // (llm::check_config): the core reads the keys without knowing them.
 }
 
 /// Writes the defaults where the configuration was looked for. Never fatal:
@@ -165,9 +176,8 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
     if (parsed.is_discarded()) throw config_error("config file is not valid JSON");
     if (!parsed.is_object()) throw config_error("config file must contain a JSON object");
 
-    reject_unknown_keys(parsed);
-
     bootstrap config;
+    sort_keys(parsed, config);
 
     if (parsed.contains("log_level")) {
         const std::string name = require_string(parsed, "log_level");
@@ -177,16 +187,12 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
     }
 
     read_storage_keys(parsed, config);
-    read_llm_keys(parsed, config);
 
-    if (parsed.contains("track_nicknames")) config.track_nicknames = require_bool(parsed, "track_nicknames");
-
-    if (parsed.contains("emoji_copy_min_uses")) {
-        config.emoji_copy_min_uses = require_int(parsed, "emoji_copy_min_uses");
-        if (config.emoji_copy_min_uses < 0) throw config_error(R"(config key "emoji_copy_min_uses" cannot be negative)");
-    }
-
-    read_music_keys(parsed, config);
+    auto gathered = gather_feature_sections(parsed);
+    config.nicknames = nicknames_section().read(gathered["nicknames"]);
+    config.linkstats = linkstats_section().read(gathered["linkstats"]);
+    config.llm = llm_section().read(gathered["llm"]);
+    config.music = music_section().read(gathered["music"]);
 
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
     if (parsed.contains("trusted_users")) config.trusted_users = require_snowflakes(parsed, "trusted_users");
@@ -202,20 +208,12 @@ auto bootstrap::default_json() -> std::string {
     file["backup_directory"] = defaults.backup_directory.generic_string();
     file["backups_to_keep"] = defaults.backups_to_keep;
     file["backup_interval_minutes"] = defaults.backup_interval.count();
-    file["track_nicknames"] = defaults.track_nicknames;
     file["trusted_guilds"] = nlohmann::ordered_json::array();
     file["trusted_users"] = nlohmann::ordered_json::array();
-    file["llm_provider"] = defaults.llm_provider;
-    file["llm_model"] = defaults.llm_model;
-    file["spend_cap_daily_usd"] = defaults.spend_cap_daily_usd;
-    file["spend_cap_monthly_usd"] = defaults.spend_cap_monthly_usd;
-    file["llm_tool_rounds"] = defaults.llm_tool_rounds;
-    file["emoji_copy_min_uses"] = defaults.emoji_copy_min_uses;
-    file["ytdlp_path"] = defaults.ytdlp_path.generic_string();
-    file["ffmpeg_path"] = defaults.ffmpeg_path.generic_string();
-    file["deno_path"] = defaults.deno_path.generic_string();
-    file["pot_provider_path"] = defaults.pot_provider_path.generic_string();
-    file["pot_provider_port"] = defaults.pot_provider_port;
+    file["nicknames"] = nicknames_section().defaults();
+    file["linkstats"] = linkstats_section().defaults();
+    file["llm"] = llm_section().defaults();
+    file["music"] = music_section().defaults();
     return file.dump(2) + "\n";
 }
 

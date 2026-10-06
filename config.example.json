@@ -3,18 +3,26 @@
   "backup_directory": "data/backups",
   "backups_to_keep": 7,
   "backup_interval_minutes": 360,
-  "track_nicknames": true,
   "trusted_guilds": [],
   "trusted_users": [],
-  "llm_provider": "anthropic",
-  "llm_model": "claude-haiku-4-5",
-  "spend_cap_daily_usd": 2.0,
-  "spend_cap_monthly_usd": 20.0,
-  "llm_tool_rounds": 4,
-  "emoji_copy_min_uses": 1,
-  "ytdlp_path": "",
-  "ffmpeg_path": "",
-  "deno_path": "",
-  "pot_provider_path": "",
-  "pot_provider_port": 4416
+  "nicknames": {
+    "track_changes": true
+  },
+  "linkstats": {
+    "emoji_copy_min_uses": 1
+  },
+  "llm": {
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
+    "spend_cap_daily_usd": 2.0,
+    "spend_cap_monthly_usd": 20.0,
+    "tool_rounds": 4
+  },
+  "music": {
+    "ytdlp_path": "",
+    "ffmpeg_path": "",
+    "deno_path": "",
+    "pot_provider_path": "",
+    "pot_provider_port": 4416
+  }
 }

@@ -1,7 +1,10 @@
 #pragma once
 
+#include "core/config/config_error.hpp"
+#include "core/config/feature_sections.hpp"
 #include "core/util/log.hpp"
 
+#include <dpp/json.h>
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -14,13 +17,6 @@
 #include <vector>
 
 namespace latibot::config {
-
-/// A malformed config file or a missing secret. Always fatal at startup: the
-/// bot should say what is wrong and stop, not run half-configured.
-class config_error : public std::runtime_error {
-public:
-    using std::runtime_error::runtime_error;
-};
 
 /// Global settings from `config.json` (docs/features/Operations.md §4).
 ///
@@ -36,48 +32,24 @@ struct bootstrap {
     int backups_to_keep = 7;
     std::chrono::minutes backup_interval{360};
 
-    /// Whether to watch for nickname changes (docs/features/Nicknames.md §3).
-    ///
-    /// This is the one setting that decides which intents the bot asks for:
-    /// nickname changes only arrive with the privileged Server Members
-    /// intent, which must also be switched on in the Discord developer
-    /// portal. A bot that asks for an intent it was not granted is refused
-    /// the gateway entirely, so this is the way to turn the request off.
-    bool track_nicknames = true;
-
-    std::string llm_provider{"anthropic"};
-    std::string llm_model{"claude-haiku-4-5"};
-    double spend_cap_daily_usd = 2.0;
-    double spend_cap_monthly_usd = 20.0;
-    int llm_tool_rounds = 4;
-
     /// Servers whose administrators may use the DECtalk commands that touch
     /// the host filesystem, and users who may regardless of server
     /// (docs/features/Speech.md §2.2).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 
-    /// How many reactions an emote needs before the bot keeps its own copy
-    /// of it, as an application emoji (docs/features/Link_Stats.md §10). 0
-    /// turns copying off. Raising it deletes the copies that no longer
-    /// qualify, on the next rounds.
-    std::int64_t emoji_copy_min_uses = 1;
+    // The sections of the features still inside the core
+    // (core/config/feature_sections.hpp). Each moves to its module.
+    nicknames_config nicknames;
+    linkstats_config linkstats;
+    llm_config llm;
+    music_config music;
 
-    /// Where yt-dlp and ffmpeg are, for music (docs/features/Music.md §5).
-    /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
-    std::filesystem::path ytdlp_path;
-    std::filesystem::path ffmpeg_path;
-    /// Where Deno is, which yt-dlp solves YouTube's JavaScript challenges
-    /// with (docs/features/Music.md §5). Empty: `deno.exe` beside the bot,
-    /// then on PATH.
-    std::filesystem::path deno_path;
-
-    /// bgutil's PO token provider, which the bot runs while it runs
-    /// (docs/features/Music.md §4.10): its `server` folder, and the port it
-    /// listens on, on this machine only. Empty: the folder
-    /// `bgutil-ytdlp-pot-provider/server` beside the bot.
-    std::filesystem::path pot_provider_path;
-    int pot_provider_port = 4416;
+    /// Every other object in config.json, as one object by name: a module's
+    /// section, which the module reads with its own table
+    /// (`module::host::section`). One no module reads is warned about and
+    /// ignored. JSON rather than a std::map, whose move can throw.
+    nlohmann::json sections = nlohmann::json::object();
 
     /// The account whose messages `/linkstats recompute` reads as the bot's
     /// replacements, in place of the bot's own.
@@ -91,7 +63,10 @@ struct bootstrap {
     /// Parses config text. Throws `config_error` naming the offending key.
     ///
     /// Unknown keys are rejected rather than ignored, so a typo in a
-    /// hand-edited file is reported instead of silently doing nothing.
+    /// hand-edited file is reported instead of silently doing nothing. An
+    /// object is a module's section, kept for it in `sections`. A key from
+    /// before sections, such as "llm_model", is read into its section with a
+    /// warning naming its new place.
     [[nodiscard]] static auto from_json(std::string_view text) -> bootstrap;
 
     /// Reads the file. When there is nothing at `path`, writes `default_json`
@@ -102,8 +77,9 @@ struct bootstrap {
     [[nodiscard]] static auto load(const std::filesystem::path& path) -> bootstrap;
 
     /// The file `load` writes: every key at its default, except `log_level`,
-    /// left out so each build keeps its own. config.example.json in the repo
-    /// is exactly this text, which a test checks.
+    /// left out so each build keeps its own, then each section's.
+    /// config.example.json in the repo is exactly this text, which a test
+    /// checks.
     [[nodiscard]] static auto default_json() -> std::string;
 
     /// Whether this user may use the host-touching DECtalk commands here.
