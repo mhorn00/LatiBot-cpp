@@ -47,9 +47,26 @@ tests/
 Two more are planned and do not exist yet: `live/`, for tests that need a real
 Discord connection, and `fixtures/`, for synthetic data files.
 
-The bot's code lives in a static library, `latibot_core`, which both
-`LatiBot.exe` and `latibot_tests.exe` link. Tests exercise exactly the code
-that ships.
+The bot's code lives in static libraries, which `LatiBot.exe` and the tests
+link alike, so tests exercise exactly the code that ships. There is one test
+executable per library (docs/modules/Module_Plan_Final.md §10):
+
+| Executable | Tests | From |
+|---|---|---|
+| `latibot_tests` | the core, and the features not yet moved into modules | `tests/` |
+| `latibot_<name>_tests` | one module, which sees that module's private headers and nothing of a module it does not require | `src/modules/<name>/tests/` |
+| `latibot_app_tests` | the bot as this build makes it, through the generated module list: every module starting on a stand-in host, and the schema comparison | `tests/app/` |
+
+A module's tests are listed in its `CMakeLists.txt` (`latibot_module(...
+TESTS ...)`), share `tests/support` and `tests/mocks`, and appear in ctest
+prefixed with the module's name, `midnight: ...`. `tests/support/test_host.hpp`
+stands in for the bot, so a module's test can start it and look at what it
+registered. Each module's `README.md` lists what it owns, and its tests check
+that list against the code (`tests/support/module_readme.hpp`). A module's
+`tests/` has its own copy of `tests/.clang-tidy`, since it is under `src/`.
+
+`ctest --preset debug` runs them all. To build them all without running,
+build the target `latibot_all_tests`.
 
 ---
 

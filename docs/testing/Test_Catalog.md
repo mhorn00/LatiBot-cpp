@@ -5,16 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-982 test cases across 13 components, including 206 sections.
+986 test cases across 15 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 165 | 23 |
+| [db](#db) | 150 | 23 |
 | [config](#config) | 44 | 23 |
-| [commands](#commands) | 197 | 55 |
-| [events](#events) | 200 | 40 |
+| [commands](#commands) | 191 | 55 |
+| [events](#events) | 185 | 40 |
 | [ui](#ui) | 15 | 0 |
-| [module](#module) | 10 | 0 |
+| [module](#module) | 7 | 0 |
+| [app](#app) | 4 | 0 |
+| [midnight](#midnight) | 39 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
@@ -88,19 +90,6 @@ Database (`src/core/db`)
 | a link waits for its preview to show whether it was an image |  | 4 | [tests/db/media_posts_test.cpp:157](../../tests/db/media_posts_test.cpp#L157) |
 | nothing is counted where images are off, or from bots |  |  | [tests/db/media_posts_test.cpp:188](../../tests/db/media_posts_test.cpp#L188) |
 | statistics count links, images, or both |  |  | [tests/db/media_posts_test.cpp:207](../../tests/db/media_posts_test.cpp#L207) |
-| an added entry comes back as it went in |  |  | [tests/db/midnight_store_test.cpp:51](../../tests/db/midnight_store_test.cpp#L51) |
-| entries belong to one guild |  |  | [tests/db/midnight_store_test.cpp:66](../../tests/db/midnight_store_test.cpp#L66) |
-| only enabled entries are looked at on a tick |  |  | [tests/db/midnight_store_test.cpp:78](../../tests/db/midnight_store_test.cpp#L78) |
-| a day can only be claimed once |  |  | [tests/db/midnight_store_test.cpp:91](../../tests/db/midnight_store_test.cpp#L91) |
-| editing an entry leaves the day it last posted alone |  |  | [tests/db/midnight_store_test.cpp:101](../../tests/db/midnight_store_test.cpp#L101) |
-| a tick posts an entry once and then leaves it alone |  |  | [tests/db/midnight_store_test.cpp:116](../../tests/db/midnight_store_test.cpp#L116) |
-| an entry that cannot be claimed does not cost the others their post |  |  | [tests/db/midnight_store_test.cpp:142](../../tests/db/midnight_store_test.cpp#L142) |
-| a restart moments after posting does not post again |  |  | [tests/db/midnight_store_test.cpp:172](../../tests/db/midnight_store_test.cpp#L172) |
-| a night the bot slept through is given up on, not posted at breakfast |  |  | [tests/db/midnight_store_test.cpp:192](../../tests/db/midnight_store_test.cpp#L192) |
-| a restart a minute after midnight still posts |  |  | [tests/db/midnight_store_test.cpp:217](../../tests/db/midnight_store_test.cpp#L217) |
-| each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:231](../../tests/db/midnight_store_test.cpp#L231) |
-| a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:250](../../tests/db/midnight_store_test.cpp#L250) |
-| a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:267](../../tests/db/midnight_store_test.cpp#L267) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:42](../../tests/db/migrations_test.cpp#L42) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:55](../../tests/db/migrations_test.cpp#L55) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:66](../../tests/db/migrations_test.cpp#L66) |
@@ -150,16 +139,14 @@ Database (`src/core/db`)
 | recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:90](../../tests/db/replacement_store_test.cpp#L90) |
 | unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:103](../../tests/db/replacement_store_test.cpp#L103) |
 | replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:124](../../tests/db/replacement_store_test.cpp#L124) |
-| a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:150](../../tests/db/schema_versions_test.cpp#L150) |
-| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
-| an old database is brought to migration 15, then adopted with its data |  |  | [tests/db/schema_versions_test.cpp:180](../../tests/db/schema_versions_test.cpp#L180) |
-| adoption records every module of migration 15, and only those |  |  | [tests/db/schema_versions_test.cpp:205](../../tests/db/schema_versions_test.cpp#L205) |
-| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:216](../../tests/db/schema_versions_test.cpp#L216) |
-| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:232](../../tests/db/schema_versions_test.cpp#L232) |
-| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:248](../../tests/db/schema_versions_test.cpp#L248) |
-| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:264](../../tests/db/schema_versions_test.cpp#L264) |
-| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:276](../../tests/db/schema_versions_test.cpp#L276) |
-| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/db/schema_versions_test.cpp:290](../../tests/db/schema_versions_test.cpp#L290) |
+| a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:65](../../tests/db/schema_versions_test.cpp#L65) |
+| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:82](../../tests/db/schema_versions_test.cpp#L82) |
+| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:95](../../tests/db/schema_versions_test.cpp#L95) |
+| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:119](../../tests/db/schema_versions_test.cpp#L119) |
+| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:135](../../tests/db/schema_versions_test.cpp#L135) |
+| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:151](../../tests/db/schema_versions_test.cpp#L151) |
+| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
+| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:179](../../tests/db/schema_versions_test.cpp#L179) |
 | a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:63](../../tests/db/trigger_store_test.cpp#L63) |
 | each trigger in a guild gets its own responses, in order |  |  | [tests/db/trigger_store_test.cpp:82](../../tests/db/trigger_store_test.cpp#L82) |
 | guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:109](../../tests/db/trigger_store_test.cpp#L109) |
@@ -283,11 +270,11 @@ Command framework (`src/core/commands`)
 | an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
 | an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:52](../../tests/unit/command_responses_test.cpp#L52) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:74](../../tests/unit/command_responses_test.cpp#L74) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:120](../../tests/unit/command_responses_test.cpp#L120) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:132](../../tests/unit/command_responses_test.cpp#L132) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:153](../../tests/unit/command_responses_test.cpp#L153) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:49](../../tests/unit/command_responses_test.cpp#L49) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:70](../../tests/unit/command_responses_test.cpp#L70) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:122](../../tests/unit/command_responses_test.cpp#L122) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:143](../../tests/unit/command_responses_test.cpp#L143) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:66](../../tests/unit/linkstats_command_test.cpp#L66) |
 | custom emojis with names alike are listed a group at a time |  | 3 | [tests/unit/linkstats_command_test.cpp:95](../../tests/unit/linkstats_command_test.cpp#L95) |
 | emojis alike are merged from the list by somebody with Manage Server |  | 3 | [tests/unit/linkstats_command_test.cpp:135](../../tests/unit/linkstats_command_test.cpp#L135) |
@@ -334,12 +321,6 @@ Command framework (`src/core/commands`)
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| an empty list says how to add one |  |  | [tests/unit/midnight_command_test.cpp:26](../../tests/unit/midnight_command_test.cpp#L26) |
-| a listed entry names its channel, zone and message |  |  | [tests/unit/midnight_command_test.cpp:30](../../tests/unit/midnight_command_test.cpp#L30) |
-| an entry that is off says so |  |  | [tests/unit/midnight_command_test.cpp:39](../../tests/unit/midnight_command_test.cpp#L39) |
-| an entry that has posted says when |  |  | [tests/unit/midnight_command_test.cpp:49](../../tests/unit/midnight_command_test.cpp#L49) |
-| every entry appears in the list |  |  | [tests/unit/midnight_command_test.cpp:59](../../tests/unit/midnight_command_test.cpp#L59) |
-| an entry that notifies or hides previews says so |  |  | [tests/unit/midnight_command_test.cpp:69](../../tests/unit/midnight_command_test.cpp#L69) |
 | an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:38](../../tests/unit/nickname_command_test.cpp#L38) |
 | a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:47](../../tests/unit/nickname_command_test.cpp#L47) |
 | a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:57](../../tests/unit/nickname_command_test.cpp#L57) |
@@ -569,21 +550,6 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
 | a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
-| the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:41](../../tests/unit/midnight_test.cpp#L41) |
-| a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:51](../../tests/unit/midnight_test.cpp#L51) |
-| an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:62](../../tests/unit/midnight_test.cpp#L62) |
-| an entry that has posted today does not post again |  |  | [tests/unit/midnight_test.cpp:72](../../tests/unit/midnight_test.cpp#L72) |
-| a midnight the bot was not running for is skipped, not posted late |  |  | [tests/unit/midnight_test.cpp:84](../../tests/unit/midnight_test.cpp#L84) |
-| a restart shortly after midnight still posts |  |  | [tests/unit/midnight_test.cpp:100](../../tests/unit/midnight_test.cpp#L100) |
-| an entry off is an entry that does not post |  |  | [tests/unit/midnight_test.cpp:112](../../tests/unit/midnight_test.cpp#L112) |
-| two entries in different timezones fire at different times |  |  | [tests/unit/midnight_test.cpp:122](../../tests/unit/midnight_test.cpp#L122) |
-| an entry added this afternoon waits for the next midnight |  |  | [tests/unit/midnight_test.cpp:135](../../tests/unit/midnight_test.cpp#L135) |
-| a spring-forward night still has a midnight to fire at |  |  | [tests/unit/midnight_test.cpp:149](../../tests/unit/midnight_test.cpp#L149) |
-| a fall-back night does not post twice |  |  | [tests/unit/midnight_test.cpp:157](../../tests/unit/midnight_test.cpp#L157) |
-| a bad timezone in the database keeps quiet rather than posting wrongly |  |  | [tests/unit/midnight_test.cpp:166](../../tests/unit/midnight_test.cpp#L166) |
-| timezone completion matches anywhere in the name |  |  | [tests/unit/midnight_test.cpp:177](../../tests/unit/midnight_test.cpp#L177) |
-| timezone completion never offers more than it is asked for |  |  | [tests/unit/midnight_test.cpp:184](../../tests/unit/midnight_test.cpp#L184) |
-| timezone completion finds nothing for nonsense |  |  | [tests/unit/midnight_test.cpp:191](../../tests/unit/midnight_test.cpp#L191) |
 | a winter timestamp is read as Central Standard Time |  |  | [tests/unit/nickname_import_test.cpp:34](../../tests/unit/nickname_import_test.cpp#L34) |
 | a summer timestamp is read as Central Daylight Time |  |  | [tests/unit/nickname_import_test.cpp:39](../../tests/unit/nickname_import_test.cpp#L39) |
 | the hour that happens twice each November takes the earlier one |  |  | [tests/unit/nickname_import_test.cpp:44](../../tests/unit/nickname_import_test.cpp#L44) |
@@ -685,9 +651,6 @@ The module interface and the host (`src/core/modules`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| the midnight module creates its own table when it is built |  |  | [tests/unit/midnight_module_test.cpp:44](../../tests/unit/midnight_module_test.cpp#L44) |
-| the midnight module adds /midnight and checks the clock every thirty seconds |  |  | [tests/unit/midnight_module_test.cpp:57](../../tests/unit/midnight_module_test.cpp#L57) |
-| the midnight tick posts what is due through the host |  |  | [tests/unit/midnight_module_test.cpp:72](../../tests/unit/midnight_module_test.cpp#L72) |
 | a capability is found once offered, and null when nobody offers it |  |  | [tests/unit/module_test.cpp:94](../../tests/unit/module_test.cpp#L94) |
 | one capability offered twice stops startup, naming both modules |  |  | [tests/unit/module_test.cpp:110](../../tests/unit/module_test.cpp#L110) |
 | every module offers before any starts, so the list's order does not matter |  |  | [tests/unit/module_test.cpp:123](../../tests/unit/module_test.cpp#L123) |
@@ -695,6 +658,63 @@ The module interface and the host (`src/core/modules`)
 | a module that throws while starting stops startup |  |  | [tests/unit/module_test.cpp:157](../../tests/unit/module_test.cpp#L157) |
 | a listener that throws is logged under its name, and DPP never sees it |  |  | [tests/unit/module_test.cpp:170](../../tests/unit/module_test.cpp#L170) |
 | the test host fires a repeating timer each time, and a one-shot once |  |  | [tests/unit/module_test.cpp:188](../../tests/unit/module_test.cpp#L188) |
+
+## app
+
+The bot as built, with every module this build includes (`tests/app`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:132](../../tests/app/modules_test.cpp#L132) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:147](../../tests/app/modules_test.cpp#L147) |
+| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:179](../../tests/app/modules_test.cpp#L179) |
+| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:216](../../tests/app/modules_test.cpp#L216) |
+
+## midnight
+
+The midnight module (`src/modules/midnight`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| an empty list says how to add one |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:33](../../src/modules/midnight/tests/midnight_command_test.cpp#L33) |
+| a listed entry names its channel, zone and message |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:37](../../src/modules/midnight/tests/midnight_command_test.cpp#L37) |
+| an entry that is off says so |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:46](../../src/modules/midnight/tests/midnight_command_test.cpp#L46) |
+| an entry that has posted says when |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:56](../../src/modules/midnight/tests/midnight_command_test.cpp#L56) |
+| every entry appears in the list |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:66](../../src/modules/midnight/tests/midnight_command_test.cpp#L66) |
+| an entry that notifies or hides previews says so |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:76](../../src/modules/midnight/tests/midnight_command_test.cpp#L76) |
+| the midnight command passes the registry's checks, answers privately and posts silently |  |  | [src/modules/midnight/tests/midnight_command_test.cpp:85](../../src/modules/midnight/tests/midnight_command_test.cpp#L85) |
+| the midnight module creates its own table when it is built |  |  | [src/modules/midnight/tests/midnight_module_test.cpp:47](../../src/modules/midnight/tests/midnight_module_test.cpp#L47) |
+| the midnight module adds /midnight and checks the clock every thirty seconds |  |  | [src/modules/midnight/tests/midnight_module_test.cpp:60](../../src/modules/midnight/tests/midnight_module_test.cpp#L60) |
+| the midnight tick posts what is due through the host |  |  | [src/modules/midnight/tests/midnight_module_test.cpp:75](../../src/modules/midnight/tests/midnight_module_test.cpp#L75) |
+| the midnight README lists what the module registers |  |  | [src/modules/midnight/tests/midnight_module_test.cpp:100](../../src/modules/midnight/tests/midnight_module_test.cpp#L100) |
+| an added entry comes back as it went in |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:54](../../src/modules/midnight/tests/midnight_store_test.cpp#L54) |
+| entries belong to one guild |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:69](../../src/modules/midnight/tests/midnight_store_test.cpp#L69) |
+| only enabled entries are looked at on a tick |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:81](../../src/modules/midnight/tests/midnight_store_test.cpp#L81) |
+| a day can only be claimed once |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:94](../../src/modules/midnight/tests/midnight_store_test.cpp#L94) |
+| editing an entry leaves the day it last posted alone |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:104](../../src/modules/midnight/tests/midnight_store_test.cpp#L104) |
+| a tick posts an entry once and then leaves it alone |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:119](../../src/modules/midnight/tests/midnight_store_test.cpp#L119) |
+| an entry that cannot be claimed does not cost the others their post |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:145](../../src/modules/midnight/tests/midnight_store_test.cpp#L145) |
+| a restart moments after posting does not post again |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:175](../../src/modules/midnight/tests/midnight_store_test.cpp#L175) |
+| a night the bot slept through is given up on, not posted at breakfast |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:195](../../src/modules/midnight/tests/midnight_store_test.cpp#L195) |
+| a restart a minute after midnight still posts |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:220](../../src/modules/midnight/tests/midnight_store_test.cpp#L220) |
+| each timezone posts at its own midnight |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:234](../../src/modules/midnight/tests/midnight_store_test.cpp#L234) |
+| a midnight message's flags survive a round trip and default to silent |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:253](../../src/modules/midnight/tests/midnight_store_test.cpp#L253) |
+| a midnight post carries its entry's flags |  |  | [src/modules/midnight/tests/midnight_store_test.cpp:270](../../src/modules/midnight/tests/midnight_store_test.cpp#L270) |
+| the local date is the one where the entry lives, not where the bot runs |  |  | [src/modules/midnight/tests/midnight_test.cpp:41](../../src/modules/midnight/tests/midnight_test.cpp#L41) |
+| a zone this machine does not know is refused rather than guessed at |  |  | [src/modules/midnight/tests/midnight_test.cpp:51](../../src/modules/midnight/tests/midnight_test.cpp#L51) |
+| an entry fires just after local midnight |  |  | [src/modules/midnight/tests/midnight_test.cpp:62](../../src/modules/midnight/tests/midnight_test.cpp#L62) |
+| an entry that has posted today does not post again |  |  | [src/modules/midnight/tests/midnight_test.cpp:72](../../src/modules/midnight/tests/midnight_test.cpp#L72) |
+| a midnight the bot was not running for is skipped, not posted late |  |  | [src/modules/midnight/tests/midnight_test.cpp:84](../../src/modules/midnight/tests/midnight_test.cpp#L84) |
+| a restart shortly after midnight still posts |  |  | [src/modules/midnight/tests/midnight_test.cpp:100](../../src/modules/midnight/tests/midnight_test.cpp#L100) |
+| an entry off is an entry that does not post |  |  | [src/modules/midnight/tests/midnight_test.cpp:112](../../src/modules/midnight/tests/midnight_test.cpp#L112) |
+| two entries in different timezones fire at different times |  |  | [src/modules/midnight/tests/midnight_test.cpp:122](../../src/modules/midnight/tests/midnight_test.cpp#L122) |
+| an entry added this afternoon waits for the next midnight |  |  | [src/modules/midnight/tests/midnight_test.cpp:135](../../src/modules/midnight/tests/midnight_test.cpp#L135) |
+| a spring-forward night still has a midnight to fire at |  |  | [src/modules/midnight/tests/midnight_test.cpp:149](../../src/modules/midnight/tests/midnight_test.cpp#L149) |
+| a fall-back night does not post twice |  |  | [src/modules/midnight/tests/midnight_test.cpp:157](../../src/modules/midnight/tests/midnight_test.cpp#L157) |
+| a bad timezone in the database keeps quiet rather than posting wrongly |  |  | [src/modules/midnight/tests/midnight_test.cpp:166](../../src/modules/midnight/tests/midnight_test.cpp#L166) |
+| timezone completion matches anywhere in the name |  |  | [src/modules/midnight/tests/midnight_test.cpp:177](../../src/modules/midnight/tests/midnight_test.cpp#L177) |
+| timezone completion never offers more than it is asked for |  |  | [src/modules/midnight/tests/midnight_test.cpp:184](../../src/modules/midnight/tests/midnight_test.cpp#L184) |
+| timezone completion finds nothing for nonsense |  |  | [src/modules/midnight/tests/midnight_test.cpp:191](../../src/modules/midnight/tests/midnight_test.cpp#L191) |
 
 ## discord
 

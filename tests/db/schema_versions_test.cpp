@@ -7,8 +7,6 @@
 #include "core/db/error.hpp"
 #include "core/db/migrations.hpp"
 #include "core/db/schemas.hpp"
-#include "core/events/midnight.hpp"
-#include "core/events/triggers.hpp"
 
 #include "support/capture_log.hpp"
 #include "support/schema.hpp"
@@ -62,89 +60,6 @@ constexpr std::array<migration, 2> widget_steps{{
     {.version = 2, .name = "widget colours", .sql = "ALTER TABLE widgets ADD COLUMN colour TEXT;"},
 }};
 
-// --------------------------------------------------------------------------
-// Describing a schema, for the comparison test
-// --------------------------------------------------------------------------
-
-/// SQL as it means rather than as it was typed: no comments, and one space
-/// wherever there was any.
-auto normalised(std::string_view sql) -> std::string {
-    std::string out;
-    bool space = false;
-    for (std::size_t at = 0; at < sql.size(); ++at) {
-        if (sql.substr(at, 2) == "--") {
-            const std::size_t end = sql.find('\n', at);
-            at = end == std::string_view::npos ? sql.size() : end;
-            space = true;
-            continue;
-        }
-        const char c = sql[at];
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            space = true;
-            continue;
-        }
-        if (space && !out.empty()) out += ' ';
-        space = false;
-        out += c;
-    }
-    return out;
-}
-
-/// Every row a query returns, each as its columns joined by '|'.
-auto rows_of(database& db, std::string_view sql, std::string_view argument) -> std::string {
-    std::string text;
-    auto query = db.prepare(sql, argument);
-    while (query.step()) {
-        for (int column = 0; column < query.column_count(); ++column) {
-            text += query.is_null(column) ? std::string("NULL") : query.get<std::string>(column);
-            text += '|';
-        }
-        text += '\n';
-    }
-    return text;
-}
-
-/// Each table, index, view and trigger, as what makes it what it is
-/// (§7.3): a table by its columns in order, its foreign keys, its indexes
-/// and their columns, and whether it is WITHOUT ROWID; the rest by their
-/// SQL, normalised. schema_versions is left out: only one side has it.
-auto describe(database& db) -> std::map<std::string, std::string> {
-    struct object {
-        std::string type;
-        std::string name;
-        std::string sql;
-    };
-    std::vector<object> objects;
-    {
-        auto query = db.prepare("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name <> 'schema_versions'");
-        while (query.step()) {
-            objects.push_back({.type = query.get<std::string>(0),
-                               .name = query.get<std::string>(1),
-                               .sql = query.is_null(2) ? "" : query.get<std::string>(2)});
-        }
-    }
-
-    std::map<std::string, std::string> described;
-    for (const object& each : objects) {
-        std::string text;
-        if (each.type == "table") {
-            text += "columns:\n" + rows_of(db, "SELECT * FROM pragma_table_xinfo(?)", each.name);
-            text += "foreign keys:\n" + rows_of(db, "SELECT * FROM pragma_foreign_key_list(?)", each.name);
-            text += "shape:\n" + rows_of(db, "SELECT type, ncol, wr, strict FROM pragma_table_list(?)", each.name);
-            text +=
-                "indexes:\n" + rows_of(db, "SELECT name, \"unique\", origin, partial FROM pragma_index_list(?) ORDER BY name", each.name);
-            if (each.sql.starts_with("CREATE VIRTUAL TABLE")) text += "sql: " + normalised(each.sql) + "\n";
-        } else if (each.type == "index") {
-            text += "columns:\n" + rows_of(db, "SELECT * FROM pragma_index_xinfo(?)", each.name);
-            text += "sql: " + normalised(each.sql) + "\n";
-        } else {
-            text += "sql: " + normalised(each.sql) + "\n";
-        }
-        described.emplace(each.type + " " + each.name, std::move(text));
-    }
-    return described;
-}
-
 } // namespace
 
 TEST_CASE("a new database gets schema_versions, and every module its version 1", "[db]") {
@@ -158,7 +73,7 @@ TEST_CASE("a new database gets schema_versions, and every module its version 1",
 
     CHECK(versions_of(db) == every_module_at_one());
     CHECK(table_exists(db, "guild_settings"));
-    CHECK(table_exists(db, "midnight_messages"));
+    CHECK(table_exists(db, "triggers"));
     CHECK(table_exists(db, "llm_aliases"));
     // The old numbering is never used.
     CHECK(db.user_version() == 0);
@@ -177,40 +92,28 @@ TEST_CASE("starting again changes nothing", "[db]") {
     CHECK_FALSE(captured.contains(latibot::util::log_level::info, "applied"));
 }
 
-TEST_CASE("an old database is brought to migration 15, then adopted with its data", "[db]") {
+TEST_CASE("an old database is brought to migration 15, then adopted", "[db]") {
     // What every running install meets once: the old migrations, unedited,
-    // then each module of the time recorded at version 1, which is what 15
-    // is. Remove after: you say so, with the old migrations.
+    // then each module of the time recorded at version 1. Remove after: you
+    // say so, with the old migrations. tests/app checks the data survives,
+    // and that no module creates anything twice.
     memory_database fixture;
     database& db = fixture.db;
     const auto before_llm = latibot::db::schema().first(10);
     REQUIRE(latibot::db::migrate(db, before_llm) == 10);
-    db.execute("INSERT INTO triggers (guild_id, pattern, match_mode, cooldown_s, enabled) VALUES (1, '420', 'whole_word', 30, 1);");
-    db.execute("INSERT INTO midnight_messages (guild_id, channel_id, timezone, message) VALUES (1, 2, 'UTC', 'midnight!');");
 
     CHECK(latibot::db::prepare_schema_versions(db) == schema_origin::adopted);
 
     CHECK(db.user_version() == 15);
     CHECK(table_exists(db, "llm_aliases"));
-    CHECK(versions_of(db) == every_module_at_one());
-
-    // Nothing is created twice.
-    for (const module_schema& schema : latibot::testing::all_schemas()) {
+    std::map<std::string, int> expected;
+    for (const std::string_view module : latibot::db::adopted_modules()) {
+        expected.emplace(std::string(module), 1);
+    }
+    CHECK(versions_of(db) == expected);
+    for (const module_schema& schema : latibot::db::builtin_schemas()) {
         CHECK(latibot::db::apply_schema(db, schema) == 1);
     }
-    CHECK(latibot::events::trigger_store(db).for_guild(dpp::snowflake{1}).size() == 1);
-    CHECK(latibot::events::midnight_store(db).for_guild(dpp::snowflake{1}).size() == 1);
-}
-
-TEST_CASE("adoption records every module of migration 15, and only those", "[db]") {
-    // A module built in later must find its row, or it would create tables
-    // that are already there.
-    std::set<std::string_view> adopted(latibot::db::adopted_modules().begin(), latibot::db::adopted_modules().end());
-    std::set<std::string_view> every;
-    for (const module_schema& schema : latibot::testing::all_schemas()) {
-        every.insert(schema.module);
-    }
-    CHECK(adopted == every);
 }
 
 TEST_CASE("a database the bot did not write is refused", "[db]") {
@@ -285,37 +188,4 @@ TEST_CASE("every module's steps run 1, 2, 3 with no gaps", "[db]") {
             ++expected;
         }
     }
-}
-
-TEST_CASE("every module's version 1 is exactly what migrations 1 to 15 built", "[db]") {
-    // The comparison test (§7.3). An adopted database and a new one must
-    // be the same database, or a module's later steps would meet different
-    // tables depending on how old the install is. Remove after: you say so,
-    // with the old migrations.
-    memory_database legacy_fixture;
-    database& legacy = legacy_fixture.db;
-    REQUIRE(latibot::db::migrate(legacy) == 15);
-
-    memory_database flattened_fixture;
-    database& flattened = flattened_fixture.db;
-    latibot::testing::create_schema(flattened);
-
-    const auto before = describe(legacy);
-    const auto after = describe(flattened);
-
-    std::set<std::string> names;
-    for (const auto& [name, text] : before) {
-        names.insert(name);
-    }
-    for (const auto& [name, text] : after) {
-        names.insert(name);
-    }
-    for (const std::string& name : names) {
-        INFO(name);
-        REQUIRE(before.contains(name));
-        REQUIRE(after.contains(name));
-        CHECK(before.at(name) == after.at(name));
-    }
-    // Something was compared: the tables of every module, and more.
-    CHECK(names.size() > 40);
 }

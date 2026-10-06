@@ -3,7 +3,8 @@
     Regenerates docs/testing/Test_Catalog.md from the test sources.
 
 .DESCRIPTION
-    Parses every TEST_CASE in tests/ and groups them by their component tag,
+    Parses every TEST_CASE in tests/ and in each module's tests/
+    (src/modules/<name>/tests) and groups them by their component tag,
     so the catalog cannot drift from the code. Run it after adding or
     retagging tests:
 
@@ -14,7 +15,10 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $TestRoot = (Join-Path $PSScriptRoot '..' 'tests'),
+    [string[]] $TestRoots = @(
+        (Join-Path $PSScriptRoot '..' 'tests'),
+        (Join-Path $PSScriptRoot '..' 'src' 'modules')
+    ),
     [string] $OutputPath = (Join-Path $PSScriptRoot '..' 'docs' 'testing' 'Test_Catalog.md')
 )
 
@@ -29,6 +33,8 @@ $components = [ordered]@{
     'events'   = 'Messages, replacements, reactions, nicknames and midnight (`src/core/events`)'
     'ui'       = 'Panels and paging (`src/core/ui`)'
     'module'   = 'The module interface and the host (`src/core/modules`)'
+    'app'      = 'The bot as built, with every module this build includes (`tests/app`)'
+    'midnight' = 'The midnight module (`src/modules/midnight`)'
     'discord'  = 'Discord plumbing (`src/core/discord`)'
     'audio'    = 'Speech and voice (`src/core/audio`)'
     'music'    = 'Music (`src/core/music`)'
@@ -51,7 +57,15 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $tests = [System.Collections.Generic.List[object]]::new()
 $problems = [System.Collections.Generic.List[string]]::new()
 
-foreach ($file in Get-ChildItem -Path $TestRoot -Recurse -Filter '*.cpp' | Sort-Object FullName) {
+# Only the tests/ folders under src/modules: a module's own sources are not
+# tests.
+$testFiles = foreach ($root in $TestRoots) {
+    if (-not (Test-Path $root)) { continue }
+    Get-ChildItem -Path $root -Recurse -Filter '*.cpp' |
+        Where-Object { $root -notmatch 'modules$' -or $_.FullName -match '[\\/]tests[\\/]' }
+}
+
+foreach ($file in $testFiles | Sort-Object FullName) {
     $relative = [IO.Path]::GetRelativePath($repoRoot, $file.FullName) -replace '\\', '/'
     $current = $null
     $lineNumber = 0

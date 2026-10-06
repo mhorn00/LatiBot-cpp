@@ -1,10 +1,10 @@
-#include "core/events/midnight_module.hpp"
+#include "midnight/module.hpp"
 
-#include "core/commands/midnight.hpp"
 #include "core/commands/registry.hpp"
-#include "core/events/midnight.hpp"
 #include "core/modules/host.hpp"
 #include "core/util/log.hpp"
+#include "midnight.hpp"
+#include "midnight_command.hpp"
 
 #include <array>
 #include <string_view>
@@ -81,8 +81,12 @@ auto midnight_schema() noexcept -> db::module_schema {
     return {.module = module_name, .steps = midnight_steps};
 }
 
-auto make_midnight_module(modules::host& bot) -> std::unique_ptr<modules::module> {
-    return std::make_unique<midnight_module>(bot);
+} // namespace latibot::events
+
+namespace latibot::midnight {
+
+auto make_module(modules::host& bot) -> std::unique_ptr<modules::module> {
+    return std::make_unique<events::midnight_module>(bot);
 }
 
-} // namespace latibot::events
+} // namespace latibot::midnight

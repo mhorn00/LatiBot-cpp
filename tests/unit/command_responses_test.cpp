@@ -6,7 +6,6 @@
 #include "core/commands/bots.hpp"
 #include "core/commands/linkstats.hpp"
 #include "core/commands/message_options.hpp"
-#include "core/commands/midnight.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/registry.hpp"
 #include "core/commands/trigger.hpp"
@@ -14,7 +13,6 @@
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/events/bot_allowlist.hpp"
-#include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/triggers.hpp"
@@ -39,7 +37,6 @@ struct stores {
     latibot::events::bot_allowlist allowlist{db};
     latibot::events::trigger_store triggers{db};
     latibot::events::nickname_store nicknames{db};
-    latibot::events::midnight_store midnight{db};
     latibot::events::url_rule_store url_rules{db};
     latibot::events::reaction_store reactions{db};
     latibot::testing::mock_clock clock;
@@ -64,11 +61,10 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::bots_command>(all.allowlist)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::trigger_command>(all.triggers)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::nicknames_command>(all.nicknames)));
-    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::midnight_command>(all.midnight, all.clock)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::links_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::urltoggle_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::linkstats_command>(all.reactions)));
-    CHECK(commands.size() == 12);
+    CHECK(commands.size() == 11);
 }
 
 TEST_CASE("the views meant for the room are public and the rest are private", "[commands]") {
@@ -94,12 +90,6 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
 
     const latibot::commands::trigger_command trigger(all.triggers);
     CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
-
-    // /midnight answers privately. The messages it sets up carry flags of
-    // their own, silent by default, and its posts are kept silent to match.
-    const latibot::commands::midnight_command midnight(all.midnight, all.clock);
-    CHECK(midnight.info().responses_for("add").result == dpp::m_ephemeral);
-    CHECK(midnight.info().responses_for("add").post == dpp::m_suppress_notifications);
 
     // The room sees the bot come, go or stop, so it sees why; a refusal is
     // still only for whoever asked (docs/features/Basic_Commands.md §5).

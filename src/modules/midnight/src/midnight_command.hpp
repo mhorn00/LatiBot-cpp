@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/events/midnight.hpp"
+#include "midnight.hpp"
 
 #include <dpp/appcommand.h>
 

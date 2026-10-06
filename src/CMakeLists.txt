@@ -30,7 +30,6 @@ add_library(latibot_core STATIC
     core/commands/options.cpp
     core/commands/bots.cpp
     core/commands/chat.cpp
-    core/commands/midnight.cpp
     core/commands/music.cpp
     core/commands/nickname.cpp
     core/commands/trigger.cpp
@@ -57,8 +56,6 @@ add_library(latibot_core STATIC
     core/events/log_channel.cpp
     core/events/media_posts.cpp
     core/events/message_pipeline.cpp
-    core/events/midnight.cpp
-    core/events/midnight_module.cpp
     core/events/nickname_import.cpp
     core/events/nicknames.cpp
     core/events/reactions.cpp
@@ -138,11 +135,23 @@ target_precompile_headers(latibot_core PRIVATE <dpp/dpp.h>)
 latibot_target_warnings(latibot_core)
 latibot_target_sanitizers(latibot_core)
 
-# enabled_modules.cpp is the list of modules this build includes
-# (docs/modules/Module_Plan_Final.md §4.8). Written by hand until CMake writes
-# it from the LATIBOT_WITH_* switches.
-add_executable(LatiBot main.cpp enabled_modules.cpp)
-target_link_libraries(LatiBot PRIVATE latibot_core)
+# The feature modules, each its own library (modules/CMakeLists.txt).
+add_subdirectory(modules)
+
+# The list of modules this build includes, `modules::enabled_modules`, and
+# every module's library: what the executable is built from, and the app tests
+# (tests/app) with it (docs/modules/Module_Plan_Final.md §4.8).
+latibot_write_module_list("${CMAKE_CURRENT_BINARY_DIR}/enabled_modules.cpp")
+add_library(latibot_enabled_modules INTERFACE)
+target_sources(latibot_enabled_modules INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/enabled_modules.cpp")
+get_property(latibot_modules GLOBAL PROPERTY LATIBOT_MODULES)
+foreach(name IN LISTS latibot_modules)
+    target_link_libraries(latibot_enabled_modules INTERFACE latibot_${name})
+endforeach()
+target_link_libraries(latibot_enabled_modules INTERFACE latibot_core)
+
+add_executable(LatiBot app/main.cpp)
+target_link_libraries(LatiBot PRIVATE latibot_enabled_modules)
 
 latibot_target_warnings(LatiBot)
 latibot_target_sanitizers(LatiBot)

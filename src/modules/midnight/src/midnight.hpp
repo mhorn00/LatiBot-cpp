@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/db/schema_versions.hpp"
 #include "core/events/message_pipeline.hpp"
 
 #include <dpp/snowflake.h>
@@ -22,6 +23,10 @@ class clock;
 }
 
 namespace latibot::events {
+
+/// The module's tables, `midnight_messages`, version 1 first
+/// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp.
+[[nodiscard]] auto midnight_schema() noexcept -> db::module_schema;
 
 /// How long after local midnight an entry is allowed to fire.
 ///

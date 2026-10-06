@@ -16,7 +16,7 @@ classes.
 
 | | |
 |---|---|
-| **Code** | `src/main.cpp`, `src/core/config/{bootstrap,command_line,guild_settings}.*`, `src/core/util/{env,ca_certificates,log}.*`, `src/core/db/*`, `src/core/commands/preflight.*`; intents and timers in `src/core/bot.cpp` |
+| **Code** | `src/app/main.cpp`, `src/core/config/{bootstrap,command_line,guild_settings}.*`, `src/core/util/{env,ca_certificates,log}.*`, `src/core/db/*`, `src/core/commands/preflight.*`; intents and timers in `src/core/bot.cpp` |
 | **Tests** | `tests/unit/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `tests/db/{database,schema_versions,migrations,backup,guild_settings}_test.cpp` |
 | **Tables** | `guild_settings` and `allowed_bots` (the core's schema), and `schema_versions`, each module's version |
 | **Plan** | Replaces plan §5.1, §5.2, §7, §21.1–§21.3 and §21.7 |

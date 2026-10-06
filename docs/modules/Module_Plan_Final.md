@@ -708,9 +708,10 @@ Nothing is pushed.
 | **3. The module interface** | 3a `module`, `host`, `capabilities`, `stage_order`; `bot` becomes the host | done: also `ui::panel_routes`, and `tests/support/test_host.hpp` for modules' tests |
 | | 3b `schema_versions`, the flattened schemas, adoption, the comparison test (§7) | done: the schemas are in `core/db/schemas.cpp` until each module takes its own; tests build databases from them |
 | | 3c Config sections and key tables (§8) | done: the four feature sections live in `core/config/feature_sections.*` until their modules take them; `host::section` for modules |
-| | 3d midnight as the first module | done: `events::make_midnight_module`, in `src/enabled_modules.cpp`; the namespace became `modules` (§4.2) |
-| **4. Folders and targets** | `src/core/{include,src,tests}`, `src/app`, `latibot_module()`, the generated list, per-module test executables; midnight moved | |
+| | 3d midnight as the first module | done, `e71f440`; the namespace became `modules` (§4.2) |
+| **4. Folders and targets** | `src/core/{include,src,tests}`, `src/app`, `latibot_module()`, the generated list, per-module test executables; midnight moved | done but the core's split: `cmake/modules.cmake`, `LATIBOT_WITH_MIDNIGHT`, `latibot_midnight_tests` and `latibot_app_tests`, midnight's README checked by a test. The core's `include`/`src` split moves to the end of phase 5, once the features have left it, so its include lines change once rather than twice |
 | **5. The other modules** | nicknames, triggers, links, linkstats, voice (with K9), dectalk, music, llm. Each step brings its settings table, its README with the sync test, and its tests moved and retagged. | |
+| | 5z The core's `include`/`src` split (§6.1), and `latibot_tests` becomes `latibot_core_tests` | |
 | **6. Matrix and docs** | `Test-ModuleMatrix.ps1`, the core-only CI job, the architecture docs, the user guide | |
 | **When you say** | Delete migrations 1–15, adoption, the comparison test and the old config keys | |
 

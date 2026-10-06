@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.21)
+# 3.25 for the workflow presets (CMakePresets.json, version 6).
+cmake_minimum_required(VERSION 3.25)
 
 # Conan installs only these two, so no other configuration could link.
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
@@ -41,6 +42,7 @@ option(LATIBOT_WARNINGS_AS_ERRORS "Treat warnings in our code as errors" ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(warnings)
 include(helpers)
+include(modules)
 
 latibot_strip_runtime_checks()
 

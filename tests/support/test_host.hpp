@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -69,6 +70,8 @@ public:
 
     std::vector<timer> timers;
     std::vector<std::string> listeners;
+    /// The config.json sections modules asked for.
+    std::set<std::string, std::less<>> asked_sections;
     std::uint32_t wanted_intents = 0;
     std::vector<std::pair<std::uint64_t, std::string>> wanted_permissions;
     std::vector<std::string> secrets;
@@ -83,6 +86,7 @@ public:
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings; }
     [[nodiscard]] auto bootstrap() const -> const config::bootstrap& override { return bootstrap_settings; }
     [[nodiscard]] auto section(std::string_view name) -> const nlohmann::json& override {
+        asked_sections.emplace(name);
         static const nlohmann::json none = nlohmann::json::object();
         const auto found = bootstrap_settings.sections.find(std::string(name));
         return found != bootstrap_settings.sections.end() ? *found : none;

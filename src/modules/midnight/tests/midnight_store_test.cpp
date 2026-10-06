@@ -1,6 +1,6 @@
 #include "core/db/database.hpp"
-#include "core/events/midnight.hpp"
 #include "core/ports/clock.hpp"
+#include "midnight.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/capture_log.hpp"
@@ -28,7 +28,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     midnight_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::events::midnight_schema());
+    }
 };
 
 auto utc(int year, unsigned month, unsigned day, int hour, int minute = 0, int second = 0) -> std::chrono::system_clock::time_point {
@@ -48,7 +51,7 @@ auto entry_in(std::string timezone, dpp::snowflake in = guild, std::string last_
 
 } // namespace
 
-TEST_CASE("an added entry comes back as it went in", "[db]") {
+TEST_CASE("an added entry comes back as it went in", "[midnight]") {
     store_fixture fixture;
 
     const std::int64_t id = fixture.store.add(entry_in("America/Chicago"));
@@ -63,7 +66,7 @@ TEST_CASE("an added entry comes back as it went in", "[db]") {
     CHECK(read->last_fired_date.empty());
 }
 
-TEST_CASE("entries belong to one guild", "[db]") {
+TEST_CASE("entries belong to one guild", "[midnight]") {
     store_fixture fixture;
 
     const std::int64_t mine = fixture.store.add(entry_in("UTC"));
@@ -75,7 +78,7 @@ TEST_CASE("entries belong to one guild", "[db]") {
     CHECK(fixture.store.remove(mine, guild));
 }
 
-TEST_CASE("only enabled entries are looked at on a tick", "[db]") {
+TEST_CASE("only enabled entries are looked at on a tick", "[midnight]") {
     store_fixture fixture;
 
     fixture.store.add(entry_in("UTC"));
@@ -88,7 +91,7 @@ TEST_CASE("only enabled entries are looked at on a tick", "[db]") {
     CHECK(fixture.store.enabled().size() == 1);
 }
 
-TEST_CASE("a day can only be claimed once", "[db]") {
+TEST_CASE("a day can only be claimed once", "[midnight]") {
     store_fixture fixture;
 
     const std::int64_t id = fixture.store.add(entry_in("UTC"));
@@ -98,7 +101,7 @@ TEST_CASE("a day can only be claimed once", "[db]") {
     CHECK(fixture.store.mark_fired(id, "2026-09-24"));
 }
 
-TEST_CASE("editing an entry leaves the day it last posted alone", "[db]") {
+TEST_CASE("editing an entry leaves the day it last posted alone", "[midnight]") {
     store_fixture fixture;
 
     const std::int64_t id = fixture.store.add(entry_in("UTC"));
@@ -113,7 +116,7 @@ TEST_CASE("editing an entry leaves the day it last posted alone", "[db]") {
     CHECK(fixture.store.find(id, guild)->last_fired_date == "2026-09-23");
 }
 
-TEST_CASE("a tick posts an entry once and then leaves it alone", "[db]") {
+TEST_CASE("a tick posts an entry once and then leaves it alone", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
     midnight_scheduler scheduler(fixture.store, clock);
@@ -139,7 +142,7 @@ TEST_CASE("a tick posts an entry once and then leaves it alone", "[db]") {
     CHECK(scheduler.tick().size() == 1);
 }
 
-TEST_CASE("an entry that cannot be claimed does not cost the others their post", "[db]") {
+TEST_CASE("an entry that cannot be claimed does not cost the others their post", "[midnight]") {
     // The posts a tick has claimed are only sent if it returns, so an error on
     // one entry that escaped would lose every other entry's message that day.
     store_fixture fixture;
@@ -169,7 +172,7 @@ TEST_CASE("an entry that cannot be claimed does not cost the others their post",
     CHECK(scheduler.tick().empty());
 }
 
-TEST_CASE("a restart moments after posting does not post again", "[db]") {
+TEST_CASE("a restart moments after posting does not post again", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
 
@@ -189,7 +192,7 @@ TEST_CASE("a restart moments after posting does not post again", "[db]") {
     CHECK(after.tick().empty());
 }
 
-TEST_CASE("a night the bot slept through is given up on, not posted at breakfast", "[db]") {
+TEST_CASE("a night the bot slept through is given up on, not posted at breakfast", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
     midnight_scheduler scheduler(fixture.store, clock);
@@ -214,7 +217,7 @@ TEST_CASE("a night the bot slept through is given up on, not posted at breakfast
     CHECK(scheduler.tick().size() == 1);
 }
 
-TEST_CASE("a restart a minute after midnight still posts", "[db]") {
+TEST_CASE("a restart a minute after midnight still posts", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
 
@@ -228,7 +231,7 @@ TEST_CASE("a restart a minute after midnight still posts", "[db]") {
     CHECK(scheduler.tick().size() == 1);
 }
 
-TEST_CASE("each timezone posts at its own midnight", "[db]") {
+TEST_CASE("each timezone posts at its own midnight", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
     midnight_scheduler scheduler(fixture.store, clock);
@@ -247,7 +250,7 @@ TEST_CASE("each timezone posts at its own midnight", "[db]") {
     CHECK(scheduler.tick().size() == 1);
 }
 
-TEST_CASE("a midnight message's flags survive a round trip and default to silent", "[db]") {
+TEST_CASE("a midnight message's flags survive a round trip and default to silent", "[midnight]") {
     store_fixture fixture;
 
     const std::int64_t quiet = fixture.store.add(entry_in("UTC"));
@@ -264,7 +267,7 @@ TEST_CASE("a midnight message's flags survive a round trip and default to silent
     CHECK(fixture.store.find(id, guild)->message_flags == 0);
 }
 
-TEST_CASE("a midnight post carries its entry's flags", "[db]") {
+TEST_CASE("a midnight post carries its entry's flags", "[midnight]") {
     store_fixture fixture;
     latibot::testing::mock_clock clock;
     midnight_scheduler scheduler(fixture.store, clock);

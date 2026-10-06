@@ -25,7 +25,7 @@ functions it calls, and on which thread (section 3).
 
 ## 1. From `main()` to shutdown
 
-`src/main.cpp`, `bot::run()`
+`src/app/main.cpp`, `bot::run()`
 
 `main()` is short. It reads configuration in a set order, builds one `bot`,
 and hands the main thread to DPP until the bot is told to stop. Every

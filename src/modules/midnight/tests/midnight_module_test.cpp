@@ -1,18 +1,21 @@
 // Midnight as a module: what it brings to the bot when it starts
 // (docs/modules/Module_Plan_Final.md §4, docs/features/Midnight.md).
 
-#include "core/events/midnight_module.hpp"
+#include "midnight/module.hpp"
 
 #include "core/commands/registry.hpp"
 #include "core/db/schema_versions.hpp"
-#include "core/events/midnight.hpp"
 #include "core/modules/module.hpp"
+#include "midnight.hpp"
 
+#include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <filesystem>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -26,7 +29,7 @@ auto start_midnight(test_host& bot) -> module_list {
     return latibot::modules::start_modules(
         [](host& with) {
             module_list made;
-            made.push_back(latibot::events::make_midnight_module(with));
+            made.push_back(latibot::midnight::make_module(with));
             return made;
         },
         bot, bot.offered);
@@ -41,7 +44,7 @@ auto version_of(latibot::db::database& db, std::string_view module) -> int {
 
 } // namespace
 
-TEST_CASE("the midnight module creates its own table when it is built", "[module]") {
+TEST_CASE("the midnight module creates its own table when it is built", "[midnight]") {
     // The host creates the core's tables; a module's are its own.
     test_host bot;
     REQUIRE(version_of(bot.data, "midnight") == 0);
@@ -54,7 +57,7 @@ TEST_CASE("the midnight module creates its own table when it is built", "[module
     CHECK(latibot::events::midnight_store(bot.data).enabled().empty());
 }
 
-TEST_CASE("the midnight module adds /midnight and checks the clock every thirty seconds", "[module]") {
+TEST_CASE("the midnight module adds /midnight and checks the clock every thirty seconds", "[midnight]") {
     test_host bot;
     const module_list modules = start_midnight(bot);
 
@@ -69,7 +72,7 @@ TEST_CASE("the midnight module adds /midnight and checks the clock every thirty 
     CHECK(bot.wanted_intents == 0);
 }
 
-TEST_CASE("the midnight tick posts what is due through the host", "[module]") {
+TEST_CASE("the midnight tick posts what is due through the host", "[midnight]") {
     test_host bot;
     const module_list modules = start_midnight(bot);
 
@@ -92,4 +95,32 @@ TEST_CASE("the midnight tick posts what is due through the host", "[module]") {
     // Once a day.
     CHECK(bot.fire("the midnight tick") == 1);
     CHECK(bot.posted.size() == 1);
+}
+
+TEST_CASE("the midnight README lists what the module registers", "[midnight]") {
+    // The README is how a reviewer learns what the module adds
+    // (docs/modules/Module_Plan_Final.md §11), so it cannot fall behind.
+    const std::filesystem::path readme = std::filesystem::path(LATIBOT_MODULE_DIR) / "README.md";
+    test_host bot;
+    const auto before = latibot::testing::table_names(bot.data);
+    const module_list modules = start_midnight(bot);
+
+    CHECK(latibot::testing::readme_row(readme, "Commands") == latibot::testing::command_names(bot.registry));
+    CHECK(latibot::testing::readme_row(readme, "Tables") == latibot::testing::table_names(bot.data, before));
+
+    std::set<std::string> timers;
+    for (const auto& each : bot.timers) {
+        timers.insert(each.name);
+    }
+    CHECK(latibot::testing::readme_row(readme, "Timers") == timers);
+
+    // The rows that say "none".
+    CHECK(latibot::testing::readme_row(readme, "Panels").empty());
+    CHECK(bot.routes.views().empty());
+    CHECK(latibot::testing::readme_row(readme, "Message stages").empty());
+    CHECK(bot.stages.size() == 0);
+    CHECK(latibot::testing::readme_row(readme, "Discord events").empty());
+    CHECK(bot.listeners.empty());
+    CHECK(latibot::testing::readme_row(readme, "Config section").empty());
+    CHECK(bot.asked_sections.empty());
 }

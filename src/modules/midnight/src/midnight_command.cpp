@@ -1,4 +1,4 @@
-#include "core/commands/midnight.hpp"
+#include "midnight_command.hpp"
 
 #include "core/commands/message_options.hpp"
 #include "core/commands/options.hpp"

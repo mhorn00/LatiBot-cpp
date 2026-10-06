@@ -1,4 +1,4 @@
-#include "core/events/midnight.hpp"
+#include "midnight.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

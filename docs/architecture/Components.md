@@ -52,13 +52,14 @@ voice audio: DPP sends it over Discord's voice connection.
 
 ## 2. The layers
 
-The code is the static library `latibot_core` (everything in `src/core/`).
-`src/main.cpp` is linked against it as `LatiBot.exe`, and `tests/` as
-`latibot_tests.exe`. Inside the library the code is layered:
+The code is the static library `latibot_core` (everything in `src/core/`)
+and one library per module (`src/modules/<name>/`, docs/modules/). `src/app/main.cpp`
+is linked against them as `LatiBot.exe`, with the module list CMake writes,
+and `tests/` as `latibot_tests.exe`. Inside the library the code is layered:
 
 ```mermaid
 flowchart TB
-    main["main()<br/>src/main.cpp"]
+    main["main()<br/>src/app/main.cpp"]
     shell["<b>The shell</b>: latibot::bot, src/core/bot.cpp<br/>owns every object below, and connects DPP's events,<br/>timers and slash commands to them"]
 
     subgraph features["Features: the bot's logic, testable without Discord"]

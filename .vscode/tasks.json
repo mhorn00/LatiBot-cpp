@@ -21,7 +21,8 @@
       "type": "cmake",
       "command": "build",
       "preset": "debug",
-      "targets": ["latibot_tests"],
+      // Every test executable: the core's, each module's and the app's.
+      "targets": ["latibot_all_tests"],
       "group": "build",
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }

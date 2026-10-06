@@ -1,4 +1,4 @@
-#include "core/events/midnight.hpp"
+#include "midnight.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -38,7 +38,7 @@ auto entry_in(std::string timezone, std::string last_fired = {}) -> midnight_ent
 // Reading the clock somewhere else
 // --------------------------------------------------------------------------
 
-TEST_CASE("the local date is the one where the entry lives, not where the bot runs", "[events]") {
+TEST_CASE("the local date is the one where the entry lives, not where the bot runs", "[midnight]") {
     // 06:30 UTC on the 23rd is still the 23rd in Chicago (01:30) and already
     // the 23rd in Tokyo (15:30); an hour earlier it is still the 22nd in
     // Chicago. The date is the whole decision, so it is worth pinning.
@@ -48,7 +48,7 @@ TEST_CASE("the local date is the one where the entry lives, not where the bot ru
     CHECK(reading->since_midnight == 23h + 30min);
 }
 
-TEST_CASE("a zone this machine does not know is refused rather than guessed at", "[events]") {
+TEST_CASE("a zone this machine does not know is refused rather than guessed at", "[midnight]") {
     CHECK_FALSE(read_local("Mars/Olympus_Mons", utc(2026, 9, 23, 12, 0)).has_value());
     CHECK_FALSE(is_known_timezone("Mars/Olympus_Mons"));
     CHECK(is_known_timezone("America/Chicago"));
@@ -59,7 +59,7 @@ TEST_CASE("a zone this machine does not know is refused rather than guessed at",
 // When it fires
 // --------------------------------------------------------------------------
 
-TEST_CASE("an entry fires just after local midnight", "[events]") {
+TEST_CASE("an entry fires just after local midnight", "[midnight]") {
     const midnight_entry entry = entry_in("UTC");
 
     // A few seconds of slack, so a tick landing a moment early does not post
@@ -69,7 +69,7 @@ TEST_CASE("an entry fires just after local midnight", "[events]") {
     CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::post);
 }
 
-TEST_CASE("an entry that has posted today does not post again", "[events]") {
+TEST_CASE("an entry that has posted today does not post again", "[midnight]") {
     const midnight_entry entry = entry_in("UTC", "2026-09-23");
 
     // Which is what makes a restart at 00:00:30 safe
@@ -81,7 +81,7 @@ TEST_CASE("an entry that has posted today does not post again", "[events]") {
     CHECK(verdict_for(entry, utc(2026, 9, 24, 0, 0, 10)) == midnight_verdict::post);
 }
 
-TEST_CASE("a midnight the bot was not running for is skipped, not posted late", "[events]") {
+TEST_CASE("a midnight the bot was not running for is skipped, not posted late", "[midnight]") {
     const midnight_entry entry = entry_in("UTC", "2026-09-22");
 
     // The bot was down overnight and comes back mid-morning. Yesterday's
@@ -97,7 +97,7 @@ TEST_CASE("a midnight the bot was not running for is skipped, not posted late", 
     CHECK(verdict_for(entry, utc(2026, 9, 24, 0, 0, 10)) == midnight_verdict::post);
 }
 
-TEST_CASE("a restart shortly after midnight still posts", "[events]") {
+TEST_CASE("a restart shortly after midnight still posts", "[midnight]") {
     const midnight_entry entry = entry_in("UTC", "2026-09-22");
 
     // The window is wider than the tick on purpose: a bot restarted a minute
@@ -109,7 +109,7 @@ TEST_CASE("a restart shortly after midnight still posts", "[events]") {
     CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 5, 1)) == midnight_verdict::missed);
 }
 
-TEST_CASE("an entry off is an entry that does not post", "[events]") {
+TEST_CASE("an entry off is an entry that does not post", "[midnight]") {
     midnight_entry entry = entry_in("UTC");
     entry.enabled = false;
 
@@ -119,7 +119,7 @@ TEST_CASE("an entry off is an entry that does not post", "[events]") {
     CHECK(verdict_for(entry, utc(2026, 9, 23, 9, 0, 0)) == midnight_verdict::wait);
 }
 
-TEST_CASE("two entries in different timezones fire at different times", "[events]") {
+TEST_CASE("two entries in different timezones fire at different times", "[midnight]") {
     const midnight_entry tokyo = entry_in("Asia/Tokyo", "2026-09-22");
     const midnight_entry chicago = entry_in("America/Chicago", "2026-09-22");
 
@@ -132,7 +132,7 @@ TEST_CASE("two entries in different timezones fire at different times", "[events
     CHECK(verdict_for(chicago, utc(2026, 9, 23, 5, 0, 10)) == midnight_verdict::post);
 }
 
-TEST_CASE("an entry added this afternoon waits for the next midnight", "[events]") {
+TEST_CASE("an entry added this afternoon waits for the next midnight", "[midnight]") {
     // The rule that fires an entry only asks whether today's date differs
     // from the last one posted for, so a brand new entry would otherwise post
     // within thirty seconds of being added.
@@ -146,7 +146,7 @@ TEST_CASE("an entry added this afternoon waits for the next midnight", "[events]
     CHECK(verdict_for(added_today, utc(2026, 9, 24, 5, 0, 10)) == midnight_verdict::post);
 }
 
-TEST_CASE("a spring-forward night still has a midnight to fire at", "[events]") {
+TEST_CASE("a spring-forward night still has a midnight to fire at", "[midnight]") {
     // The clocks jump from 02:00 to 03:00 in Chicago on 2026-03-08, which is
     // nowhere near midnight but is the day most likely to be got wrong.
     const midnight_entry entry = entry_in("America/Chicago");
@@ -154,7 +154,7 @@ TEST_CASE("a spring-forward night still has a midnight to fire at", "[events]") 
     CHECK(verdict_for(entry, utc(2026, 3, 8, 6, 0, 10)) == midnight_verdict::post);
 }
 
-TEST_CASE("a fall-back night does not post twice", "[events]") {
+TEST_CASE("a fall-back night does not post twice", "[midnight]") {
     // 01:00-01:59 happens twice in Chicago on 2026-11-01, which is after
     // midnight has already been claimed for the day.
     const midnight_entry fired = entry_in("America/Chicago", "2026-11-01");
@@ -163,7 +163,7 @@ TEST_CASE("a fall-back night does not post twice", "[events]") {
     CHECK(verdict_for(fired, utc(2026, 11, 1, 7, 30, 0)) == midnight_verdict::wait);
 }
 
-TEST_CASE("a bad timezone in the database keeps quiet rather than posting wrongly", "[events]") {
+TEST_CASE("a bad timezone in the database keeps quiet rather than posting wrongly", "[midnight]") {
     const midnight_entry entry = entry_in("Nowhere/Nothing");
 
     CHECK(verdict_for(entry, utc(2026, 9, 23, 0, 0, 30)) == midnight_verdict::wait);
@@ -174,20 +174,20 @@ TEST_CASE("a bad timezone in the database keeps quiet rather than posting wrongl
 // Picking a timezone
 // --------------------------------------------------------------------------
 
-TEST_CASE("timezone completion matches anywhere in the name", "[events]") {
+TEST_CASE("timezone completion matches anywhere in the name", "[midnight]") {
     const auto found = matching_timezones("chicago", 25);
 
     REQUIRE_FALSE(found.empty());
     CHECK(std::ranges::find(found, "America/Chicago") != found.end());
 }
 
-TEST_CASE("timezone completion never offers more than it is asked for", "[events]") {
+TEST_CASE("timezone completion never offers more than it is asked for", "[midnight]") {
     // Discord rejects more than twenty-five choices outright.
     CHECK(matching_timezones("", 25).size() == 25);
     CHECK(matching_timezones("america", 3).size() == 3);
     CHECK(matching_timezones("", 0).empty());
 }
 
-TEST_CASE("timezone completion finds nothing for nonsense", "[events]") {
+TEST_CASE("timezone completion finds nothing for nonsense", "[midnight]") {
     CHECK(matching_timezones("zzzzzz", 25).empty());
 }
