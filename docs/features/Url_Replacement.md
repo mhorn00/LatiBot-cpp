@@ -7,7 +7,7 @@ the new preview has actually appeared. A server chooses the sites and
 mirrors, and each member can opt out.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#urlrepl) says how to
+and what was decided and why. [The user guide](README.md#links) says how to
 use it, with every reply. [Classes.md §7](../architecture/Classes.md#7-link-replacement)
 draws its classes, and
 [Execution_Flow.md §6](../architecture/Execution_Flow.md#6-link-replacement-posting-and-watching)
@@ -17,7 +17,7 @@ the posting and watching. The reactions on replacements are counted by
 | | |
 |---|---|
 | **Code** | `src/core/util/url_scan.*`, `src/core/events/{url_rules,url_replacer,embed_watch,replacements}.*`, `src/core/commands/urlrepl.*` |
-| **Tests** | `tests/unit/{url_scan,url_rules,embed_watch,urlrepl_command}_test.cpp`, `tests/db/{url_rule_store,replacement_store}_test.cpp`, the URL panel in `tests/unit/panels_test.cpp`, `tests/fuzz/fuzz_url_scan.cpp` |
+| **Tests** | `tests/unit/{url_scan,url_rules,embed_watch,links_command}_test.cpp`, `tests/db/{url_rule_store,replacement_store}_test.cpp`, the URL panel in `tests/unit/panels_test.cpp`, `tests/fuzz/fuzz_url_scan.cpp` |
 | **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links` (migration 6) |
 | **Settings** | `url_replacement_enabled` and `url_rules_imported` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.1–§9.5, §21.11 and §21.13 |
@@ -57,7 +57,7 @@ the member through a webhook, is gone.
 
 A link is replaced when all of these hold:
 
-- the server has turned replacement on (`/urlrepl enable`, or the panel's
+- the server has turned replacement on (`/links enable`, or the panel's
   button);
 - the message is from a person in a server, not a bot or a DM;
 - the author has not opted out with `/urltoggle`, and did not turn the
@@ -128,12 +128,12 @@ leaves it for the next start.
 
 | Command | Who | What it does |
 |---|---|---|
-| `/urlrepl enable`, `disable` | Manage Server | Turns replacement on or off here. Off stops new replacements and Retry; replacements already posted stay, and their reactions still count |
-| `/urlrepl list` | Manage Server | Whether it is on, then the rules, five a page |
-| `/urlrepl set domain mirrors` | Manage Server | Adds a rule, or replaces a site's whole mirror list, which is also how reordering works |
-| `/urlrepl remove domain` | Manage Server | Deletes a rule |
-| `/urlrepl test text` | Manage Server | A dry run over a whole message: what would be posted, and a verdict for every link |
-| `/urlrepl panel` | Manage Server | The rules with Edit, Delete, Add rule and an on/off button |
+| `/links enable`, `disable` | Manage Server | Turns replacement on or off here. Off stops new replacements and Retry; replacements already posted stay, and their reactions still count |
+| `/links list` | Manage Server | Whether it is on, then the rules, five a page |
+| `/links set domain mirrors` | Manage Server | Adds a rule, or replaces a site's whole mirror list, which is also how reordering works |
+| `/links remove domain` | Manage Server | Deletes a rule |
+| `/links test text` | Manage Server | A dry run over a whole message: what would be posted, and a verdict for every link |
+| `/links panel` | Manage Server | The rules with Edit, Delete, Add rule and an on/off button |
 | `/urltoggle [user]` | everyone for themselves; Manage Server for anyone else | Flips an opt-out, per server |
 
 All of them answer privately. `domain` autocompletes the sites that have a
@@ -152,7 +152,7 @@ they are tried. Changing the site renames the rule. Neither may save over
 another site's rule, whether by adding a site that has one or renaming onto
 one.
 
-`/urlrepl test` runs the same code a real message does, so the two cannot
+`/links test` runs the same code a real message does, so the two cannot
 disagree. It works while replacement is off, and mentions an opt-out, since
 that would explain a link being left alone.
 
@@ -187,7 +187,7 @@ off, as Discord does.
 
 `explain_links` gives every link a `link_decision` (`replaced`, `no_rule`,
 `preview_off`, `in_code`, `duplicate`, `over_limit`). `plan_replacements` is
-that list filtered to `replaced`, which is why `/urlrepl test` cannot
+that list filtered to `replaced`, which is why `/links test` cannot
 disagree with a real message. A `planned_link` copies the rule's mirrors
 when the message arrives, so editing a rule does not change a replacement
 already being tried.
@@ -253,7 +253,7 @@ old replacements by it. The on/off switch and the import marker are
 `url_panel` keeps nothing on the bot's side. The page and the chosen rule
 travel in each component's `custom_id` (views `urlpanel`, `urlpick`,
 `urledit`, `urldel`, `urlyes`, `urladd`, `urlform`, `urlswitch`, and
-`urllist` for `/urlrepl list`'s pages), so it survives a restart and two
+`urllist` for `/links list`'s pages), so it survives a restart and two
 people can each have their own open. Lines are shortened evenly when a page
 of long mirror lists would pass 2,000 characters. The shared shape of
 panels is in [Commands_and_Panels.md](Commands_and_Panels.md).
@@ -275,13 +275,13 @@ panels is in [Commands_and_Panels.md](Commands_and_Panels.md).
 | 2026-09-24 | Retry uses the rule as it is when pressed; mirrors are not stored | A rule fixed since the failure is usually why somebody presses Retry |
 | 2026-09-24 | One timeout constant, not a per-server setting | Nobody has needed another value |
 | 2026-09-24 | Hold unclaimed preview updates for 30 s, at most 256 | A preview can arrive before the post's reply; the cap is because every update in every server passes through |
-| 2026-09-24 | The panel is `/urlrepl panel`, and opting out is its own command `/urltoggle` | A command with subcommands cannot run bare, and default permissions are per command, not per subcommand |
+| 2026-09-24 | The panel is `/links panel`, and opting out is its own command `/urltoggle` | A command with subcommands cannot run bare, and default permissions are per command, not per subcommand |
 | 2026-09-24 | A mirror's translation path is written on the mirror (`fxtwitter.com/en`) | It needs no option of its own |
 | 2026-09-24 | Import `UrlReplacements.txt` once per server, never over an existing rule | Deleting a rule must not be undone by the next restart |
 | 2026-09-24 | Off in each server until turned on | The bot joins servers for other features too, and the import creates rules everywhere |
 | 2026-09-25 | Settle a replacement stranded by a restart at once, from a fetched copy (cleanup decision 7) | Restarting its watch would edit a message that may have sat there for hours |
 | 2026-09-25 | Suppressed links and spoiler markers in code are read as Discord reads them | Found by the cleanup analysis (BUG-001) |
-| 2026-09-25 | `/urlrepl set` and `remove`, and `/urltoggle`, answer privately (cleanup decision 1) | Public in the Java bot, but a rule change or an opt-out is the business of whoever made it |
+| 2026-09-25 | `/links set` and `remove`, and `/urltoggle`, answer privately (cleanup decision 1) | Public in the Java bot, but a rule change or an opt-out is the business of whoever made it |
 
 ## 5. Limits, and what is still to check
 

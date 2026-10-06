@@ -66,10 +66,10 @@ knows.
 command open to everyone whose subcommands need more checks the permission
 itself: `/linkstats`'s aliases and recompute, `/llm`'s everything but
 `status` and the personality. `/urltoggle` is its own command rather than a
-subcommand of the Manage Server `/urlrepl` for the same reason.
+subcommand of the Manage Server `/links` for the same reason.
 
 **A command with subcommands cannot also run bare**, and a subcommand cannot
-also be a group. So `/urlrepl panel`, not `/urlrepl`, and
+also be a group. So `/links panel`, not `/links`, and
 `/linkstats recompute start` and `cancel`.
 
 ### 2.2 Registering
@@ -153,7 +153,7 @@ cannot carry, such as an ephemeral post.
 ## 4. Panels
 
 A panel is a message with menus and buttons, and sometimes a form, such as
-`/trigger panel`, `/urlrepl panel`, `/tts voices lab` or `/llm settings`.
+`/trigger panel`, `/links panel`, `/tts voices lab` or `/llm settings`.
 
 **State lives in the `custom_id`.** `ui::page_state` is `view:page:argument`:
 

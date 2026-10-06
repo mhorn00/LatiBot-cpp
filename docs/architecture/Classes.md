@@ -356,7 +356,7 @@ classDiagram
     command <|-- nickname_command
     command <|-- nicknames_command
     command <|-- midnight_command
-    command <|-- urlrepl_command
+    command <|-- links_command
     command <|-- urltoggle_command
     command <|-- logs_command
     command <|-- llm_command
@@ -389,7 +389,7 @@ What each command is handed when `bot::register_commands` builds it:
 | `/nickname` | `nickname_command` | nickname_store, pending_nicknames, clock, `dpp::cluster` | |
 | `/nicknames` | `nicknames_command` | nickname_store | nickname history pages |
 | `/midnight` | `midnight_command` | midnight_store, clock | |
-| `/urlrepl` | `urlrepl_command` | url_rule_store | URL panel |
+| `/links` | `links_command` | url_rule_store | URL panel |
 | `/urltoggle` | `urltoggle_command` | url_rule_store | |
 | `/logs` | `logs_command` | bootstrap, log_destination_store, log_channel, discord_gateway | |
 | `/llm` | `llm_command` | `llm_command_services` | settings panel, document forms |

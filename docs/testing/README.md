@@ -364,7 +364,7 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
 - **No command's `execute()` is tested.** Replying needs `event.co_reply`,
   and that needs a `dpp::cluster`, so which branch of a handler answers with
   what, and whether as a result or a refusal, is unchecked; so is that
-  `/urlrepl set` actually stores the rule. What the handlers decide is pulled
+  `/links set` actually stores the rule. What the handlers decide is pulled
   out where it matters and tested: the renderers, `plan_say` and `plan_join`,
   and the permission checks Discord cannot make for us, `urltoggle_refusal`
   and `linkstats_refusal`. That each handler calls them is not. A seam for

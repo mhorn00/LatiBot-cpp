@@ -1,4 +1,4 @@
-// /urlrepl, its panel, and /urltoggle
+// /links, its panel, and /urltoggle
 // (docs/features/Url_Replacement.md §2.6).
 
 #include "core/commands/urlrepl.hpp"
@@ -111,9 +111,9 @@ TEST_CASE("the dry run works while replacement is off, and says that it is", "[c
     const std::vector<url_rule> rules{rule_from("x.com", "fxtwitter.com")};
     const std::string off = render_test("https://x.com/a", rules, false, false);
     CHECK(off.contains("**Would post:**"));
-    CHECK(off.contains("`/urlrepl enable`"));
+    CHECK(off.contains("`/links enable`"));
 
-    CHECK_FALSE(render_test("https://x.com/a", rules, false, true).contains("`/urlrepl enable`"));
+    CHECK_FALSE(render_test("https://x.com/a", rules, false, true).contains("`/links enable`"));
 }
 
 TEST_CASE("the dry run says when there is nothing to do", "[commands]") {
@@ -141,7 +141,7 @@ TEST_CASE("a dry run of a long message stays under Discord's limit", "[commands]
 TEST_CASE("an empty list says how to start one", "[commands]") {
     const store_fixture fixture;
     const auto message = latibot::commands::render_url_rule_list(fixture.store, guild, 0);
-    CHECK(message.content.contains("/urlrepl set"));
+    CHECK(message.content.contains("/links set"));
     CHECK(message.components.empty());
 }
 
@@ -330,10 +330,10 @@ TEST_CASE("a full page of rules with the most, longest mirrors still fits the pa
 
 TEST_CASE("the commands are registered the way Discord expects", "[commands]") {
     store_fixture fixture;
-    const latibot::commands::urlrepl_command urlrepl(fixture.store);
+    const latibot::commands::links_command links(fixture.store);
     const latibot::commands::urltoggle_command toggle(fixture.store);
 
-    const dpp::slashcommand repl = urlrepl.build("urlrepl", dpp::snowflake{1});
+    const dpp::slashcommand repl = links.build("links", dpp::snowflake{1});
     CHECK(repl.default_member_permissions.can(dpp::p_manage_guild));
     REQUIRE(repl.options.size() == 7);
     CHECK(repl.options[0].name == "enable");

@@ -84,7 +84,7 @@ enum class link_decision : std::uint8_t {
     over_limit,
 };
 
-/// Why, in words, for `/urlrepl test`.
+/// Why, in words, for `/links test`.
 [[nodiscard]] auto to_string(link_decision decision) noexcept -> std::string_view;
 
 struct link_verdict {
@@ -96,7 +96,7 @@ struct link_verdict {
 
 /// Every link in `content`, with what URL replacement makes of it.
 ///
-/// `plan_replacements` is this, filtered, so the dry run in `/urlrepl test`
+/// `plan_replacements` is this, filtered, so the dry run in `/links test`
 /// cannot disagree with what a real message gets.
 [[nodiscard]] auto explain_links(std::string_view content, std::span<const url_rule> rules) -> std::vector<link_verdict>;
 

@@ -36,7 +36,7 @@ stays as the record of how the port was designed.
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [Nicknames](Nicknames.md) |
 | 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here | [Nicknames](Nicknames.md) |
 | 🌙 | [`/midnight`](#midnight) | Post a message at midnight | [Midnight](Midnight.md) |
-| 🔗 | [`/urlrepl`](#urlrepl) | Turn link replacement on, and choose which links get posted again with a working preview | [URL replacement](Url_Replacement.md) |
+| 🔗 | [`/links`](#links) | Turn link replacement on, and choose which links get posted again with a working preview | [URL replacement](Url_Replacement.md) |
 | 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [URL replacement](Url_Replacement.md) |
 | 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [Link stats](Link_Stats.md) |
 | 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers | [Language model](Language_Model.md) |
@@ -95,7 +95,7 @@ as subsections, rather than renumbering.
 | [Basic commands](Basic_Commands.md) | `/ping`, `/say`, `/status`, `/shutdown`, `/goodbye` and the goodbye phrase |
 | [Message pipeline](Message_Pipeline.md) | The stages every message passes through, who is heard, and `/bots` |
 | [Triggers](Triggers.md) | `/trigger` and its panel, and the replies |
-| [URL replacement](Url_Replacement.md) | `/urlrepl`, `/urltoggle`, the replacements, watching previews, Retry |
+| [URL replacement](Url_Replacement.md) | `/links`, `/urltoggle`, the replacements, watching previews, Retry |
 | [Link stats](Link_Stats.md) | `/linkstats`, reaction counting, the recompute, image posts, emoji copies |
 | [Nicknames](Nicknames.md) | `/nickname`, `/nicknames`, tracking and attribution, the Java import |
 | [Midnight](Midnight.md) | `/midnight` and the once-a-day post |
@@ -781,11 +781,11 @@ posted for — otherwise fixing a typo would post it again the same day.
 midnight message posts without notifying anyone and with link previews unless
 told otherwise, and the list says `notifies` or `no previews` when one differs.
 
-### `/urlrepl`
+### `/links`
 
 Manages which sites' links are posted again on a mirror, and whether that
 happens in this server at all. See [URL replacement](#url-replacement) for
-what happens to a link.
+what happens to a link. Before 2026-10 it was `/urlrepl`.
 
 | | |
 |---|---|
@@ -801,8 +801,8 @@ restart.
 
 | Subcommand | Reply |
 |---|---|
-| `enable` | `Link replacement is on in this server. Its 3 rules apply from now on; /urlrepl list shows them.` With no rules yet it says so and points at `set`. |
-| `disable` | `Link replacement is off in this server. The rules are kept, so /urlrepl enable picks up where it left off.` |
+| `enable` | `Link replacement is on in this server. Its 3 rules apply from now on; /links list shows them.` With no rules yet it says so and points at `set`. |
+| `disable` | `Link replacement is off in this server. The rules are kept, so /links enable picks up where it left off.` |
 | either, already that way | `Link replacement was already on here.` / `…off here.` |
 
 Turning it off stops new replacements and Retry presses. Replacements already
@@ -864,9 +864,9 @@ existing rule is left as it was. Delete asks to confirm in the panel itself.
 Like the trigger panel it keeps nothing on the bot's side, survives restarts,
 and is ephemeral.
 
-`/urlrepl` needs a subcommand; Discord does not let a command with
-subcommands run without one, so the panel is `/urlrepl panel` rather than
-`/urlrepl` on its own.
+`/links` needs a subcommand; Discord does not let a command with
+subcommands run without one, so the panel is `/links panel` rather than
+`/links` on its own.
 
 ### `/urltoggle`
 
@@ -1309,11 +1309,11 @@ The bot never answers itself, and no setting changes that.
 
 ### URL replacement
 
-When somebody posts a link to a site with a [rule](#urlrepl) — x.com,
+When somebody posts a link to a site with a [rule](#links) — x.com,
 tiktok.com, reddit.com, instagram.com — the bot posts it again on a mirror that
 previews properly, and turns the preview on the original off.
 
-**Only in servers that turned it on**, with [`/urlrepl enable`](#urlrepl) or
+**Only in servers that turned it on**, with [`/links enable`](#links) or
 the panel's button. Every server starts with it off.
 
 The replacement is a **plain message, never a reply**, with notifications
@@ -1379,8 +1379,8 @@ If `UrlReplacements.txt` from the old bot is left next to the database — at
 time the bot sees it there. A rule the server already has is never
 overwritten, and a server is only ever imported once, so deleting a rule later
 is not undone by the next restart. Without the file, a server starts with no
-rules and [`/urlrepl set`](#urlrepl) adds them. Either way the rules do nothing
-until the server runs `/urlrepl enable`; importing does not turn it on.
+rules and [`/links set`](#links) adds them. Either way the rules do nothing
+until the server runs `/links enable`; importing does not turn it on.
 
 ### Reaction statistics
 

@@ -54,7 +54,7 @@ inline constexpr std::string_view url_switch_view = "urlswitch";
 auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_id, bool enabled, const user_label& who,
                             std::string_view from) -> bool;
 
-/// The answer to `/urlrepl enable` or `/urlrepl disable`.
+/// The answer to `/links enable` or `/links disable`.
 [[nodiscard]] auto render_switch(bool changed, bool enabled, std::size_t rule_count) -> std::string;
 
 /// "fxtwitter.com/en, vxtwitter.com": the mirrors as they are typed.
@@ -71,7 +71,7 @@ auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 /// "replace" a link with the same link, so it is refused.
 [[nodiscard]] auto build_rule(std::string_view domain, std::string_view mirrors) -> std::variant<events::url_rule, std::string>;
 
-/// The dry run behind `/urlrepl test`: what would be posted for `content`,
+/// The dry run behind `/links test`: what would be posted for `content`,
 /// and what happened to every link in it
 /// (docs/features/Url_Replacement.md §2.6). It works while replacement is
 /// off, so rules can be tried before anyone sees them, and says so when it
@@ -79,7 +79,7 @@ auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 [[nodiscard]] auto render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled)
     -> std::string;
 
-/// One page of `/urlrepl list`.
+/// One page of `/links list`.
 [[nodiscard]] auto render_url_rule_list(const events::url_rule_store& store, dpp::snowflake guild_id, int page) -> dpp::message;
 
 /// The panel at `page`. `selected` is the domain the select menu points at,
@@ -117,11 +117,11 @@ private:
     events::url_rule_store* store_;
 };
 
-/// `/urlrepl enable | disable | list | set | remove | test | panel`
+/// `/links enable | disable | list | set | remove | test | panel`
 /// (docs/features/Url_Replacement.md §2.6).
-class urlrepl_command final : public command {
+class links_command final : public command {
 public:
-    explicit urlrepl_command(events::url_rule_store& store);
+    explicit links_command(events::url_rule_store& store);
 
     [[nodiscard]] auto info() const -> const command_info& override { return info_; }
     [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;

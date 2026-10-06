@@ -477,7 +477,7 @@ it is built, and what was decided and why.
 | `/nickname` | change somebody's nickname, and record who did it |
 | `/nicknames` | every nickname somebody has had here, paginated |
 | `/midnight` | `list`, `add`, `edit`, `remove`, `toggle` — a message at midnight |
-| `/urlrepl` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
+| `/links` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
 | `/urltoggle` | have your own links left alone, or not |
 | `/linkstats` | `top`, `user`, `reactions`, `duplicates`, `alias`, `recompute`, `images` — reactions on replaced links, and on images where counted |
 | `/llm` | `status`, `on`, `off`, `model`, `settings`, and groups for the `personality`, `system` and `style` documents, advanced `trigger`s and the `blacklist` — the language model |
@@ -493,7 +493,7 @@ else has, and anything the bot lacks permission to do is
 reported per server at startup as a warning rather than an error.
 
 URL replacement is off in every server until someone with Manage Server runs
-`/urlrepl enable` there, and the bot remembers the choice across restarts. It
+`/links enable` there, and the bot remembers the choice across restarts. It
 watches for Discord to actually build the preview rather than
 guessing from a timer, tries each mirror twice before moving on, and when none
 works leaves a **Retry** button instead of deleting its message. Every link in a
@@ -510,7 +510,7 @@ the bot for anything the bot did. The history records the person instead, and
 says **unknown** rather than guessing when nobody can be named. Dropping the
 Java bot's `nicknames.json` into `data/` imports years of history, timezones
 and all; its `UrlReplacements.txt` in the same place becomes each server's URL
-rules, once, ready for `/urlrepl enable`. `/linkstats recompute` then reads years of channel history back
+rules, once, ready for `/links enable`. `/linkstats recompute` then reads years of channel history back
 into the reaction statistics.
 
 The language model is off in every server until someone with Manage Server

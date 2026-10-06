@@ -383,7 +383,7 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::nickname_command>(nicknames_, pending_nicknames_, clock_, cluster_));
     commands_.add(std::make_unique<commands::nicknames_command>(nicknames_));
     commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
-    commands_.add(std::make_unique<commands::urlrepl_command>(url_rules_));
+    commands_.add(std::make_unique<commands::links_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
     commands_.add(std::make_unique<commands::llm_command>(llm_services()));
@@ -892,7 +892,7 @@ auto bot::import_url_rules(const dpp::guild& guild) -> void {
 
     guild_settings_.set_bool(guild.id, url_rules_imported_key, true);
     util::log().info("{}: imported {} URL rule(s) from {}{}", guild.name, *imported, legacy.generic_string(),
-                     url_rules_.enabled(guild.id) ? "" : "; they apply once someone runs /urlrepl enable there");
+                     url_rules_.enabled(guild.id) ? "" : "; they apply once someone runs /links enable there");
 }
 
 auto bot::retry_replacement(const dpp::interaction_create_t& event, dpp::snowflake message_id, const commands::user_label& who) -> void {

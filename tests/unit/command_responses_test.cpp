@@ -65,7 +65,7 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::trigger_command>(all.triggers)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::nicknames_command>(all.nicknames)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::midnight_command>(all.midnight, all.clock)));
-    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::urlrepl_command>(all.url_rules)));
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::links_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::urltoggle_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::linkstats_command>(all.reactions)));
     CHECK(commands.size() == 12);
@@ -119,10 +119,10 @@ TEST_CASE("the views meant for the room are public and the rest are private", "[
 
 TEST_CASE("the URL dry run hides the previews of the links it shows", "[commands]") {
     stores all;
-    const latibot::commands::urlrepl_command urlrepl(all.url_rules);
+    const latibot::commands::links_command links(all.url_rules);
 
-    CHECK(urlrepl.info().responses_for("test").result == (dpp::m_ephemeral | dpp::m_suppress_embeds));
-    CHECK(urlrepl.info().responses_for("list").result == dpp::m_ephemeral);
+    CHECK(links.info().responses_for("test").result == (dpp::m_ephemeral | dpp::m_suppress_embeds));
+    CHECK(links.info().responses_for("list").result == dpp::m_ephemeral);
 }
 
 // --------------------------------------------------------------------------
