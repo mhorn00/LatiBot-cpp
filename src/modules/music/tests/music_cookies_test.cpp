@@ -3,11 +3,11 @@
 // written to, and that yt-dlp goes signed out until it is told to sign in.
 // Every cookie here is made up.
 
+#include "cookies.hpp"
 #include "core/db/database.hpp"
-#include "core/music/cookies.hpp"
-#include "core/music/yt_dlp.hpp"
 #include "support/capture_log.hpp"
 #include "support/temp_directory.hpp"
+#include "yt_dlp.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -2,18 +2,13 @@
 
 #include "core/commands/basic.hpp"
 #include "core/commands/bots.hpp"
-#include "core/commands/chat.hpp"
 #include "core/commands/logs.hpp"
-#include "core/commands/music.hpp"
 #include "core/commands/preflight.hpp"
-#include "core/commands/speak.hpp"
-#include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
 #include "core/db/schema_versions.hpp"
 #include "core/db/schemas.hpp"
 #include "core/discord/dpp_log.hpp"
 #include "core/discord/message_flags.hpp"
-#include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/stage_order.hpp"
 #include "core/modules/host.hpp"
@@ -21,7 +16,6 @@
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
-#include "core/util/process.hpp"
 #include "core/util/text.hpp"
 #include "core/version.hpp"
 
@@ -85,30 +79,6 @@ auto prepare(const std::filesystem::path& database_path) -> std::filesystem::pat
     return database_path;
 }
 
-/// bgutil's PO token provider's `server` folder: where config.json says, or
-/// beside the bot. Nothing when it is not there.
-auto locate_pot_server(const config::bootstrap& settings) -> std::optional<std::filesystem::path> {
-    std::filesystem::path server = settings.music.pot_provider_path;
-    if (server.empty()) {
-        const auto directory = util::executable_directory();
-        if (!directory) return std::nullopt;
-        server = *directory / "bgutil-ytdlp-pot-provider" / "server";
-    }
-    std::error_code error;
-    if (!std::filesystem::is_directory(server, error)) return std::nullopt;
-    std::filesystem::path found = std::filesystem::absolute(server, error);
-    return error ? server : found;
-}
-
-/// What every run of yt-dlp is told: where Deno is, and the PO token
-/// provider's address when its plugin is beside yt-dlp to ask it.
-auto music_extras(const std::optional<std::filesystem::path>& deno, const std::optional<std::filesystem::path>& ytdlp, int pot_port)
-    -> music::ytdlp_extras {
-    music::ytdlp_extras extras{.deno = deno, .pot_provider = {}, .sign_in = {}};
-    if (ytdlp && music::pot_plugin_installed(*ytdlp)) extras.pot_provider = music::pot_provider_address(pot_port);
-    return extras;
-}
-
 /// What the log channel masks, in case anything ever logs one of them.
 auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> {
     return {credentials.discord_token};
@@ -125,35 +95,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       http_(cluster_),
       raw_(cluster_),
       bot_allowlist_(database_),
-      voice_output_(cluster_),
-      mixer_(voice_output_),
-      speech_(mixer_),
-      auto_leave_(clock_),
-      voices_(database_),
-      voice_drafts_(clock_),
-      voice_lab_(voice_drafts_, voices_, clock_,
-                 {.engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_}),
-      dectalk_speech_(tts_, speech_, voice_sessions_, guild_settings_),
-      ytdlp_(util::locate_program("yt-dlp", settings_.music.ytdlp_path)),
-      ffmpeg_(util::locate_program("ffmpeg", settings_.music.ffmpeg_path)),
-      deno_(util::locate_program("deno", settings_.music.deno_path)),
-      pot_server_(locate_pot_server(settings_)),
-      ytdlp_cookies_(music::load_cookies(credentials.ytdlp_cookies, credentials.ytdlp_firefox_profile,
-                                         settings_.database_path.parent_path() / "yt-dlp-runs")),
-      music_resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, ytdlp_cookies_.source,
-                      music_extras(deno_, ytdlp_, settings_.music.pot_provider_port)),
-      music_opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, ytdlp_cookies_.source,
-                    music_extras(deno_, ytdlp_, settings_.music.pot_provider_port)),
-      music_(music_opener_, mixer_,
-             {.volume_percent = [this](dpp::snowflake guild) { return commands::music_volume_for(guild_settings_, guild); },
-              .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
-              .notify =
-                  [this](dpp::snowflake channel, std::string text) {
-                      post(events::send_message{.channel_id = channel,
-                                                .content = std::move(text),
-                                                .flags = dpp::m_suppress_notifications,
-                                                .what = "a note about a track"});
-                  }}),
       log_destinations_(guild_settings_),
       log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
@@ -170,11 +111,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     for (const db::module_schema& schema : db::builtin_schemas()) {
         db::apply_schema(database_, schema);
     }
-
-    // Music plays through the mixer, which reads it from the player.
-    mixer_.set_music(&music_);
-    log_music_tools();
-    start_pot_provider();
 
     // As soon as the setting can be read, so the rest of starting up is in
     // the channel too. It is posted once the connection is up.
@@ -202,15 +138,6 @@ auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
-
-    const commands::speech_services speech{
-        .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
-    commands_.add(std::make_unique<commands::speak_command>(speech));
-    commands_.add(std::make_unique<commands::tts_command>(speech, voice_lab_));
-    commands_.add(std::make_unique<commands::chat_command>(speech, raw_));
-    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_));
-    commands_.add(std::make_unique<commands::music_command>(commands::music_services{
-        .player = &music_, .resolver = &music_resolver_, .settings = &guild_settings_, .unavailable = music_unavailable()}));
 }
 
 auto bot::register_stages() -> void {
@@ -267,22 +194,6 @@ auto bot::register_events() -> void {
         on_component(event, event.custom_id, event.values.empty() ? std::string{} : event.values.front());
     });
     cluster_.on_form_submit([this](const dpp::form_submit_t& event) { on_form(event); });
-
-    // Speech waits for the connection to be ready, and is told when each
-    // utterance finishes playing (docs/features/Voice_Channels.md §3).
-    // The mixer first on both: a new connection has lost what the old one
-    // queued, and music's markers are the mixer's to hand on.
-    cluster_.on_voice_ready([this](const dpp::voice_ready_t& event) {
-        if (event.voice_client == nullptr) return;
-        mixer_.on_ready(event.voice_client->server_id);
-        speech_.on_ready(event.voice_client->server_id);
-    });
-    cluster_.on_voice_track_marker([this](const dpp::voice_track_marker_t& event) {
-        if (event.voice_client == nullptr) return;
-        mixer_.on_marker(event.voice_client->server_id, event.track_meta);
-        speech_.on_marker(event.voice_client->server_id, event.track_meta);
-    });
-    cluster_.on_voice_state_update([this](const dpp::voice_state_update_t& event) { on_voice_state(event.state); });
 }
 
 auto bot::on_ready(const dpp::ready_t& event) -> void {
@@ -355,27 +266,10 @@ auto bot::after(std::chrono::seconds delay, std::string name, std::function<void
 }
 
 auto bot::register_timers() -> void {
-    // Keeps a few seconds of music queued on each connection playing it
-    // (docs/features/Music.md §4.2). Most ticks find nothing to do.
-    every(std::chrono::seconds{1}, "feeding music", [this] { mixer_.tick(); });
-
     // Posts what has been logged since the last tick, if a channel is set.
     // A tick with nothing waiting, or no channel, costs a coroutine that
     // takes a lock and returns.
     every(events::log_channel_tick, "the log channel's tick", [this] { detach(log_channel_.flush(), "posting the log"); });
-
-    // Leaving a voice channel nobody else is in, once its guild's grace has
-    // passed (docs/features/Voice_Channels.md §2.3). Leaving is the bot's own
-    // voice state changing, which on_voice_state tidies up after.
-    every(events::auto_leave_tick, "the voice auto-leave check", [this] {
-        const auto grace = [this](dpp::snowflake guild) { return commands::voice_grace_for(guild_settings_, guild); };
-        for (const dpp::snowflake guild : auto_leave_.due(grace)) {
-            dpp::discord_client* shard = discord::shard_for(cluster_, guild);
-            if (shard == nullptr) continue;
-            shard->disconnect_voice(guild);
-            util::log().info("left voice in guild {}: nobody else was there for {}", guild, grace(guild));
-        }
-    });
 
     if (settings_.backup_interval <= std::chrono::minutes::zero() || settings_.backups_to_keep <= 0) {
         util::log().info("database backups are off");
@@ -395,169 +289,6 @@ auto bot::register_timers() -> void {
 
     util::log().info("backing up to {} every {}, keeping {}", settings_.backup_directory.generic_string(), settings_.backup_interval,
                      settings_.backups_to_keep);
-}
-
-auto bot::on_voice_state(const dpp::voicestate& state) -> void {
-    const dpp::snowflake guild = state.guild_id;
-    const bool about_the_bot = state.user_id == cluster_.me.id;
-
-    if (about_the_bot && state.channel_id.empty()) {
-        // Left, whichever way: /leave, /voice stop, the auto-leave, being
-        // disconnected by a moderator, or the connection dropping.
-        if (voice_sessions_.end(guild)) util::log().info("voice session in guild {} ended", guild);
-        speech_.forget(guild);
-        // Leaving takes the music queue with it (docs/features/Music.md §3.4).
-        music_.forget(guild);
-        mixer_.forget(guild);
-        auto_leave_.forget(guild);
-        return;
-    }
-    if (about_the_bot) voice_sessions_.moved(guild, state.channel_id);
-
-    // DPP has already updated its cache for this change, so counting from it
-    // sees the channel as it is now.
-    const dpp::snowflake channel = about_the_bot ? state.channel_id : discord::bot_voice_channel(cluster_, guild);
-    auto_leave_.observe(guild, !channel.empty(), discord::humans_in(guild, channel, cluster_.me.id));
-}
-
-auto bot::log_music_tools() -> void {
-    if (!ytdlp_ || !ffmpeg_) {
-        util::log().warn("music is off: {}", music_unavailable());
-        return;
-    }
-    const std::filesystem::path ytdlp = *ytdlp_;
-    const std::filesystem::path ffmpeg = *ffmpeg_;
-    util::log().info("music uses yt-dlp at {} and ffmpeg at {}", ytdlp.string(), ffmpeg.string());
-    // A warning, not a reason to turn music off: most sites need no
-    // JavaScript, and yt-dlp gets some of YouTube without it.
-    if (deno_) {
-        util::log().info("yt-dlp solves YouTube's JavaScript challenges with Deno at {}", deno_->string());
-    } else {
-        util::log().warn(
-            "Deno was not found, so yt-dlp cannot solve YouTube's JavaScript challenges, and some YouTube videos will fail, "
-            "age-restricted ones above all. Install Deno 2.3 or newer (winget install DenoLand.Deno), beside the bot or on PATH, "
-            "or name it in config.json (music.deno_path)");
-    }
-    log_music_account();
-    // Which versions, off the startup path: an old yt-dlp is the usual
-    // reason a site stops working, and asking takes a second or two.
-    std::vector<std::pair<std::filesystem::path, const char*>> programs{{ytdlp, "--version"}, {ffmpeg, "-version"}};
-    if (deno_) programs.emplace_back(*deno_, "--version");
-    // Only the log call in the catch could still throw, as in main(), and
-    // there is nowhere left to report that.
-    // NOLINTNEXTLINE(bugprone-exception-escape)
-    music_versions_ = std::jthread([programs = std::move(programs)] {
-        // Everything inside the try: a thread must let nothing out.
-        try {
-            for (const auto& [program, flag] : programs) {
-                const auto ran = util::run({.path = program, .arguments = {flag}, .working_directory = {}}, std::chrono::seconds{20});
-                const auto first_line = util::lines(ran.output);
-                util::log().info("{}: {}", program.stem().string(), first_line.empty() ? "no version given" : first_line.front());
-            }
-        } catch (const std::exception& error) {
-            util::log().warn("could not ask yt-dlp, ffmpeg or Deno its version: {}", error.what());
-        } catch (...) { // NOLINT(bugprone-empty-catch)
-        }
-    });
-}
-
-auto bot::log_music_account() const -> void {
-    const music::cookie_status& cookies = ytdlp_cookies_;
-    const std::string named = cookies.named().generic_string();
-    if (named.empty()) {
-        util::log().debug("music fetches signed out: neither LATIBOT_YTDLP_FIREFOX_PROFILE nor LATIBOT_YTDLP_COOKIES is set");
-        return;
-    }
-    const bool profile = !cookies.profile.empty();
-    if (cookies.both_named) {
-        util::log().warn("LATIBOT_YTDLP_FIREFOX_PROFILE and LATIBOT_YTDLP_COOKIES are both set; music uses the Firefox profile, not {}",
-                         cookies.file.generic_string());
-    }
-    // A warning: the owner set it to sign in, and it will not.
-    if (!cookies.source) {
-        util::log().warn("music fetches signed out: {} names {}, which {}",
-                         profile ? "LATIBOT_YTDLP_FIREFOX_PROFILE" : "LATIBOT_YTDLP_COOKIES", named, cookies.problem);
-        return;
-    }
-    // Counts only. The cookies are a sign-in, and never logged.
-    util::log().info("music signs in when it must with the {} {}: {} cookie(s), {} of them for youtube.com",
-                     profile ? "Firefox profile" : "cookies in", named, cookies.found.cookies, cookies.found.youtube);
-    const std::string_view again = profile ? "open Firefox with it, sign in to YouTube, and close Firefox" : "export it again signed in";
-    if (cookies.found.youtube == 0) {
-        util::log().warn("{} has no youtube.com cookies, so YouTube will see music as signed out; {}", named, again);
-    } else if (!cookies.found.youtube_sign_in) {
-        util::log().warn(
-            "{} has no youtube.com SAPISID or __Secure-3PAPISID cookie, which yt-dlp needs to sign in; {} "
-            "(docs/features/Music.md §4.9)",
-            named, again);
-    }
-    if (cookies.unsaved) {
-        util::log().warn(
-            "Firefox has cookies for {} that it has not yet saved where yt-dlp reads them; close Firefox, which saves "
-            "them, and keep it closed while the bot runs",
-            named);
-    }
-    if (cookies.found.malformed > 0) {
-        util::log().warn("{} line(s) of {} are not cookies in the Netscape format, and yt-dlp will skip them", cookies.found.malformed,
-                         named);
-    }
-}
-
-auto bot::start_pot_provider() -> void {
-    if (!ytdlp_ || !ffmpeg_) return;
-    const std::string address = music::pot_provider_address(settings_.music.pot_provider_port);
-    const bool plugin = music::pot_plugin_installed(*ytdlp_);
-    const std::string plugins = (ytdlp_->parent_path() / "yt-dlp-plugins").string();
-
-    if (!pot_server_) {
-        if (!settings_.music.pot_provider_path.empty()) {
-            util::log().warn("music.pot_provider_path in config.json names {}, which is not a folder, so no PO token provider runs",
-                             settings_.music.pot_provider_path.generic_string());
-        } else if (plugin) {
-            util::log().info(
-                "bgutil's PO token plugin is in {}, but its provider is not beside the bot; yt-dlp asks {} for tokens, "
-                "so run one there (docs/features/Music.md §4.10)",
-                plugins, address);
-        } else {
-            util::log().info(
-                "yt-dlp gets no PO tokens, so YouTube may refuse some of its requests; Install-Dependencies.ps1 sets "
-                "a provider up (docs/features/Music.md §4.10)");
-        }
-        return;
-    }
-    const std::string server = pot_server_->string();
-    if (!plugin) {
-        util::log().warn(
-            "bgutil's PO token provider is at {}, but its yt-dlp plugin is not in {}, so yt-dlp would never ask it; "
-            "run Install-Dependencies.ps1 again",
-            server, plugins);
-        return;
-    }
-    if (!deno_) {
-        util::log().warn("bgutil's PO token provider at {} runs with Deno, which was not found", server);
-        return;
-    }
-    if (!music::pot_provider_ready(*pot_server_)) {
-        util::log().warn(
-            "bgutil's PO token provider at {} is not set up: its packages are not installed; run "
-            "Install-Dependencies.ps1 again",
-            server);
-        return;
-    }
-    pot_provider_ =
-        std::make_unique<music::pot_provider>(music::pot_provider_program(*deno_, *pot_server_, settings_.music.pot_provider_port));
-    util::log().info("yt-dlp gets PO tokens from bgutil's provider, run with Deno from {}, at {}", server, address);
-}
-
-auto bot::music_unavailable() const -> std::string {
-    if (ytdlp_ && ffmpeg_) return {};
-    std::string missing = "yt-dlp and ffmpeg";
-    if (ytdlp_) missing = "ffmpeg";
-    if (ffmpeg_) missing = "yt-dlp";
-    return std::format(
-        "i can't play music: {} isn't installed where i can find it. Put it beside the bot or on PATH, or name it in "
-        "config.json (music.ytdlp_path, music.ffmpeg_path)",
-        missing);
 }
 
 auto bot::on_component(const dpp::interaction_create_t& event, const std::string& custom_id, const std::string& chosen) -> void {
@@ -594,11 +325,8 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
     // is nothing here to expire, leak, or lose across a restart.
-    // A module's panel, by the view it claimed (docs/modules/Module_Plan_Final.md
-    // §4.6), and then those still in the core, each saying whether the view
-    // was one of its own.
-    if (panels_.claimed(state.view)) return panels_.on_component(event, state, chosen);
-    return voice_lab_.on_component(event, state, chosen) || commands::on_music_component(music_, event, state);
+    // The panel that claimed the view (docs/modules/Module_Plan_Final.md §4.6).
+    return panels_.on_component(event, state, chosen);
 }
 
 auto bot::on_form(const dpp::form_submit_t& event) -> void {
@@ -615,7 +343,7 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
 
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && (panels_.on_form(event, *state) || voice_lab_.on_form(event, *state))) {
+        if (state && panels_.on_form(event, *state)) {
             // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
@@ -690,9 +418,6 @@ auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
 }
 
 auto bot::start_modules(const modules::module_factory& make_modules) -> void {
-    // DECtalk's speech, until DECtalk is a module of its own and offers it
-    // itself (docs/modules/Module_Plan_Final.md §5.3).
-    capabilities_.offer<capabilities::speech>(dectalk_speech_, "dectalk (still in the core)");
     modules_ = modules::start_modules(make_modules, *this, capabilities_);
     // Before connecting, which is when DPP reads them.
     cluster_.intents |= module_intents_;

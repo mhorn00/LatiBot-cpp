@@ -3,7 +3,7 @@
 // checked directly; running them uses a stand-in program
 // (tests/support/test_child.cpp), and the real programs are [live].
 
-#include "core/music/yt_dlp.hpp"
+#include "yt_dlp.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -5,29 +5,30 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-1003 test cases across 19 components, including 209 sections.
+1011 test cases across 20 components, including 209 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 40 | 6 |
-| [config](#config) | 40 | 22 |
-| [commands](#commands) | 81 | 29 |
-| [events](#events) | 39 | 5 |
+| [db](#db) | 36 | 6 |
+| [config](#config) | 38 | 19 |
+| [commands](#commands) | 58 | 18 |
+| [events](#events) | 31 | 5 |
 | [ui](#ui) | 15 | 0 |
 | [module](#module) | 7 | 0 |
+| [discord](#discord) | 8 | 0 |
+| [ports](#ports) | 5 | 0 |
+| [log](#log) | 32 | 0 |
+| [util](#util) | 40 | 19 |
 | [app](#app) | 6 | 0 |
+| [voice](#voice) | 36 | 16 |
+| [dectalk](#dectalk) | 84 | 7 |
+| [music](#music) | 118 | 37 |
+| [llm](#llm) | 108 | 7 |
 | [triggers](#triggers) | 62 | 9 |
 | [nicknames](#nicknames) | 67 | 5 |
 | [midnight](#midnight) | 39 | 0 |
 | [links](#links) | 91 | 21 |
 | [linkstats](#linkstats) | 130 | 40 |
-| [discord](#discord) | 8 | 0 |
-| [audio](#audio) | 76 | 12 |
-| [music](#music) | 101 | 31 |
-| [llm](#llm) | 108 | 7 |
-| [ports](#ports) | 7 | 0 |
-| [log](#log) | 32 | 0 |
-| [util](#util) | 54 | 22 |
 
 ## db
 
@@ -64,17 +65,13 @@ Database (`src/core/db`)
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:96](../../tests/db/migrations_test.cpp#L96) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:109](../../tests/db/migrations_test.cpp#L109) |
 | a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:65](../../tests/db/schema_versions_test.cpp#L65) |
-| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:81](../../tests/db/schema_versions_test.cpp#L81) |
-| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:94](../../tests/db/schema_versions_test.cpp#L94) |
-| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:118](../../tests/db/schema_versions_test.cpp#L118) |
-| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:134](../../tests/db/schema_versions_test.cpp#L134) |
-| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:150](../../tests/db/schema_versions_test.cpp#L150) |
-| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:166](../../tests/db/schema_versions_test.cpp#L166) |
-| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:178](../../tests/db/schema_versions_test.cpp#L178) |
-| a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:39](../../tests/db/voice_store_test.cpp#L39) |
-| voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:51](../../tests/db/voice_store_test.cpp#L51) |
-| saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:62](../../tests/db/voice_store_test.cpp#L62) |
-| voices are listed by name and removed one at a time |  |  | [tests/db/voice_store_test.cpp:78](../../tests/db/voice_store_test.cpp#L78) |
+| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:80](../../tests/db/schema_versions_test.cpp#L80) |
+| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:93](../../tests/db/schema_versions_test.cpp#L93) |
+| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:117](../../tests/db/schema_versions_test.cpp#L117) |
+| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:133](../../tests/db/schema_versions_test.cpp#L133) |
+| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:149](../../tests/db/schema_versions_test.cpp#L149) |
+| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:165](../../tests/db/schema_versions_test.cpp#L165) |
+| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:177](../../tests/db/schema_versions_test.cpp#L177) |
 
 ## config
 
@@ -93,55 +90,49 @@ Configuration (`src/core/config`)
 | all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:118](../../tests/db/guild_settings_test.cpp#L118) |
 | the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:131](../../tests/db/guild_settings_test.cpp#L131) |
 | an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:38](../../tests/unit/bootstrap_test.cpp#L38) |
-| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:48](../../tests/unit/bootstrap_test.cpp#L48) |
-| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:60](../../tests/unit/bootstrap_test.cpp#L60) |
-| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:88](../../tests/unit/bootstrap_test.cpp#L88) |
-| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:96](../../tests/unit/bootstrap_test.cpp#L96) |
-| bad config is reported with the key that caused it |  | 8 | [tests/unit/bootstrap_test.cpp:111](../../tests/unit/bootstrap_test.cpp#L111) |
-| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:152](../../tests/unit/bootstrap_test.cpp#L152) |
-| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:169](../../tests/unit/bootstrap_test.cpp#L169) |
-| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:193](../../tests/unit/bootstrap_test.cpp#L193) |
-| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:199](../../tests/unit/bootstrap_test.cpp#L199) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:209](../../tests/unit/bootstrap_test.cpp#L209) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:217](../../tests/unit/bootstrap_test.cpp#L217) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:225](../../tests/unit/bootstrap_test.cpp#L225) |
-| secrets come from the environment |  | 4 | [tests/unit/bootstrap_test.cpp:259](../../tests/unit/bootstrap_test.cpp#L259) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:299](../../tests/unit/bootstrap_test.cpp#L299) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:326](../../tests/unit/bootstrap_test.cpp#L326) |
-| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:344](../../tests/unit/bootstrap_test.cpp#L344) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:357](../../tests/unit/bootstrap_test.cpp#L357) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:378](../../tests/unit/bootstrap_test.cpp#L378) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:391](../../tests/unit/bootstrap_test.cpp#L391) |
+| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:47](../../tests/unit/bootstrap_test.cpp#L47) |
+| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:59](../../tests/unit/bootstrap_test.cpp#L59) |
+| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:86](../../tests/unit/bootstrap_test.cpp#L86) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:94](../../tests/unit/bootstrap_test.cpp#L94) |
+| bad config is reported with the key that caused it |  | 7 | [tests/unit/bootstrap_test.cpp:109](../../tests/unit/bootstrap_test.cpp#L109) |
+| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:144](../../tests/unit/bootstrap_test.cpp#L144) |
+| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:164](../../tests/unit/bootstrap_test.cpp#L164) |
+| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:170](../../tests/unit/bootstrap_test.cpp#L170) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:180](../../tests/unit/bootstrap_test.cpp#L180) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:188](../../tests/unit/bootstrap_test.cpp#L188) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
+| secrets come from the environment |  | 2 | [tests/unit/bootstrap_test.cpp:230](../../tests/unit/bootstrap_test.cpp#L230) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:246](../../tests/unit/bootstrap_test.cpp#L246) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:273](../../tests/unit/bootstrap_test.cpp#L273) |
+| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:289](../../tests/unit/bootstrap_test.cpp#L289) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:302](../../tests/unit/bootstrap_test.cpp#L302) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:311](../../tests/unit/bootstrap_test.cpp#L311) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:323](../../tests/unit/bootstrap_test.cpp#L323) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:336](../../tests/unit/bootstrap_test.cpp#L336) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
 | an unknown option is refused rather than read as a config file |  |  | [tests/unit/command_line_test.cpp:52](../../tests/unit/command_line_test.cpp#L52) |
 | two config files are refused |  |  | [tests/unit/command_line_test.cpp:57](../../tests/unit/command_line_test.cpp#L57) |
-| a section reads each key as its member's type, and keeps defaults for the rest |  |  | [tests/unit/config_section_test.cpp:51](../../tests/unit/config_section_test.cpp#L51) |
-| a section refuses what its table does not say, naming the key in full |  |  | [tests/unit/config_section_test.cpp:63](../../tests/unit/config_section_test.cpp#L63) |
-| a section's defaults are every key, in the table's order |  |  | [tests/unit/config_section_test.cpp:76](../../tests/unit/config_section_test.cpp#L76) |
-| every key of every feature section says what it is for |  |  | [tests/unit/config_section_test.cpp:85](../../tests/unit/config_section_test.cpp#L85) |
+| a section reads each key as its member's type, and keeps defaults for the rest |  |  | [tests/unit/config_section_test.cpp:49](../../tests/unit/config_section_test.cpp#L49) |
+| a section refuses what its table does not say, naming the key in full |  |  | [tests/unit/config_section_test.cpp:61](../../tests/unit/config_section_test.cpp#L61) |
+| a section's defaults are every key, in the table's order |  |  | [tests/unit/config_section_test.cpp:74](../../tests/unit/config_section_test.cpp#L74) |
 
 ## commands
 
-Command framework (`src/core/commands`)
+Command framework and the core commands (`src/core/commands`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:29](../../tests/unit/basic_commands_test.cpp#L29) |
-| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:54](../../tests/unit/basic_commands_test.cpp#L54) |
-| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:76](../../tests/unit/basic_commands_test.cpp#L76) |
-| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:82](../../tests/unit/basic_commands_test.cpp#L82) |
-| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:90](../../tests/unit/basic_commands_test.cpp#L90) |
-| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:97](../../tests/unit/basic_commands_test.cpp#L97) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:132](../../tests/unit/basic_commands_test.cpp#L132) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:148](../../tests/unit/basic_commands_test.cpp#L148) |
+| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:21](../../tests/unit/basic_commands_test.cpp#L21) |
+| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:43](../../tests/unit/basic_commands_test.cpp#L43) |
+| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:85](../../tests/unit/basic_commands_test.cpp#L85) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:101](../../tests/unit/basic_commands_test.cpp#L101) |
 | an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
 | the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
-| a voice message answers the interaction with its duration and waveform |  |  | [tests/unit/chat_command_test.cpp:14](../../tests/unit/chat_command_test.cpp#L14) |
 | a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:31](../../tests/unit/command_log_test.cpp#L31) |
 | options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:35](../../tests/unit/command_log_test.cpp#L35) |
 | a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:42](../../tests/unit/command_log_test.cpp#L42) |
@@ -160,18 +151,14 @@ Command framework (`src/core/commands`)
 | an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
 | an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:37](../../tests/unit/command_responses_test.cpp#L37) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:53](../../tests/unit/command_responses_test.cpp#L53) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:70](../../tests/unit/command_responses_test.cpp#L70) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:91](../../tests/unit/command_responses_test.cpp#L91) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:35](../../tests/unit/command_responses_test.cpp#L35) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:49](../../tests/unit/command_responses_test.cpp#L49) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:61](../../tests/unit/command_responses_test.cpp#L61) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:82](../../tests/unit/command_responses_test.cpp#L82) |
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:53](../../tests/unit/panels_test.cpp#L53) |
-| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:136](../../tests/unit/panels_test.cpp#L136) |
-| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:158](../../tests/unit/panels_test.cpp#L158) |
-| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:168](../../tests/unit/panels_test.cpp#L168) |
-| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:192](../../tests/unit/panels_test.cpp#L192) |
+| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:20](../../tests/unit/panels_test.cpp#L20) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -190,30 +177,15 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
-| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:44](../../tests/unit/speak_command_test.cpp#L44) |
-| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:56](../../tests/unit/speak_command_test.cpp#L56) |
-| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:72](../../tests/unit/speak_command_test.cpp#L72) |
-| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:83](../../tests/unit/speak_command_test.cpp#L83) |
-| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:117](../../tests/unit/speak_command_test.cpp#L117) |
 | unregistering deletes the global commands and every server's own | `coro` |  | [tests/unit/unregister_test.cpp:29](../../tests/unit/unregister_test.cpp#L29) |
 | a set with no commands in it is not deleted | `coro` |  | [tests/unit/unregister_test.cpp:46](../../tests/unit/unregister_test.cpp#L46) |
 | a refused deletion is reported and the other servers still cleared | `coro` |  | [tests/unit/unregister_test.cpp:60](../../tests/unit/unregister_test.cpp#L60) |
 | the servers not being listable still leaves the global commands deleted | `coro` |  | [tests/unit/unregister_test.cpp:79](../../tests/unit/unregister_test.cpp#L79) |
 | the global commands not being listable is reported and nothing global deleted | `coro` |  | [tests/unit/unregister_test.cpp:93](../../tests/unit/unregister_test.cpp#L93) |
-| the voice lab shows the voice as groups and as inline commands |  |  | [tests/unit/voice_lab_test.cpp:44](../../tests/unit/voice_lab_test.cpp#L44) |
-| an untouched voice says so, and a note shows once under it |  |  | [tests/unit/voice_lab_test.cpp:55](../../tests/unit/voice_lab_test.cpp#L55) |
-| the voice lab says which voice it is editing, and whether it still matches what is saved |  | 4 | [tests/unit/voice_lab_test.cpp:66](../../tests/unit/voice_lab_test.cpp#L66) |
-| the voice lab offers the server's saved voices, the one being edited picked |  | 3 | [tests/unit/voice_lab_test.cpp:88](../../tests/unit/voice_lab_test.cpp#L88) |
-| every voice lab form fits in a modal |  |  | [tests/unit/voice_lab_test.cpp:129](../../tests/unit/voice_lab_test.cpp#L129) |
-| a group's form sets, clears and clamps its parameters |  |  | [tests/unit/voice_lab_test.cpp:147](../../tests/unit/voice_lab_test.cpp#L147) |
-| the raw form replaces the whole voice |  |  | [tests/unit/voice_lab_test.cpp:156](../../tests/unit/voice_lab_test.cpp#L156) |
-| a raw form that came back without its field leaves the voice alone |  |  | [tests/unit/voice_lab_test.cpp:166](../../tests/unit/voice_lab_test.cpp#L166) |
-| only whoever made a voice, or an admin, may change it |  |  | [tests/unit/voice_lab_test.cpp:177](../../tests/unit/voice_lab_test.cpp#L177) |
-| a draft is kept per person for half an hour after it was last touched |  |  | [tests/unit/voice_lab_test.cpp:184](../../tests/unit/voice_lab_test.cpp#L184) |
 
 ## events
 
-Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
+The message pipeline, goodbye, the bot allowlist and the log channel (`src/core/events`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
@@ -248,14 +220,6 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
 | a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
-| a voice session is kept until it ends, one per guild |  |  | [tests/unit/voice_sessions_test.cpp:29](../../tests/unit/voice_sessions_test.cpp#L29) |
-| a session follows the bot when it is moved |  |  | [tests/unit/voice_sessions_test.cpp:50](../../tests/unit/voice_sessions_test.cpp#L50) |
-| the bot leaves once it has been alone for the grace period |  |  | [tests/unit/voice_sessions_test.cpp:62](../../tests/unit/voice_sessions_test.cpp#L62) |
-| someone coming back within the grace period keeps the bot |  |  | [tests/unit/voice_sessions_test.cpp:77](../../tests/unit/voice_sessions_test.cpp#L77) |
-| being seen alone again does not restart the wait |  |  | [tests/unit/voice_sessions_test.cpp:94](../../tests/unit/voice_sessions_test.cpp#L94) |
-| a bot that is not in voice, or has left, is not waited on |  |  | [tests/unit/voice_sessions_test.cpp:106](../../tests/unit/voice_sessions_test.cpp#L106) |
-| each guild waits its own grace period |  |  | [tests/unit/voice_sessions_test.cpp:118](../../tests/unit/voice_sessions_test.cpp#L118) |
-| what plays goes where the bot is, or joins whoever asked |  |  | [tests/unit/voice_sessions_test.cpp:130](../../tests/unit/voice_sessions_test.cpp#L130) |
 
 ## ui
 
@@ -293,6 +257,119 @@ The module interface and the host (`src/core/modules`)
 | a listener that throws is logged under its name, and DPP never sees it |  |  | [tests/unit/module_test.cpp:170](../../tests/unit/module_test.cpp#L170) |
 | the test host fires a repeating timer each time, and a one-shot once |  |  | [tests/unit/module_test.cpp:188](../../tests/unit/module_test.cpp#L188) |
 
+## discord
+
+Discord plumbing (`src/core/discord`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| applying flags replaces the choosable ones and leaves the rest |  |  | [tests/unit/message_flags_test.cpp:12](../../tests/unit/message_flags_test.cpp#L12) |
+| stored message flags are narrowed to what a channel message may carry |  |  | [tests/unit/message_flags_test.cpp:24](../../tests/unit/message_flags_test.cpp#L24) |
+| flags are named for the log |  |  | [tests/unit/message_flags_test.cpp:32](../../tests/unit/message_flags_test.cpp#L32) |
+| a bare path gets the API version prefix |  |  | [tests/unit/raw_api_test.cpp:9](../../tests/unit/raw_api_test.cpp#L9) |
+| a missing leading slash is added |  |  | [tests/unit/raw_api_test.cpp:13](../../tests/unit/raw_api_test.cpp#L13) |
+| a path that already names the API version is left alone |  |  | [tests/unit/raw_api_test.cpp:17](../../tests/unit/raw_api_test.cpp#L17) |
+| trailing slashes are trimmed |  |  | [tests/unit/raw_api_test.cpp:21](../../tests/unit/raw_api_test.cpp#L21) |
+| an empty path becomes the API root |  |  | [tests/unit/raw_api_test.cpp:28](../../tests/unit/raw_api_test.cpp#L28) |
+
+## ports
+
+Ports and mocks (`src/core/ports`, `tests/mocks`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:35](../../tests/unit/ports_test.cpp#L35) |
+| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:47](../../tests/unit/ports_test.cpp#L47) |
+| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:63](../../tests/unit/ports_test.cpp#L63) |
+| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:74](../../tests/unit/ports_test.cpp#L74) |
+| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:97](../../tests/unit/ports_test.cpp#L97) |
+
+## log
+
+Logging (`src/core/util/log`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| uncoloured output is exactly what std::format would give |  |  | [tests/unit/log_color_test.cpp:48](../../tests/unit/log_color_test.cpp#L48) |
+| text in the format string stays the terminal's own colour |  |  | [tests/unit/log_color_test.cpp:56](../../tests/unit/log_color_test.cpp#L56) |
+| a number is coloured as a number |  |  | [tests/unit/log_color_test.cpp:60](../../tests/unit/log_color_test.cpp#L60) |
+| true and false are coloured differently |  |  | [tests/unit/log_color_test.cpp:67](../../tests/unit/log_color_test.cpp#L67) |
+| a Discord id is coloured as an id |  |  | [tests/unit/log_color_test.cpp:73](../../tests/unit/log_color_test.cpp#L73) |
+| an id already turned into a string is only a string |  |  | [tests/unit/log_color_test.cpp:79](../../tests/unit/log_color_test.cpp#L79) |
+| strings and characters stay plain |  |  | [tests/unit/log_color_test.cpp:87](../../tests/unit/log_color_test.cpp#L87) |
+| a duration has a colour of its own |  |  | [tests/unit/log_color_test.cpp:94](../../tests/unit/log_color_test.cpp#L94) |
+| format specs still apply inside the colour |  |  | [tests/unit/log_color_test.cpp:98](../../tests/unit/log_color_test.cpp#L98) |
+| a format colour cannot pass through falls back to a plain line |  |  | [tests/unit/log_color_test.cpp:106](../../tests/unit/log_color_test.cpp#L106) |
+| a forwarded line's source tag is the coloured part |  |  | [tests/unit/log_color_test.cpp:113](../../tests/unit/log_color_test.cpp#L113) |
+| the default palette is the one that was asked for |  |  | [tests/unit/log_color_test.cpp:122](../../tests/unit/log_color_test.cpp#L122) |
+| paint_to colours only while a coloured line is being formatted |  |  | [tests/unit/log_color_test.cpp:137](../../tests/unit/log_color_test.cpp#L137) |
+| an uncoloured line is the format the log has always had |  |  | [tests/unit/log_color_test.cpp:160](../../tests/unit/log_color_test.cpp#L160) |
+| a coloured line colours the timestamp and the level |  |  | [tests/unit/log_color_test.cpp:166](../../tests/unit/log_color_test.cpp#L166) |
+| each level has its own colour |  |  | [tests/unit/log_color_test.cpp:172](../../tests/unit/log_color_test.cpp#L172) |
+| the colour setting accepts the obvious spellings |  |  | [tests/unit/log_color_test.cpp:185](../../tests/unit/log_color_test.cpp#L185) |
+| colour follows the terminal unless told otherwise |  |  | [tests/unit/log_color_test.cpp:201](../../tests/unit/log_color_test.cpp#L201) |
+| NO_COLOR turns colour off, and an explicit always overrides it |  |  | [tests/unit/log_color_test.cpp:207](../../tests/unit/log_color_test.cpp#L207) |
+| never and always mean exactly that |  |  | [tests/unit/log_color_test.cpp:213](../../tests/unit/log_color_test.cpp#L213) |
+| a replacement sink gets plain text even with colours on |  |  | [tests/unit/log_color_test.cpp:222](../../tests/unit/log_color_test.cpp#L222) |
+| colours are off until something turns them on |  |  | [tests/unit/log_color_test.cpp:235](../../tests/unit/log_color_test.cpp#L235) |
+| level names round trip |  |  | [tests/unit/log_test.cpp:19](../../tests/unit/log_test.cpp#L19) |
+| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:27](../../tests/unit/log_test.cpp#L27) |
+| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:34](../../tests/unit/log_test.cpp#L34) |
+| off silences everything |  |  | [tests/unit/log_test.cpp:47](../../tests/unit/log_test.cpp#L47) |
+| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:55](../../tests/unit/log_test.cpp#L55) |
+| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
+| a tap gets lines below the logger's own level when it asks for them |  |  | [tests/unit/log_test.cpp:114](../../tests/unit/log_test.cpp#L114) |
+| a tap above the logger's level leaves out what it did not ask for |  |  | [tests/unit/log_test.cpp:131](../../tests/unit/log_test.cpp#L131) |
+| a removed tap gets nothing more |  |  | [tests/unit/log_test.cpp:143](../../tests/unit/log_test.cpp#L143) |
+| colour is stripped and the text kept |  |  | [tests/unit/log_test.cpp:155](../../tests/unit/log_test.cpp#L155) |
+
+## util
+
+Utilities (`src/core/util`, `src/core/version`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| the system root certificates export as a readable PEM bundle | `fs` |  | [tests/unit/ca_certificates_test.cpp:34](../../tests/unit/ca_certificates_test.cpp#L34) |
+| exporting creates the directory it was given | `fs` |  | [tests/unit/ca_certificates_test.cpp:50](../../tests/unit/ca_certificates_test.cpp#L50) |
+| parse_dotenv reads simple key-value lines |  |  | [tests/unit/env_test.cpp:7](../../tests/unit/env_test.cpp#L7) |
+| parse_dotenv skips blank lines and comments |  |  | [tests/unit/env_test.cpp:15](../../tests/unit/env_test.cpp#L15) |
+| parse_dotenv trims whitespace around key and value |  |  | [tests/unit/env_test.cpp:22](../../tests/unit/env_test.cpp#L22) |
+| parse_dotenv strips a leading export |  |  | [tests/unit/env_test.cpp:30](../../tests/unit/env_test.cpp#L30) |
+| parse_dotenv strips matching surrounding quotes |  |  | [tests/unit/env_test.cpp:37](../../tests/unit/env_test.cpp#L37) |
+| parse_dotenv skips a line with no '=' |  |  | [tests/unit/env_test.cpp:46](../../tests/unit/env_test.cpp#L46) |
+| parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
+| parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
+| parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
+| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:11](../../tests/unit/text_test.cpp#L11) |
+| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:20](../../tests/unit/text_test.cpp#L20) |
+| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |
+| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:38](../../tests/unit/text_test.cpp#L38) |
+| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
+| lines that fit are kept whole, and lines that do not are cut evenly |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
+| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:85](../../tests/unit/text_test.cpp#L85) |
+| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:102](../../tests/unit/text_test.cpp#L102) |
+| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:110](../../tests/unit/text_test.cpp#L110) |
+| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:118](../../tests/unit/text_test.cpp#L118) |
+| every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:43](../../tests/unit/url_scan_test.cpp#L43) |
+| a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:53](../../tests/unit/url_scan_test.cpp#L53) |
+| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:101](../../tests/unit/url_scan_test.cpp#L101) |
+| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:108](../../tests/unit/url_scan_test.cpp#L108) |
+| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:115](../../tests/unit/url_scan_test.cpp#L115) |
+| a link in angle brackets is marked as having its preview turned off |  | 2 | [tests/unit/url_scan_test.cpp:120](../../tests/unit/url_scan_test.cpp#L120) |
+| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:142](../../tests/unit/url_scan_test.cpp#L142) |
+| a code span runs to the next run of backticks as long as its own |  |  | [tests/unit/url_scan_test.cpp:164](../../tests/unit/url_scan_test.cpp#L164) |
+| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:174](../../tests/unit/url_scan_test.cpp#L174) |
+| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:179](../../tests/unit/url_scan_test.cpp#L179) |
+| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:183](../../tests/unit/url_scan_test.cpp#L183) |
+| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:194](../../tests/unit/url_scan_test.cpp#L194) |
+| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:208](../../tests/unit/url_scan_test.cpp#L208) |
+| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:216](../../tests/unit/url_scan_test.cpp#L216) |
+| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:222](../../tests/unit/url_scan_test.cpp#L222) |
+| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:244](../../tests/unit/url_scan_test.cpp#L244) |
+| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:262](../../tests/unit/url_scan_test.cpp#L262) |
+| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:274](../../tests/unit/url_scan_test.cpp#L274) |
+| version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |
+
 ## app
 
 The bot as built, with every module this build includes (`tests/app`)
@@ -305,6 +382,380 @@ The bot as built, with every module this build includes (`tests/app`)
 | adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:219](../../tests/app/modules_test.cpp#L219) |
 | the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:237](../../tests/app/modules_test.cpp#L237) |
 | a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:259](../../tests/app/modules_test.cpp#L259) |
+
+## voice
+
+The voice module (`src/modules/voice`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| joining follows the target and moves only when it has to |  | 4 | [src/modules/voice/tests/join_command_test.cpp:22](../../src/modules/voice/tests/join_command_test.cpp#L22) |
+| joining says whom it followed, as the Java bot did |  |  | [src/modules/voice/tests/join_command_test.cpp:47](../../src/modules/voice/tests/join_command_test.cpp#L47) |
+| a target who left voice is not followed to their old channel |  |  | [src/modules/voice/tests/join_command_test.cpp:53](../../src/modules/voice/tests/join_command_test.cpp#L53) |
+| join and leave pass the registry's checks, and the room sees the bot come and go |  |  | [src/modules/voice/tests/join_command_test.cpp:61](../../src/modules/voice/tests/join_command_test.cpp#L61) |
+| volume scales, clips and leaves 100 alone |  | 4 | [src/modules/voice/tests/pcm_test.cpp:40](../../src/modules/voice/tests/pcm_test.cpp#L40) |
+| trailing silence is cut to a fixed tail |  | 4 | [src/modules/voice/tests/pcm_test.cpp:61](../../src/modules/voice/tests/pcm_test.cpp#L61) |
+| resampling keeps the length and doubles every sample into stereo |  |  | [src/modules/voice/tests/pcm_test.cpp:86](../../src/modules/voice/tests/pcm_test.cpp#L86) |
+| resampling keeps the frequency |  |  | [src/modules/voice/tests/pcm_test.cpp:96](../../src/modules/voice/tests/pcm_test.cpp#L96) |
+| resampling interpolates between the source samples |  |  | [src/modules/voice/tests/pcm_test.cpp:106](../../src/modules/voice/tests/pcm_test.cpp#L106) |
+| resampling nothing gives nothing |  |  | [src/modules/voice/tests/pcm_test.cpp:120](../../src/modules/voice/tests/pcm_test.cpp#L120) |
+| resampling a minute of speech |  |  | [src/modules/voice/tests/pcm_test.cpp:125](../../src/modules/voice/tests/pcm_test.cpp#L125) |
+| the voice command registers, its flags checked against its subcommands |  |  | [src/modules/voice/tests/voice_command_test.cpp:36](../../src/modules/voice/tests/voice_command_test.cpp#L36) |
+| the voice grace defaults to 30 seconds and is clamped |  |  | [src/modules/voice/tests/voice_command_test.cpp:55](../../src/modules/voice/tests/voice_command_test.cpp#L55) |
+| music is kept a few seconds ahead, in whole packets |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:102](../../src/modules/voice/tests/voice_mixer_test.cpp#L102) |
+| speech interrupts music at once, and music resumes exactly where it stopped |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:118](../../src/modules/voice/tests/voice_mixer_test.cpp#L118) |
+| music waits for every utterance queued, not just the first |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:141](../../src/modules/voice/tests/voice_mixer_test.cpp#L141) |
+| stopping or skipping speech lets the music back in |  | 2 | [src/modules/voice/tests/voice_mixer_test.cpp:157](../../src/modules/voice/tests/voice_mixer_test.cpp#L157) |
+| stopping speech when there is none leaves the music alone |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:177](../../src/modules/voice/tests/voice_mixer_test.cpp#L177) |
+| a track's end marker is reported once it has been heard |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:187](../../src/modules/voice/tests/voice_mixer_test.cpp#L187) |
+| a track end taken back by speech is still reported, after the speech |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:202](../../src/modules/voice/tests/voice_mixer_test.cpp#L202) |
+| pausing music stops it at once, and resuming loses nothing |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:217](../../src/modules/voice/tests/voice_mixer_test.cpp#L217) |
+| dropping music clears it, but never speech |  | 2 | [src/modules/voice/tests/voice_mixer_test.cpp:233](../../src/modules/voice/tests/voice_mixer_test.cpp#L233) |
+| a new connection sends a track's end marker again |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:251](../../src/modules/voice/tests/voice_mixer_test.cpp#L251) |
+| an idle source is no longer visited until woken |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:266](../../src/modules/voice/tests/voice_mixer_test.cpp#L266) |
+| nothing is fed without a connection, or once the guild is forgotten |  |  | [src/modules/voice/tests/voice_mixer_test.cpp:279](../../src/modules/voice/tests/voice_mixer_test.cpp#L279) |
+| voice offers its services to the modules that require it |  |  | [src/modules/voice/tests/voice_module_test.cpp:43](../../src/modules/voice/tests/voice_module_test.cpp#L43) |
+| a module that requires voice, started without it, is told so |  |  | [src/modules/voice/tests/voice_module_test.cpp:51](../../src/modules/voice/tests/voice_module_test.cpp#L51) |
+| the voice README lists what the module registers |  |  | [src/modules/voice/tests/voice_module_test.cpp:56](../../src/modules/voice/tests/voice_module_test.cpp#L56) |
+| a voice session is kept until it ends, one per guild |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:29](../../src/modules/voice/tests/voice_sessions_test.cpp#L29) |
+| a session follows the bot when it is moved |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:50](../../src/modules/voice/tests/voice_sessions_test.cpp#L50) |
+| the bot leaves once it has been alone for the grace period |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:62](../../src/modules/voice/tests/voice_sessions_test.cpp#L62) |
+| someone coming back within the grace period keeps the bot |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:77](../../src/modules/voice/tests/voice_sessions_test.cpp#L77) |
+| being seen alone again does not restart the wait |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:94](../../src/modules/voice/tests/voice_sessions_test.cpp#L94) |
+| a bot that is not in voice, or has left, is not waited on |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:106](../../src/modules/voice/tests/voice_sessions_test.cpp#L106) |
+| each guild waits its own grace period |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:118](../../src/modules/voice/tests/voice_sessions_test.cpp#L118) |
+| what plays goes where the bot is, or joins whoever asked |  |  | [src/modules/voice/tests/voice_sessions_test.cpp:130](../../src/modules/voice/tests/voice_sessions_test.cpp#L130) |
+
+## dectalk
+
+The dectalk module (`src/modules/dectalk`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| a voice message answers the interaction with its duration and waveform |  |  | [src/modules/dectalk/tests/chat_command_test.cpp:14](../../src/modules/dectalk/tests/chat_command_test.cpp#L14) |
+| every parameter is in exactly one group of at most five |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:17](../../src/modules/dectalk/tests/custom_voice_test.cpp#L17) |
+| edits are clamped to DECtalk's limits and written in table order |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:37](../../src/modules/dectalk/tests/custom_voice_test.cpp#L37) |
+| a voice reads back from [:dv] text, with or without brackets |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:49](../../src/modules/dectalk/tests/custom_voice_test.cpp#L49) |
+| what cannot be read is reported and skipped |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:68](../../src/modules/dectalk/tests/custom_voice_test.cpp#L68) |
+| a custom voice's preamble is rebuilt, not pasted |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:84](../../src/modules/dectalk/tests/custom_voice_test.cpp#L84) |
+| custom voice names are short, plain and never a built-in's |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:91](../../src/modules/dectalk/tests/custom_voice_test.cpp#L91) |
+| DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:46](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L46) |
+| the same request gives the same audio every time | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:59](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L59) |
+| one request's inline settings do not reach the next | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:70](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L70) |
+| the voice and rate settings change the audio | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:83](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L83) |
+| a custom voice's edits change the voice it is built on | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:94](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L94) |
+| volume scales the samples | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:109](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L109) |
+| an utterance stops at its maximum duration | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:119](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L119) |
+| an utterance that takes too long is abandoned | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:132](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L132) |
+| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:150](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L150) |
+| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:171](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L171) |
+| DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_golden_test.cpp:91](../../src/modules/dectalk/tests/dectalk_golden_test.cpp#L91) |
+| dectalk offers the speech the language model speaks through |  |  | [src/modules/dectalk/tests/dectalk_module_test.cpp:46](../../src/modules/dectalk/tests/dectalk_module_test.cpp#L46) |
+| the dectalk README lists what the module registers |  |  | [src/modules/dectalk/tests/dectalk_module_test.cpp:56](../../src/modules/dectalk/tests/dectalk_module_test.cpp#L56) |
+| plain text passes through untouched |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:29](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L29) |
+| everyday commands are kept for everyone |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:35](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L35) |
+| play, log, debug, loadv and setv are for trusted users only |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:46](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L46) |
+| pause, resume and dv save are for nobody |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:61](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L61) |
+| removed commands are reported by their full names |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:70](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L70) |
+| a command is recognised by any unique prefix, in any case |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:77](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L77) |
+| an ambiguous or unknown command is dropped |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:89](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L89) |
+| chained commands are judged one by one |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:95](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L95) |
+| spaces and extra brackets before the colon do not hide a command |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:101](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L101) |
+| a quoted parameter can hold a closing bracket |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:108](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L108) |
+| an unterminated command swallows the rest, as it does in DECtalk |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:118](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L118) |
+| phoneme brackets are kept, and cannot hide a command |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:123](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L123) |
+| control characters are removed before anything else is read |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:132](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L132) |
+| parameters that could open or close anything are dropped |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:139](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L139) |
+| sanitizing twice changes nothing more |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:147](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L147) |
+| replies are spoken only in a voice session's text channel |  |  | [src/modules/dectalk/tests/dectalk_speech_test.cpp:46](../../src/modules/dectalk/tests/dectalk_speech_test.cpp#L46) |
+| the model's reply is sanitized at the model's trust level |  |  | [src/modules/dectalk/tests/dectalk_speech_test.cpp:56](../../src/modules/dectalk/tests/dectalk_speech_test.cpp#L56) |
+| a spoken reply is synthesized and queued under whoever asked | `coro` |  | [src/modules/dectalk/tests/dectalk_speech_test.cpp:64](../../src/modules/dectalk/tests/dectalk_speech_test.cpp#L64) |
+| a spoken reply keeps to the server's limits | `coro` |  | [src/modules/dectalk/tests/dectalk_speech_test.cpp:75](../../src/modules/dectalk/tests/dectalk_speech_test.cpp#L75) |
+| the model is told the inline commands and every built-in voice |  |  | [src/modules/dectalk/tests/dectalk_speech_test.cpp:85](../../src/modules/dectalk/tests/dectalk_speech_test.cpp#L85) |
+| the TTS mock produces audio in proportion to the text | `coro` |  | [src/modules/dectalk/tests/mock_tts_test.cpp:14](../../src/modules/dectalk/tests/mock_tts_test.cpp#L14) |
+| the TTS mock can fail once and records stops | `coro` |  | [src/modules/dectalk/tests/mock_tts_test.cpp:32](../../src/modules/dectalk/tests/mock_tts_test.cpp#L32) |
+| speech refuses blank text and text over the guild's limit |  |  | [src/modules/dectalk/tests/speak_command_test.cpp:45](../../src/modules/dectalk/tests/speak_command_test.cpp#L45) |
+| speech limits default, are per guild, and are clamped |  |  | [src/modules/dectalk/tests/speak_command_test.cpp:57](../../src/modules/dectalk/tests/speak_command_test.cpp#L57) |
+| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [src/modules/dectalk/tests/speak_command_test.cpp:73](../../src/modules/dectalk/tests/speak_command_test.cpp#L73) |
+| the speech commands register, their flags checked against their subcommands |  |  | [src/modules/dectalk/tests/speak_command_test.cpp:84](../../src/modules/dectalk/tests/speak_command_test.cpp#L84) |
+| speech plays at once on a ready connection, each followed by its marker |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:41](../../src/modules/dectalk/tests/speech_queue_test.cpp#L41) |
+| a finished utterance's marker moves the queue on |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:55](../../src/modules/dectalk/tests/speech_queue_test.cpp#L55) |
+| markers that are not the queue's, or for another guild, change nothing |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:72](../../src/modules/dectalk/tests/speech_queue_test.cpp#L72) |
+| speech waits for a connection still being set up, then plays in order |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:83](../../src/modules/dectalk/tests/speech_queue_test.cpp#L83) |
+| new speech queues behind speech still waiting, even once connected |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:102](../../src/modules/dectalk/tests/speech_queue_test.cpp#L102) |
+| skip drops only the utterance playing now |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:117](../../src/modules/dectalk/tests/speech_queue_test.cpp#L117) |
+| skip with nothing playing does nothing |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:132](../../src/modules/dectalk/tests/speech_queue_test.cpp#L132) |
+| stop drops everything, playing and waiting |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:138](../../src/modules/dectalk/tests/speech_queue_test.cpp#L138) |
+| stop also stops speech still being synthesized |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:155](../../src/modules/dectalk/tests/speech_queue_test.cpp#L155) |
+| stopping one guild leaves another alone |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:169](../../src/modules/dectalk/tests/speech_queue_test.cpp#L169) |
+| forgetting a guild drops its speech without touching the connection |  |  | [src/modules/dectalk/tests/speech_queue_test.cpp:180](../../src/modules/dectalk/tests/speech_queue_test.cpp#L180) |
+| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [src/modules/dectalk/tests/voice_lab_panel_test.cpp:106](../../src/modules/dectalk/tests/voice_lab_panel_test.cpp#L106) |
+| the voice lab's text form replaces the whole voice |  |  | [src/modules/dectalk/tests/voice_lab_panel_test.cpp:128](../../src/modules/dectalk/tests/voice_lab_panel_test.cpp#L128) |
+| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [src/modules/dectalk/tests/voice_lab_panel_test.cpp:138](../../src/modules/dectalk/tests/voice_lab_panel_test.cpp#L138) |
+| the voice lab will not save over someone else's voice |  |  | [src/modules/dectalk/tests/voice_lab_panel_test.cpp:162](../../src/modules/dectalk/tests/voice_lab_panel_test.cpp#L162) |
+| the voice lab shows the voice as groups and as inline commands |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:44](../../src/modules/dectalk/tests/voice_lab_test.cpp#L44) |
+| an untouched voice says so, and a note shows once under it |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:55](../../src/modules/dectalk/tests/voice_lab_test.cpp#L55) |
+| the voice lab says which voice it is editing, and whether it still matches what is saved |  | 4 | [src/modules/dectalk/tests/voice_lab_test.cpp:66](../../src/modules/dectalk/tests/voice_lab_test.cpp#L66) |
+| the voice lab offers the server's saved voices, the one being edited picked |  | 3 | [src/modules/dectalk/tests/voice_lab_test.cpp:88](../../src/modules/dectalk/tests/voice_lab_test.cpp#L88) |
+| every voice lab form fits in a modal |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:129](../../src/modules/dectalk/tests/voice_lab_test.cpp#L129) |
+| a group's form sets, clears and clamps its parameters |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:147](../../src/modules/dectalk/tests/voice_lab_test.cpp#L147) |
+| the raw form replaces the whole voice |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:156](../../src/modules/dectalk/tests/voice_lab_test.cpp#L156) |
+| a raw form that came back without its field leaves the voice alone |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:166](../../src/modules/dectalk/tests/voice_lab_test.cpp#L166) |
+| only whoever made a voice, or an admin, may change it |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:177](../../src/modules/dectalk/tests/voice_lab_test.cpp#L177) |
+| a draft is kept per person for half an hour after it was last touched |  |  | [src/modules/dectalk/tests/voice_lab_test.cpp:184](../../src/modules/dectalk/tests/voice_lab_test.cpp#L184) |
+| the built-in voices are found by name, in any case |  |  | [src/modules/dectalk/tests/voice_params_test.cpp:11](../../src/modules/dectalk/tests/voice_params_test.cpp#L11) |
+| the preamble selects the voice and says only what differs |  |  | [src/modules/dectalk/tests/voice_params_test.cpp:19](../../src/modules/dectalk/tests/voice_params_test.cpp#L19) |
+| the preamble falls back to Paul and clamps the rate |  |  | [src/modules/dectalk/tests/voice_params_test.cpp:26](../../src/modules/dectalk/tests/voice_params_test.cpp#L26) |
+| a saved voice reads back as it was saved |  |  | [src/modules/dectalk/tests/voice_store_test.cpp:42](../../src/modules/dectalk/tests/voice_store_test.cpp#L42) |
+| voice names are found in any case, and per guild |  |  | [src/modules/dectalk/tests/voice_store_test.cpp:54](../../src/modules/dectalk/tests/voice_store_test.cpp#L54) |
+| saving under a name that exists replaces the voice but keeps its maker |  |  | [src/modules/dectalk/tests/voice_store_test.cpp:65](../../src/modules/dectalk/tests/voice_store_test.cpp#L65) |
+| voices are listed by name and removed one at a time |  |  | [src/modules/dectalk/tests/voice_store_test.cpp:81](../../src/modules/dectalk/tests/voice_store_test.cpp#L81) |
+| a WAV file has the RIFF header, then the samples little-endian |  |  | [src/modules/dectalk/tests/wav_test.cpp:15](../../src/modules/dectalk/tests/wav_test.cpp#L15) |
+| a stereo WAV file counts both channels in its rates |  |  | [src/modules/dectalk/tests/wav_test.cpp:40](../../src/modules/dectalk/tests/wav_test.cpp#L40) |
+| the waveform of silence is flat |  |  | [src/modules/dectalk/tests/wav_test.cpp:49](../../src/modules/dectalk/tests/wav_test.cpp#L49) |
+| the waveform follows where the sound is |  |  | [src/modules/dectalk/tests/wav_test.cpp:56](../../src/modules/dectalk/tests/wav_test.cpp#L56) |
+| a waveform of fewer samples than bars has one bar per sample |  |  | [src/modules/dectalk/tests/wav_test.cpp:78](../../src/modules/dectalk/tests/wav_test.cpp#L78) |
+| the waveform is sent as base64 of its 256 bytes |  |  | [src/modules/dectalk/tests/wav_test.cpp:83](../../src/modules/dectalk/tests/wav_test.cpp#L83) |
+
+## music
+
+The music module (`src/modules/music`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| durations read as minutes and seconds, and hours past an hour |  |  | [src/modules/music/tests/music_command_test.cpp:52](../../src/modules/music/tests/music_command_test.cpp#L52) |
+| a track is named safely, with its length or that it is live |  |  | [src/modules/music/tests/music_command_test.cpp:59](../../src/modules/music/tests/music_command_test.cpp#L59) |
+| text from outside is made plain |  |  | [src/modules/music/tests/music_command_test.cpp:73](../../src/modules/music/tests/music_command_test.cpp#L73) |
+| tracks over the limit are left out, and live streams never are |  |  | [src/modules/music/tests/music_command_test.cpp:82](../../src/modules/music/tests/music_command_test.cpp#L82) |
+| the reply to /music play says what happened |  | 5 | [src/modules/music/tests/music_command_test.cpp:99](../../src/modules/music/tests/music_command_test.cpp#L99) |
+| now playing shows the track, where it is, and who queued it |  |  | [src/modules/music/tests/music_command_test.cpp:153](../../src/modules/music/tests/music_command_test.cpp#L153) |
+| the queue pages ten at a time, within Discord's limits, pinging nobody |  |  | [src/modules/music/tests/music_command_test.cpp:169](../../src/modules/music/tests/music_command_test.cpp#L169) |
+| an empty queue says so, with no buttons |  |  | [src/modules/music/tests/music_command_test.cpp:192](../../src/modules/music/tests/music_command_test.cpp#L192) |
+| volume and track limit have defaults, and stored values are kept in range |  |  | [src/modules/music/tests/music_command_test.cpp:202](../../src/modules/music/tests/music_command_test.cpp#L202) |
+| the music command registers, with m as its alias |  |  | [src/modules/music/tests/music_command_test.cpp:218](../../src/modules/music/tests/music_command_test.cpp#L218) |
+| a Netscape cookies file is counted, HttpOnly cookies included |  |  | [src/modules/music/tests/music_cookies_test.cpp:132](../../src/modules/music/tests/music_cookies_test.cpp#L132) |
+| a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [src/modules/music/tests/music_cookies_test.cpp:140](../../src/modules/music/tests/music_cookies_test.cpp#L140) |
+| yt-dlp is told where Deno and the PO token provider are, before the --, and the link stays last |  |  | [src/modules/music/tests/music_cookies_test.cpp:152](../../src/modules/music/tests/music_cookies_test.cpp#L152) |
+| the resolver hands Deno on, signed in or not | `threads` |  | [src/modules/music/tests/music_cookies_test.cpp:175](../../src/modules/music/tests/music_cookies_test.cpp#L175) |
+| a file yt-dlp can sign in with has a youtube.com SAPISID |  |  | [src/modules/music/tests/music_cookies_test.cpp:186](../../src/modules/music/tests/music_cookies_test.cpp#L186) |
+| only youtube.com and its subdomains count as YouTube's |  |  | [src/modules/music/tests/music_cookies_test.cpp:195](../../src/modules/music/tests/music_cookies_test.cpp#L195) |
+| lines that are not cookies are counted apart |  |  | [src/modules/music/tests/music_cookies_test.cpp:204](../../src/modules/music/tests/music_cookies_test.cpp#L204) |
+| a JSON export is told apart, since yt-dlp refuses it |  |  | [src/modules/music/tests/music_cookies_test.cpp:213](../../src/modules/music/tests/music_cookies_test.cpp#L213) |
+| loading the cookies the owner named |  | 5 | [src/modules/music/tests/music_cookies_test.cpp:219](../../src/modules/music/tests/music_cookies_test.cpp#L219) |
+| copies an earlier run left behind are cleared at start, and nothing else |  |  | [src/modules/music/tests/music_cookies_test.cpp:257](../../src/modules/music/tests/music_cookies_test.cpp#L257) |
+| each run gets a copy of its own, removed when it is done with |  |  | [src/modules/music/tests/music_cookies_test.cpp:269](../../src/modules/music/tests/music_cookies_test.cpp#L269) |
+| a cookies file gone since startup leaves the run signed out |  |  | [src/modules/music/tests/music_cookies_test.cpp:296](../../src/modules/music/tests/music_cookies_test.cpp#L296) |
+| yt-dlp is given the cookies before the --, and the link stays last |  |  | [src/modules/music/tests/music_cookies_test.cpp:304](../../src/modules/music/tests/music_cookies_test.cpp#L304) |
+| what yt-dlp says when signing in would help |  |  | [src/modules/music/tests/music_cookies_test.cpp:323](../../src/modules/music/tests/music_cookies_test.cpp#L323) |
+| the links that needed signing in are shared, and kept to a limit |  |  | [src/modules/music/tests/music_cookies_test.cpp:336](../../src/modules/music/tests/music_cookies_test.cpp#L336) |
+| the resolver reads signed out, and signs in only when yt-dlp asks to | `threads` | 4 | [src/modules/music/tests/music_cookies_test.cpp:351](../../src/modules/music/tests/music_cookies_test.cpp#L351) |
+| refused signed in as well, the second refusal is what is told | `threads` |  | [src/modules/music/tests/music_cookies_test.cpp:391](../../src/modules/music/tests/music_cookies_test.cpp#L391) |
+| without cookies, an age-restricted link is refused as YouTube refused it | `threads` |  | [src/modules/music/tests/music_cookies_test.cpp:401](../../src/modules/music/tests/music_cookies_test.cpp#L401) |
+| a track refused for want of signing in is fetched again, signed in | `threads` | 4 | [src/modules/music/tests/music_cookies_test.cpp:408](../../src/modules/music/tests/music_cookies_test.cpp#L408) |
+| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [src/modules/music/tests/music_cookies_test.cpp:448](../../src/modules/music/tests/music_cookies_test.cpp#L448) |
+| a cookies file signs a run in with a copy, and a Firefox profile with itself |  |  | [src/modules/music/tests/music_cookies_test.cpp:470](../../src/modules/music/tests/music_cookies_test.cpp#L470) |
+| a Firefox profile's cookies are counted by name, from a copy |  |  | [src/modules/music/tests/music_cookies_test.cpp:488](../../src/modules/music/tests/music_cookies_test.cpp#L488) |
+| a Firefox profile signed out, or never opened, is told apart |  | 4 | [src/modules/music/tests/music_cookies_test.cpp:502](../../src/modules/music/tests/music_cookies_test.cpp#L502) |
+| cookies Firefox has not yet saved are noticed |  |  | [src/modules/music/tests/music_cookies_test.cpp:525](../../src/modules/music/tests/music_cookies_test.cpp#L525) |
+| a Firefox profile is used rather than a cookies file |  | 2 | [src/modules/music/tests/music_cookies_test.cpp:532](../../src/modules/music/tests/music_cookies_test.cpp#L532) |
+| the resolver signs in from a Firefox profile when it must | `threads` |  | [src/modules/music/tests/music_cookies_test.cpp:554](../../src/modules/music/tests/music_cookies_test.cpp#L554) |
+| an http or https link is taken as it is |  |  | [src/modules/music/tests/music_links_test.cpp:16](../../src/modules/music/tests/music_links_test.cpp#L16) |
+| text that is not a link is refused, with the reason |  |  | [src/modules/music/tests/music_links_test.cpp:22](../../src/modules/music/tests/music_links_test.cpp#L22) |
+| a link that looks like an option is still a link or nothing |  |  | [src/modules/music/tests/music_links_test.cpp:31](../../src/modules/music/tests/music_links_test.cpp#L31) |
+| links into the host's own network are refused |  |  | [src/modules/music/tests/music_links_test.cpp:37](../../src/modules/music/tests/music_links_test.cpp#L37) |
+| the host is read without credentials, port or brackets |  |  | [src/modules/music/tests/music_links_test.cpp:48](../../src/modules/music/tests/music_links_test.cpp#L48) |
+| private IPv4 ranges |  |  | [src/modules/music/tests/music_links_test.cpp:54](../../src/modules/music/tests/music_links_test.cpp#L54) |
+| private IPv6 ranges, and IPv4 inside IPv6 |  |  | [src/modules/music/tests/music_links_test.cpp:72](../../src/modules/music/tests/music_links_test.cpp#L72) |
+| names of the machine itself resolve as private without asking DNS |  |  | [src/modules/music/tests/music_links_test.cpp:84](../../src/modules/music/tests/music_links_test.cpp#L84) |
+| music's programs are looked for unless the config names them |  |  | [src/modules/music/tests/music_module_test.cpp:54](../../src/modules/music/tests/music_module_test.cpp#L54) |
+| the account yt-dlp signs in as comes from the environment |  | 3 | [src/modules/music/tests/music_module_test.cpp:70](../../src/modules/music/tests/music_module_test.cpp#L70) |
+| the music README lists what the module registers |  |  | [src/modules/music/tests/music_module_test.cpp:90](../../src/modules/music/tests/music_module_test.cpp#L90) |
+| adding to a quiet server starts playing |  |  | [src/modules/music/tests/music_player_test.cpp:85](../../src/modules/music/tests/music_player_test.cpp#L85) |
+| the queue plays in order, moving on when each track has been heard |  |  | [src/modules/music/tests/music_player_test.cpp:94](../../src/modules/music/tests/music_player_test.cpp#L94) |
+| repeating a track plays it again, from a fresh fetch |  |  | [src/modules/music/tests/music_player_test.cpp:111](../../src/modules/music/tests/music_player_test.cpp#L111) |
+| skip moves on with repeat on |  |  | [src/modules/music/tests/music_player_test.cpp:123](../../src/modules/music/tests/music_player_test.cpp#L123) |
+| a track that cannot be fetched is noted, and the next one plays |  |  | [src/modules/music/tests/music_player_test.cpp:140](../../src/modules/music/tests/music_player_test.cpp#L140) |
+| a track that breaks mid-way plays what it had, then moves on, never repeating |  |  | [src/modules/music/tests/music_player_test.cpp:155](../../src/modules/music/tests/music_player_test.cpp#L155) |
+| play now plays at once, and the interrupted track starts over after it |  |  | [src/modules/music/tests/music_player_test.cpp:168](../../src/modules/music/tests/music_player_test.cpp#L168) |
+| pausing holds the music, and time into the track with it |  |  | [src/modules/music/tests/music_player_test.cpp:185](../../src/modules/music/tests/music_player_test.cpp#L185) |
+| pause, skip and stop with nothing playing say so |  |  | [src/modules/music/tests/music_player_test.cpp:202](../../src/modules/music/tests/music_player_test.cpp#L202) |
+| stop ends the music and empties the queue |  |  | [src/modules/music/tests/music_player_test.cpp:209](../../src/modules/music/tests/music_player_test.cpp#L209) |
+| clear, shuffle and remove work on what is queued |  |  | [src/modules/music/tests/music_player_test.cpp:223](../../src/modules/music/tests/music_player_test.cpp#L223) |
+| the track limit cuts a long track off, with a note, but not a live stream |  |  | [src/modules/music/tests/music_player_test.cpp:235](../../src/modules/music/tests/music_player_test.cpp#L235) |
+| the volume scales the samples |  |  | [src/modules/music/tests/music_player_test.cpp:253](../../src/modules/music/tests/music_player_test.cpp#L253) |
+| each server has its own queue |  |  | [src/modules/music/tests/music_player_test.cpp:268](../../src/modules/music/tests/music_player_test.cpp#L268) |
+| leaving forgets the queue |  |  | [src/modules/music/tests/music_player_test.cpp:282](../../src/modules/music/tests/music_player_test.cpp#L282) |
+| speech pauses the music, which carries on after it |  |  | [src/modules/music/tests/music_player_test.cpp:293](../../src/modules/music/tests/music_player_test.cpp#L293) |
+| markers are told apart |  |  | [src/modules/music/tests/music_player_test.cpp:309](../../src/modules/music/tests/music_player_test.cpp#L309) |
+| end adds at the back |  |  | [src/modules/music/tests/music_queue_test.cpp:44](../../src/modules/music/tests/music_queue_test.cpp#L44) |
+| next keeps a playlist in its own order |  |  | [src/modules/music/tests/music_queue_test.cpp:53](../../src/modules/music/tests/music_queue_test.cpp#L53) |
+| now keeps the interrupted track, to play again from the start |  |  | [src/modules/music/tests/music_queue_test.cpp:61](../../src/modules/music/tests/music_queue_test.cpp#L61) |
+| now with nothing playing just plays |  |  | [src/modules/music/tests/music_queue_test.cpp:73](../../src/modules/music/tests/music_queue_test.cpp#L73) |
+| a full queue takes what fits, and says how many did not |  |  | [src/modules/music/tests/music_queue_test.cpp:80](../../src/modules/music/tests/music_queue_test.cpp#L80) |
+| the queue limit is 500, and a playlist adds at most 100 |  |  | [src/modules/music/tests/music_queue_test.cpp:90](../../src/modules/music/tests/music_queue_test.cpp#L90) |
+| moving on with repeat off plays the queue in order, then stops |  |  | [src/modules/music/tests/music_queue_test.cpp:95](../../src/modules/music/tests/music_queue_test.cpp#L95) |
+| repeating a track plays it again when it finishes |  |  | [src/modules/music/tests/music_queue_test.cpp:103](../../src/modules/music/tests/music_queue_test.cpp#L103) |
+| skip moves on even when the track repeats |  |  | [src/modules/music/tests/music_queue_test.cpp:111](../../src/modules/music/tests/music_queue_test.cpp#L111) |
+| a track that failed never repeats |  | 2 | [src/modules/music/tests/music_queue_test.cpp:118](../../src/modules/music/tests/music_queue_test.cpp#L118) |
+| repeating the queue sends each finished or skipped track to the back |  |  | [src/modules/music/tests/music_queue_test.cpp:132](../../src/modules/music/tests/music_queue_test.cpp#L132) |
+| peeking at what plays next agrees with moving on |  |  | [src/modules/music/tests/music_queue_test.cpp:146](../../src/modules/music/tests/music_queue_test.cpp#L146) |
+| remove counts from 1, as the queue is shown |  |  | [src/modules/music/tests/music_queue_test.cpp:164](../../src/modules/music/tests/music_queue_test.cpp#L164) |
+| clear empties the queue and leaves the current track |  |  | [src/modules/music/tests/music_queue_test.cpp:173](../../src/modules/music/tests/music_queue_test.cpp#L173) |
+| shuffle keeps every track, and never the current one |  |  | [src/modules/music/tests/music_queue_test.cpp:180](../../src/modules/music/tests/music_queue_test.cpp#L180) |
+| repeat modes by name, and in turn |  |  | [src/modules/music/tests/music_queue_test.cpp:199](../../src/modules/music/tests/music_queue_test.cpp#L199) |
+| the running time adds what is known and counts what is not |  |  | [src/modules/music/tests/music_queue_test.cpp:209](../../src/modules/music/tests/music_queue_test.cpp#L209) |
+| the provider runs with Deno from its packages, on this machine's port |  |  | [src/modules/music/tests/pot_provider_test.cpp:54](../../src/modules/music/tests/pot_provider_test.cpp#L54) |
+| the provider is ready once its packages are installed |  |  | [src/modules/music/tests/pot_provider_test.cpp:64](../../src/modules/music/tests/pot_provider_test.cpp#L64) |
+| the plugin is found in yt-dlp's own plugin folder, as a zip or a folder |  |  | [src/modules/music/tests/pot_provider_test.cpp:74](../../src/modules/music/tests/pot_provider_test.cpp#L74) |
+| a provider that stops is started again | `threads` |  | [src/modules/music/tests/pot_provider_test.cpp:84](../../src/modules/music/tests/pot_provider_test.cpp#L84) |
+| what the provider writes is logged | `threads` |  | [src/modules/music/tests/pot_provider_test.cpp:89](../../src/modules/music/tests/pot_provider_test.cpp#L89) |
+| stopping the bot stops the provider at once | `threads` |  | [src/modules/music/tests/pot_provider_test.cpp:101](../../src/modules/music/tests/pot_provider_test.cpp#L101) |
+| a provider that cannot start is tried again, and stopped with the bot | `threads` |  | [src/modules/music/tests/pot_provider_test.cpp:110](../../src/modules/music/tests/pot_provider_test.cpp#L110) |
+| an argument with nothing special is left as it is |  |  | [src/modules/music/tests/process_test.cpp:54](../../src/modules/music/tests/process_test.cpp#L54) |
+| spaces, quotes and backslashes before them are quoted |  |  | [src/modules/music/tests/process_test.cpp:60](../../src/modules/music/tests/process_test.cpp#L60) |
+| the command line starts with the program, quoted |  |  | [src/modules/music/tests/process_test.cpp:68](../../src/modules/music/tests/process_test.cpp#L68) |
+| a program reads back exactly the arguments it was given | `threads` |  | [src/modules/music/tests/process_test.cpp:73](../../src/modules/music/tests/process_test.cpp#L73) |
+| run collects stdout, stderr and the exit code | `threads` | 3 | [src/modules/music/tests/process_test.cpp:87](../../src/modules/music/tests/process_test.cpp#L87) |
+| a program that runs too long is killed | `threads` |  | [src/modules/music/tests/process_test.cpp:104](../../src/modules/music/tests/process_test.cpp#L104) |
+| output past the limit kills the program | `threads` |  | [src/modules/music/tests/process_test.cpp:111](../../src/modules/music/tests/process_test.cpp#L111) |
+| a program runs in the folder it is given, or the bot's own | `threads` |  | [src/modules/music/tests/process_test.cpp:116](../../src/modules/music/tests/process_test.cpp#L116) |
+| the bot's own folder is the test program's |  |  | [src/modules/music/tests/process_test.cpp:129](../../src/modules/music/tests/process_test.cpp#L129) |
+| a program that cannot be found is refused |  |  | [src/modules/music/tests/process_test.cpp:135](../../src/modules/music/tests/process_test.cpp#L135) |
+| one program's output is the next one's input | `threads` |  | [src/modules/music/tests/process_test.cpp:139](../../src/modules/music/tests/process_test.cpp#L139) |
+| stderr lines say which program in the pipeline wrote them | `threads` |  | [src/modules/music/tests/process_test.cpp:156](../../src/modules/music/tests/process_test.cpp#L156) |
+| killing a pipeline ends its programs and what they started | `threads` |  | [src/modules/music/tests/process_test.cpp:175](../../src/modules/music/tests/process_test.cpp#L175) |
+| yt-dlp reads a real link, and yt-dlp piped into ffmpeg plays it | `live` |  | [src/modules/music/tests/yt_dlp_live_test.cpp:27](../../src/modules/music/tests/yt_dlp_live_test.cpp#L27) |
+| the link always follows --, and no config file is read |  |  | [src/modules/music/tests/yt_dlp_test.cpp:55](../../src/modules/music/tests/yt_dlp_test.cpp#L55) |
+| reading a link asks for JSON, a flat playlist, and at most so many entries |  |  | [src/modules/music/tests/yt_dlp_test.cpp:66](../../src/modules/music/tests/yt_dlp_test.cpp#L66) |
+| fetching writes the best audio to stdout, and says where ffmpeg is |  |  | [src/modules/music/tests/yt_dlp_test.cpp:76](../../src/modules/music/tests/yt_dlp_test.cpp#L76) |
+| decoding reads a pipe and writes 48 kHz stereo 16-bit samples |  |  | [src/modules/music/tests/yt_dlp_test.cpp:88](../../src/modules/music/tests/yt_dlp_test.cpp#L88) |
+| a single track's details |  |  | [src/modules/music/tests/yt_dlp_test.cpp:104](../../src/modules/music/tests/yt_dlp_test.cpp#L104) |
+| a live stream has no length |  |  | [src/modules/music/tests/yt_dlp_test.cpp:119](../../src/modules/music/tests/yt_dlp_test.cpp#L119) |
+| a playlist's entries, in order, up to the limit |  |  | [src/modules/music/tests/yt_dlp_test.cpp:126](../../src/modules/music/tests/yt_dlp_test.cpp#L126) |
+| answers with nothing playable are errors |  |  | [src/modules/music/tests/yt_dlp_test.cpp:150](../../src/modules/music/tests/yt_dlp_test.cpp#L150) |
+| yt-dlp's error line is what is shown |  |  | [src/modules/music/tests/yt_dlp_test.cpp:157](../../src/modules/music/tests/yt_dlp_test.cpp#L157) |
+| the resolver runs yt-dlp and reads what it says | `threads`, `coro` | 5 | [src/modules/music/tests/yt_dlp_test.cpp:164](../../src/modules/music/tests/yt_dlp_test.cpp#L164) |
+| a link yt-dlp takes too long over is given up on | `threads` |  | [src/modules/music/tests/yt_dlp_test.cpp:197](../../src/modules/music/tests/yt_dlp_test.cpp#L197) |
+| a stream delivers every sample, in order, then finishes | `threads` |  | [src/modules/music/tests/yt_dlp_test.cpp:204](../../src/modules/music/tests/yt_dlp_test.cpp#L204) |
+| a stream fails with the first program's error | `threads` |  | [src/modules/music/tests/yt_dlp_test.cpp:214](../../src/modules/music/tests/yt_dlp_test.cpp#L214) |
+| a stream that produces nothing for too long has failed | `threads` |  | [src/modules/music/tests/yt_dlp_test.cpp:221](../../src/modules/music/tests/yt_dlp_test.cpp#L221) |
+| a stream whose program cannot start has failed at once |  |  | [src/modules/music/tests/yt_dlp_test.cpp:228](../../src/modules/music/tests/yt_dlp_test.cpp#L228) |
+| dropping a stream mid-way ends its programs | `threads` |  | [src/modules/music/tests/yt_dlp_test.cpp:234](../../src/modules/music/tests/yt_dlp_test.cpp#L234) |
+
+## llm
+
+The language model module (`src/modules/llm`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| an alias is u and six letters that spell nothing |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:47](../../src/modules/llm/tests/llm_aliases_test.cpp#L47) |
+| each person keeps one alias per server |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:61](../../src/modules/llm/tests/llm_aliases_test.cpp#L61) |
+| mentions become aliases, and of the bot its name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:78](../../src/modules/llm/tests/llm_aliases_test.cpp#L78) |
+| roles, channels, emoji, timestamps and commands lose their ids |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:88](../../src/modules/llm/tests/llm_aliases_test.cpp#L88) |
+| names written in text become markers, as whole words |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:100](../../src/modules/llm/tests/llm_aliases_test.cpp#L100) |
+| a name too short to tell from a word is left |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:114](../../src/modules/llm/tests/llm_aliases_test.cpp#L114) |
+| a marker already written is kept as it is |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:121](../../src/modules/llm/tests/llm_aliases_test.cpp#L121) |
+| what the model writes gets its names back |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:128](../../src/modules/llm/tests/llm_aliases_test.cpp#L128) |
+| someone known from before, not in this request, still gets their name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:145](../../src/modules/llm/tests/llm_aliases_test.cpp#L145) |
+| nothing sent names anyone, or gives an id |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:153](../../src/modules/llm/tests/llm_aliases_test.cpp#L153) |
+| memories show the people they name as mentions in Discord |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:164](../../src/modules/llm/tests/llm_aliases_test.cpp#L164) |
+| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [src/modules/llm/tests/llm_answer_test.cpp:167](../../src/modules/llm/tests/llm_answer_test.cpp#L167) |
+| an addressed message is handed to the model and consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:188](../../src/modules/llm/tests/llm_answer_test.cpp#L188) |
+| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [src/modules/llm/tests/llm_answer_test.cpp:202](../../src/modules/llm/tests/llm_answer_test.cpp#L202) |
+| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [src/modules/llm/tests/llm_answer_test.cpp:214](../../src/modules/llm/tests/llm_answer_test.cpp#L214) |
+| a blacklisted user or role is not answered, and the message is still consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:242](../../src/modules/llm/tests/llm_answer_test.cpp#L242) |
+| past a spend cap the bot says so once, then stays quiet |  |  | [src/modules/llm/tests/llm_answer_test.cpp:254](../../src/modules/llm/tests/llm_answer_test.cpp#L254) |
+| one person asking too often is rate limited, per minute |  |  | [src/modules/llm/tests/llm_answer_test.cpp:274](../../src/modules/llm/tests/llm_answer_test.cpp#L274) |
+| another bot is answered at the pace the guild set, until a person speaks |  |  | [src/modules/llm/tests/llm_answer_test.cpp:290](../../src/modules/llm/tests/llm_answer_test.cpp#L290) |
+| a message in a voice session's text channel is answered out loud too |  |  | [src/modules/llm/tests/llm_answer_test.cpp:313](../../src/modules/llm/tests/llm_answer_test.cpp#L313) |
+| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:327](../../src/modules/llm/tests/llm_answer_test.cpp#L327) |
+| the model can remember something about the person it is answering | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:378](../../src/modules/llm/tests/llm_answer_test.cpp#L378) |
+| a mention the model writes is posted as one, and spoken as a name | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:396](../../src/modules/llm/tests/llm_answer_test.cpp#L396) |
+| the model's tools see people as aliases | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:402](../../src/modules/llm/tests/llm_answer_test.cpp#L402) |
+| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [src/modules/llm/tests/llm_answer_test.cpp:417](../../src/modules/llm/tests/llm_answer_test.cpp#L417) |
+| remember refuses what is too long, or a server that is full |  |  | [src/modules/llm/tests/llm_answer_test.cpp:434](../../src/modules/llm/tests/llm_answer_test.cpp#L434) |
+| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:448](../../src/modules/llm/tests/llm_answer_test.cpp#L448) |
+| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:465](../../src/modules/llm/tests/llm_answer_test.cpp#L465) |
+| a spoken answer is prepared by the speech capability, posted as spoken, and said | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:485](../../src/modules/llm/tests/llm_answer_test.cpp#L485) |
+| without the speech capability a reply is only posted | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:504](../../src/modules/llm/tests/llm_answer_test.cpp#L504) |
+| a long answer is posted as several messages, only the first a reply | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:530](../../src/modules/llm/tests/llm_answer_test.cpp#L530) |
+| the conversation keeps the newest messages that fit the token budget |  |  | [src/modules/llm/tests/llm_answer_test.cpp:549](../../src/modules/llm/tests/llm_answer_test.cpp#L549) |
+| a transcript line cannot pass itself off as someone else speaking |  |  | [src/modules/llm/tests/llm_answer_test.cpp:571](../../src/modules/llm/tests/llm_answer_test.cpp#L571) |
+| the fixed rules come first, then the system document, then the personality |  |  | [src/modules/llm/tests/llm_answer_test.cpp:586](../../src/modules/llm/tests/llm_answer_test.cpp#L586) |
+| a reply too long for one message is split on line breaks, three messages at most |  |  | [src/modules/llm/tests/llm_answer_test.cpp:599](../../src/modules/llm/tests/llm_answer_test.cpp#L599) |
+| the personality is open to everyone until an admin narrows it to a role |  |  | [src/modules/llm/tests/llm_command_test.cpp:67](../../src/modules/llm/tests/llm_command_test.cpp#L67) |
+| a document is cut into form parts between lines, and joins back the same |  |  | [src/modules/llm/tests/llm_command_test.cpp:78](../../src/modules/llm/tests/llm_command_test.cpp#L78) |
+| a document too long for a form has no form, and a line longer than a part is cut |  |  | [src/modules/llm/tests/llm_command_test.cpp:98](../../src/modules/llm/tests/llm_command_test.cpp#L98) |
+| the document form fits a modal and is filled with the current text |  |  | [src/modules/llm/tests/llm_command_test.cpp:109](../../src/modules/llm/tests/llm_command_test.cpp#L109) |
+| a document is shown inline when short, and attached when not |  |  | [src/modules/llm/tests/llm_command_test.cpp:120](../../src/modules/llm/tests/llm_command_test.cpp#L120) |
+| saving a large document warns that it is sent with every message |  |  | [src/modules/llm/tests/llm_command_test.cpp:134](../../src/modules/llm/tests/llm_command_test.cpp#L134) |
+| history lists the newest versions first, with who and when |  |  | [src/modules/llm/tests/llm_command_test.cpp:140](../../src/modules/llm/tests/llm_command_test.cpp#L140) |
+| the settings panel shows every setting and fits a message |  |  | [src/modules/llm/tests/llm_command_test.cpp:154](../../src/modules/llm/tests/llm_command_test.cpp#L154) |
+| each settings form fits a modal and is filled with the current values |  |  | [src/modules/llm/tests/llm_command_test.cpp:163](../../src/modules/llm/tests/llm_command_test.cpp#L163) |
+| a settings form is stored whole or not at all, naming what was out of range |  |  | [src/modules/llm/tests/llm_command_test.cpp:172](../../src/modules/llm/tests/llm_command_test.cpp#L172) |
+| the memory list pages ten at a time, carrying whose list it is |  |  | [src/modules/llm/tests/llm_command_test.cpp:188](../../src/modules/llm/tests/llm_command_test.cpp#L188) |
+| the status says what was spent against the caps |  |  | [src/modules/llm/tests/llm_command_test.cpp:205](../../src/modules/llm/tests/llm_command_test.cpp#L205) |
+| the llm and memory commands register, within Discord's limits |  |  | [src/modules/llm/tests/llm_command_test.cpp:218](../../src/modules/llm/tests/llm_command_test.cpp#L218) |
+| a rate limit allows so many per window, then frees up as they age |  |  | [src/modules/llm/tests/llm_guards_test.cpp:44](../../src/modules/llm/tests/llm_guards_test.cpp#L44) |
+| bot turns in a row stop at the limit until a person speaks |  |  | [src/modules/llm/tests/llm_guards_test.cpp:67](../../src/modules/llm/tests/llm_guards_test.cpp#L67) |
+| a bot turn soon after the last one waits out the delay |  |  | [src/modules/llm/tests/llm_guards_test.cpp:82](../../src/modules/llm/tests/llm_guards_test.cpp#L82) |
+| the day's bot turns are capped per guild, and come back the next day |  |  | [src/modules/llm/tests/llm_guards_test.cpp:94](../../src/modules/llm/tests/llm_guards_test.cpp#L94) |
+| pacing can insist on a person first, or refuse bots entirely |  |  | [src/modules/llm/tests/llm_guards_test.cpp:107](../../src/modules/llm/tests/llm_guards_test.cpp#L107) |
+| an advanced trigger fires on its roll, then waits out its cooldown in that channel |  |  | [src/modules/llm/tests/llm_guards_test.cpp:124](../../src/modules/llm/tests/llm_guards_test.cpp#L124) |
+| an advanced trigger needs its pattern, and to be on |  |  | [src/modules/llm/tests/llm_guards_test.cpp:141](../../src/modules/llm/tests/llm_guards_test.cpp#L141) |
+| a setting out of its range is refused with the range |  |  | [src/modules/llm/tests/llm_guards_test.cpp:155](../../src/modules/llm/tests/llm_guards_test.cpp#L155) |
+| every setting fits a modal: labels short enough, and at most five to a form |  |  | [src/modules/llm/tests/llm_guards_test.cpp:174](../../src/modules/llm/tests/llm_guards_test.cpp#L174) |
+| a diff shows removed and added lines, and only the unchanged lines near them |  |  | [src/modules/llm/tests/llm_guards_test.cpp:192](../../src/modules/llm/tests/llm_guards_test.cpp#L192) |
+| a memory search is made of the message's words, quoted, and never of FTS syntax |  |  | [src/modules/llm/tests/llm_guards_test.cpp:198](../../src/modules/llm/tests/llm_guards_test.cpp#L198) |
+| token estimates are a quarter of the characters, rounded up |  |  | [src/modules/llm/tests/llm_guards_test.cpp:205](../../src/modules/llm/tests/llm_guards_test.cpp#L205) |
+| the llm section reads its defaults, and the spend caps cannot be negative |  |  | [src/modules/llm/tests/llm_module_test.cpp:49](../../src/modules/llm/tests/llm_module_test.cpp#L49) |
+| a model the bot cannot price stops the module from starting |  |  | [src/modules/llm/tests/llm_module_test.cpp:64](../../src/modules/llm/tests/llm_module_test.cpp#L64) |
+| the providers' keys come from the environment, and are masked in the log |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:73](../../src/modules/llm/tests/llm_module_test.cpp#L73) |
+| the model speaks only when someone offers speech |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:93](../../src/modules/llm/tests/llm_module_test.cpp#L93) |
+| the llm README lists what the module registers |  |  | [src/modules/llm/tests/llm_module_test.cpp:108](../../src/modules/llm/tests/llm_module_test.cpp#L108) |
+| the language model's settings panel stores what its forms set |  |  | [src/modules/llm/tests/llm_panel_test.cpp:89](../../src/modules/llm/tests/llm_panel_test.cpp#L89) |
+| the language model's settings panel switches it on and off, for Manage Server only |  |  | [src/modules/llm/tests/llm_panel_test.cpp:108](../../src/modules/llm/tests/llm_panel_test.cpp#L108) |
+| a document's form saves what was typed, not blanks |  | 3 | [src/modules/llm/tests/llm_panel_test.cpp:121](../../src/modules/llm/tests/llm_panel_test.cpp#L121) |
+| the memory list pages |  |  | [src/modules/llm/tests/llm_panel_test.cpp:154](../../src/modules/llm/tests/llm_panel_test.cpp#L154) |
+| every model has a price, and the ids are the API's own |  |  | [src/modules/llm/tests/llm_provider_test.cpp:58](../../src/modules/llm/tests/llm_provider_test.cpp#L58) |
+| a call costs its tokens at the model's prices, cache included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:70](../../src/modules/llm/tests/llm_provider_test.cpp#L70) |
+| provider names are read case-insensitively |  |  | [src/modules/llm/tests/llm_provider_test.cpp:80](../../src/modules/llm/tests/llm_provider_test.cpp#L80) |
+| an Anthropic request caches the stable instructions and nothing after them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:90](../../src/modules/llm/tests/llm_provider_test.cpp#L90) |
+| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [src/modules/llm/tests/llm_provider_test.cpp:102](../../src/modules/llm/tests/llm_provider_test.cpp#L102) |
+| the last Anthropic round forbids tools but still declares them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:116](../../src/modules/llm/tests/llm_provider_test.cpp#L116) |
+| an Anthropic request sends tool calls and their results in the API's shape |  |  | [src/modules/llm/tests/llm_provider_test.cpp:125](../../src/modules/llm/tests/llm_provider_test.cpp#L125) |
+| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:145](../../src/modules/llm/tests/llm_provider_test.cpp#L145) |
+| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [src/modules/llm/tests/llm_provider_test.cpp:166](../../src/modules/llm/tests/llm_provider_test.cpp#L166) |
+| an Anthropic error carries the status and the API's own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:188](../../src/modules/llm/tests/llm_provider_test.cpp#L188) |
+| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [src/modules/llm/tests/llm_provider_test.cpp:196](../../src/modules/llm/tests/llm_provider_test.cpp#L196) |
+| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:208](../../src/modules/llm/tests/llm_provider_test.cpp#L208) |
+| a transport failure reaches the caller as an error | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:227](../../src/modules/llm/tests/llm_provider_test.cpp#L227) |
+| an OpenAI request puts the instructions in one system message, stable part first |  |  | [src/modules/llm/tests/llm_provider_test.cpp:242](../../src/modules/llm/tests/llm_provider_test.cpp#L242) |
+| an OpenAI request sends each tool result as its own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:255](../../src/modules/llm/tests/llm_provider_test.cpp#L255) |
+| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [src/modules/llm/tests/llm_provider_test.cpp:271](../../src/modules/llm/tests/llm_provider_test.cpp#L271) |
+| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [src/modules/llm/tests/llm_provider_test.cpp:293](../../src/modules/llm/tests/llm_provider_test.cpp#L293) |
+| an OpenAI error carries the API's message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:301](../../src/modules/llm/tests/llm_provider_test.cpp#L301) |
+| the OpenAI provider authenticates with a bearer token | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:307](../../src/modules/llm/tests/llm_provider_test.cpp#L307) |
+| the model has to be one the bot can price, from the provider named |  |  | [src/modules/llm/tests/llm_provider_test.cpp:331](../../src/modules/llm/tests/llm_provider_test.cpp#L331) |
+| a recorded call is priced, and counted in its day and month |  |  | [src/modules/llm/tests/llm_store_test.cpp:56](../../src/modules/llm/tests/llm_store_test.cpp#L56) |
+| reaching a cap says which one, and the month outranks the day |  |  | [src/modules/llm/tests/llm_store_test.cpp:75](../../src/modules/llm/tests/llm_store_test.cpp#L75) |
+| a cap notice is due once per guild and period |  |  | [src/modules/llm/tests/llm_store_test.cpp:99](../../src/modules/llm/tests/llm_store_test.cpp#L99) |
+| a document nobody edited reads as its default |  |  | [src/modules/llm/tests/llm_store_test.cpp:111](../../src/modules/llm/tests/llm_store_test.cpp#L111) |
+| every edit is a new version, per guild and per kind |  |  | [src/modules/llm/tests/llm_store_test.cpp:121](../../src/modules/llm/tests/llm_store_test.cpp#L121) |
+| a revert saves the old text as a new version, and can itself be reverted |  |  | [src/modules/llm/tests/llm_store_test.cpp:139](../../src/modules/llm/tests/llm_store_test.cpp#L139) |
+| memories are found by the words in them, only in their own guild |  |  | [src/modules/llm/tests/llm_store_test.cpp:161](../../src/modules/llm/tests/llm_store_test.cpp#L161) |
+| a removed memory leaves the search index too |  |  | [src/modules/llm/tests/llm_store_test.cpp:177](../../src/modules/llm/tests/llm_store_test.cpp#L177) |
+| memories list newest first, and clear by person or all at once |  |  | [src/modules/llm/tests/llm_store_test.cpp:189](../../src/modules/llm/tests/llm_store_test.cpp#L189) |
+| the memories shown up front are about the author, then what matches |  |  | [src/modules/llm/tests/llm_store_test.cpp:210](../../src/modules/llm/tests/llm_store_test.cpp#L210) |
+| the blacklist blocks a user or anyone with a role |  |  | [src/modules/llm/tests/llm_store_test.cpp:227](../../src/modules/llm/tests/llm_store_test.cpp#L227) |
+| advanced triggers are stored per guild and edited in place |  |  | [src/modules/llm/tests/llm_store_test.cpp:248](../../src/modules/llm/tests/llm_store_test.cpp#L248) |
+| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [src/modules/llm/tests/llm_store_test.cpp:280](../../src/modules/llm/tests/llm_store_test.cpp#L280) |
+| a tool registered twice is refused |  |  | [src/modules/llm/tests/llm_tools_test.cpp:44](../../src/modules/llm/tests/llm_tools_test.cpp#L44) |
+| an unknown tool, or one that throws, is an error the model reads |  |  | [src/modules/llm/tests/llm_tools_test.cpp:49](../../src/modules/llm/tests/llm_tools_test.cpp#L49) |
+| the tool loop runs what the model asks for and hands the result back | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:64](../../src/modules/llm/tests/llm_tools_test.cpp#L64) |
+| after the last round of tools the model has to answer | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:93](../../src/modules/llm/tests/llm_tools_test.cpp#L93) |
+| a failure mid-loop is reported, and what was spent before it still counted | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:113](../../src/modules/llm/tests/llm_tools_test.cpp#L113) |
+| when the last turn says nothing, what was said along the way is kept | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:128](../../src/modules/llm/tests/llm_tools_test.cpp#L128) |
 
 ## triggers
 
@@ -729,438 +1180,3 @@ The linkstats module (`src/modules/linkstats`)
 | the colour-form selector does not make a second emoji |  |  | [src/modules/linkstats/tests/reactions_test.cpp:21](../../src/modules/linkstats/tests/reactions_test.cpp#L21) |
 | typed emojis are understood in every form a command sees |  |  | [src/modules/linkstats/tests/reactions_test.cpp:26](../../src/modules/linkstats/tests/reactions_test.cpp#L26) |
 | an emoji is shown the way Discord draws it |  |  | [src/modules/linkstats/tests/reactions_test.cpp:39](../../src/modules/linkstats/tests/reactions_test.cpp#L39) |
-
-## discord
-
-Discord plumbing (`src/core/discord`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| applying flags replaces the choosable ones and leaves the rest |  |  | [tests/unit/message_flags_test.cpp:12](../../tests/unit/message_flags_test.cpp#L12) |
-| stored message flags are narrowed to what a channel message may carry |  |  | [tests/unit/message_flags_test.cpp:24](../../tests/unit/message_flags_test.cpp#L24) |
-| flags are named for the log |  |  | [tests/unit/message_flags_test.cpp:32](../../tests/unit/message_flags_test.cpp#L32) |
-| a bare path gets the API version prefix |  |  | [tests/unit/raw_api_test.cpp:9](../../tests/unit/raw_api_test.cpp#L9) |
-| a missing leading slash is added |  |  | [tests/unit/raw_api_test.cpp:13](../../tests/unit/raw_api_test.cpp#L13) |
-| a path that already names the API version is left alone |  |  | [tests/unit/raw_api_test.cpp:17](../../tests/unit/raw_api_test.cpp#L17) |
-| trailing slashes are trimmed |  |  | [tests/unit/raw_api_test.cpp:21](../../tests/unit/raw_api_test.cpp#L21) |
-| an empty path becomes the API root |  |  | [tests/unit/raw_api_test.cpp:28](../../tests/unit/raw_api_test.cpp#L28) |
-
-## audio
-
-Speech and voice (`src/core/audio`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| every parameter is in exactly one group of at most five |  |  | [tests/unit/custom_voice_test.cpp:17](../../tests/unit/custom_voice_test.cpp#L17) |
-| edits are clamped to DECtalk's limits and written in table order |  |  | [tests/unit/custom_voice_test.cpp:37](../../tests/unit/custom_voice_test.cpp#L37) |
-| a voice reads back from [:dv] text, with or without brackets |  |  | [tests/unit/custom_voice_test.cpp:49](../../tests/unit/custom_voice_test.cpp#L49) |
-| what cannot be read is reported and skipped |  |  | [tests/unit/custom_voice_test.cpp:68](../../tests/unit/custom_voice_test.cpp#L68) |
-| a custom voice's preamble is rebuilt, not pasted |  |  | [tests/unit/custom_voice_test.cpp:84](../../tests/unit/custom_voice_test.cpp#L84) |
-| custom voice names are short, plain and never a built-in's |  |  | [tests/unit/custom_voice_test.cpp:91](../../tests/unit/custom_voice_test.cpp#L91) |
-| DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:46](../../tests/unit/dectalk_engine_test.cpp#L46) |
-| the same request gives the same audio every time | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:59](../../tests/unit/dectalk_engine_test.cpp#L59) |
-| one request's inline settings do not reach the next | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:70](../../tests/unit/dectalk_engine_test.cpp#L70) |
-| the voice and rate settings change the audio | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:83](../../tests/unit/dectalk_engine_test.cpp#L83) |
-| a custom voice's edits change the voice it is built on | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:94](../../tests/unit/dectalk_engine_test.cpp#L94) |
-| volume scales the samples | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:109](../../tests/unit/dectalk_engine_test.cpp#L109) |
-| an utterance stops at its maximum duration | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:119](../../tests/unit/dectalk_engine_test.cpp#L119) |
-| an utterance that takes too long is abandoned | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:132](../../tests/unit/dectalk_engine_test.cpp#L132) |
-| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:150](../../tests/unit/dectalk_engine_test.cpp#L150) |
-| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [tests/unit/dectalk_engine_test.cpp:171](../../tests/unit/dectalk_engine_test.cpp#L171) |
-| DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [tests/unit/dectalk_golden_test.cpp:91](../../tests/unit/dectalk_golden_test.cpp#L91) |
-| plain text passes through untouched |  |  | [tests/unit/dectalk_sanitizer_test.cpp:29](../../tests/unit/dectalk_sanitizer_test.cpp#L29) |
-| everyday commands are kept for everyone |  |  | [tests/unit/dectalk_sanitizer_test.cpp:35](../../tests/unit/dectalk_sanitizer_test.cpp#L35) |
-| play, log, debug, loadv and setv are for trusted users only |  |  | [tests/unit/dectalk_sanitizer_test.cpp:46](../../tests/unit/dectalk_sanitizer_test.cpp#L46) |
-| pause, resume and dv save are for nobody |  |  | [tests/unit/dectalk_sanitizer_test.cpp:61](../../tests/unit/dectalk_sanitizer_test.cpp#L61) |
-| removed commands are reported by their full names |  |  | [tests/unit/dectalk_sanitizer_test.cpp:70](../../tests/unit/dectalk_sanitizer_test.cpp#L70) |
-| a command is recognised by any unique prefix, in any case |  |  | [tests/unit/dectalk_sanitizer_test.cpp:77](../../tests/unit/dectalk_sanitizer_test.cpp#L77) |
-| an ambiguous or unknown command is dropped |  |  | [tests/unit/dectalk_sanitizer_test.cpp:89](../../tests/unit/dectalk_sanitizer_test.cpp#L89) |
-| chained commands are judged one by one |  |  | [tests/unit/dectalk_sanitizer_test.cpp:95](../../tests/unit/dectalk_sanitizer_test.cpp#L95) |
-| spaces and extra brackets before the colon do not hide a command |  |  | [tests/unit/dectalk_sanitizer_test.cpp:101](../../tests/unit/dectalk_sanitizer_test.cpp#L101) |
-| a quoted parameter can hold a closing bracket |  |  | [tests/unit/dectalk_sanitizer_test.cpp:108](../../tests/unit/dectalk_sanitizer_test.cpp#L108) |
-| an unterminated command swallows the rest, as it does in DECtalk |  |  | [tests/unit/dectalk_sanitizer_test.cpp:118](../../tests/unit/dectalk_sanitizer_test.cpp#L118) |
-| phoneme brackets are kept, and cannot hide a command |  |  | [tests/unit/dectalk_sanitizer_test.cpp:123](../../tests/unit/dectalk_sanitizer_test.cpp#L123) |
-| control characters are removed before anything else is read |  |  | [tests/unit/dectalk_sanitizer_test.cpp:132](../../tests/unit/dectalk_sanitizer_test.cpp#L132) |
-| parameters that could open or close anything are dropped |  |  | [tests/unit/dectalk_sanitizer_test.cpp:139](../../tests/unit/dectalk_sanitizer_test.cpp#L139) |
-| sanitizing twice changes nothing more |  |  | [tests/unit/dectalk_sanitizer_test.cpp:147](../../tests/unit/dectalk_sanitizer_test.cpp#L147) |
-| replies are spoken only in a voice session's text channel |  |  | [tests/unit/dectalk_speech_test.cpp:42](../../tests/unit/dectalk_speech_test.cpp#L42) |
-| the model's reply is sanitized at the model's trust level |  |  | [tests/unit/dectalk_speech_test.cpp:52](../../tests/unit/dectalk_speech_test.cpp#L52) |
-| a spoken reply is synthesized and queued under whoever asked | `coro` |  | [tests/unit/dectalk_speech_test.cpp:60](../../tests/unit/dectalk_speech_test.cpp#L60) |
-| a spoken reply keeps to the server's limits | `coro` |  | [tests/unit/dectalk_speech_test.cpp:71](../../tests/unit/dectalk_speech_test.cpp#L71) |
-| the model is told the inline commands and every built-in voice |  |  | [tests/unit/dectalk_speech_test.cpp:81](../../tests/unit/dectalk_speech_test.cpp#L81) |
-| volume scales, clips and leaves 100 alone |  | 4 | [tests/unit/pcm_test.cpp:40](../../tests/unit/pcm_test.cpp#L40) |
-| trailing silence is cut to a fixed tail |  | 4 | [tests/unit/pcm_test.cpp:61](../../tests/unit/pcm_test.cpp#L61) |
-| resampling keeps the length and doubles every sample into stereo |  |  | [tests/unit/pcm_test.cpp:86](../../tests/unit/pcm_test.cpp#L86) |
-| resampling keeps the frequency |  |  | [tests/unit/pcm_test.cpp:96](../../tests/unit/pcm_test.cpp#L96) |
-| resampling interpolates between the source samples |  |  | [tests/unit/pcm_test.cpp:106](../../tests/unit/pcm_test.cpp#L106) |
-| resampling nothing gives nothing |  |  | [tests/unit/pcm_test.cpp:120](../../tests/unit/pcm_test.cpp#L120) |
-| resampling a minute of speech |  |  | [tests/unit/pcm_test.cpp:125](../../tests/unit/pcm_test.cpp#L125) |
-| speech plays at once on a ready connection, each followed by its marker |  |  | [tests/unit/speech_queue_test.cpp:41](../../tests/unit/speech_queue_test.cpp#L41) |
-| a finished utterance's marker moves the queue on |  |  | [tests/unit/speech_queue_test.cpp:55](../../tests/unit/speech_queue_test.cpp#L55) |
-| markers that are not the queue's, or for another guild, change nothing |  |  | [tests/unit/speech_queue_test.cpp:72](../../tests/unit/speech_queue_test.cpp#L72) |
-| speech waits for a connection still being set up, then plays in order |  |  | [tests/unit/speech_queue_test.cpp:83](../../tests/unit/speech_queue_test.cpp#L83) |
-| new speech queues behind speech still waiting, even once connected |  |  | [tests/unit/speech_queue_test.cpp:102](../../tests/unit/speech_queue_test.cpp#L102) |
-| skip drops only the utterance playing now |  |  | [tests/unit/speech_queue_test.cpp:117](../../tests/unit/speech_queue_test.cpp#L117) |
-| skip with nothing playing does nothing |  |  | [tests/unit/speech_queue_test.cpp:132](../../tests/unit/speech_queue_test.cpp#L132) |
-| stop drops everything, playing and waiting |  |  | [tests/unit/speech_queue_test.cpp:138](../../tests/unit/speech_queue_test.cpp#L138) |
-| stop also stops speech still being synthesized |  |  | [tests/unit/speech_queue_test.cpp:155](../../tests/unit/speech_queue_test.cpp#L155) |
-| stopping one guild leaves another alone |  |  | [tests/unit/speech_queue_test.cpp:169](../../tests/unit/speech_queue_test.cpp#L169) |
-| forgetting a guild drops its speech without touching the connection |  |  | [tests/unit/speech_queue_test.cpp:180](../../tests/unit/speech_queue_test.cpp#L180) |
-| music is kept a few seconds ahead, in whole packets |  |  | [tests/unit/voice_mixer_test.cpp:102](../../tests/unit/voice_mixer_test.cpp#L102) |
-| speech interrupts music at once, and music resumes exactly where it stopped |  |  | [tests/unit/voice_mixer_test.cpp:118](../../tests/unit/voice_mixer_test.cpp#L118) |
-| music waits for every utterance queued, not just the first |  |  | [tests/unit/voice_mixer_test.cpp:141](../../tests/unit/voice_mixer_test.cpp#L141) |
-| stopping or skipping speech lets the music back in |  | 2 | [tests/unit/voice_mixer_test.cpp:157](../../tests/unit/voice_mixer_test.cpp#L157) |
-| stopping speech when there is none leaves the music alone |  |  | [tests/unit/voice_mixer_test.cpp:177](../../tests/unit/voice_mixer_test.cpp#L177) |
-| a track's end marker is reported once it has been heard |  |  | [tests/unit/voice_mixer_test.cpp:187](../../tests/unit/voice_mixer_test.cpp#L187) |
-| a track end taken back by speech is still reported, after the speech |  |  | [tests/unit/voice_mixer_test.cpp:202](../../tests/unit/voice_mixer_test.cpp#L202) |
-| pausing music stops it at once, and resuming loses nothing |  |  | [tests/unit/voice_mixer_test.cpp:217](../../tests/unit/voice_mixer_test.cpp#L217) |
-| dropping music clears it, but never speech |  | 2 | [tests/unit/voice_mixer_test.cpp:233](../../tests/unit/voice_mixer_test.cpp#L233) |
-| a new connection sends a track's end marker again |  |  | [tests/unit/voice_mixer_test.cpp:251](../../tests/unit/voice_mixer_test.cpp#L251) |
-| an idle source is no longer visited until woken |  |  | [tests/unit/voice_mixer_test.cpp:266](../../tests/unit/voice_mixer_test.cpp#L266) |
-| nothing is fed without a connection, or once the guild is forgotten |  |  | [tests/unit/voice_mixer_test.cpp:279](../../tests/unit/voice_mixer_test.cpp#L279) |
-| the built-in voices are found by name, in any case |  |  | [tests/unit/voice_params_test.cpp:11](../../tests/unit/voice_params_test.cpp#L11) |
-| the preamble selects the voice and says only what differs |  |  | [tests/unit/voice_params_test.cpp:19](../../tests/unit/voice_params_test.cpp#L19) |
-| the preamble falls back to Paul and clamps the rate |  |  | [tests/unit/voice_params_test.cpp:26](../../tests/unit/voice_params_test.cpp#L26) |
-| a WAV file has the RIFF header, then the samples little-endian |  |  | [tests/unit/wav_test.cpp:15](../../tests/unit/wav_test.cpp#L15) |
-| a stereo WAV file counts both channels in its rates |  |  | [tests/unit/wav_test.cpp:40](../../tests/unit/wav_test.cpp#L40) |
-| the waveform of silence is flat |  |  | [tests/unit/wav_test.cpp:49](../../tests/unit/wav_test.cpp#L49) |
-| the waveform follows where the sound is |  |  | [tests/unit/wav_test.cpp:56](../../tests/unit/wav_test.cpp#L56) |
-| a waveform of fewer samples than bars has one bar per sample |  |  | [tests/unit/wav_test.cpp:78](../../tests/unit/wav_test.cpp#L78) |
-| the waveform is sent as base64 of its 256 bytes |  |  | [tests/unit/wav_test.cpp:83](../../tests/unit/wav_test.cpp#L83) |
-
-## music
-
-Music (`src/core/music`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| durations read as minutes and seconds, and hours past an hour |  |  | [tests/unit/music_command_test.cpp:52](../../tests/unit/music_command_test.cpp#L52) |
-| a track is named safely, with its length or that it is live |  |  | [tests/unit/music_command_test.cpp:59](../../tests/unit/music_command_test.cpp#L59) |
-| tracks over the limit are left out, and live streams never are |  |  | [tests/unit/music_command_test.cpp:82](../../tests/unit/music_command_test.cpp#L82) |
-| the reply to /music play says what happened |  | 5 | [tests/unit/music_command_test.cpp:99](../../tests/unit/music_command_test.cpp#L99) |
-| now playing shows the track, where it is, and who queued it |  |  | [tests/unit/music_command_test.cpp:153](../../tests/unit/music_command_test.cpp#L153) |
-| the queue pages ten at a time, within Discord's limits, pinging nobody |  |  | [tests/unit/music_command_test.cpp:169](../../tests/unit/music_command_test.cpp#L169) |
-| an empty queue says so, with no buttons |  |  | [tests/unit/music_command_test.cpp:192](../../tests/unit/music_command_test.cpp#L192) |
-| volume and track limit have defaults, and stored values are kept in range |  |  | [tests/unit/music_command_test.cpp:202](../../tests/unit/music_command_test.cpp#L202) |
-| the music command registers, with m as its alias |  |  | [tests/unit/music_command_test.cpp:218](../../tests/unit/music_command_test.cpp#L218) |
-| a Netscape cookies file is counted, HttpOnly cookies included |  |  | [tests/unit/music_cookies_test.cpp:132](../../tests/unit/music_cookies_test.cpp#L132) |
-| a cookies file saved on Windows, with a byte order mark, reads the same |  |  | [tests/unit/music_cookies_test.cpp:140](../../tests/unit/music_cookies_test.cpp#L140) |
-| yt-dlp is told where Deno and the PO token provider are, before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:152](../../tests/unit/music_cookies_test.cpp#L152) |
-| the resolver hands Deno on, signed in or not | `threads` |  | [tests/unit/music_cookies_test.cpp:175](../../tests/unit/music_cookies_test.cpp#L175) |
-| a file yt-dlp can sign in with has a youtube.com SAPISID |  |  | [tests/unit/music_cookies_test.cpp:186](../../tests/unit/music_cookies_test.cpp#L186) |
-| only youtube.com and its subdomains count as YouTube's |  |  | [tests/unit/music_cookies_test.cpp:195](../../tests/unit/music_cookies_test.cpp#L195) |
-| lines that are not cookies are counted apart |  |  | [tests/unit/music_cookies_test.cpp:204](../../tests/unit/music_cookies_test.cpp#L204) |
-| a JSON export is told apart, since yt-dlp refuses it |  |  | [tests/unit/music_cookies_test.cpp:213](../../tests/unit/music_cookies_test.cpp#L213) |
-| loading the cookies the owner named |  | 5 | [tests/unit/music_cookies_test.cpp:219](../../tests/unit/music_cookies_test.cpp#L219) |
-| copies an earlier run left behind are cleared at start, and nothing else |  |  | [tests/unit/music_cookies_test.cpp:257](../../tests/unit/music_cookies_test.cpp#L257) |
-| each run gets a copy of its own, removed when it is done with |  |  | [tests/unit/music_cookies_test.cpp:269](../../tests/unit/music_cookies_test.cpp#L269) |
-| a cookies file gone since startup leaves the run signed out |  |  | [tests/unit/music_cookies_test.cpp:296](../../tests/unit/music_cookies_test.cpp#L296) |
-| yt-dlp is given the cookies before the --, and the link stays last |  |  | [tests/unit/music_cookies_test.cpp:304](../../tests/unit/music_cookies_test.cpp#L304) |
-| what yt-dlp says when signing in would help |  |  | [tests/unit/music_cookies_test.cpp:323](../../tests/unit/music_cookies_test.cpp#L323) |
-| the links that needed signing in are shared, and kept to a limit |  |  | [tests/unit/music_cookies_test.cpp:336](../../tests/unit/music_cookies_test.cpp#L336) |
-| the resolver reads signed out, and signs in only when yt-dlp asks to | `threads` | 4 | [tests/unit/music_cookies_test.cpp:351](../../tests/unit/music_cookies_test.cpp#L351) |
-| refused signed in as well, the second refusal is what is told | `threads` |  | [tests/unit/music_cookies_test.cpp:391](../../tests/unit/music_cookies_test.cpp#L391) |
-| without cookies, an age-restricted link is refused as YouTube refused it | `threads` |  | [tests/unit/music_cookies_test.cpp:401](../../tests/unit/music_cookies_test.cpp#L401) |
-| a track refused for want of signing in is fetched again, signed in | `threads` | 4 | [tests/unit/music_cookies_test.cpp:408](../../tests/unit/music_cookies_test.cpp#L408) |
-| a track's copy of the cookies lasts until its stream is gone | `threads` |  | [tests/unit/music_cookies_test.cpp:448](../../tests/unit/music_cookies_test.cpp#L448) |
-| a cookies file signs a run in with a copy, and a Firefox profile with itself |  |  | [tests/unit/music_cookies_test.cpp:470](../../tests/unit/music_cookies_test.cpp#L470) |
-| a Firefox profile's cookies are counted by name, from a copy |  |  | [tests/unit/music_cookies_test.cpp:488](../../tests/unit/music_cookies_test.cpp#L488) |
-| a Firefox profile signed out, or never opened, is told apart |  | 4 | [tests/unit/music_cookies_test.cpp:502](../../tests/unit/music_cookies_test.cpp#L502) |
-| cookies Firefox has not yet saved are noticed |  |  | [tests/unit/music_cookies_test.cpp:525](../../tests/unit/music_cookies_test.cpp#L525) |
-| a Firefox profile is used rather than a cookies file |  | 2 | [tests/unit/music_cookies_test.cpp:532](../../tests/unit/music_cookies_test.cpp#L532) |
-| the resolver signs in from a Firefox profile when it must | `threads` |  | [tests/unit/music_cookies_test.cpp:554](../../tests/unit/music_cookies_test.cpp#L554) |
-| an http or https link is taken as it is |  |  | [tests/unit/music_links_test.cpp:16](../../tests/unit/music_links_test.cpp#L16) |
-| text that is not a link is refused, with the reason |  |  | [tests/unit/music_links_test.cpp:22](../../tests/unit/music_links_test.cpp#L22) |
-| a link that looks like an option is still a link or nothing |  |  | [tests/unit/music_links_test.cpp:31](../../tests/unit/music_links_test.cpp#L31) |
-| links into the host's own network are refused |  |  | [tests/unit/music_links_test.cpp:37](../../tests/unit/music_links_test.cpp#L37) |
-| the host is read without credentials, port or brackets |  |  | [tests/unit/music_links_test.cpp:48](../../tests/unit/music_links_test.cpp#L48) |
-| private IPv4 ranges |  |  | [tests/unit/music_links_test.cpp:54](../../tests/unit/music_links_test.cpp#L54) |
-| private IPv6 ranges, and IPv4 inside IPv6 |  |  | [tests/unit/music_links_test.cpp:72](../../tests/unit/music_links_test.cpp#L72) |
-| names of the machine itself resolve as private without asking DNS |  |  | [tests/unit/music_links_test.cpp:84](../../tests/unit/music_links_test.cpp#L84) |
-| adding to a quiet server starts playing |  |  | [tests/unit/music_player_test.cpp:85](../../tests/unit/music_player_test.cpp#L85) |
-| the queue plays in order, moving on when each track has been heard |  |  | [tests/unit/music_player_test.cpp:94](../../tests/unit/music_player_test.cpp#L94) |
-| repeating a track plays it again, from a fresh fetch |  |  | [tests/unit/music_player_test.cpp:111](../../tests/unit/music_player_test.cpp#L111) |
-| skip moves on with repeat on |  |  | [tests/unit/music_player_test.cpp:123](../../tests/unit/music_player_test.cpp#L123) |
-| a track that cannot be fetched is noted, and the next one plays |  |  | [tests/unit/music_player_test.cpp:140](../../tests/unit/music_player_test.cpp#L140) |
-| a track that breaks mid-way plays what it had, then moves on, never repeating |  |  | [tests/unit/music_player_test.cpp:155](../../tests/unit/music_player_test.cpp#L155) |
-| play now plays at once, and the interrupted track starts over after it |  |  | [tests/unit/music_player_test.cpp:168](../../tests/unit/music_player_test.cpp#L168) |
-| pausing holds the music, and time into the track with it |  |  | [tests/unit/music_player_test.cpp:185](../../tests/unit/music_player_test.cpp#L185) |
-| pause, skip and stop with nothing playing say so |  |  | [tests/unit/music_player_test.cpp:202](../../tests/unit/music_player_test.cpp#L202) |
-| stop ends the music and empties the queue |  |  | [tests/unit/music_player_test.cpp:209](../../tests/unit/music_player_test.cpp#L209) |
-| clear, shuffle and remove work on what is queued |  |  | [tests/unit/music_player_test.cpp:223](../../tests/unit/music_player_test.cpp#L223) |
-| the track limit cuts a long track off, with a note, but not a live stream |  |  | [tests/unit/music_player_test.cpp:235](../../tests/unit/music_player_test.cpp#L235) |
-| the volume scales the samples |  |  | [tests/unit/music_player_test.cpp:253](../../tests/unit/music_player_test.cpp#L253) |
-| each server has its own queue |  |  | [tests/unit/music_player_test.cpp:268](../../tests/unit/music_player_test.cpp#L268) |
-| leaving forgets the queue |  |  | [tests/unit/music_player_test.cpp:282](../../tests/unit/music_player_test.cpp#L282) |
-| speech pauses the music, which carries on after it |  |  | [tests/unit/music_player_test.cpp:293](../../tests/unit/music_player_test.cpp#L293) |
-| markers are told apart |  |  | [tests/unit/music_player_test.cpp:309](../../tests/unit/music_player_test.cpp#L309) |
-| end adds at the back |  |  | [tests/unit/music_queue_test.cpp:44](../../tests/unit/music_queue_test.cpp#L44) |
-| next keeps a playlist in its own order |  |  | [tests/unit/music_queue_test.cpp:53](../../tests/unit/music_queue_test.cpp#L53) |
-| now keeps the interrupted track, to play again from the start |  |  | [tests/unit/music_queue_test.cpp:61](../../tests/unit/music_queue_test.cpp#L61) |
-| now with nothing playing just plays |  |  | [tests/unit/music_queue_test.cpp:73](../../tests/unit/music_queue_test.cpp#L73) |
-| a full queue takes what fits, and says how many did not |  |  | [tests/unit/music_queue_test.cpp:80](../../tests/unit/music_queue_test.cpp#L80) |
-| the queue limit is 500, and a playlist adds at most 100 |  |  | [tests/unit/music_queue_test.cpp:90](../../tests/unit/music_queue_test.cpp#L90) |
-| moving on with repeat off plays the queue in order, then stops |  |  | [tests/unit/music_queue_test.cpp:95](../../tests/unit/music_queue_test.cpp#L95) |
-| repeating a track plays it again when it finishes |  |  | [tests/unit/music_queue_test.cpp:103](../../tests/unit/music_queue_test.cpp#L103) |
-| skip moves on even when the track repeats |  |  | [tests/unit/music_queue_test.cpp:111](../../tests/unit/music_queue_test.cpp#L111) |
-| a track that failed never repeats |  | 2 | [tests/unit/music_queue_test.cpp:118](../../tests/unit/music_queue_test.cpp#L118) |
-| repeating the queue sends each finished or skipped track to the back |  |  | [tests/unit/music_queue_test.cpp:132](../../tests/unit/music_queue_test.cpp#L132) |
-| peeking at what plays next agrees with moving on |  |  | [tests/unit/music_queue_test.cpp:146](../../tests/unit/music_queue_test.cpp#L146) |
-| remove counts from 1, as the queue is shown |  |  | [tests/unit/music_queue_test.cpp:164](../../tests/unit/music_queue_test.cpp#L164) |
-| clear empties the queue and leaves the current track |  |  | [tests/unit/music_queue_test.cpp:173](../../tests/unit/music_queue_test.cpp#L173) |
-| shuffle keeps every track, and never the current one |  |  | [tests/unit/music_queue_test.cpp:180](../../tests/unit/music_queue_test.cpp#L180) |
-| repeat modes by name, and in turn |  |  | [tests/unit/music_queue_test.cpp:199](../../tests/unit/music_queue_test.cpp#L199) |
-| the running time adds what is known and counts what is not |  |  | [tests/unit/music_queue_test.cpp:209](../../tests/unit/music_queue_test.cpp#L209) |
-| the provider runs with Deno from its packages, on this machine's port |  |  | [tests/unit/pot_provider_test.cpp:54](../../tests/unit/pot_provider_test.cpp#L54) |
-| the provider is ready once its packages are installed |  |  | [tests/unit/pot_provider_test.cpp:64](../../tests/unit/pot_provider_test.cpp#L64) |
-| the plugin is found in yt-dlp's own plugin folder, as a zip or a folder |  |  | [tests/unit/pot_provider_test.cpp:74](../../tests/unit/pot_provider_test.cpp#L74) |
-| a provider that stops is started again | `threads` |  | [tests/unit/pot_provider_test.cpp:84](../../tests/unit/pot_provider_test.cpp#L84) |
-| what the provider writes is logged | `threads` |  | [tests/unit/pot_provider_test.cpp:89](../../tests/unit/pot_provider_test.cpp#L89) |
-| stopping the bot stops the provider at once | `threads` |  | [tests/unit/pot_provider_test.cpp:101](../../tests/unit/pot_provider_test.cpp#L101) |
-| a provider that cannot start is tried again, and stopped with the bot | `threads` |  | [tests/unit/pot_provider_test.cpp:110](../../tests/unit/pot_provider_test.cpp#L110) |
-| yt-dlp reads a real link, and yt-dlp piped into ffmpeg plays it | `live` |  | [tests/unit/yt_dlp_live_test.cpp:27](../../tests/unit/yt_dlp_live_test.cpp#L27) |
-| the link always follows --, and no config file is read |  |  | [tests/unit/yt_dlp_test.cpp:55](../../tests/unit/yt_dlp_test.cpp#L55) |
-| reading a link asks for JSON, a flat playlist, and at most so many entries |  |  | [tests/unit/yt_dlp_test.cpp:66](../../tests/unit/yt_dlp_test.cpp#L66) |
-| fetching writes the best audio to stdout, and says where ffmpeg is |  |  | [tests/unit/yt_dlp_test.cpp:76](../../tests/unit/yt_dlp_test.cpp#L76) |
-| decoding reads a pipe and writes 48 kHz stereo 16-bit samples |  |  | [tests/unit/yt_dlp_test.cpp:88](../../tests/unit/yt_dlp_test.cpp#L88) |
-| a single track's details |  |  | [tests/unit/yt_dlp_test.cpp:104](../../tests/unit/yt_dlp_test.cpp#L104) |
-| a live stream has no length |  |  | [tests/unit/yt_dlp_test.cpp:119](../../tests/unit/yt_dlp_test.cpp#L119) |
-| a playlist's entries, in order, up to the limit |  |  | [tests/unit/yt_dlp_test.cpp:126](../../tests/unit/yt_dlp_test.cpp#L126) |
-| answers with nothing playable are errors |  |  | [tests/unit/yt_dlp_test.cpp:150](../../tests/unit/yt_dlp_test.cpp#L150) |
-| yt-dlp's error line is what is shown |  |  | [tests/unit/yt_dlp_test.cpp:157](../../tests/unit/yt_dlp_test.cpp#L157) |
-| the resolver runs yt-dlp and reads what it says | `threads`, `coro` | 5 | [tests/unit/yt_dlp_test.cpp:164](../../tests/unit/yt_dlp_test.cpp#L164) |
-| a link yt-dlp takes too long over is given up on | `threads` |  | [tests/unit/yt_dlp_test.cpp:197](../../tests/unit/yt_dlp_test.cpp#L197) |
-| a stream delivers every sample, in order, then finishes | `threads` |  | [tests/unit/yt_dlp_test.cpp:204](../../tests/unit/yt_dlp_test.cpp#L204) |
-| a stream fails with the first program's error | `threads` |  | [tests/unit/yt_dlp_test.cpp:214](../../tests/unit/yt_dlp_test.cpp#L214) |
-| a stream that produces nothing for too long has failed | `threads` |  | [tests/unit/yt_dlp_test.cpp:221](../../tests/unit/yt_dlp_test.cpp#L221) |
-| a stream whose program cannot start has failed at once |  |  | [tests/unit/yt_dlp_test.cpp:228](../../tests/unit/yt_dlp_test.cpp#L228) |
-| dropping a stream mid-way ends its programs | `threads` |  | [tests/unit/yt_dlp_test.cpp:234](../../tests/unit/yt_dlp_test.cpp#L234) |
-
-## llm
-
-The language model module (`src/modules/llm`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| an alias is u and six letters that spell nothing |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:48](../../src/modules/llm/tests/llm_aliases_test.cpp#L48) |
-| each person keeps one alias per server |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:62](../../src/modules/llm/tests/llm_aliases_test.cpp#L62) |
-| mentions become aliases, and of the bot its name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:79](../../src/modules/llm/tests/llm_aliases_test.cpp#L79) |
-| roles, channels, emoji, timestamps and commands lose their ids |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:89](../../src/modules/llm/tests/llm_aliases_test.cpp#L89) |
-| names written in text become markers, as whole words |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:101](../../src/modules/llm/tests/llm_aliases_test.cpp#L101) |
-| a name too short to tell from a word is left |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:115](../../src/modules/llm/tests/llm_aliases_test.cpp#L115) |
-| a marker already written is kept as it is |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:122](../../src/modules/llm/tests/llm_aliases_test.cpp#L122) |
-| what the model writes gets its names back |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:129](../../src/modules/llm/tests/llm_aliases_test.cpp#L129) |
-| someone known from before, not in this request, still gets their name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:146](../../src/modules/llm/tests/llm_aliases_test.cpp#L146) |
-| nothing sent names anyone, or gives an id |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:154](../../src/modules/llm/tests/llm_aliases_test.cpp#L154) |
-| memories show the people they name as mentions in Discord |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:165](../../src/modules/llm/tests/llm_aliases_test.cpp#L165) |
-| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [src/modules/llm/tests/llm_answer_test.cpp:167](../../src/modules/llm/tests/llm_answer_test.cpp#L167) |
-| an addressed message is handed to the model and consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:188](../../src/modules/llm/tests/llm_answer_test.cpp#L188) |
-| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [src/modules/llm/tests/llm_answer_test.cpp:202](../../src/modules/llm/tests/llm_answer_test.cpp#L202) |
-| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [src/modules/llm/tests/llm_answer_test.cpp:214](../../src/modules/llm/tests/llm_answer_test.cpp#L214) |
-| a blacklisted user or role is not answered, and the message is still consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:242](../../src/modules/llm/tests/llm_answer_test.cpp#L242) |
-| past a spend cap the bot says so once, then stays quiet |  |  | [src/modules/llm/tests/llm_answer_test.cpp:254](../../src/modules/llm/tests/llm_answer_test.cpp#L254) |
-| one person asking too often is rate limited, per minute |  |  | [src/modules/llm/tests/llm_answer_test.cpp:274](../../src/modules/llm/tests/llm_answer_test.cpp#L274) |
-| another bot is answered at the pace the guild set, until a person speaks |  |  | [src/modules/llm/tests/llm_answer_test.cpp:290](../../src/modules/llm/tests/llm_answer_test.cpp#L290) |
-| a message in a voice session's text channel is answered out loud too |  |  | [src/modules/llm/tests/llm_answer_test.cpp:313](../../src/modules/llm/tests/llm_answer_test.cpp#L313) |
-| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:327](../../src/modules/llm/tests/llm_answer_test.cpp#L327) |
-| the model can remember something about the person it is answering | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:378](../../src/modules/llm/tests/llm_answer_test.cpp#L378) |
-| a mention the model writes is posted as one, and spoken as a name | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:396](../../src/modules/llm/tests/llm_answer_test.cpp#L396) |
-| the model's tools see people as aliases | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:402](../../src/modules/llm/tests/llm_answer_test.cpp#L402) |
-| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [src/modules/llm/tests/llm_answer_test.cpp:417](../../src/modules/llm/tests/llm_answer_test.cpp#L417) |
-| remember refuses what is too long, or a server that is full |  |  | [src/modules/llm/tests/llm_answer_test.cpp:434](../../src/modules/llm/tests/llm_answer_test.cpp#L434) |
-| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:448](../../src/modules/llm/tests/llm_answer_test.cpp#L448) |
-| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:465](../../src/modules/llm/tests/llm_answer_test.cpp#L465) |
-| a spoken answer is prepared by the speech capability, posted as spoken, and said | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:485](../../src/modules/llm/tests/llm_answer_test.cpp#L485) |
-| without the speech capability a reply is only posted | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:504](../../src/modules/llm/tests/llm_answer_test.cpp#L504) |
-| a long answer is posted as several messages, only the first a reply | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:530](../../src/modules/llm/tests/llm_answer_test.cpp#L530) |
-| the conversation keeps the newest messages that fit the token budget |  |  | [src/modules/llm/tests/llm_answer_test.cpp:549](../../src/modules/llm/tests/llm_answer_test.cpp#L549) |
-| a transcript line cannot pass itself off as someone else speaking |  |  | [src/modules/llm/tests/llm_answer_test.cpp:571](../../src/modules/llm/tests/llm_answer_test.cpp#L571) |
-| the fixed rules come first, then the system document, then the personality |  |  | [src/modules/llm/tests/llm_answer_test.cpp:586](../../src/modules/llm/tests/llm_answer_test.cpp#L586) |
-| a reply too long for one message is split on line breaks, three messages at most |  |  | [src/modules/llm/tests/llm_answer_test.cpp:599](../../src/modules/llm/tests/llm_answer_test.cpp#L599) |
-| the personality is open to everyone until an admin narrows it to a role |  |  | [src/modules/llm/tests/llm_command_test.cpp:67](../../src/modules/llm/tests/llm_command_test.cpp#L67) |
-| a document is cut into form parts between lines, and joins back the same |  |  | [src/modules/llm/tests/llm_command_test.cpp:78](../../src/modules/llm/tests/llm_command_test.cpp#L78) |
-| a document too long for a form has no form, and a line longer than a part is cut |  |  | [src/modules/llm/tests/llm_command_test.cpp:98](../../src/modules/llm/tests/llm_command_test.cpp#L98) |
-| the document form fits a modal and is filled with the current text |  |  | [src/modules/llm/tests/llm_command_test.cpp:109](../../src/modules/llm/tests/llm_command_test.cpp#L109) |
-| a document is shown inline when short, and attached when not |  |  | [src/modules/llm/tests/llm_command_test.cpp:120](../../src/modules/llm/tests/llm_command_test.cpp#L120) |
-| saving a large document warns that it is sent with every message |  |  | [src/modules/llm/tests/llm_command_test.cpp:134](../../src/modules/llm/tests/llm_command_test.cpp#L134) |
-| history lists the newest versions first, with who and when |  |  | [src/modules/llm/tests/llm_command_test.cpp:140](../../src/modules/llm/tests/llm_command_test.cpp#L140) |
-| the settings panel shows every setting and fits a message |  |  | [src/modules/llm/tests/llm_command_test.cpp:154](../../src/modules/llm/tests/llm_command_test.cpp#L154) |
-| each settings form fits a modal and is filled with the current values |  |  | [src/modules/llm/tests/llm_command_test.cpp:163](../../src/modules/llm/tests/llm_command_test.cpp#L163) |
-| a settings form is stored whole or not at all, naming what was out of range |  |  | [src/modules/llm/tests/llm_command_test.cpp:172](../../src/modules/llm/tests/llm_command_test.cpp#L172) |
-| the memory list pages ten at a time, carrying whose list it is |  |  | [src/modules/llm/tests/llm_command_test.cpp:188](../../src/modules/llm/tests/llm_command_test.cpp#L188) |
-| the status says what was spent against the caps |  |  | [src/modules/llm/tests/llm_command_test.cpp:205](../../src/modules/llm/tests/llm_command_test.cpp#L205) |
-| the llm and memory commands register, within Discord's limits |  |  | [src/modules/llm/tests/llm_command_test.cpp:218](../../src/modules/llm/tests/llm_command_test.cpp#L218) |
-| a rate limit allows so many per window, then frees up as they age |  |  | [src/modules/llm/tests/llm_guards_test.cpp:44](../../src/modules/llm/tests/llm_guards_test.cpp#L44) |
-| bot turns in a row stop at the limit until a person speaks |  |  | [src/modules/llm/tests/llm_guards_test.cpp:67](../../src/modules/llm/tests/llm_guards_test.cpp#L67) |
-| a bot turn soon after the last one waits out the delay |  |  | [src/modules/llm/tests/llm_guards_test.cpp:82](../../src/modules/llm/tests/llm_guards_test.cpp#L82) |
-| the day's bot turns are capped per guild, and come back the next day |  |  | [src/modules/llm/tests/llm_guards_test.cpp:94](../../src/modules/llm/tests/llm_guards_test.cpp#L94) |
-| pacing can insist on a person first, or refuse bots entirely |  |  | [src/modules/llm/tests/llm_guards_test.cpp:107](../../src/modules/llm/tests/llm_guards_test.cpp#L107) |
-| an advanced trigger fires on its roll, then waits out its cooldown in that channel |  |  | [src/modules/llm/tests/llm_guards_test.cpp:124](../../src/modules/llm/tests/llm_guards_test.cpp#L124) |
-| an advanced trigger needs its pattern, and to be on |  |  | [src/modules/llm/tests/llm_guards_test.cpp:141](../../src/modules/llm/tests/llm_guards_test.cpp#L141) |
-| a setting out of its range is refused with the range |  |  | [src/modules/llm/tests/llm_guards_test.cpp:155](../../src/modules/llm/tests/llm_guards_test.cpp#L155) |
-| every setting fits a modal: labels short enough, and at most five to a form |  |  | [src/modules/llm/tests/llm_guards_test.cpp:174](../../src/modules/llm/tests/llm_guards_test.cpp#L174) |
-| a diff shows removed and added lines, and only the unchanged lines near them |  |  | [src/modules/llm/tests/llm_guards_test.cpp:192](../../src/modules/llm/tests/llm_guards_test.cpp#L192) |
-| a memory search is made of the message's words, quoted, and never of FTS syntax |  |  | [src/modules/llm/tests/llm_guards_test.cpp:198](../../src/modules/llm/tests/llm_guards_test.cpp#L198) |
-| token estimates are a quarter of the characters, rounded up |  |  | [src/modules/llm/tests/llm_guards_test.cpp:205](../../src/modules/llm/tests/llm_guards_test.cpp#L205) |
-| the llm section reads its defaults, and the spend caps cannot be negative |  |  | [src/modules/llm/tests/llm_module_test.cpp:49](../../src/modules/llm/tests/llm_module_test.cpp#L49) |
-| a model the bot cannot price stops the module from starting |  |  | [src/modules/llm/tests/llm_module_test.cpp:64](../../src/modules/llm/tests/llm_module_test.cpp#L64) |
-| the providers' keys come from the environment, and are masked in the log |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:73](../../src/modules/llm/tests/llm_module_test.cpp#L73) |
-| the model speaks only when someone offers speech |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:93](../../src/modules/llm/tests/llm_module_test.cpp#L93) |
-| the llm README lists what the module registers |  |  | [src/modules/llm/tests/llm_module_test.cpp:108](../../src/modules/llm/tests/llm_module_test.cpp#L108) |
-| the language model's settings panel stores what its forms set |  |  | [src/modules/llm/tests/llm_panel_test.cpp:89](../../src/modules/llm/tests/llm_panel_test.cpp#L89) |
-| the language model's settings panel switches it on and off, for Manage Server only |  |  | [src/modules/llm/tests/llm_panel_test.cpp:108](../../src/modules/llm/tests/llm_panel_test.cpp#L108) |
-| a document's form saves what was typed, not blanks |  | 3 | [src/modules/llm/tests/llm_panel_test.cpp:121](../../src/modules/llm/tests/llm_panel_test.cpp#L121) |
-| the memory list pages |  |  | [src/modules/llm/tests/llm_panel_test.cpp:154](../../src/modules/llm/tests/llm_panel_test.cpp#L154) |
-| every model has a price, and the ids are the API's own |  |  | [src/modules/llm/tests/llm_provider_test.cpp:58](../../src/modules/llm/tests/llm_provider_test.cpp#L58) |
-| a call costs its tokens at the model's prices, cache included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:70](../../src/modules/llm/tests/llm_provider_test.cpp#L70) |
-| provider names are read case-insensitively |  |  | [src/modules/llm/tests/llm_provider_test.cpp:80](../../src/modules/llm/tests/llm_provider_test.cpp#L80) |
-| an Anthropic request caches the stable instructions and nothing after them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:90](../../src/modules/llm/tests/llm_provider_test.cpp#L90) |
-| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [src/modules/llm/tests/llm_provider_test.cpp:102](../../src/modules/llm/tests/llm_provider_test.cpp#L102) |
-| the last Anthropic round forbids tools but still declares them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:116](../../src/modules/llm/tests/llm_provider_test.cpp#L116) |
-| an Anthropic request sends tool calls and their results in the API's shape |  |  | [src/modules/llm/tests/llm_provider_test.cpp:125](../../src/modules/llm/tests/llm_provider_test.cpp#L125) |
-| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:145](../../src/modules/llm/tests/llm_provider_test.cpp#L145) |
-| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [src/modules/llm/tests/llm_provider_test.cpp:166](../../src/modules/llm/tests/llm_provider_test.cpp#L166) |
-| an Anthropic error carries the status and the API's own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:188](../../src/modules/llm/tests/llm_provider_test.cpp#L188) |
-| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [src/modules/llm/tests/llm_provider_test.cpp:196](../../src/modules/llm/tests/llm_provider_test.cpp#L196) |
-| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:208](../../src/modules/llm/tests/llm_provider_test.cpp#L208) |
-| a transport failure reaches the caller as an error | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:227](../../src/modules/llm/tests/llm_provider_test.cpp#L227) |
-| an OpenAI request puts the instructions in one system message, stable part first |  |  | [src/modules/llm/tests/llm_provider_test.cpp:242](../../src/modules/llm/tests/llm_provider_test.cpp#L242) |
-| an OpenAI request sends each tool result as its own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:255](../../src/modules/llm/tests/llm_provider_test.cpp#L255) |
-| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [src/modules/llm/tests/llm_provider_test.cpp:271](../../src/modules/llm/tests/llm_provider_test.cpp#L271) |
-| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [src/modules/llm/tests/llm_provider_test.cpp:293](../../src/modules/llm/tests/llm_provider_test.cpp#L293) |
-| an OpenAI error carries the API's message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:301](../../src/modules/llm/tests/llm_provider_test.cpp#L301) |
-| the OpenAI provider authenticates with a bearer token | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:307](../../src/modules/llm/tests/llm_provider_test.cpp#L307) |
-| the model has to be one the bot can price, from the provider named |  |  | [src/modules/llm/tests/llm_provider_test.cpp:331](../../src/modules/llm/tests/llm_provider_test.cpp#L331) |
-| a recorded call is priced, and counted in its day and month |  |  | [src/modules/llm/tests/llm_store_test.cpp:57](../../src/modules/llm/tests/llm_store_test.cpp#L57) |
-| reaching a cap says which one, and the month outranks the day |  |  | [src/modules/llm/tests/llm_store_test.cpp:76](../../src/modules/llm/tests/llm_store_test.cpp#L76) |
-| a cap notice is due once per guild and period |  |  | [src/modules/llm/tests/llm_store_test.cpp:100](../../src/modules/llm/tests/llm_store_test.cpp#L100) |
-| a document nobody edited reads as its default |  |  | [src/modules/llm/tests/llm_store_test.cpp:112](../../src/modules/llm/tests/llm_store_test.cpp#L112) |
-| every edit is a new version, per guild and per kind |  |  | [src/modules/llm/tests/llm_store_test.cpp:122](../../src/modules/llm/tests/llm_store_test.cpp#L122) |
-| a revert saves the old text as a new version, and can itself be reverted |  |  | [src/modules/llm/tests/llm_store_test.cpp:140](../../src/modules/llm/tests/llm_store_test.cpp#L140) |
-| memories are found by the words in them, only in their own guild |  |  | [src/modules/llm/tests/llm_store_test.cpp:162](../../src/modules/llm/tests/llm_store_test.cpp#L162) |
-| a removed memory leaves the search index too |  |  | [src/modules/llm/tests/llm_store_test.cpp:178](../../src/modules/llm/tests/llm_store_test.cpp#L178) |
-| memories list newest first, and clear by person or all at once |  |  | [src/modules/llm/tests/llm_store_test.cpp:190](../../src/modules/llm/tests/llm_store_test.cpp#L190) |
-| the memories shown up front are about the author, then what matches |  |  | [src/modules/llm/tests/llm_store_test.cpp:211](../../src/modules/llm/tests/llm_store_test.cpp#L211) |
-| the blacklist blocks a user or anyone with a role |  |  | [src/modules/llm/tests/llm_store_test.cpp:228](../../src/modules/llm/tests/llm_store_test.cpp#L228) |
-| advanced triggers are stored per guild and edited in place |  |  | [src/modules/llm/tests/llm_store_test.cpp:249](../../src/modules/llm/tests/llm_store_test.cpp#L249) |
-| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [src/modules/llm/tests/llm_store_test.cpp:281](../../src/modules/llm/tests/llm_store_test.cpp#L281) |
-| a tool registered twice is refused |  |  | [src/modules/llm/tests/llm_tools_test.cpp:44](../../src/modules/llm/tests/llm_tools_test.cpp#L44) |
-| an unknown tool, or one that throws, is an error the model reads |  |  | [src/modules/llm/tests/llm_tools_test.cpp:49](../../src/modules/llm/tests/llm_tools_test.cpp#L49) |
-| the tool loop runs what the model asks for and hands the result back | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:64](../../src/modules/llm/tests/llm_tools_test.cpp#L64) |
-| after the last round of tools the model has to answer | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:93](../../src/modules/llm/tests/llm_tools_test.cpp#L93) |
-| a failure mid-loop is reported, and what was spent before it still counted | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:113](../../src/modules/llm/tests/llm_tools_test.cpp#L113) |
-| when the last turn says nothing, what was said along the way is kept | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:128](../../src/modules/llm/tests/llm_tools_test.cpp#L128) |
-
-## ports
-
-Ports and mocks (`src/core/ports`, `tests/mocks`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:36](../../tests/unit/ports_test.cpp#L36) |
-| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:48](../../tests/unit/ports_test.cpp#L48) |
-| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:64](../../tests/unit/ports_test.cpp#L64) |
-| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:75](../../tests/unit/ports_test.cpp#L75) |
-| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:98](../../tests/unit/ports_test.cpp#L98) |
-| the TTS mock produces audio in proportion to the text | `coro` |  | [tests/unit/ports_test.cpp:127](../../tests/unit/ports_test.cpp#L127) |
-| the TTS mock can fail once and records stops | `coro` |  | [tests/unit/ports_test.cpp:145](../../tests/unit/ports_test.cpp#L145) |
-
-## log
-
-Logging (`src/core/util/log`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| uncoloured output is exactly what std::format would give |  |  | [tests/unit/log_color_test.cpp:48](../../tests/unit/log_color_test.cpp#L48) |
-| text in the format string stays the terminal's own colour |  |  | [tests/unit/log_color_test.cpp:56](../../tests/unit/log_color_test.cpp#L56) |
-| a number is coloured as a number |  |  | [tests/unit/log_color_test.cpp:60](../../tests/unit/log_color_test.cpp#L60) |
-| true and false are coloured differently |  |  | [tests/unit/log_color_test.cpp:67](../../tests/unit/log_color_test.cpp#L67) |
-| a Discord id is coloured as an id |  |  | [tests/unit/log_color_test.cpp:73](../../tests/unit/log_color_test.cpp#L73) |
-| an id already turned into a string is only a string |  |  | [tests/unit/log_color_test.cpp:79](../../tests/unit/log_color_test.cpp#L79) |
-| strings and characters stay plain |  |  | [tests/unit/log_color_test.cpp:87](../../tests/unit/log_color_test.cpp#L87) |
-| a duration has a colour of its own |  |  | [tests/unit/log_color_test.cpp:94](../../tests/unit/log_color_test.cpp#L94) |
-| format specs still apply inside the colour |  |  | [tests/unit/log_color_test.cpp:98](../../tests/unit/log_color_test.cpp#L98) |
-| a format colour cannot pass through falls back to a plain line |  |  | [tests/unit/log_color_test.cpp:106](../../tests/unit/log_color_test.cpp#L106) |
-| a forwarded line's source tag is the coloured part |  |  | [tests/unit/log_color_test.cpp:113](../../tests/unit/log_color_test.cpp#L113) |
-| the default palette is the one that was asked for |  |  | [tests/unit/log_color_test.cpp:122](../../tests/unit/log_color_test.cpp#L122) |
-| paint_to colours only while a coloured line is being formatted |  |  | [tests/unit/log_color_test.cpp:137](../../tests/unit/log_color_test.cpp#L137) |
-| an uncoloured line is the format the log has always had |  |  | [tests/unit/log_color_test.cpp:160](../../tests/unit/log_color_test.cpp#L160) |
-| a coloured line colours the timestamp and the level |  |  | [tests/unit/log_color_test.cpp:166](../../tests/unit/log_color_test.cpp#L166) |
-| each level has its own colour |  |  | [tests/unit/log_color_test.cpp:172](../../tests/unit/log_color_test.cpp#L172) |
-| the colour setting accepts the obvious spellings |  |  | [tests/unit/log_color_test.cpp:185](../../tests/unit/log_color_test.cpp#L185) |
-| colour follows the terminal unless told otherwise |  |  | [tests/unit/log_color_test.cpp:201](../../tests/unit/log_color_test.cpp#L201) |
-| NO_COLOR turns colour off, and an explicit always overrides it |  |  | [tests/unit/log_color_test.cpp:207](../../tests/unit/log_color_test.cpp#L207) |
-| never and always mean exactly that |  |  | [tests/unit/log_color_test.cpp:213](../../tests/unit/log_color_test.cpp#L213) |
-| a replacement sink gets plain text even with colours on |  |  | [tests/unit/log_color_test.cpp:222](../../tests/unit/log_color_test.cpp#L222) |
-| colours are off until something turns them on |  |  | [tests/unit/log_color_test.cpp:235](../../tests/unit/log_color_test.cpp#L235) |
-| level names round trip |  |  | [tests/unit/log_test.cpp:19](../../tests/unit/log_test.cpp#L19) |
-| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:27](../../tests/unit/log_test.cpp#L27) |
-| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:34](../../tests/unit/log_test.cpp#L34) |
-| off silences everything |  |  | [tests/unit/log_test.cpp:47](../../tests/unit/log_test.cpp#L47) |
-| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:55](../../tests/unit/log_test.cpp#L55) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
-| a tap gets lines below the logger's own level when it asks for them |  |  | [tests/unit/log_test.cpp:114](../../tests/unit/log_test.cpp#L114) |
-| a tap above the logger's level leaves out what it did not ask for |  |  | [tests/unit/log_test.cpp:131](../../tests/unit/log_test.cpp#L131) |
-| a removed tap gets nothing more |  |  | [tests/unit/log_test.cpp:143](../../tests/unit/log_test.cpp#L143) |
-| colour is stripped and the text kept |  |  | [tests/unit/log_test.cpp:155](../../tests/unit/log_test.cpp#L155) |
-
-## util
-
-Utilities (`src/core/util`, `src/core/version`)
-
-| Test | Traits | Sections | Source |
-|---|---|---:|---|
-| the system root certificates export as a readable PEM bundle | `fs` |  | [tests/unit/ca_certificates_test.cpp:34](../../tests/unit/ca_certificates_test.cpp#L34) |
-| exporting creates the directory it was given | `fs` |  | [tests/unit/ca_certificates_test.cpp:50](../../tests/unit/ca_certificates_test.cpp#L50) |
-| parse_dotenv reads simple key-value lines |  |  | [tests/unit/env_test.cpp:7](../../tests/unit/env_test.cpp#L7) |
-| parse_dotenv skips blank lines and comments |  |  | [tests/unit/env_test.cpp:15](../../tests/unit/env_test.cpp#L15) |
-| parse_dotenv trims whitespace around key and value |  |  | [tests/unit/env_test.cpp:22](../../tests/unit/env_test.cpp#L22) |
-| parse_dotenv strips a leading export |  |  | [tests/unit/env_test.cpp:30](../../tests/unit/env_test.cpp#L30) |
-| parse_dotenv strips matching surrounding quotes |  |  | [tests/unit/env_test.cpp:37](../../tests/unit/env_test.cpp#L37) |
-| parse_dotenv skips a line with no '=' |  |  | [tests/unit/env_test.cpp:46](../../tests/unit/env_test.cpp#L46) |
-| parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
-| parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
-| parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
-| text from outside is made plain |  |  | [tests/unit/music_command_test.cpp:73](../../tests/unit/music_command_test.cpp#L73) |
-| an argument with nothing special is left as it is |  |  | [tests/unit/process_test.cpp:54](../../tests/unit/process_test.cpp#L54) |
-| spaces, quotes and backslashes before them are quoted |  |  | [tests/unit/process_test.cpp:60](../../tests/unit/process_test.cpp#L60) |
-| the command line starts with the program, quoted |  |  | [tests/unit/process_test.cpp:68](../../tests/unit/process_test.cpp#L68) |
-| a program reads back exactly the arguments it was given | `threads` |  | [tests/unit/process_test.cpp:73](../../tests/unit/process_test.cpp#L73) |
-| run collects stdout, stderr and the exit code | `threads` | 3 | [tests/unit/process_test.cpp:87](../../tests/unit/process_test.cpp#L87) |
-| a program that runs too long is killed | `threads` |  | [tests/unit/process_test.cpp:104](../../tests/unit/process_test.cpp#L104) |
-| output past the limit kills the program | `threads` |  | [tests/unit/process_test.cpp:111](../../tests/unit/process_test.cpp#L111) |
-| a program runs in the folder it is given, or the bot's own | `threads` |  | [tests/unit/process_test.cpp:116](../../tests/unit/process_test.cpp#L116) |
-| the bot's own folder is the test program's |  |  | [tests/unit/process_test.cpp:129](../../tests/unit/process_test.cpp#L129) |
-| a program that cannot be found is refused |  |  | [tests/unit/process_test.cpp:135](../../tests/unit/process_test.cpp#L135) |
-| one program's output is the next one's input | `threads` |  | [tests/unit/process_test.cpp:139](../../tests/unit/process_test.cpp#L139) |
-| stderr lines say which program in the pipeline wrote them | `threads` |  | [tests/unit/process_test.cpp:156](../../tests/unit/process_test.cpp#L156) |
-| killing a pipeline ends its programs and what they started | `threads` |  | [tests/unit/process_test.cpp:175](../../tests/unit/process_test.cpp#L175) |
-| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:11](../../tests/unit/text_test.cpp#L11) |
-| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:20](../../tests/unit/text_test.cpp#L20) |
-| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |
-| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:38](../../tests/unit/text_test.cpp#L38) |
-| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
-| lines that fit are kept whole, and lines that do not are cut evenly |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:85](../../tests/unit/text_test.cpp#L85) |
-| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:102](../../tests/unit/text_test.cpp#L102) |
-| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:110](../../tests/unit/text_test.cpp#L110) |
-| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:118](../../tests/unit/text_test.cpp#L118) |
-| every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:43](../../tests/unit/url_scan_test.cpp#L43) |
-| a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:53](../../tests/unit/url_scan_test.cpp#L53) |
-| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:101](../../tests/unit/url_scan_test.cpp#L101) |
-| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:108](../../tests/unit/url_scan_test.cpp#L108) |
-| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:115](../../tests/unit/url_scan_test.cpp#L115) |
-| a link in angle brackets is marked as having its preview turned off |  | 2 | [tests/unit/url_scan_test.cpp:120](../../tests/unit/url_scan_test.cpp#L120) |
-| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:142](../../tests/unit/url_scan_test.cpp#L142) |
-| a code span runs to the next run of backticks as long as its own |  |  | [tests/unit/url_scan_test.cpp:164](../../tests/unit/url_scan_test.cpp#L164) |
-| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:174](../../tests/unit/url_scan_test.cpp#L174) |
-| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:179](../../tests/unit/url_scan_test.cpp#L179) |
-| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:183](../../tests/unit/url_scan_test.cpp#L183) |
-| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:194](../../tests/unit/url_scan_test.cpp#L194) |
-| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:208](../../tests/unit/url_scan_test.cpp#L208) |
-| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:216](../../tests/unit/url_scan_test.cpp#L216) |
-| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:222](../../tests/unit/url_scan_test.cpp#L222) |
-| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:244](../../tests/unit/url_scan_test.cpp#L244) |
-| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:262](../../tests/unit/url_scan_test.cpp#L262) |
-| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:274](../../tests/unit/url_scan_test.cpp#L274) |
-| version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |

@@ -1,4 +1,4 @@
-#include "core/music/pot_provider.hpp"
+#include "pot_provider.hpp"
 
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"

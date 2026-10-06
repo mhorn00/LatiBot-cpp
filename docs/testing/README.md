@@ -80,19 +80,18 @@ grouped by; the traits are for filtering.
 
 | Tag | Covers |
 |---|---|
-| `[db]` | `src/core/db`: connection, statements, migrations, backups |
-| `[config]` | `src/core/config`: `config.json`, per-guild settings |
-| `[commands]` | `src/core/commands`: the registry, dispatch and the commands |
-| `[events]` | `src/core/events`: the message pipeline and its stages (goodbye, triggers, URL replacement), the embed tracker, reactions, nicknames, midnight and the backfill |
+| `[db]` | `src/core/db`: connection, statements, the schemas and their versions, migrations, backups |
+| `[config]` | `src/core/config`: `config.json`, its sections, per-guild settings |
+| `[commands]` | `src/core/commands`: the registry, dispatch and the core's commands |
+| `[events]` | `src/core/events`: the message pipeline and its goodbye, the bot allowlist, the log channel |
 | `[ui]` | `src/core/ui`: paging and panel primitives, and the routes panels claim their views in |
 | `[module]` | `src/core/modules`: capabilities, the order modules offer and start in, the host; `tests/support/test_host.hpp` stands in for the bot |
 | `[discord]` | `src/core/discord`: raw API helper, gateway wrappers |
-| `[audio]` | `src/core/audio`: the DECtalk engine, the sanitizer, voices, PCM and WAV, the mixer |
-| `[music]` | `src/core/music` and `/music`: the queue, the player, links, yt-dlp and ffmpeg |
-| `[llm]` | `src/core/llm`: the providers, the tool loop, memory, documents, spending, guards, the prompt, the responder and its pipeline stage |
 | `[ports]` | `src/core/ports` and the mocks that implement them |
 | `[log]` | `src/core/util/log` |
 | `[util]` | the remaining small helpers in `src/core/util`, version |
+| `[app]` | `tests/app`: the bot as this build makes it, every module through the generated list |
+| `[voice]`, `[dectalk]`, `[music]`, `[llm]`, `[triggers]`, `[nicknames]`, `[midnight]`, `[links]`, `[linkstats]` | that module's own tests, in `src/modules/<name>/tests`, each its own executable |
 
 Add a new component tag when a new area appears, and register it in
 `tools/Update-TestCatalog.ps1` and in `.vscode/settings.json` at the same
@@ -175,7 +174,7 @@ update, rewrite the file and listen to the `.wav` files before committing it:
 $env:LATIBOT_UPDATE_GOLDEN = '1'; .\build\bin\Debug\latibot_tests.exe "[golden]"; Remove-Item Env:LATIBOT_UPDATE_GOLDEN
 ```
 
-**DECtalk itself runs in the suite.** The `[audio]` engine tests start the
+**DECtalk itself runs in the suite.** The `[dectalk]` engine tests start the
 real engine rather than a mock: what they check is how DECtalk behaves, which
 the design rests on. It needs no audio device, so they run in CI too.
 

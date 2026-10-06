@@ -1,4 +1,4 @@
-#include "core/audio/voice_params.hpp"
+#include "voice_params.hpp"
 
 #include "core/util/text.hpp"
 

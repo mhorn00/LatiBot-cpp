@@ -1,7 +1,7 @@
 // A server's music queue, as plain data (docs/features/Music.md §3.1, §3.2).
 // The Java bot's queue bugs (§2) are each a test here.
 
-#include "core/music/music_queue.hpp"
+#include "music_queue.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

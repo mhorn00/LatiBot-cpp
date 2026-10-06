@@ -4,7 +4,6 @@
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_http.hpp"
-#include "mocks/mock_tts.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -122,39 +121,4 @@ TEST_CASE("the HTTP mock replays responses in order and records requests", "[por
 
     REQUIRE(http.requests.size() == 3);
     CHECK(http.requests.front().url == "https://api.anthropic.com/v1/messages");
-}
-
-TEST_CASE("the TTS mock produces audio in proportion to the text", "[ports][coro]") {
-    latibot::testing::mock_tts tts;
-    tts.per_character = 10ms;
-
-    const auto outcome = tts.synthesize({.text = "abcde"}).sync_wait_for(2s);
-
-    REQUIRE(outcome.has_value());
-    REQUIRE(outcome->has_value());
-    // 11025 Hz does not divide evenly into milliseconds, so a whole number of
-    // samples lands just under the requested length: 50 ms of audio is 551.25
-    // samples, and 551 of them read back as 49 ms.
-    CHECK(outcome->value().duration() >= 49ms);
-    CHECK(outcome->value().duration() <= 50ms);
-    CHECK_FALSE(outcome->value().samples.empty());
-    REQUIRE(tts.requests.size() == 1);
-    CHECK(tts.requests.front().text == "abcde");
-}
-
-TEST_CASE("the TTS mock can fail once and records stops", "[ports][coro]") {
-    latibot::testing::mock_tts tts;
-    tts.next_error = api_error{.http_status = 0, .message = "engine busy"};
-
-    const auto failed = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
-    REQUIRE(failed.has_value());
-    CHECK_FALSE(failed->has_value());
-
-    // The scripted failure applies to one call only.
-    const auto recovered = tts.synthesize({.text = "hello"}).sync_wait_for(2s);
-    REQUIRE(recovered.has_value());
-    CHECK(recovered->has_value());
-
-    tts.stop();
-    CHECK(tts.stop_count == 1);
 }

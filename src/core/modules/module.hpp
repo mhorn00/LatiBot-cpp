@@ -4,10 +4,12 @@
 
 #include <dpp/json.h>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <span>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace latibot::modules {
@@ -50,7 +52,42 @@ public:
     virtual auto start(host& bot) -> void = 0;
 };
 
-using module_list = std::vector<std::unique_ptr<module>>;
+/// The modules, in the order they were built, which is dependency order.
+/// Destroyed in reverse, last first, so that no module outlives one it
+/// requires: music, say, lets go of voice's mixer before voice is gone
+/// (docs/modules/Module_Plan_Final.md §4.3).
+class module_list {
+public:
+    using container = std::vector<std::unique_ptr<module>>;
+
+    module_list() = default;
+    module_list(const module_list&) = delete;
+    module_list(module_list&&) noexcept = default;
+    auto operator=(const module_list&) -> module_list& = delete;
+    auto operator=(module_list&& other) noexcept -> module_list& {
+        clear();
+        modules_ = std::move(other.modules_);
+        return *this;
+    }
+    ~module_list() { clear(); }
+
+    auto push_back(std::unique_ptr<module> made) -> void { modules_.push_back(std::move(made)); }
+
+    [[nodiscard]] auto size() const noexcept -> std::size_t { return modules_.size(); }
+    [[nodiscard]] auto empty() const noexcept -> bool { return modules_.empty(); }
+    [[nodiscard]] auto front() const -> const std::unique_ptr<module>& { return modules_.front(); }
+    [[nodiscard]] auto begin() const noexcept -> container::const_iterator { return modules_.begin(); }
+    [[nodiscard]] auto end() const noexcept -> container::const_iterator { return modules_.end(); }
+
+private:
+    auto clear() noexcept -> void {
+        while (!modules_.empty()) {
+            modules_.pop_back();
+        }
+    }
+
+    container modules_;
+};
 
 /// Builds every module this build includes, in dependency order: the
 /// generated `enabled_modules` in the executable (§4.8), or a test's own.

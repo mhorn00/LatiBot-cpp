@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/audio/dectalk_sanitizer.hpp"
 #include "core/commands/registry.hpp"
-#include "core/ports/tts_engine.hpp"
+#include "dectalk_sanitizer.hpp"
+#include "tts_engine.hpp"
 
 #include <dpp/snowflake.h>
 

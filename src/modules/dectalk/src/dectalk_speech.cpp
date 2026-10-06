@@ -1,14 +1,14 @@
-#include "core/audio/dectalk_speech.hpp"
+#include "dectalk_speech.hpp"
 
-#include "core/audio/dectalk_sanitizer.hpp"
-#include "core/audio/pcm.hpp"
-#include "core/audio/speech_queue.hpp"
-#include "core/audio/voice_params.hpp"
-#include "core/commands/speak.hpp"
-#include "core/events/voice_sessions.hpp"
-#include "core/ports/tts_engine.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "dectalk_sanitizer.hpp"
+#include "speak_command.hpp"
+#include "speech_queue.hpp"
+#include "tts_engine.hpp"
+#include "voice/pcm.hpp"
+#include "voice/voice_sessions.hpp"
+#include "voice_params.hpp"
 
 #include <cstdint>
 #include <format>

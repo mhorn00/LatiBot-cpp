@@ -1,12 +1,12 @@
-#include "core/commands/voice.hpp"
+#include "voice_command.hpp"
 
-#include "core/commands/basic.hpp"
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/discord/voice_state.hpp"
-#include "core/events/voice_sessions.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "join_command.hpp"
+#include "voice/voice_sessions.hpp"
+#include "voice/voice_state.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/discordclient.h>

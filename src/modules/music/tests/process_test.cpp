@@ -2,7 +2,7 @@
 // (docs/features/Music.md §4.6), against a stand-in program the tests build
 // (tests/support/test_child.cpp).
 
-#include "core/util/process.hpp"
+#include "process.hpp"
 #include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -51,13 +51,13 @@ auto lines_of(const std::string& text) -> std::vector<std::string> {
 
 } // namespace
 
-TEST_CASE("an argument with nothing special is left as it is", "[util]") {
+TEST_CASE("an argument with nothing special is left as it is", "[music]") {
     CHECK(quote_argument("--ignore-config") == "--ignore-config");
     CHECK(quote_argument("https://x.com/a?b=c&d=e") == "https://x.com/a?b=c&d=e");
     CHECK(quote_argument("C:\\path\\to") == "C:\\path\\to");
 }
 
-TEST_CASE("spaces, quotes and backslashes before them are quoted", "[util]") {
+TEST_CASE("spaces, quotes and backslashes before them are quoted", "[music]") {
     CHECK(quote_argument("") == "\"\"");
     CHECK(quote_argument("a b") == "\"a b\"");
     CHECK(quote_argument("say \"hi\"") == R"("say \"hi\"")");
@@ -65,12 +65,12 @@ TEST_CASE("spaces, quotes and backslashes before them are quoted", "[util]") {
     CHECK(quote_argument("a\\\"b c") == R"("a\\\"b c")");
 }
 
-TEST_CASE("the command line starts with the program, quoted", "[util]") {
+TEST_CASE("the command line starts with the program, quoted", "[music]") {
     const program to_run{.path = "C:\\Program Files\\yt-dlp.exe", .arguments = {"--", "a b"}};
     CHECK(command_line(to_run) == R"("C:\Program Files\yt-dlp.exe" -- "a b")");
 }
 
-TEST_CASE("a program reads back exactly the arguments it was given", "[util][threads]") {
+TEST_CASE("a program reads back exactly the arguments it was given", "[music][threads]") {
     // What a link typed in Discord can hold: spaces, quotes, backslashes,
     // things that look like options, and text that is not ASCII.
     const std::vector<std::string> arguments{
@@ -84,7 +84,7 @@ TEST_CASE("a program reads back exactly the arguments it was given", "[util][thr
     CHECK(lines_of(result.output) == arguments);
 }
 
-TEST_CASE("run collects stdout, stderr and the exit code", "[util][threads]") {
+TEST_CASE("run collects stdout, stderr and the exit code", "[music][threads]") {
     SECTION("stdout, in full") {
         const auto result = run(child({"bytes", "100000"}), 10s);
         REQUIRE(result.output.size() == 100000);
@@ -101,19 +101,19 @@ TEST_CASE("run collects stdout, stderr and the exit code", "[util][threads]") {
     }
 }
 
-TEST_CASE("a program that runs too long is killed", "[util][threads]") {
+TEST_CASE("a program that runs too long is killed", "[music][threads]") {
     const auto started = std::chrono::steady_clock::now();
     const auto result = run(child({"hang"}), 300ms);
     CHECK(result.timed_out);
     CHECK(std::chrono::steady_clock::now() - started < 10s);
 }
 
-TEST_CASE("output past the limit kills the program", "[util][threads]") {
+TEST_CASE("output past the limit kills the program", "[music][threads]") {
     const auto result = run(child({"bytes", "1000000"}), 10s, 1000);
     CHECK(result.output.size() <= 1000);
 }
 
-TEST_CASE("a program runs in the folder it is given, or the bot's own", "[util][threads]") {
+TEST_CASE("a program runs in the folder it is given, or the bot's own", "[music][threads]") {
     const latibot::testing::temp_directory folder;
     auto in_folder = child({"cwd"});
     in_folder.working_directory = folder.path();
@@ -126,17 +126,17 @@ TEST_CASE("a program runs in the folder it is given, or the bot's own", "[util][
     CHECK(std::filesystem::equivalent(lines_of(here.output).at(0), std::filesystem::current_path()));
 }
 
-TEST_CASE("the bot's own folder is the test program's", "[util]") {
+TEST_CASE("the bot's own folder is the test program's", "[music]") {
     const auto directory = latibot::util::executable_directory();
     REQUIRE(directory.has_value());
     CHECK(std::filesystem::exists(*directory / "latibot_tests.exe"));
 }
 
-TEST_CASE("a program that cannot be found is refused", "[util]") {
+TEST_CASE("a program that cannot be found is refused", "[music]") {
     CHECK_THROWS_AS(run({.path = "C:\\no\\such\\program.exe", .arguments = {}}, 1s), latibot::util::process_error);
 }
 
-TEST_CASE("one program's output is the next one's input", "[util][threads]") {
+TEST_CASE("one program's output is the next one's input", "[music][threads]") {
     const std::array programs{child({"samples", "48000"}), child({"cat"}), child({"cat"})};
     pipeline chain(programs);
 
@@ -153,7 +153,7 @@ TEST_CASE("one program's output is the next one's input", "[util][threads]") {
     CHECK(chain.wait() == std::vector<int>{0, 0, 0});
 }
 
-TEST_CASE("stderr lines say which program in the pipeline wrote them", "[util][threads]") {
+TEST_CASE("stderr lines say which program in the pipeline wrote them", "[music][threads]") {
     std::mutex mutex;
     std::vector<std::pair<std::size_t, std::string>> heard;
     {
@@ -172,7 +172,7 @@ TEST_CASE("stderr lines say which program in the pipeline wrote them", "[util][t
     CHECK(heard[0].second == "from the first");
 }
 
-TEST_CASE("killing a pipeline ends its programs and what they started", "[util][threads]") {
+TEST_CASE("killing a pipeline ends its programs and what they started", "[music][threads]") {
     const std::array programs{child({"spawn-hang"})};
     pipeline chain(programs);
 

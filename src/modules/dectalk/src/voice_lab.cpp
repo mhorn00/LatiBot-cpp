@@ -1,15 +1,15 @@
-#include "core/commands/voice_lab.hpp"
+#include "voice_lab.hpp"
 
-#include "core/audio/pcm.hpp"
-#include "core/audio/speech_queue.hpp"
-#include "core/audio/voice_store.hpp"
 #include "core/commands/options.hpp"
-#include "core/discord/voice_state.hpp"
 #include "core/ports/clock.hpp"
-#include "core/ports/tts_engine.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "speech_queue.hpp"
+#include "tts_engine.hpp"
+#include "voice/pcm.hpp"
+#include "voice/voice_state.hpp"
+#include "voice_store.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/discordclient.h>

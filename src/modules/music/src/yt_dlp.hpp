@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/music/cookies.hpp"
-#include "core/ports/media.hpp"
-#include "core/util/process.hpp"
+#include "cookies.hpp"
+#include "media.hpp"
+#include "process.hpp"
 
 #include <chrono>
 #include <condition_variable>

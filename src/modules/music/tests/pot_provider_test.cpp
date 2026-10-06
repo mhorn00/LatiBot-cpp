@@ -3,7 +3,7 @@
 // it set up, and that it is started again when it stops, and stopped with
 // the bot. The stand-in program (tests/support/test_child.cpp) plays it.
 
-#include "core/music/pot_provider.hpp"
+#include "pot_provider.hpp"
 #include "support/capture_log.hpp"
 #include "support/temp_directory.hpp"
 

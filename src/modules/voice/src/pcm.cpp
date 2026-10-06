@@ -1,4 +1,4 @@
-#include "core/audio/pcm.hpp"
+#include "voice/pcm.hpp"
 
 #include <algorithm>
 #include <cstddef>

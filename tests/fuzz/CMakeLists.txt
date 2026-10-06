@@ -21,7 +21,7 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/url_scan.cpp
     ${modules}/links/src/url_rules.cpp
     ${modules}/linkstats/src/legacy_replacements.cpp
-    ${core}/audio/dectalk_sanitizer.cpp
+    ${modules}/dectalk/src/dectalk_sanitizer.cpp
     # What those need to link. legacy_replacements asks media_posts whether
     # a message carries an image or a video.
     ${modules}/linkstats/src/media_posts.cpp
@@ -34,7 +34,8 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/log.cpp
 )
 # The modules' headers too: each fuzzer is about one module's code.
-target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src" "${modules}/links/include" "${modules}/linkstats/src")
+target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src" "${modules}/links/include" "${modules}/linkstats/src"
+                                                    "${modules}/dectalk/src")
 target_link_libraries(latibot_fuzz_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
 latibot_target_warnings(latibot_fuzz_core)
 latibot_target_sanitizers(latibot_fuzz_core)

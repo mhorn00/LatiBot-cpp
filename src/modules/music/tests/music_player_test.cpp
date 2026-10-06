@@ -1,10 +1,10 @@
 // Playing a server's queue through the mixer (docs/features/Music.md §4.3),
 // against scripted tracks and a mock connection.
 
-#include "core/music/music_player.hpp"
-#include "core/audio/voice_mixer.hpp"
+#include "music_player.hpp"
+#include "voice/voice_mixer.hpp"
 
-#include "mocks/mock_media.hpp"
+#include "mock_media.hpp"
 #include "mocks/mock_voice.hpp"
 
 #include <catch2/catch_test_macros.hpp>

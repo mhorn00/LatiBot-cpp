@@ -1,8 +1,8 @@
 // Voice sessions and leaving an empty channel
 // (docs/features/Voice_Channels.md §2.2, §2.3).
 
-#include "core/events/voice_sessions.hpp"
-#include "core/discord/voice_state.hpp"
+#include "voice/voice_sessions.hpp"
+#include "voice/voice_state.hpp"
 
 #include "mocks/mock_clock.hpp"
 
@@ -26,7 +26,7 @@ auto thirty_seconds(dpp::snowflake /*guild*/) -> std::chrono::seconds {
 
 } // namespace
 
-TEST_CASE("a voice session is kept until it ends, one per guild", "[events]") {
+TEST_CASE("a voice session is kept until it ends, one per guild", "[voice]") {
     voice_sessions sessions;
     sessions.start(
         {.guild_id = guild, .voice_channel = dpp::snowflake{1}, .text_channel = dpp::snowflake{2}, .started_by = dpp::snowflake{3}});
@@ -47,7 +47,7 @@ TEST_CASE("a voice session is kept until it ends, one per guild", "[events]") {
     CHECK_FALSE(sessions.end(guild).has_value());
 }
 
-TEST_CASE("a session follows the bot when it is moved", "[events]") {
+TEST_CASE("a session follows the bot when it is moved", "[voice]") {
     voice_sessions sessions;
     sessions.start(
         {.guild_id = guild, .voice_channel = dpp::snowflake{1}, .text_channel = dpp::snowflake{2}, .started_by = dpp::snowflake{3}});
@@ -59,7 +59,7 @@ TEST_CASE("a session follows the bot when it is moved", "[events]") {
     CHECK_FALSE(sessions.find(other_guild).has_value());
 }
 
-TEST_CASE("the bot leaves once it has been alone for the grace period", "[events]") {
+TEST_CASE("the bot leaves once it has been alone for the grace period", "[voice]") {
     latibot::testing::mock_clock clock;
     auto_leave leaving(clock);
 
@@ -74,7 +74,7 @@ TEST_CASE("the bot leaves once it has been alone for the grace period", "[events
     CHECK(leaving.due(thirty_seconds).empty());
 }
 
-TEST_CASE("someone coming back within the grace period keeps the bot", "[events]") {
+TEST_CASE("someone coming back within the grace period keeps the bot", "[voice]") {
     latibot::testing::mock_clock clock;
     auto_leave leaving(clock);
 
@@ -91,7 +91,7 @@ TEST_CASE("someone coming back within the grace period keeps the bot", "[events]
     CHECK(leaving.due(thirty_seconds).empty());
 }
 
-TEST_CASE("being seen alone again does not restart the wait", "[events]") {
+TEST_CASE("being seen alone again does not restart the wait", "[voice]") {
     latibot::testing::mock_clock clock;
     auto_leave leaving(clock);
 
@@ -103,7 +103,7 @@ TEST_CASE("being seen alone again does not restart the wait", "[events]") {
     CHECK(leaving.due(thirty_seconds) == std::vector<dpp::snowflake>{guild});
 }
 
-TEST_CASE("a bot that is not in voice, or has left, is not waited on", "[events]") {
+TEST_CASE("a bot that is not in voice, or has left, is not waited on", "[voice]") {
     latibot::testing::mock_clock clock;
     auto_leave leaving(clock);
 
@@ -115,7 +115,7 @@ TEST_CASE("a bot that is not in voice, or has left, is not waited on", "[events]
     CHECK(leaving.due(thirty_seconds).empty());
 }
 
-TEST_CASE("each guild waits its own grace period", "[events]") {
+TEST_CASE("each guild waits its own grace period", "[voice]") {
     latibot::testing::mock_clock clock;
     auto_leave leaving(clock);
 
@@ -127,7 +127,7 @@ TEST_CASE("each guild waits its own grace period", "[events]") {
     CHECK(leaving.due(grace) == std::vector<dpp::snowflake>{guild});
 }
 
-TEST_CASE("what plays goes where the bot is, or joins whoever asked", "[events]") {
+TEST_CASE("what plays goes where the bot is, or joins whoever asked", "[voice]") {
     using latibot::discord::plan_voice;
     using latibot::discord::voice_route;
     const dpp::snowflake bot_channel{1};

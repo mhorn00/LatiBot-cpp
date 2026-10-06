@@ -1,7 +1,7 @@
 // What each guild is saying, in order, and stopping it
 // (docs/features/Speech.md §2.4, docs/features/Voice_Channels.md §3).
 
-#include "core/audio/speech_queue.hpp"
+#include "speech_queue.hpp"
 
 #include "mocks/mock_voice.hpp"
 
@@ -38,7 +38,7 @@ struct fixture {
 
 } // namespace
 
-TEST_CASE("speech plays at once on a ready connection, each followed by its marker", "[audio]") {
+TEST_CASE("speech plays at once on a ready connection, each followed by its marker", "[dectalk]") {
     fixture test;
 
     CHECK(test.say(alice, 960) == speech_outcome::playing);
@@ -52,7 +52,7 @@ TEST_CASE("speech plays at once on a ready connection, each followed by its mark
     CHECK(test.queue.current_owner(guild) == alice);
 }
 
-TEST_CASE("a finished utterance's marker moves the queue on", "[audio]") {
+TEST_CASE("a finished utterance's marker moves the queue on", "[dectalk]") {
     fixture test;
     test.say(alice);
     test.say(bob);
@@ -69,7 +69,7 @@ TEST_CASE("a finished utterance's marker moves the queue on", "[audio]") {
     CHECK_FALSE(test.queue.current_owner(guild).has_value());
 }
 
-TEST_CASE("markers that are not the queue's, or for another guild, change nothing", "[audio]") {
+TEST_CASE("markers that are not the queue's, or for another guild, change nothing", "[dectalk]") {
     fixture test;
     test.say(alice);
 
@@ -80,7 +80,7 @@ TEST_CASE("markers that are not the queue's, or for another guild, change nothin
     CHECK(test.queue.size(guild) == 1);
 }
 
-TEST_CASE("speech waits for a connection still being set up, then plays in order", "[audio]") {
+TEST_CASE("speech waits for a connection still being set up, then plays in order", "[dectalk]") {
     fixture test;
     test.voice.connected[guild] = false;
 
@@ -99,7 +99,7 @@ TEST_CASE("speech waits for a connection still being set up, then plays in order
     CHECK(test.queue.current_owner(guild) == alice);
 }
 
-TEST_CASE("new speech queues behind speech still waiting, even once connected", "[audio]") {
+TEST_CASE("new speech queues behind speech still waiting, even once connected", "[dectalk]") {
     // The connection can report ready before on_ready arrives; speaking the
     // newer utterance first would put them out of order.
     fixture test;
@@ -114,7 +114,7 @@ TEST_CASE("new speech queues behind speech still waiting, even once connected", 
     CHECK(test.voice.plays[0].samples == 100);
 }
 
-TEST_CASE("skip drops only the utterance playing now", "[audio]") {
+TEST_CASE("skip drops only the utterance playing now", "[dectalk]") {
     fixture test;
     test.say(alice);
     test.say(bob);
@@ -129,13 +129,13 @@ TEST_CASE("skip drops only the utterance playing now", "[audio]") {
     CHECK(test.queue.current_owner(guild) == bob);
 }
 
-TEST_CASE("skip with nothing playing does nothing", "[audio]") {
+TEST_CASE("skip with nothing playing does nothing", "[dectalk]") {
     fixture test;
     CHECK_FALSE(test.queue.skip(guild));
     CHECK(test.voice.skips == 0);
 }
 
-TEST_CASE("stop drops everything, playing and waiting", "[audio]") {
+TEST_CASE("stop drops everything, playing and waiting", "[dectalk]") {
     fixture test;
     test.say(alice);
     test.voice.connected[guild] = false;
@@ -152,7 +152,7 @@ TEST_CASE("stop drops everything, playing and waiting", "[audio]") {
     CHECK(test.voice.plays.size() == 1);
 }
 
-TEST_CASE("stop also stops speech still being synthesized", "[audio]") {
+TEST_CASE("stop also stops speech still being synthesized", "[dectalk]") {
     fixture test;
 
     // Taken when /speak starts; stop arrives before the audio is ready.
@@ -166,7 +166,7 @@ TEST_CASE("stop also stops speech still being synthesized", "[audio]") {
     CHECK(test.say(alice) == speech_outcome::playing);
 }
 
-TEST_CASE("stopping one guild leaves another alone", "[audio]") {
+TEST_CASE("stopping one guild leaves another alone", "[dectalk]") {
     fixture test;
     test.voice.connected[other_guild] = true;
     const std::uint64_t other_ticket = test.queue.ticket(other_guild);
@@ -177,7 +177,7 @@ TEST_CASE("stopping one guild leaves another alone", "[audio]") {
     CHECK(test.queue.enqueue(other_guild, bob, other_ticket, audio()) == speech_outcome::playing);
 }
 
-TEST_CASE("forgetting a guild drops its speech without touching the connection", "[audio]") {
+TEST_CASE("forgetting a guild drops its speech without touching the connection", "[dectalk]") {
     fixture test;
     const std::uint64_t ticket = test.queue.ticket(guild);
     test.say(alice);

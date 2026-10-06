@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/audio/voice_mixer.hpp"
-#include "core/music/music_queue.hpp"
-#include "core/ports/media.hpp"
+#include "media.hpp"
+#include "music_queue.hpp"
+#include "voice/voice_mixer.hpp"
 
 #include <dpp/snowflake.h>
 

@@ -1,8 +1,8 @@
-#include "core/music/yt_dlp.hpp"
+#include "yt_dlp.hpp"
 
-#include "core/music/links.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "links.hpp"
 
 #include <dpp/coro/awaitable.h>
 #include <dpp/json.h>

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/audio/voice_params.hpp"
-#include "core/commands/speak.hpp"
 #include "core/ui/paginator.hpp"
+#include "speak_command.hpp"
+#include "voice_params.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>

@@ -1,12 +1,12 @@
-#include "core/commands/music.hpp"
+#include "music_command.hpp"
 
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/discord/voice_state.hpp"
-#include "core/music/links.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "links.hpp"
+#include "voice/voice_state.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/discordclient.h>

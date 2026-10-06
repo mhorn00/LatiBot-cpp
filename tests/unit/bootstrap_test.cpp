@@ -40,7 +40,6 @@ TEST_CASE("an empty config object gives the documented defaults", "[config]") {
 
     CHECK(config.database_path == std::filesystem::path("data/bot.db"));
     CHECK(config.backups_to_keep == 7);
-    CHECK(config.music.pot_provider_port == 4416);
     CHECK(config.trusted_guilds.empty());
     CHECK(config.sections.empty());
 }
@@ -66,7 +65,7 @@ TEST_CASE("values in the file replace the defaults", "[config][fs]") {
             "database_path": "D:/bot/state.db",
             "backups_to_keep": 3,
             "backup_interval_minutes": 60,
-            "music": {"deno_path": "C:/tools/deno.exe"},
+            "weather": {"units": "metric"},
             "trusted_guilds": ["123456789012345678"],
             "trusted_users": ["987654321098765432"]
         })json";
@@ -77,8 +76,7 @@ TEST_CASE("values in the file replace the defaults", "[config][fs]") {
     CHECK(config.database_path == std::filesystem::path("D:/bot/state.db"));
     CHECK(config.backups_to_keep == 3);
     CHECK(config.backup_interval == std::chrono::minutes{60});
-    CHECK(config.music.deno_path == std::filesystem::path("C:/tools/deno.exe"));
-    CHECK(config.music.pot_provider_port == 4416);
+    CHECK(config.sections.at("weather").at("units") == "metric");
     REQUIRE(config.trusted_guilds.size() == 1);
     CHECK(config.trusted_guilds.front() == dpp::snowflake{123456789012345678ULL});
     REQUIRE(config.trusted_users.size() == 1);
@@ -114,14 +112,9 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
                                Catch::Matchers::MessageMatches(ContainsSubstring("databse_path")));
     }
 
-    SECTION("unknown key inside a section") {
-        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"music": {"ytdlp": "x"}})"), config_error,
-                               Catch::Matchers::MessageMatches(ContainsSubstring("music.ytdlp")));
-    }
-
     SECTION("wrong type") {
-        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"music": {"ytdlp_path": 5}})"), config_error,
-                               Catch::Matchers::MessageMatches(ContainsSubstring("music.ytdlp_path")));
+        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"backups_to_keep": "three"})"), config_error,
+                               Catch::Matchers::MessageMatches(ContainsSubstring("backups_to_keep")));
     }
 
     SECTION("a section that is not an object") {
@@ -130,9 +123,8 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     }
 
     SECTION("out of range") {
-        REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"music": {"pot_provider_port": 0}})"), config_error,
-                               Catch::Matchers::MessageMatches(ContainsSubstring("music.pot_provider_port\" must be 1 to 65535")));
         REQUIRE_THROWS_AS(bootstrap::from_json(R"({"backups_to_keep": -1})"), config_error);
+        REQUIRE_THROWS_AS(bootstrap::from_json(R"({"backup_interval_minutes": 0})"), config_error);
     }
 
     SECTION("not JSON at all") {
@@ -149,23 +141,6 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     }
 }
 
-TEST_CASE("music's programs are looked for unless the config names them", "[config]") {
-    const bootstrap defaults = bootstrap::from_json("{}");
-    CHECK(defaults.music.deno_path.empty());
-    CHECK(bootstrap::from_json(R"({"music": {"deno_path": "C:/tools/deno.exe"}})").music.deno_path ==
-          std::filesystem::path("C:/tools/deno.exe"));
-    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"music": {"deno_path": 5}})"), config_error);
-
-    CHECK(defaults.music.pot_provider_path.empty());
-    CHECK(defaults.music.pot_provider_port == 4416);
-    const bootstrap provider = bootstrap::from_json(R"({"music": {"pot_provider_path": "C:/bgutil/server", "pot_provider_port": 8080}})");
-    CHECK(provider.music.pot_provider_path == std::filesystem::path("C:/bgutil/server"));
-    CHECK(provider.music.pot_provider_port == 8080);
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"music": {"pot_provider_port": 0}})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("must be 1 to 65535")));
-    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"music": {"pot_provider_port": 70000}})"), config_error);
-}
-
 TEST_CASE("a key from before sections still works, and the log says where it went", "[config]") {
     // Remove after: you say so (docs/modules/Module_Plan_Final.md §8.1).
     const latibot::testing::capture_log captured(latibot::util::log_level::warn);
@@ -180,14 +155,10 @@ TEST_CASE("a key from before sections still works, and the log says where it wen
     CHECK(config.sections.at("llm").at("tool_rounds") == 2);
     CHECK(config.sections.at("llm").at("spend_cap_daily_usd") == 1.5);
     CHECK(config.sections.at("linkstats").at("emoji_copy_min_uses") == 3);
-    CHECK(config.music.pot_provider_port == 8080);
-    CHECK(config.music.ytdlp_path == std::filesystem::path("C:/tools/yt-dlp.exe"));
+    CHECK(config.sections.at("music").at("pot_provider_port") == 8080);
+    CHECK(config.sections.at("music").at("ytdlp_path") == "C:/tools/yt-dlp.exe");
     CHECK(captured.contains(latibot::util::log_level::warn, R"("llm_model" is now "model" inside "llm")"));
     CHECK(captured.contains(latibot::util::log_level::warn, R"("track_nicknames" is now "track_changes" inside "nicknames")"));
-
-    // Checked as it would be in its section.
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"pot_provider_port": 0})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("music.pot_provider_port")));
 }
 
 TEST_CASE("an old key and its new place both set is refused", "[config]") {
@@ -264,35 +235,11 @@ TEST_CASE("secrets come from the environment", "[config]") {
         CHECK_THROWS_WITH(secrets::from_environment(), ContainsSubstring(".env") && ContainsSubstring("DISCORD_BOT_TOKEN="));
     }
 
-    SECTION("optional keys stay unset when absent") {
+    SECTION("the token is read when it is set") {
         const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
-        const scoped_env cookies("LATIBOT_YTDLP_COOKIES", nullptr);
-        const scoped_env profile("LATIBOT_YTDLP_FIREFOX_PROFILE", nullptr);
 
         const secrets loaded = secrets::from_environment();
         CHECK(loaded.discord_token == "test-token");
-        CHECK_FALSE(loaded.ytdlp_cookies.has_value());
-        CHECK_FALSE(loaded.ytdlp_firefox_profile.has_value());
-    }
-
-    SECTION("the file yt-dlp signs in with, when one is named") {
-        const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
-        {
-            const scoped_env cookies("LATIBOT_YTDLP_COOKIES", "data/youtube-cookies.txt");
-            const secrets loaded = secrets::from_environment();
-            REQUIRE(loaded.ytdlp_cookies.has_value());
-            CHECK(*loaded.ytdlp_cookies == std::filesystem::path("data/youtube-cookies.txt"));
-        }
-        const scoped_env empty("LATIBOT_YTDLP_COOKIES", "");
-        CHECK_FALSE(secrets::from_environment().ytdlp_cookies.has_value());
-    }
-
-    SECTION("the Firefox profile yt-dlp signs in with, when one is named") {
-        const scoped_env token("DISCORD_BOT_TOKEN", "test-token");
-        const scoped_env profile("LATIBOT_YTDLP_FIREFOX_PROFILE", "data/firefox-profile");
-        const secrets loaded = secrets::from_environment();
-        REQUIRE(loaded.ytdlp_firefox_profile.has_value());
-        CHECK(*loaded.ytdlp_firefox_profile == std::filesystem::path("data/firefox-profile"));
     }
 }
 
@@ -336,8 +283,6 @@ TEST_CASE("the written defaults load as the defaults", "[config]") {
     CHECK(written.backup_interval == defaults.backup_interval);
     CHECK(written.trusted_guilds == defaults.trusted_guilds);
     CHECK(written.trusted_users == defaults.trusted_users);
-    CHECK(written.music.ytdlp_path == defaults.music.ytdlp_path);
-    CHECK(written.music.pot_provider_port == defaults.music.pot_provider_port);
     CHECK(written.sections.empty());
 }
 
@@ -350,7 +295,7 @@ TEST_CASE("a module's section in the written defaults comes after the core's", "
     const std::string written = bootstrap::default_json(modules);
 
     CHECK(written.contains(R"("weather": {)"));
-    CHECK(written.find("\"music\"") < written.find("\"weather\""));
+    CHECK(written.find("\"trusted_users\"") < written.find("\"weather\""));
     CHECK(bootstrap::from_json(written).sections.at("weather").at("enabled") == true);
 }
 

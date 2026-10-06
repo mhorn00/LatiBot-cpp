@@ -1,4 +1,4 @@
-#include "core/music/links.hpp"
+#include "links.hpp"
 
 #include "core/util/text.hpp"
 #include "core/util/url_scan.hpp"

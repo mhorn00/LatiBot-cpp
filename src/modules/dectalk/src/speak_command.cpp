@@ -1,18 +1,18 @@
-#include "core/commands/speak.hpp"
+#include "speak_command.hpp"
 
-#include "core/audio/dectalk_sanitizer.hpp"
-#include "core/audio/pcm.hpp"
-#include "core/audio/speech_queue.hpp"
-#include "core/audio/voice_params.hpp"
-#include "core/audio/voice_store.hpp"
 #include "core/commands/options.hpp"
-#include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/discord/voice_state.hpp"
-#include "core/ports/tts_engine.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "dectalk_sanitizer.hpp"
+#include "speech_queue.hpp"
+#include "tts_engine.hpp"
+#include "voice/pcm.hpp"
+#include "voice/voice_state.hpp"
+#include "voice_lab.hpp"
+#include "voice_params.hpp"
+#include "voice_store.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/discordclient.h>

@@ -1,6 +1,6 @@
 // Custom voices, kept per guild (docs/features/Speech.md §3).
 
-#include "core/audio/voice_store.hpp"
+#include "voice_store.hpp"
 #include "core/db/database.hpp"
 
 #include "support/schema.hpp"
@@ -24,7 +24,10 @@ struct store_fixture {
     database db{std::filesystem::path(database::in_memory)};
     voice_store voices{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::audio::dectalk_schema());
+    }
 };
 
 auto voice(std::string name, const std::string& base, const std::string& edits) -> saved_voice {
@@ -36,7 +39,7 @@ auto voice(std::string name, const std::string& base, const std::string& edits) 
 
 } // namespace
 
-TEST_CASE("a saved voice reads back as it was saved", "[db]") {
+TEST_CASE("a saved voice reads back as it was saved", "[dectalk]") {
     store_fixture test;
     test.voices.save(guild, voice("robo", "harry", "ap 200 pr 150"));
 
@@ -48,7 +51,7 @@ TEST_CASE("a saved voice reads back as it was saved", "[db]") {
     CHECK(found->updated_at == std::chrono::sys_seconds{std::chrono::seconds{1'700'000'000}});
 }
 
-TEST_CASE("voice names are found in any case, and per guild", "[db]") {
+TEST_CASE("voice names are found in any case, and per guild", "[dectalk]") {
     store_fixture test;
     test.voices.save(guild, voice("Robo", "harry", ""));
 
@@ -59,7 +62,7 @@ TEST_CASE("voice names are found in any case, and per guild", "[db]") {
     CHECK(test.voices.count(other_guild) == 0);
 }
 
-TEST_CASE("saving under a name that exists replaces the voice but keeps its maker", "[db]") {
+TEST_CASE("saving under a name that exists replaces the voice but keeps its maker", "[dectalk]") {
     store_fixture test;
     test.voices.save(guild, voice("robo", "harry", "ap 200"));
 
@@ -75,7 +78,7 @@ TEST_CASE("saving under a name that exists replaces the voice but keeps its make
     CHECK(test.voices.count(guild) == 1);
 }
 
-TEST_CASE("voices are listed by name and removed one at a time", "[db]") {
+TEST_CASE("voices are listed by name and removed one at a time", "[dectalk]") {
     store_fixture test;
     test.voices.save(guild, voice("zed", "paul", ""));
     test.voices.save(guild, voice("abe", "betty", ""));

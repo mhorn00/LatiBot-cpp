@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/config/config_error.hpp"
-#include "core/config/feature_sections.hpp"
 #include "core/util/log.hpp"
 
 #include <dpp/json.h>
@@ -37,10 +36,6 @@ struct bootstrap {
     /// (docs/features/Speech.md §2.2).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
-
-    // The sections of the features still inside the core
-    // (core/config/feature_sections.hpp). Each moves to its module.
-    music_config music;
 
     /// Every other object in config.json, as one object by name: a module's
     /// section, which the module reads with its own table
@@ -108,14 +103,6 @@ inline constexpr bool reads_debug_overrides =
 /// that could be committed (docs/features/Operations.md §4).
 struct secrets {
     std::string discord_token;
-
-    /// The account yt-dlp signs in as when it must, so music can play
-    /// age-restricted videos (docs/features/Music.md §4.9): a Firefox
-    /// profile's folder, from `LATIBOT_YTDLP_FIREFOX_PROFILE`, or a cookies
-    /// file, from `LATIBOT_YTDLP_COOKIES`. Each is a sign-in, so it stays out
-    /// of `config.json` like the keys.
-    std::optional<std::filesystem::path> ytdlp_firefox_profile;
-    std::optional<std::filesystem::path> ytdlp_cookies;
 
     /// Throws `config_error` when `DISCORD_BOT_TOKEN` is missing or empty.
     [[nodiscard]] static auto from_environment() -> secrets;

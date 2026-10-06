@@ -1,4 +1,4 @@
-#include "core/events/voice_sessions.hpp"
+#include "voice/voice_sessions.hpp"
 
 namespace latibot::events {
 

@@ -1,8 +1,8 @@
 // The voice lab's panel and forms (docs/features/Speech.md §3).
 
-#include "core/commands/voice_lab.hpp"
+#include "voice_lab.hpp"
 
-#include "core/audio/voice_store.hpp"
+#include "voice_store.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/discord_limits.hpp"
@@ -41,7 +41,7 @@ auto saved(std::string name, const latibot::audio::custom_voice& voice) -> latib
 
 } // namespace
 
-TEST_CASE("the voice lab shows the voice as groups and as inline commands", "[commands]") {
+TEST_CASE("the voice lab shows the voice as groups and as inline commands", "[dectalk]") {
     const dpp::message panel = render_voice_lab(edited_draft());
 
     CHECK(panel.content.contains("Built on **harry** (Huge Harry)"));
@@ -52,7 +52,7 @@ TEST_CASE("the voice lab shows the voice as groups and as inline commands", "[co
     latibot::testing::check_message_fits(panel);
 }
 
-TEST_CASE("an untouched voice says so, and a note shows once under it", "[commands]") {
+TEST_CASE("an untouched voice says so, and a note shows once under it", "[dectalk]") {
     voice_draft draft;
     draft.note = "saved as `x`";
     const dpp::message panel = render_voice_lab(draft);
@@ -63,7 +63,7 @@ TEST_CASE("an untouched voice says so, and a note shows once under it", "[comman
     latibot::testing::check_message_fits(panel);
 }
 
-TEST_CASE("the voice lab says which voice it is editing, and whether it still matches what is saved", "[commands]") {
+TEST_CASE("the voice lab says which voice it is editing, and whether it still matches what is saved", "[dectalk]") {
     const voice_draft draft = edited_draft();
 
     SECTION("a new voice") {
@@ -85,7 +85,7 @@ TEST_CASE("the voice lab says which voice it is editing, and whether it still ma
     }
 }
 
-TEST_CASE("the voice lab offers the server's saved voices, the one being edited picked", "[commands]") {
+TEST_CASE("the voice lab offers the server's saved voices, the one being edited picked", "[dectalk]") {
     const voice_draft draft = edited_draft();
 
     SECTION("none saved, no menu") {
@@ -126,7 +126,7 @@ TEST_CASE("the voice lab offers the server's saved voices, the one being edited 
     }
 }
 
-TEST_CASE("every voice lab form fits in a modal", "[commands]") {
+TEST_CASE("every voice lab form fits in a modal", "[dectalk]") {
     const voice_draft draft = edited_draft();
     const auto groups = latibot::audio::voice_parameter_groups();
     for (std::size_t index = 0; index < groups.size(); ++index) {
@@ -144,7 +144,7 @@ TEST_CASE("every voice lab form fits in a modal", "[commands]") {
     CHECK_FALSE(voice_lab_form("nonsense", draft).has_value());
 }
 
-TEST_CASE("a group's form sets, clears and clamps its parameters", "[commands]") {
+TEST_CASE("a group's form sets, clears and clamps its parameters", "[dectalk]") {
     voice_draft draft = edited_draft();
 
     apply_voice_form(draft, "0", fields{{"ap", "120"}, {"pr", ""}, {"hr", "999"}, {"sr", "fast"}});
@@ -153,7 +153,7 @@ TEST_CASE("a group's form sets, clears and clamps its parameters", "[commands]")
     CHECK(draft.note == "hr goes from 2 to 100, so 999 became 100; sr needs a number, not \"fast\"");
 }
 
-TEST_CASE("the raw form replaces the whole voice", "[commands]") {
+TEST_CASE("the raw form replaces the whole voice", "[dectalk]") {
     voice_draft draft = edited_draft();
 
     apply_voice_form(draft, "raw", fields{{"raw", "[:nk][:dv hs 80]"}});
@@ -163,7 +163,7 @@ TEST_CASE("the raw form replaces the whole voice", "[commands]") {
     CHECK(draft.note.empty());
 }
 
-TEST_CASE("a raw form that came back without its field leaves the voice alone", "[commands]") {
+TEST_CASE("a raw form that came back without its field leaves the voice alone", "[dectalk]") {
     // Read as "no edits", it would wipe the voice, which is what an unread
     // form once did.
     voice_draft draft = edited_draft();
@@ -174,14 +174,14 @@ TEST_CASE("a raw form that came back without its field leaves the voice alone", 
     CHECK_FALSE(draft.note.empty());
 }
 
-TEST_CASE("only whoever made a voice, or an admin, may change it", "[commands]") {
+TEST_CASE("only whoever made a voice, or an admin, may change it", "[dectalk]") {
     using latibot::commands::voice_change_refusal;
     CHECK(voice_change_refusal(alice, alice, false, "robo") == std::nullopt);
     CHECK(voice_change_refusal(alice, dpp::snowflake{12}, true, "robo") == std::nullopt);
     CHECK(voice_change_refusal(alice, dpp::snowflake{12}, false, "robo") == "only whoever made `robo`, or an admin, can change it");
 }
 
-TEST_CASE("a draft is kept per person for half an hour after it was last touched", "[commands]") {
+TEST_CASE("a draft is kept per person for half an hour after it was last touched", "[dectalk]") {
     latibot::testing::mock_clock clock;
     latibot::commands::voice_drafts drafts(clock);
 

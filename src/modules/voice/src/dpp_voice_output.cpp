@@ -1,7 +1,7 @@
-#include "core/discord/dpp_voice_output.hpp"
+#include "dpp_voice_output.hpp"
 
-#include "core/discord/voice_state.hpp"
 #include "core/util/log.hpp"
+#include "voice/voice_state.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/discordvoiceclient.h>

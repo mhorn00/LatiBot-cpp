@@ -1,4 +1,4 @@
-#include "core/music/music_queue.hpp"
+#include "music_queue.hpp"
 
 #include <algorithm>
 #include <iterator>

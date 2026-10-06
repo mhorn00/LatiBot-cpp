@@ -15,9 +15,10 @@ follows a `/speak`.
 
 | | |
 |---|---|
-| **Code** | `src/core/audio/{dectalk_engine,dectalk_sanitizer,voice_params,voice_store,pcm,wav}.*`, `src/core/commands/{speak,chat,voice_lab}.*`, `cmake/dectalk.cmake`, `cmake/dectalk_zeroed_heap.h` |
-| **Tests** | `tests/unit/{dectalk_engine,dectalk_golden,dectalk_sanitizer,speak_command,chat_command,custom_voice,voice_params,voice_lab,pcm,wav}_test.cpp`, `tests/db/voice_store_test.cpp`, `tests/golden/dectalk.txt`, `tests/fuzz/fuzz_dectalk_sanitizer.cpp` |
-| **Tables** | `tts_voices` (migration 10); `tts_max_characters` and `tts_max_seconds` per server in `guild_settings` |
+| **Module** | `dectalk`, which requires voice: [its README](../../src/modules/dectalk/README.md) lists what it owns |
+| **Code** | `src/modules/dectalk/src/`: `{dectalk_engine,dectalk_sanitizer,dectalk_speech,speech_queue,voice_params,voice_store,wav}.*`, `{speak_command,chat_command,voice_lab}.*`, `module.cpp`; `cmake/dectalk.cmake`, `cmake/dectalk_zeroed_heap.h`; PCM is voice's |
+| **Tests** | `src/modules/dectalk/tests/` (`latibot_dectalk_tests`), `tests/golden/dectalk.txt`, `tests/fuzz/fuzz_dectalk_sanitizer.cpp` |
+| **Tables** | `tts_voices`, the module's schema version 1 (was migration 10); `tts_max_characters` and `tts_max_seconds` per server in `guild_settings` |
 | **Config** | `trusted_users` and `trusted_guilds` in `config.json` |
 | **Plan** | Replaces plan §2.2, §2.4, §12, §21.16 and §21.17 |
 | **Status** | Built in phase 4 (2026-09-26). **Not yet run in Discord**: see §6 |

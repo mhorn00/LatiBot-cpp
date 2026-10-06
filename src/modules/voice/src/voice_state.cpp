@@ -1,4 +1,4 @@
-#include "core/discord/voice_state.hpp"
+#include "voice/voice_state.hpp"
 
 #include <dpp/cache.h>
 #include <dpp/cluster.h>

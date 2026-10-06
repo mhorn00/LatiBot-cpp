@@ -1,4 +1,4 @@
-#include "core/audio/dectalk_sanitizer.hpp"
+#include "dectalk_sanitizer.hpp"
 
 #include "core/util/text.hpp"
 

@@ -5,8 +5,8 @@
 // The file is Wikimedia Commons' Example.ogg: freely licensed, small, and
 // there for years.
 
-#include "core/music/yt_dlp.hpp"
-#include "core/util/process.hpp"
+#include "process.hpp"
+#include "yt_dlp.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

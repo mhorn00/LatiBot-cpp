@@ -88,21 +88,16 @@ constexpr std::array<moved_key, 12> moved_keys{{
     {.old_name = "pot_provider_port", .section = "music", .name = "pot_provider_port"},
 }};
 
-/// The sections the core reads itself, for the features still inside it.
-/// Each leaves this list when its module takes it.
-constexpr std::array<std::string_view, 1> feature_sections{"music"};
-
 /// Every section in config.json, by name, with any old flat key moved into
-/// its own. A top-level key that is neither the core's, a section, nor an
-/// old key is a typo, and stops startup.
+/// its own: each a module's, which the module reads with its own table. A
+/// top-level key that is neither the core's, a section, nor an old key is a
+/// typo, and stops startup.
 auto gather_sections(const json& parsed) -> json {
     json gathered = json::object();
     for (const auto& [key, value] : parsed.items()) {
         if (std::ranges::contains(core_keys, key)) continue;
         if (std::ranges::contains(moved_keys, std::string_view{key}, &moved_key::old_name)) continue;
-        // A feature section that is not an object is kept, for its own
-        // read to refuse by name.
-        if (value.is_object() || std::ranges::contains(feature_sections, key)) {
+        if (value.is_object()) {
             gathered[key] = value;
             continue;
         }
@@ -124,16 +119,6 @@ auto gather_sections(const json& parsed) -> json {
                          moved.section);
     }
     return gathered;
-}
-
-/// Takes one section out of `gathered`, or an empty object when it is not
-/// there.
-auto take_section(json& gathered, std::string_view name) -> json {
-    const auto found = gathered.find(std::string(name));
-    if (found == gathered.end()) return json::object();
-    json section = std::move(*found);
-    gathered.erase(found);
-    return section;
 }
 
 /// Where the database lives and how often it is copied.
@@ -195,8 +180,7 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
 
     read_storage_keys(parsed, config);
 
-    config.music = music_section().read(take_section(gathered, "music"));
-    // What is left is the modules'.
+    // Every section is a module's.
     config.sections = std::move(gathered);
 
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
@@ -215,7 +199,6 @@ auto bootstrap::default_json(const nlohmann::ordered_json& module_sections) -> s
     file["backup_interval_minutes"] = defaults.backup_interval.count();
     file["trusted_guilds"] = nlohmann::ordered_json::array();
     file["trusted_users"] = nlohmann::ordered_json::array();
-    file["music"] = music_section().defaults();
     for (const auto& [name, section] : module_sections.items()) {
         file[name] = section;
     }
@@ -294,13 +277,6 @@ auto secrets::from_environment() -> secrets {
                         std::filesystem::absolute(".env").generic_string()));
     }
     loaded.discord_token = *token;
-
-    if (const auto profile = util::env_var("LATIBOT_YTDLP_FIREFOX_PROFILE"); profile && !profile->empty()) {
-        loaded.ytdlp_firefox_profile = std::filesystem::path(*profile);
-    }
-    if (const auto file = util::env_var("LATIBOT_YTDLP_COOKIES"); file && !file->empty()) {
-        loaded.ytdlp_cookies = std::filesystem::path(*file);
-    }
 
     return loaded;
 }

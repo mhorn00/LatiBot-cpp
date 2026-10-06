@@ -1,7 +1,7 @@
 // /music and /m (docs/features/Music.md §3.1): what the replies say, the
 // queue's pages against Discord's limits, and the settings.
 
-#include "core/commands/music.hpp"
+#include "music_command.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
@@ -70,7 +70,7 @@ TEST_CASE("a track is named safely, with its length or that it is live", "[music
     CHECK_FALSE(shown.contains("@everyone"));
 }
 
-TEST_CASE("text from outside is made plain", "[util]") {
+TEST_CASE("text from outside is made plain", "[music]") {
     CHECK(latibot::util::plain_text("a_b*c") == "a\\_b\\*c");
     CHECK(latibot::util::plain_text("line\nbreak") == "line break");
     CHECK(latibot::util::plain_text("<@123>") ==

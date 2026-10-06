@@ -5,7 +5,7 @@
 // behaves, which is what the design rests on. It needs no audio device, so
 // they run in CI as well.
 
-#include "core/audio/dectalk_engine.hpp"
+#include "dectalk_engine.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -43,7 +43,7 @@ auto peak(const pcm_audio& audio) -> int {
 
 } // namespace
 
-TEST_CASE("DECtalk speaks a phrase at 11025 Hz mono", "[audio][coro][threads]") {
+TEST_CASE("DECtalk speaks a phrase at 11025 Hz mono", "[dectalk][coro][threads]") {
     dectalk_engine engine;
 
     const pcm_audio audio = say(engine, "Hello there.");
@@ -56,7 +56,7 @@ TEST_CASE("DECtalk speaks a phrase at 11025 Hz mono", "[audio][coro][threads]") 
     CHECK(peak(audio) > 1000);
 }
 
-TEST_CASE("the same request gives the same audio every time", "[audio][coro][threads]") {
+TEST_CASE("the same request gives the same audio every time", "[dectalk][coro][threads]") {
     // Only true because each utterance gets a fresh engine: one engine kept
     // across requests carries its intonation from one to the next.
     dectalk_engine engine;
@@ -67,7 +67,7 @@ TEST_CASE("the same request gives the same audio every time", "[audio][coro][thr
     CHECK(first.samples == second.samples);
 }
 
-TEST_CASE("one request's inline settings do not reach the next", "[audio][coro][threads]") {
+TEST_CASE("one request's inline settings do not reach the next", "[dectalk][coro][threads]") {
     // With a single long-lived engine, [:rate] and [:dv] outlive the request
     // that set them (docs/features/Speech.md §4.1).
     dectalk_engine engine;
@@ -80,7 +80,7 @@ TEST_CASE("one request's inline settings do not reach the next", "[audio][coro][
     CHECK(after.samples == plain.samples);
 }
 
-TEST_CASE("the voice and rate settings change the audio", "[audio][coro][threads]") {
+TEST_CASE("the voice and rate settings change the audio", "[dectalk][coro][threads]") {
     dectalk_engine engine;
 
     const pcm_audio paul = say(engine, "Hello there.");
@@ -91,7 +91,7 @@ TEST_CASE("the voice and rate settings change the audio", "[audio][coro][threads
     CHECK(fast.samples.size() < paul.samples.size());
 }
 
-TEST_CASE("a custom voice's edits change the voice it is built on", "[audio][coro][threads]") {
+TEST_CASE("a custom voice's edits change the voice it is built on", "[dectalk][coro][threads]") {
     // What the voice lab's Test and a saved voice rely on: the edits come
     // after the voice is chosen, and DECtalk has to keep them rather than
     // reloading the chosen voice's own values over them.
@@ -106,7 +106,7 @@ TEST_CASE("a custom voice's edits change the voice it is built on", "[audio][cor
     CHECK(higher.samples != smaller.samples);
 }
 
-TEST_CASE("volume scales the samples", "[audio][coro][threads]") {
+TEST_CASE("volume scales the samples", "[dectalk][coro][threads]") {
     dectalk_engine engine;
 
     const pcm_audio full = say(engine, "Hello there.");
@@ -116,7 +116,7 @@ TEST_CASE("volume scales the samples", "[audio][coro][threads]") {
     CHECK(peak(half) == peak(full) * 50 / 100);
 }
 
-TEST_CASE("an utterance stops at its maximum duration", "[audio][coro][threads]") {
+TEST_CASE("an utterance stops at its maximum duration", "[dectalk][coro][threads]") {
     dectalk_engine engine;
 
     // A one-minute tone, cut at two seconds.
@@ -129,7 +129,7 @@ TEST_CASE("an utterance stops at its maximum duration", "[audio][coro][threads]"
     CHECK_FALSE(say(engine, "Hello there.").samples.empty());
 }
 
-TEST_CASE("an utterance that takes too long is abandoned", "[audio][coro][threads]") {
+TEST_CASE("an utterance that takes too long is abandoned", "[dectalk][coro][threads]") {
     // [:pause] waits on the clock rather than producing silence
     // (docs/features/Speech.md §2.2), so this would hold the engine for a
     // minute.
@@ -147,7 +147,7 @@ TEST_CASE("an utterance that takes too long is abandoned", "[audio][coro][thread
     CHECK_FALSE(say(engine, "Hello there.").samples.empty());
 }
 
-TEST_CASE("stop abandons the utterance being spoken and the queue", "[audio][coro][threads]") {
+TEST_CASE("stop abandons the utterance being spoken and the queue", "[dectalk][coro][threads]") {
     dectalk_engine engine;
 
     // The first request holds the engine long enough for the rest to queue
@@ -168,7 +168,7 @@ TEST_CASE("stop abandons the utterance being spoken and the queue", "[audio][cor
     CHECK_FALSE(say(engine, "Hello there.").samples.empty());
 }
 
-TEST_CASE("a missing dictionary fails the request instead of the process", "[audio][coro][threads]") {
+TEST_CASE("a missing dictionary fails the request instead of the process", "[dectalk][coro][threads]") {
     {
         dectalk_engine engine("no/such/dictionary.dic");
 

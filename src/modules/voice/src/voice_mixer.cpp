@@ -1,4 +1,4 @@
-#include "core/audio/voice_mixer.hpp"
+#include "voice/voice_mixer.hpp"
 
 #include <algorithm>
 #include <utility>

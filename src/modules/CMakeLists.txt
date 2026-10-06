@@ -3,6 +3,19 @@
 # bot builds them in. Each is on unless its switch is off; one whose
 # requirement is off stops the configure, naming both (cmake/modules.cmake).
 
+# Voice has no switch: it is built when a module that requires it is.
+option(LATIBOT_WITH_DECTALK "Build the dectalk module: /speak, /tts, /chat and custom voices" ON)
+option(LATIBOT_WITH_MUSIC "Build the music module: /music" ON)
+if(LATIBOT_WITH_DECTALK OR LATIBOT_WITH_MUSIC)
+    add_subdirectory(voice)
+endif()
+if(LATIBOT_WITH_DECTALK)
+    add_subdirectory(dectalk)
+endif()
+if(LATIBOT_WITH_MUSIC)
+    add_subdirectory(music)
+endif()
+
 option(LATIBOT_WITH_LLM "Build the language model module: /llm, /memory and its answers" ON)
 if(LATIBOT_WITH_LLM)
     add_subdirectory(llm)

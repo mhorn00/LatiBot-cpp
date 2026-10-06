@@ -1,18 +1,8 @@
 add_library(latibot_core STATIC
     core/version.cpp
-    core/audio/dectalk_engine.cpp
-    core/audio/dectalk_sanitizer.cpp
-    core/audio/dectalk_speech.cpp
-    core/audio/pcm.cpp
-    core/audio/speech_queue.cpp
-    core/audio/voice_mixer.cpp
-    core/audio/voice_params.cpp
-    core/audio/voice_store.cpp
-    core/audio/wav.cpp
     core/bot.cpp
     core/config/bootstrap.cpp
     core/config/command_line.cpp
-    core/config/feature_sections.cpp
     core/config/guild_settings.cpp
     core/config/section.cpp
     core/db/backup.cpp
@@ -27,36 +17,22 @@ add_library(latibot_core STATIC
     core/commands/message_options.cpp
     core/commands/options.cpp
     core/commands/bots.cpp
-    core/commands/chat.cpp
-    core/commands/music.cpp
     core/commands/preflight.cpp
     core/commands/registry.cpp
-    core/commands/speak.cpp
     core/commands/unregister.cpp
-    core/commands/voice.cpp
-    core/commands/voice_lab.cpp
     core/discord/dpp_gateway.cpp
     core/discord/dpp_http_client.cpp
     core/discord/dpp_log.cpp
-    core/discord/dpp_voice_output.cpp
     core/discord/message_flags.cpp
     core/discord/raw_api.cpp
     core/discord/unregister_commands.cpp
-    core/discord/voice_state.cpp
     core/events/bot_allowlist.cpp
     core/events/goodbye.cpp
     core/events/log_channel.cpp
     core/events/message_pipeline.cpp
-    core/events/voice_sessions.cpp
     core/modules/capability_registry.cpp
     core/modules/host.cpp
     core/modules/module.cpp
-    core/music/cookies.cpp
-    core/music/links.cpp
-    core/music/music_player.cpp
-    core/music/music_queue.cpp
-    core/music/pot_provider.cpp
-    core/music/yt_dlp.cpp
     core/ports/clock.cpp
     core/ui/interaction.cpp
     core/ui/paginator.cpp
@@ -65,7 +41,6 @@ add_library(latibot_core STATIC
     core/util/env.cpp
     core/util/log.cpp
     core/util/match.cpp
-    core/util/process.cpp
     core/util/text.cpp
     core/util/url_scan.cpp
 )
@@ -73,20 +48,10 @@ add_library(latibot_core STATIC
 # Headers are included as "core/<area>/<file>.hpp".
 target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(latibot_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
-# DECtalk (cmake/dectalk.cmake). Its header stays out of ours: only
-# core/audio/dectalk_engine.cpp includes it.
-target_link_libraries(latibot_core PRIVATE dectalk)
-
 # crypt32 is the Windows certificate store, read at startup to give OpenSSL
 # the roots it does not ship with (core/util/ca_certificates.cpp).
 if(WIN32)
     target_link_libraries(latibot_core PRIVATE crypt32)
-endif()
-
-# ws2_32 resolves a music link's host, to refuse one into a private network
-# (core/music/links.cpp).
-if(WIN32)
-    target_link_libraries(latibot_core PRIVATE ws2_32)
 endif()
 
 # DPP's headers, compiled once rather than in every file: a clean build of

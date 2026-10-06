@@ -1,30 +1,18 @@
 #pragma once
 
-#include "core/audio/dectalk_engine.hpp"
-#include "core/audio/dectalk_speech.hpp"
-#include "core/audio/speech_queue.hpp"
-#include "core/audio/voice_mixer.hpp"
-#include "core/audio/voice_store.hpp"
-#include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
-#include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/discord/dpp_gateway.hpp"
 #include "core/discord/dpp_http_client.hpp"
-#include "core/discord/dpp_voice_output.hpp"
 #include "core/discord/raw_api.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/log_channel.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/events/voice_sessions.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/modules/module.hpp"
-#include "core/music/music_player.hpp"
-#include "core/music/pot_provider.hpp"
-#include "core/music/yt_dlp.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/ui/panel_routes.hpp"
@@ -103,27 +91,9 @@ private:
     /// the commands the first time.
     auto on_ready(const dpp::ready_t& event) -> void;
 
-    /// Starts the things that happen on a clock rather than on an event: the
-    /// embed tracker's one-second tick, the log channel, auto-leave and the
-    /// database backups (docs/features/Operations.md §2). Modules start
-    /// their own.
+    /// Starts the core's timers: the log channel's and the database backups
+    /// (docs/features/Operations.md §2). Modules start their own.
     auto register_timers() -> void;
-
-    /// Why music cannot play, when yt-dlp or ffmpeg was not found; empty
-    /// when both were.
-    [[nodiscard]] auto music_unavailable() const -> std::string;
-
-    /// Says at startup whether music can play, and asks yt-dlp and ffmpeg
-    /// their versions, for the log.
-    auto log_music_tools() -> void;
-
-    /// Says whether yt-dlp signs in, and with how many cookies, never what
-    /// they are (docs/features/Music.md §4.9).
-    auto log_music_account() const -> void;
-
-    /// Starts bgutil's PO token provider when it is set up, and says why not
-    /// when it is not (docs/features/Music.md §4.10).
-    auto start_pot_provider() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot
@@ -151,11 +121,6 @@ private:
     /// Modal submissions.
     auto on_form(const dpp::form_submit_t& event) -> void;
 
-    /// Someone's voice state changed, the bot's included. Tidies up after the
-    /// bot leaves a channel, however that happened, and tells the auto-leave
-    /// check whether it is on its own (docs/features/Voice_Channels.md §2.3).
-    auto on_voice_state(const dpp::voicestate& state) -> void;
-
     config::bootstrap settings_;
     db::database database_;
     config::guild_settings guild_settings_;
@@ -171,55 +136,11 @@ private:
     events::bot_allowlist bot_allowlist_;
     events::pipeline pipeline_;
 
-    // Speech (docs/features/Speech.md, docs/features/Voice_Channels.md). The
-    // engine starts its worker thread at construction, and is gone before the
-    // cluster is.
-    audio::dectalk_engine tts_;
-    discord::dpp_voice_output voice_output_;
-
-    /// The only writer to a voice connection: speech and music both go
-    /// through it (docs/features/Music.md §4.2).
-    audio::voice_mixer mixer_;
-    audio::speech_queue speech_;
-    events::voice_sessions voice_sessions_;
-    events::auto_leave auto_leave_;
-    audio::voice_store voices_;
-    commands::voice_drafts voice_drafts_;
-    commands::voice_lab voice_lab_;
-
-    /// The `speech` capability, which the language model speaks through
-    /// (docs/modules/Module_Plan_Final.md §5.3).
-    audio::dectalk_speech dectalk_speech_;
-
-    // Music (docs/features/Music.md). yt-dlp and ffmpeg are looked for once,
-    // at startup; without them the music commands say so and nothing plays.
-    std::optional<std::filesystem::path> ytdlp_;
-    std::optional<std::filesystem::path> ffmpeg_;
-    /// Optional: without it yt-dlp cannot solve YouTube's JavaScript
-    /// challenges, and some of YouTube, age-restricted videos above all, fails.
-    std::optional<std::filesystem::path> deno_;
-    /// bgutil's PO token provider's `server` folder, when it is there
-    /// (§4.10).
-    std::optional<std::filesystem::path> pot_server_;
-    /// The account yt-dlp signs in as when it must, if the owner gave one
-    /// (§4.9).
-    music::cookie_status ytdlp_cookies_;
-    music::ytdlp_resolver music_resolver_;
-    music::ytdlp_opener music_opener_;
-    music::music_player music_;
-    /// Runs the PO token provider for as long as the bot runs; null when it
-    /// is not set up.
-    std::unique_ptr<music::pot_provider> pot_provider_;
-
     /// Where the log is posted (`/logs`). Destroyed before everything above
     /// it, and unhooked from the logger as it goes, so a line logged while
     /// the rest shuts down reaches the console and nothing else.
     events::log_destination_store log_destinations_;
     events::log_channel log_channel_;
-
-    /// Asks yt-dlp and ffmpeg their versions at startup, for the log, without
-    /// holding startup up.
-    std::jthread music_versions_;
 
     // What the modules registered (docs/modules/Module_Plan_Final.md §4.2).
     // The routes and the capabilities point into the modules, which are

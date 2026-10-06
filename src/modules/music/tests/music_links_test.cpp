@@ -1,7 +1,7 @@
 // What /music play accepts, and the addresses it will never fetch from
 // (docs/features/Music.md §6).
 
-#include "core/music/links.hpp"
+#include "links.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

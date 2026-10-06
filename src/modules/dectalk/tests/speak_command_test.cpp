@@ -1,13 +1,11 @@
 // What /speak and /tts decide (docs/features/Speech.md §2.1, §2.4).
 
-#include "core/audio/voice_store.hpp"
+#include "speak_command.hpp"
 #include "core/commands/registry.hpp"
-#include "core/commands/speak.hpp"
-#include "core/commands/voice.hpp"
-#include "core/commands/voice_lab.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/events/voice_sessions.hpp"
+#include "voice_lab.hpp"
+#include "voice_store.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/schema.hpp"
@@ -36,12 +34,15 @@ struct settings_fixture {
     latibot::db::database db{std::filesystem::path(latibot::db::database::in_memory)};
     latibot::config::guild_settings settings{db};
 
-    settings_fixture() { latibot::testing::create_schema(db); }
+    settings_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::audio::dectalk_schema());
+    }
 };
 
 } // namespace
 
-TEST_CASE("speech refuses blank text and text over the guild's limit", "[commands]") {
+TEST_CASE("speech refuses blank text and text over the guild's limit", "[dectalk]") {
     const speech_limits limits{.max_characters = 10};
 
     CHECK(speak_refusal("hello", limits) == std::nullopt);
@@ -53,7 +54,7 @@ TEST_CASE("speech refuses blank text and text over the guild's limit", "[command
     CHECK(speak_refusal("\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9\xC3\xA9", limits) == std::nullopt);
 }
 
-TEST_CASE("speech limits default, are per guild, and are clamped", "[commands]") {
+TEST_CASE("speech limits default, are per guild, and are clamped", "[dectalk]") {
     settings_fixture test;
 
     const speech_limits defaults = speech_limits_for(test.settings, guild);
@@ -69,7 +70,7 @@ TEST_CASE("speech limits default, are per guild, and are clamped", "[commands]")
     CHECK(speech_limits_for(test.settings, dpp::snowflake{999}).max_characters == 1000);
 }
 
-TEST_CASE("speech is stopped by whoever asked for it, an admin or a trusted user", "[commands]") {
+TEST_CASE("speech is stopped by whoever asked for it, an admin or a trusted user", "[dectalk]") {
     CHECK(may_stop_speech(alice, alice, false, false));
     CHECK_FALSE(may_stop_speech(bob, alice, false, false));
     CHECK(may_stop_speech(bob, alice, true, false));
@@ -80,12 +81,11 @@ TEST_CASE("speech is stopped by whoever asked for it, an admin or a trusted user
     CHECK(may_stop_speech(alice, std::nullopt, false, true));
 }
 
-TEST_CASE("the voice commands register, their flags checked against their subcommands", "[commands]") {
+TEST_CASE("the speech commands register, their flags checked against their subcommands", "[dectalk]") {
     // registry::add refuses an override naming a subcommand the command does
     // not have, which would otherwise stop the bot at startup.
     settings_fixture test;
     latibot::audio::voice_store voices(test.db);
-    latibot::events::voice_sessions sessions;
     latibot::testing::mock_clock clock;
     latibot::commands::voice_drafts drafts(clock);
     latibot::commands::voice_lab lab(drafts, voices, clock, {});
@@ -93,12 +93,6 @@ TEST_CASE("the voice commands register, their flags checked against their subcom
     latibot::commands::registry commands;
     REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::speak_command>(latibot::commands::speech_services{})));
     REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::tts_command>(latibot::commands::speech_services{}, lab)));
-    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::voice_command>(sessions, test.settings)));
-
-    const auto* voice = commands.find("voice");
-    REQUIRE(voice != nullptr);
-    CHECK(voice->info().responses_for("start").result == dpp::m_suppress_notifications);
-    CHECK(voice->info().responses_for("grace").result == dpp::m_ephemeral);
 
     // The custom voices are /tts voices, and answer privately like the rest
     // of /tts.
@@ -110,18 +104,4 @@ TEST_CASE("the voice commands register, their flags checked against their subcom
     CHECK(std::ranges::find(paths, "voices lab") != paths.end());
     CHECK(std::ranges::find(paths, "voices list") != paths.end());
     CHECK(std::ranges::find(paths, "voices delete") != paths.end());
-    const auto voice_paths = latibot::commands::subcommand_paths(voice->build("voice", dpp::snowflake{1}));
-    CHECK(std::ranges::find(voice_paths, "lab") == voice_paths.end());
-}
-
-TEST_CASE("the voice grace defaults to 30 seconds and is clamped", "[commands]") {
-    settings_fixture test;
-
-    CHECK(latibot::commands::voice_grace_for(test.settings, guild) == 30s);
-
-    test.settings.set_int(guild, latibot::events::voice_grace_key, 5);
-    CHECK(latibot::commands::voice_grace_for(test.settings, guild) == 5s);
-
-    test.settings.set_int(guild, latibot::events::voice_grace_key, -3);
-    CHECK(latibot::commands::voice_grace_for(test.settings, guild) == 0s);
 }

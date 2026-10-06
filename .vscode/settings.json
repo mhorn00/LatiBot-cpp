@@ -57,22 +57,7 @@
                   "module"
                 ],
                 [
-                  "app"
-                ],
-                [
-                  "midnight"
-                ],
-                [
                   "discord"
-                ],
-                [
-                  "audio"
-                ],
-                [
-                  "music"
-                ],
-                [
-                  "llm"
                 ],
                 [
                   "ports"
@@ -82,6 +67,36 @@
                 ],
                 [
                   "util"
+                ],
+                [
+                  "app"
+                ],
+                [
+                  "voice"
+                ],
+                [
+                  "dectalk"
+                ],
+                [
+                  "music"
+                ],
+                [
+                  "llm"
+                ],
+                [
+                  "triggers"
+                ],
+                [
+                  "nicknames"
+                ],
+                [
+                  "midnight"
+                ],
+                [
+                  "links"
+                ],
+                [
+                  "linkstats"
                 ]
               ],
               "tagFormat": "[${tag}]",

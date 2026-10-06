@@ -1,6 +1,6 @@
 // Volume and resampling for Discord (docs/features/Speech.md §4.1).
 
-#include "core/audio/pcm.hpp"
+#include "voice/pcm.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -37,7 +37,7 @@ auto rising_crossings(const std::vector<std::int16_t>& interleaved, std::size_t 
 
 } // namespace
 
-TEST_CASE("volume scales, clips and leaves 100 alone", "[audio]") {
+TEST_CASE("volume scales, clips and leaves 100 alone", "[voice]") {
     std::vector<std::int16_t> samples{1000, -1000, 30000, -30000, 0};
 
     SECTION("100 changes nothing") {
@@ -58,7 +58,7 @@ TEST_CASE("volume scales, clips and leaves 100 alone", "[audio]") {
     }
 }
 
-TEST_CASE("trailing silence is cut to a fixed tail", "[audio]") {
+TEST_CASE("trailing silence is cut to a fixed tail", "[voice]") {
     using latibot::audio::trim_trailing_silence;
 
     SECTION("a long tail is cut down") {
@@ -83,7 +83,7 @@ TEST_CASE("trailing silence is cut to a fixed tail", "[audio]") {
     }
 }
 
-TEST_CASE("resampling keeps the length and doubles every sample into stereo", "[audio]") {
+TEST_CASE("resampling keeps the length and doubles every sample into stereo", "[voice]") {
     // One second in is one second out: 11025 frames become 48000.
     const auto out = to_discord(sine(440.0, 11025, 11025), 11025);
 
@@ -93,7 +93,7 @@ TEST_CASE("resampling keeps the length and doubles every sample into stereo", "[
     }
 }
 
-TEST_CASE("resampling keeps the frequency", "[audio]") {
+TEST_CASE("resampling keeps the frequency", "[voice]") {
     // 440 Hz for one second has 440 rising zero crossings, give or take the
     // one at the very start.
     const auto out = to_discord(sine(440.0, 11025, 11025), 11025);
@@ -103,7 +103,7 @@ TEST_CASE("resampling keeps the frequency", "[audio]") {
     CHECK(crossings <= 441);
 }
 
-TEST_CASE("resampling interpolates between the source samples", "[audio]") {
+TEST_CASE("resampling interpolates between the source samples", "[voice]") {
     // A ramp stays a ramp: every output sample lies between its neighbours
     // in the input, and the first matches exactly.
     const std::vector<std::int16_t> ramp{0, 1000, 2000, 3000};
@@ -117,12 +117,12 @@ TEST_CASE("resampling interpolates between the source samples", "[audio]") {
     CHECK(out[std::size_t{2} * 15] == 3000); // the last frame holds the last sample
 }
 
-TEST_CASE("resampling nothing gives nothing", "[audio]") {
+TEST_CASE("resampling nothing gives nothing", "[voice]") {
     CHECK(to_discord({}, 11025).empty());
     CHECK(to_discord(std::vector<std::int16_t>{1, 2, 3}, 0).empty());
 }
 
-TEST_CASE("resampling a minute of speech", "[audio][!benchmark]") {
+TEST_CASE("resampling a minute of speech", "[voice][!benchmark]") {
     const auto minute = sine(440.0, 11025, std::size_t{11025} * 60);
     BENCHMARK("11025 Hz mono to 48 kHz stereo, 60 s") {
         return to_discord(minute, 11025);

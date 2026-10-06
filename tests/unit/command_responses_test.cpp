@@ -18,8 +18,6 @@
 
 #include <memory>
 
-using latibot::commands::command_info;
-
 namespace {
 
 /// Every store a command needs, over one database.
@@ -42,25 +40,18 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
     latibot::commands::registry commands;
 
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::ping_command>(all.clock)));
-    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::join_command>()));
-    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::leave_command>()));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::shutdown_command>([] {})));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::goodbye_command>(all.settings)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::bots_command>(all.allowlist)));
-    CHECK(commands.size() == 6);
+    CHECK(commands.size() == 4);
 }
 
 TEST_CASE("the views meant for the room are public and the rest are private", "[commands]") {
-    // The room sees the bot come, go or stop, so it sees why; a refusal is
-    // still only for whoever asked (docs/features/Basic_Commands.md §5).
-    const latibot::commands::join_command join;
-    const latibot::commands::leave_command leave;
+    // The room sees the bot stop, so it sees why; a refusal is still only
+    // for whoever asked (docs/features/Basic_Commands.md §5).
     const latibot::commands::shutdown_command shutdown([] {});
-    for (const command_info* voice : {&join.info(), &leave.info(), &shutdown.info()}) {
-        INFO(voice->name);
-        CHECK(voice->responses_for("").result == dpp::m_suppress_notifications);
-        CHECK(voice->responses_for("").refusal == dpp::m_ephemeral);
-    }
+    CHECK(shutdown.info().responses_for("").result == dpp::m_suppress_notifications);
+    CHECK(shutdown.info().responses_for("").refusal == dpp::m_ephemeral);
 }
 
 // --------------------------------------------------------------------------

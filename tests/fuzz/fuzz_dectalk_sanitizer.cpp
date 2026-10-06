@@ -6,7 +6,7 @@
 // command a user may run, in full, with nothing in it that could open a
 // quote or another bracket.
 
-#include "core/audio/dectalk_sanitizer.hpp"
+#include "dectalk_sanitizer.hpp"
 
 #include <array>
 #include <cstddef>

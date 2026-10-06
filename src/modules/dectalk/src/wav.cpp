@@ -1,4 +1,4 @@
-#include "core/audio/wav.hpp"
+#include "wav.hpp"
 
 #include <dpp/discordevents.h>
 

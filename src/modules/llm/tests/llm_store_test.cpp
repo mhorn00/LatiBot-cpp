@@ -39,7 +39,6 @@ struct fixture {
     fixture() {
         latibot::testing::create_schema(db);
         latibot::db::apply_schema(db, latibot::llm::llm_schema());
-        latibot::db::apply_schema(db, latibot::llm::llm_schema());
     }
 };
 

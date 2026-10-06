@@ -1,14 +1,14 @@
-#include "core/commands/chat.hpp"
+#include "chat_command.hpp"
 
-#include "core/audio/dectalk_sanitizer.hpp"
-#include "core/audio/voice_params.hpp"
-#include "core/audio/wav.hpp"
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/discord/raw_api.hpp"
-#include "core/ports/tts_engine.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "dectalk_sanitizer.hpp"
+#include "tts_engine.hpp"
+#include "voice_params.hpp"
+#include "wav.hpp"
 
 #include <dpp/cluster.h>
 #include <dpp/dispatcher.h>

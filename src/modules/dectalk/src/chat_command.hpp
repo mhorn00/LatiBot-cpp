@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/commands/speak.hpp"
+#include "speak_command.hpp"
 
 #include <chrono>
 #include <cstdint>

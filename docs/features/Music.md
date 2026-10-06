@@ -15,8 +15,9 @@ and [Speech.md](Speech.md).
 
 | | |
 |---|---|
-| **Code** | `src/core/audio/voice_mixer.*`, `src/core/music/{music_queue,music_player,yt_dlp,links,cookies,pot_provider}.*`, `src/core/commands/music.*`, `src/core/ports/media.hpp`, `src/core/util/process.*` |
-| **Tests** | `tests/unit/{voice_mixer,music_queue,music_player,music_command,music_links,music_cookies,pot_provider,yt_dlp,yt_dlp_live,process}_test.cpp`, `tests/mocks/{mock_media,mock_voice}.hpp`, `tests/support/test_child.cpp` |
+| **Module** | `music`, which requires voice: [its README](../../src/modules/music/README.md) lists what it owns |
+| **Code** | `src/modules/music/src/`: `{music_queue,music_player,yt_dlp,links,cookies,pot_provider,process}.*`, `music_command.*`, `media.hpp`, `module.cpp`; the mixer is voice's (`voice/voice_mixer.hpp`) |
+| **Tests** | `src/modules/music/tests/` (`latibot_music_tests`, with `mock_media.hpp`), `tests/mocks/mock_voice.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
 | **Config** | the `music` section of `config.json`: `ytdlp_path`, `ffmpeg_path`, `deno_path`, `pot_provider_path`, `pot_provider_port`; `LATIBOT_YTDLP_FIREFOX_PROFILE` or `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
 | **Runtime** | `yt-dlp.exe`, `ffmpeg.exe` and `deno.exe`, beside the bot or on `PATH`; bgutil's PO token provider and plugin; Firefox. `deploy/Install-Dependencies.ps1` installs them all (§5) |

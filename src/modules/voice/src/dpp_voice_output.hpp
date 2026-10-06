@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/ports/voice_output.hpp"
+#include "voice/voice_output.hpp"
 
 namespace dpp {
 class cluster;

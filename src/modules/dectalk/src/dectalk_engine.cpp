@@ -1,8 +1,8 @@
-#include "core/audio/dectalk_engine.hpp"
+#include "dectalk_engine.hpp"
 
-#include "core/audio/pcm.hpp"
-#include "core/audio/voice_params.hpp"
 #include "core/util/log.hpp"
+#include "voice/pcm.hpp"
+#include "voice_params.hpp"
 
 #include <dpp/coro/awaitable.h>
 

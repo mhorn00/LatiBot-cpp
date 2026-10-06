@@ -1,4 +1,4 @@
-#include "core/audio/voice_store.hpp"
+#include "voice_store.hpp"
 
 #include "core/db/database.hpp"
 #include "core/util/text.hpp"

@@ -1,4 +1,4 @@
-#include "core/audio/speech_queue.hpp"
+#include "speech_queue.hpp"
 
 #include <algorithm>
 #include <charconv>

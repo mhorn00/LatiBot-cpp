@@ -18,8 +18,6 @@ namespace latibot::db {
 /// `guild_settings` and `allowed_bots`.
 [[nodiscard]] auto core_schema() noexcept -> module_schema;
 
-[[nodiscard]] auto dectalk_schema() noexcept -> module_schema;
-
 /// The schemas of the core and of every feature still inside it, in the
 /// order they are applied: a module's after those it requires.
 [[nodiscard]] auto builtin_schemas() noexcept -> std::span<const module_schema>;

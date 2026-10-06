@@ -1,6 +1,8 @@
 #pragma once
 
-#include "core/audio/voice_params.hpp"
+#include "voice_params.hpp"
+
+#include "core/db/schema_versions.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -15,6 +17,10 @@ class database;
 }
 
 namespace latibot::audio {
+
+/// The dectalk module's tables, `tts_voices`, version 1 first
+/// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp.
+[[nodiscard]] auto dectalk_schema() noexcept -> db::module_schema;
 
 /// A custom voice a guild has kept (docs/features/Speech.md §3).
 struct saved_voice {

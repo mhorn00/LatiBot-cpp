@@ -8,9 +8,9 @@
 // tests with LATIBOT_UPDATE_GOLDEN=1 to rewrite the file, and listen to the
 // .wav files before committing it.
 
-#include "core/audio/dectalk_engine.hpp"
-#include "core/audio/wav.hpp"
 #include "core/util/env.hpp"
+#include "dectalk_engine.hpp"
+#include "wav.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -88,7 +88,7 @@ auto read_golden(const std::filesystem::path& file) -> std::map<std::string, fin
 
 } // namespace
 
-TEST_CASE("DECtalk's audio matches the golden fingerprints", "[audio][golden][fs][coro][threads]") {
+TEST_CASE("DECtalk's audio matches the golden fingerprints", "[dectalk][golden][fs][coro][threads]") {
     const std::filesystem::path file = golden_directory() / "dectalk.txt";
     const bool updating = latibot::util::env_var("LATIBOT_UPDATE_GOLDEN").value_or("") == "1";
     const auto golden = read_golden(file);

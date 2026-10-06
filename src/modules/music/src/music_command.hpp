@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/music/music_player.hpp"
-#include "core/music/music_queue.hpp"
-#include "core/ports/media.hpp"
 #include "core/ui/paginator.hpp"
+#include "media.hpp"
+#include "music_player.hpp"
+#include "music_queue.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/message.h>

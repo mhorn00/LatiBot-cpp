@@ -1,4 +1,4 @@
-#include "core/music/cookies.hpp"
+#include "cookies.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

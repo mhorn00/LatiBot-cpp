@@ -2,7 +2,7 @@
 // (docs/features/Music.md §4.2). Music is a ramp of numbered samples, so
 // "music resumed exactly where it stopped" is a check on the numbers heard.
 
-#include "core/audio/voice_mixer.hpp"
+#include "voice/voice_mixer.hpp"
 
 #include "mocks/mock_voice.hpp"
 
@@ -99,7 +99,7 @@ auto speech(std::chrono::milliseconds length) -> std::vector<std::int16_t> {
 
 } // namespace
 
-TEST_CASE("music is kept a few seconds ahead, in whole packets", "[audio]") {
+TEST_CASE("music is kept a few seconds ahead, in whole packets", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     CHECK(test.connection.remaining(guild) == 3000ms);
@@ -115,7 +115,7 @@ TEST_CASE("music is kept a few seconds ahead, in whole packets", "[audio]") {
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("speech interrupts music at once, and music resumes exactly where it stopped", "[audio]") {
+TEST_CASE("speech interrupts music at once, and music resumes exactly where it stopped", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.play_for(1000ms);
@@ -138,7 +138,7 @@ TEST_CASE("speech interrupts music at once, and music resumes exactly where it s
     CHECK(music_is_continuous(heard));
 }
 
-TEST_CASE("music waits for every utterance queued, not just the first", "[audio]") {
+TEST_CASE("music waits for every utterance queued, not just the first", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.play_for(200ms);
@@ -154,7 +154,7 @@ TEST_CASE("music waits for every utterance queued, not just the first", "[audio]
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("stopping or skipping speech lets the music back in", "[audio]") {
+TEST_CASE("stopping or skipping speech lets the music back in", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.play_for(300ms);
@@ -174,7 +174,7 @@ TEST_CASE("stopping or skipping speech lets the music back in", "[audio]") {
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("stopping speech when there is none leaves the music alone", "[audio]") {
+TEST_CASE("stopping speech when there is none leaves the music alone", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.mixer.stop(guild);
@@ -184,7 +184,7 @@ TEST_CASE("stopping speech when there is none leaves the music alone", "[audio]"
     CHECK(test.connection.remaining(guild) == 3000ms);
 }
 
-TEST_CASE("a track's end marker is reported once it has been heard", "[audio]") {
+TEST_CASE("a track's end marker is reported once it has been heard", "[voice]") {
     fixture test;
     test.music.track_samples = (1000 * per_ms) + 7; // not a whole number of packets
     test.music.tracks = 2;
@@ -199,7 +199,7 @@ TEST_CASE("a track's end marker is reported once it has been heard", "[audio]") 
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("a track end taken back by speech is still reported, after the speech", "[audio]") {
+TEST_CASE("a track end taken back by speech is still reported, after the speech", "[voice]") {
     fixture test;
     test.music.track_samples = 1000 * per_ms;
     test.music.tracks = 2;
@@ -214,7 +214,7 @@ TEST_CASE("a track end taken back by speech is still reported, after the speech"
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("pausing music stops it at once, and resuming loses nothing", "[audio]") {
+TEST_CASE("pausing music stops it at once, and resuming loses nothing", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.play_for(700ms);
@@ -230,7 +230,7 @@ TEST_CASE("pausing music stops it at once, and resuming loses nothing", "[audio]
     CHECK(music_is_continuous(test.heard()));
 }
 
-TEST_CASE("dropping music clears it, but never speech", "[audio]") {
+TEST_CASE("dropping music clears it, but never speech", "[voice]") {
     fixture test;
     test.mixer.wake(guild);
     test.play_for(100ms);
@@ -248,7 +248,7 @@ TEST_CASE("dropping music clears it, but never speech", "[audio]") {
     }
 }
 
-TEST_CASE("a new connection sends a track's end marker again", "[audio]") {
+TEST_CASE("a new connection sends a track's end marker again", "[voice]") {
     fixture test;
     test.music.track_samples = 1000 * per_ms;
     test.music.tracks = 1;
@@ -263,7 +263,7 @@ TEST_CASE("a new connection sends a track's end marker again", "[audio]") {
     CHECK(test.music.markers_heard == std::vector<std::string>{"music:1"});
 }
 
-TEST_CASE("an idle source is no longer visited until woken", "[audio]") {
+TEST_CASE("an idle source is no longer visited until woken", "[voice]") {
     fixture test;
     test.music.tracks = 0;
     test.mixer.wake(guild);
@@ -276,7 +276,7 @@ TEST_CASE("an idle source is no longer visited until woken", "[audio]") {
     CHECK_FALSE(test.connection.plays.empty());
 }
 
-TEST_CASE("nothing is fed without a connection, or once the guild is forgotten", "[audio]") {
+TEST_CASE("nothing is fed without a connection, or once the guild is forgotten", "[voice]") {
     fixture test;
     test.connection.connected[guild] = false;
     test.mixer.wake(guild);

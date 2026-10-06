@@ -565,8 +565,9 @@ Tests live in `tests/` and in each module's `tests/`. The bot's code is in
 static libraries, `latibot_core` and one per module, so `LatiBot.exe` and the
 test executables (`latibot_tests`, `latibot_<module>_tests`,
 `latibot_app_tests`) link the same code.
-Each test carries one component tag (`[db]`, `[config]`, `[commands]`,
-`[events]`, `[ui]`, `[discord]`, `[audio]`, `[llm]`, `[ports]`, `[log]`, `[util]`) plus
+Each test carries one component tag (the core's `[db]`, `[config]`,
+`[commands]`, `[events]`, `[ui]`, `[module]`, `[discord]`, `[ports]`, `[log]`,
+`[util]`; `[app]`; or its module's, such as `[llm]` or `[links]`) plus
 optional traits (`[coro]`, `[threads]`, `[fs]`, `[golden]`), which select
 subsets:
 

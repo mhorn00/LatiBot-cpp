@@ -1,6 +1,6 @@
 // The voice message /chat answers with (docs/features/Speech.md §4.4).
 
-#include "core/commands/chat.hpp"
+#include "chat_command.hpp"
 
 #include <dpp/json.h>
 #include <dpp/message.h>
@@ -11,7 +11,7 @@
 
 using namespace std::chrono_literals;
 
-TEST_CASE("a voice message answers the interaction with its duration and waveform", "[commands]") {
+TEST_CASE("a voice message answers the interaction with its duration and waveform", "[dectalk]") {
     const std::string payload = latibot::commands::voice_message_response(dpp::m_suppress_notifications, 2500ms, "AAAA");
     const nlohmann::json parsed = nlohmann::json::parse(payload);
 

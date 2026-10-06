@@ -58,7 +58,6 @@ latibot_test_executable(latibot_tests SOURCES
     db/backup_test.cpp
     db/bot_allowlist_test.cpp
     db/database_test.cpp
-    db/voice_store_test.cpp
     db/guild_settings_test.cpp
     db/migrations_test.cpp
     db/schema_versions_test.cpp
@@ -66,31 +65,18 @@ latibot_test_executable(latibot_tests SOURCES
     unit/bootstrap_test.cpp
     unit/config_section_test.cpp
     unit/bots_command_test.cpp
-    unit/chat_command_test.cpp
     unit/ca_certificates_test.cpp
     unit/command_line_test.cpp
     unit/command_log_test.cpp
     unit/command_options_test.cpp
     unit/command_responses_test.cpp
-    unit/custom_voice_test.cpp
-    unit/dectalk_engine_test.cpp
-    unit/dectalk_golden_test.cpp
-    unit/dectalk_sanitizer_test.cpp
-    unit/dectalk_speech_test.cpp
     unit/env_test.cpp
     unit/goodbye_test.cpp
     unit/message_pipeline_test.cpp
     unit/module_test.cpp
-    unit/music_command_test.cpp
-    unit/music_cookies_test.cpp
-    unit/music_links_test.cpp
-    unit/music_player_test.cpp
-    unit/music_queue_test.cpp
-    unit/pot_provider_test.cpp
     unit/paginator_test.cpp
     unit/panels_test.cpp
     unit/panel_routes_test.cpp
-    unit/pcm_test.cpp
     unit/logs_command_test.cpp
     unit/log_channel_test.cpp
     unit/log_color_test.cpp
@@ -98,20 +84,10 @@ latibot_test_executable(latibot_tests SOURCES
     unit/message_flags_test.cpp
     unit/ports_test.cpp
     unit/preflight_test.cpp
-    unit/process_test.cpp
     unit/raw_api_test.cpp
     unit/registry_test.cpp
-    unit/speak_command_test.cpp
-    unit/speech_queue_test.cpp
     unit/unregister_test.cpp
     unit/version_test.cpp
-    unit/voice_lab_test.cpp
-    unit/voice_mixer_test.cpp
-    unit/voice_params_test.cpp
-    unit/voice_sessions_test.cpp
-    unit/wav_test.cpp
-    unit/yt_dlp_live_test.cpp
-    unit/yt_dlp_test.cpp
     unit/text_test.cpp
     unit/url_scan_test.cpp
 )

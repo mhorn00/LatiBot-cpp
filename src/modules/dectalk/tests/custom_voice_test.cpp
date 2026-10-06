@@ -1,8 +1,8 @@
 // Custom voices: the [:dv] parameters, reading and writing them, and names
 // (docs/features/Speech.md §3).
 
-#include "core/audio/voice_params.hpp"
-#include "core/audio/voice_store.hpp"
+#include "voice_params.hpp"
+#include "voice_store.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -14,7 +14,7 @@ using latibot::audio::custom_voice;
 using latibot::audio::parse_custom_voice;
 using latibot::audio::voice_name_refusal;
 
-TEST_CASE("every parameter is in exactly one group of at most five", "[audio]") {
+TEST_CASE("every parameter is in exactly one group of at most five", "[dectalk]") {
     std::set<std::string_view> grouped;
     for (const auto& group : latibot::audio::voice_parameter_groups()) {
         INFO(group.name);
@@ -34,7 +34,7 @@ TEST_CASE("every parameter is in exactly one group of at most five", "[audio]") 
     }
 }
 
-TEST_CASE("edits are clamped to DECtalk's limits and written in table order", "[audio]") {
+TEST_CASE("edits are clamped to DECtalk's limits and written in table order", "[dectalk]") {
     custom_voice voice;
     CHECK(voice.set("pr", 150));
     CHECK(voice.set("AP", 9999));
@@ -46,7 +46,7 @@ TEST_CASE("edits are clamped to DECtalk's limits and written in table order", "[
     CHECK(custom_voice{}.dv_parameters().empty());
 }
 
-TEST_CASE("a voice reads back from [:dv] text, with or without brackets", "[audio]") {
+TEST_CASE("a voice reads back from [:dv] text, with or without brackets", "[dectalk]") {
     const auto bare = parse_custom_voice("ap 200 pr 150", "harry");
     CHECK(bare.problems.empty());
     CHECK(bare.voice.base == "harry");
@@ -65,7 +65,7 @@ TEST_CASE("a voice reads back from [:dv] text, with or without brackets", "[audi
     CHECK(parse_custom_voice(bracketed.voice.dv_parameters(), "kit").voice == bracketed.voice);
 }
 
-TEST_CASE("what cannot be read is reported and skipped", "[audio]") {
+TEST_CASE("what cannot be read is reported and skipped", "[dectalk]") {
     const auto parsed = parse_custom_voice("[:dv ap 999 zz 5 pr loud save hs]", "nobody");
 
     CHECK(parsed.voice.base == "paul"); // an unknown base falls back
@@ -81,14 +81,14 @@ TEST_CASE("what cannot be read is reported and skipped", "[audio]") {
                              });
 }
 
-TEST_CASE("a custom voice's preamble is rebuilt, not pasted", "[audio]") {
+TEST_CASE("a custom voice's preamble is rebuilt, not pasted", "[dectalk]") {
     // custom_params comes from the database; whatever is in it, nothing but
     // parameters and numbers reaches the engine.
     const latibot::ports::voice_settings settings{.voice = "harry", .custom_params = "ap 200][:play \"x\"] pr 150"};
     CHECK(latibot::audio::voice_preamble(settings) == "[:nh][:dv ap 200 pr 150]");
 }
 
-TEST_CASE("custom voice names are short, plain and never a built-in's", "[audio]") {
+TEST_CASE("custom voice names are short, plain and never a built-in's", "[dectalk]") {
     CHECK(voice_name_refusal("robo") == std::nullopt);
     CHECK(voice_name_refusal("  Robo_Voice-2 ") == std::nullopt);
     CHECK(latibot::audio::normalise_voice_name("  Robo_Voice-2 ") == "robo_voice-2");

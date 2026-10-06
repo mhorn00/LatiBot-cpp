@@ -3,8 +3,6 @@
 
 #include "core/config/section.hpp"
 
-#include "core/config/feature_sections.hpp"
-
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
@@ -80,11 +78,4 @@ TEST_CASE("a section's defaults are every key, in the table's order", "[config]"
     const weather_config again = weather_section().read(nlohmann::json::parse(weather_section().defaults().dump()));
     CHECK(again.interval_minutes == 30);
     CHECK(again.units == "metric");
-}
-
-TEST_CASE("every key of every feature section says what it is for", "[config]") {
-    // What a module's README lists, and later checks against.
-    for (const auto& each : latibot::config::music_section().keys()) {
-        CHECK_FALSE(each.description().empty());
-    }
 }
