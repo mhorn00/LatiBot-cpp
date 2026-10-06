@@ -5,14 +5,14 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-941 test cases across 12 components, including 202 sections.
+942 test cases across 12 components, including 202 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
 | [db](#db) | 155 | 21 |
 | [config](#config) | 37 | 21 |
 | [commands](#commands) | 197 | 55 |
-| [events](#events) | 197 | 40 |
+| [events](#events) | 198 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
@@ -542,12 +542,13 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:288](../../tests/unit/log_channel_test.cpp#L288) |
 | a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:304](../../tests/unit/log_channel_test.cpp#L304) |
 | the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:317](../../tests/unit/log_channel_test.cpp#L317) |
-| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:51](../../tests/unit/message_pipeline_test.cpp#L51) |
-| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:64](../../tests/unit/message_pipeline_test.cpp#L64) |
-| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:79](../../tests/unit/message_pipeline_test.cpp#L79) |
-| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:112](../../tests/unit/message_pipeline_test.cpp#L112) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:127](../../tests/unit/message_pipeline_test.cpp#L127) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:144](../../tests/unit/message_pipeline_test.cpp#L144) |
+| stages run in the order they were added |  |  | [tests/unit/message_pipeline_test.cpp:52](../../tests/unit/message_pipeline_test.cpp#L52) |
+| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:65](../../tests/unit/message_pipeline_test.cpp#L65) |
+| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:80](../../tests/unit/message_pipeline_test.cpp#L80) |
+| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:113](../../tests/unit/message_pipeline_test.cpp#L113) |
+| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:128](../../tests/unit/message_pipeline_test.cpp#L128) |
+| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:145](../../tests/unit/message_pipeline_test.cpp#L145) |
+| a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:160](../../tests/unit/message_pipeline_test.cpp#L160) |
 | the local date is the one where the entry lives, not where the bot runs |  |  | [tests/unit/midnight_test.cpp:41](../../tests/unit/midnight_test.cpp#L41) |
 | a zone this machine does not know is refused rather than guessed at |  |  | [tests/unit/midnight_test.cpp:51](../../tests/unit/midnight_test.cpp#L51) |
 | an entry fires just after local midnight |  |  | [tests/unit/midnight_test.cpp:62](../../tests/unit/midnight_test.cpp#L62) |

@@ -118,8 +118,13 @@ A stage takes that and nothing else, so it is tested without a gateway.
 |---|---|---|
 | `send_message` | the goodbye, a trigger | posting it with the flags it carries, then logging whether it was posted |
 | `stop_bot` | the goodbye | stopping the bot after a delay long enough for the goodbye to arrive |
-| `replace_links` | URL replacement | `post_replacement` ([Url_Replacement.md §3.2](Url_Replacement.md#32-the-stage-and-the-post)) |
-| `ask_llm` | the language model | the responder, after any pacing wait |
+| `background_task` | URL replacement, the language model | running it without holding the pipeline up: `post_replacement` ([Url_Replacement.md §3.2](Url_Replacement.md#32-the-stage-and-the-post)) for a `replace_links`, the responder, after any pacing wait, for an `ask_llm` |
+
+The core knows only those three. A stage with work of its own decides it as
+its own type, an `own_stage_result<replace_links>` or
+`own_stage_result<ask_llm>`, which its tests read. When the stage is added to
+the pipeline, `carried_out_by` turns each of those into a `background_task`
+and passes the rest through, so the core never names a feature's action.
 
 `bot::carry_out` is the only code that touches Discord. The order of the
 stages is a list built in the `bot` constructor

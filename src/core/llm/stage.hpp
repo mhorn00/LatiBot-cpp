@@ -2,6 +2,7 @@
 
 #include "core/events/message_pipeline.hpp"
 #include "core/llm/advanced_triggers.hpp"
+#include "core/llm/ask.hpp"
 #include "core/llm/guards.hpp"
 #include "core/llm/models.hpp"
 #include "core/llm/responder.hpp"
@@ -27,6 +28,10 @@ class clock;
 }
 
 namespace latibot::llm {
+
+/// What the stage decides: notes it posts itself, and the `ask_llm` the
+/// pipeline hands to the responder (docs/features/Message_Pipeline.md §3).
+using stage_result = events::own_stage_result<ask_llm>;
 
 /// Whether a message addresses the bot: an @mention, a reply to one of its
 /// messages, or a message that starts with its name
@@ -70,19 +75,19 @@ public:
     /// `roll` is the advanced triggers' dice; see `advanced_trigger_matcher`.
     llm_stage(stage_services services, ports::clock& clock, std::function<double()> roll = {});
 
-    auto operator()(const events::incoming_message& message) -> events::stage_result;
+    auto operator()(const events::incoming_message& message) -> stage_result;
 
 private:
     /// The guards after the switch and the address, in order: the blacklist,
     /// the spend caps, the rate limits, and for a bot the pacing. The wait
     /// before answering when all of them let it through, nothing when one
     /// did not.
-    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, events::stage_result& result)
+    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, stage_result& result)
         -> std::optional<std::chrono::seconds>;
 
     /// Whether a spend cap is reached, adding the notice to `result` the
     /// first time a guild asks after it was.
-    auto over_spend_cap(const events::incoming_message& message, bool addressed, events::stage_result& result) -> bool;
+    auto over_spend_cap(const events::incoming_message& message, bool addressed, stage_result& result) -> bool;
 
     stage_services services_;
     ports::clock* clock_;

@@ -58,7 +58,7 @@ auto failure_reply(const ports::api_error& error) -> std::string {
 
 responder::responder(responder_services services, std::function<bot_identity()> me) : services_(std::move(services)), me_(std::move(me)) {}
 
-auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
+auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     answer_report report;
     const bot_identity me = me_();
     const bool addressed = ask.trigger_id == 0;
@@ -143,7 +143,7 @@ auto responder::answer(events::ask_llm ask) -> dpp::task<answer_report> {
     co_return report;
 }
 
-auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
+auto responder::recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
     -> dpp::task<std::vector<context_message>> {
     std::vector<context_message> history;
     if (wanted <= 0) co_return history;
@@ -170,7 +170,7 @@ auto responder::recent_messages(const events::ask_llm& ask, int wanted, dpp::sno
     co_return history;
 }
 
-auto responder::build_request(const events::ask_llm& ask, const llm_settings& settings, const model_info& model,
+auto responder::build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
                               const std::vector<context_message>& history, std::chrono::sys_seconds now, people& cast) const -> request {
     const bool addressed = ask.trigger_id == 0;
     const context_message latest{.id = ask.message_id,
@@ -210,7 +210,7 @@ auto responder::build_request(const events::ask_llm& ask, const llm_settings& se
     return call;
 }
 
-auto responder::apologise(const events::ask_llm& ask, const ports::api_error& error) const -> dpp::task<void> {
+auto responder::apologise(const llm::ask_llm& ask, const ports::api_error& error) const -> dpp::task<void> {
     dpp::message apology(ask.channel_id, failure_reply(error));
     apology.set_reference(ask.message_id, ask.guild_id, ask.channel_id, false);
     apology.set_allowed_mentions(false, false, false, false);
@@ -218,7 +218,7 @@ auto responder::apologise(const events::ask_llm& ask, const ports::api_error& er
     std::ignore = co_await services_.discord->send_message(std::move(apology));
 }
 
-auto responder::post(const events::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void> {
+auto responder::post(const llm::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void> {
     const bool addressed = ask.trigger_id == 0;
     for (std::size_t index = 0; index < parts.size(); ++index) {
         dpp::message reply(ask.channel_id, parts[index]);
@@ -240,7 +240,7 @@ auto responder::post(const events::ask_llm& ask, const std::vector<std::string>&
     }
 }
 
-auto responder::speak(const events::ask_llm& ask, std::string text) const -> dpp::task<void> {
+auto responder::speak(const llm::ask_llm& ask, std::string text) const -> dpp::task<void> {
     if (services_.engine == nullptr || services_.speech == nullptr) co_return;
 
     const commands::speech_limits limits = commands::speech_limits_for(*services_.settings, ask.guild_id);

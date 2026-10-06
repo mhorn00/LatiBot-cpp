@@ -122,10 +122,13 @@ private:
 
     /// Waits out any pacing, then has the model answer
     /// (docs/features/Language_Model.md).
-    auto answer_with_llm(events::ask_llm ask) -> dpp::task<void>;
+    auto answer_with_llm(llm::ask_llm ask) -> dpp::task<void>;
 
     /// Performs what the stages decided.
-    auto carry_out(const std::vector<events::action>& actions) -> void;
+    auto carry_out(std::vector<events::action> actions) -> void;
+
+    /// Posts one message, as a stage's `send_message` would be.
+    auto post(events::send_message message) -> void;
 
     /// Buttons and select menus. `chosen` is the select menu's value, empty
     /// for a button. Both arrive here because a panel mixes the two and the

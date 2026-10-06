@@ -570,6 +570,11 @@ classDiagram
         <<struct>>
         +after : milliseconds
     }
+    class background_task {
+        <<struct>>
+        +what : string
+        +run : move_only_function~task()~
+    }
     class replace_links {
         <<struct>>
         +guild_id, channel_id, message_id, author_id
@@ -590,13 +595,17 @@ classDiagram
         returns a stage_fn
     }
     class url_replacer {
-        +operator()(incoming_message) stage_result
+        +operator()(incoming_message) own_stage_result~replace_links~
     }
     class trigger_responder {
         +operator()(incoming_message) stage_result
     }
     class llm_stage {
-        +operator()(incoming_message) stage_result
+        +operator()(incoming_message) own_stage_result~ask_llm~
+    }
+    class carried_out_by {
+        <<function template>>
+        own actions become background tasks
     }
 
     pipeline *-- stage
@@ -605,21 +614,32 @@ classDiagram
     stage_result --> action
     action <|-- send_message
     action <|-- stop_bot
-    action <|-- replace_links
-    action <|-- ask_llm
+    action <|-- background_task
     goodbye_stage ..> send_message
     goodbye_stage ..> stop_bot
     url_replacer ..> replace_links
     trigger_responder ..> send_message
     llm_stage ..> ask_llm
+    carried_out_by ..> background_task : makes
+    replace_links ..> carried_out_by
+    ask_llm ..> carried_out_by
 ```
 
 The four stages are added in this order in `bot::register_stages`:
 **goodbye**, **url replacement**, **triggers**, **language model**. The
 triangles from `action` stand for "is one of the variant's alternatives",
 not inheritance. Each stage is stored as a `std::function`: a lambda
-returned by `goodbye_stage`, a copy of `url_replacer`, and lambdas that call
-the `trigger_responder` and `llm_stage` members of `bot`.
+returned by `goodbye_stage`, a lambda that calls the `trigger_responder`
+member of `bot`, and, for `url_replacer` and `llm_stage`, what
+`carried_out_by` makes of them.
+
+The core's actions are only `send_message`, `stop_bot` and
+`background_task`. A stage with work of its own, such as the URL replacer's
+`replace_links` or the model's `ask_llm`, decides it as its own type, which
+its tests read. When the stage is added, `carried_out_by` turns each of those
+into a `background_task` that runs it: `post_replacement` for a
+`replace_links`, the responder for an `ask_llm`. So the core doesn't name any
+feature's action (docs/modules/Module_Plan_Final.md §4.5).
 
 `answered` passes from stage to stage. When a trigger has already replied, the
 language model's advanced triggers stay quiet (plan §14.3).

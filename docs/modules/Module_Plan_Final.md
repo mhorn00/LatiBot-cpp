@@ -684,8 +684,8 @@ Nothing is pushed.
 | | 1b K3: matching to `util/match` | done, `1c600c5` |
 | | 1c K7: `plan_speak` with the voice code, as `discord::plan_voice` | done, `4406791` |
 | | 1d K8: `/tts voices lab`, `list`, `delete` | done, `0dde567` |
-| | 1e `/urlrepl` → `/links` (D26) | done |
-| | 1f K1: generic actions, `background_task` | |
+| | 1e `/urlrepl` → `/links` (D26) | done, `089c839` |
+| | 1f K1: generic actions, `background_task` | done |
 | | 1g K4–K6: the `speech` interface, offered by the DECtalk code, used by the LLM | |
 | | 1h K2: the LLM checks its own config | |
 | **2. The build system** | 2a DPP as a Conan package (I1), static if it links cleanly (I2) | |

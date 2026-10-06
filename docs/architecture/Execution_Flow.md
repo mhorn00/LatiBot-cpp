@@ -228,8 +228,8 @@ flowchart TB
     more -- no --> carry
     carry --> visit
     visit -- send_message --> send
-    visit -- replace_links --> replace
-    visit -- ask_llm --> ask
+    visit -- "background_task (replace_links)" --> replace
+    visit -- "background_task (ask_llm)" --> ask
     visit -- stop_bot --> stop
 ```
 

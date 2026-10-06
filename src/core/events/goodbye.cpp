@@ -62,12 +62,15 @@ auto goodbye_stage(const config::guild_settings& settings) -> pipeline::stage_fn
         }
 
         util::log().info("{} said the goodbye phrase in guild {}; stopping", message.author_id, message.guild_id);
-        return {.actions = {send_message{.channel_id = message.channel_id,
-                                         .content = std::string(goodbye_reply),
-                                         .flags = dpp::m_suppress_notifications,
-                                         .what = "the goodbye"},
-                            stop_bot{.after = goodbye_delay}},
-                .consumed = true};
+        // Built one at a time: actions can be moved but not copied, and a
+        // braced list copies.
+        stage_result result{.actions = {}, .consumed = true, .answered = false};
+        result.actions.emplace_back(send_message{.channel_id = message.channel_id,
+                                                 .content = std::string(goodbye_reply),
+                                                 .flags = dpp::m_suppress_notifications,
+                                                 .what = "the goodbye"});
+        result.actions.emplace_back(stop_bot{.after = goodbye_delay});
+        return result;
     };
 }
 

@@ -31,7 +31,7 @@ auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
 
 } // namespace
 
-auto url_replacer::operator()(const incoming_message& message) const -> stage_result {
+auto url_replacer::operator()(const incoming_message& message) const -> own_stage_result<replace_links> {
     // Bots are heard only when a guild allows them, and even then their links
     // are theirs to post as they like. A DM has no rules to apply.
     if (message.from_bot || message.guild_id.empty()) return {};

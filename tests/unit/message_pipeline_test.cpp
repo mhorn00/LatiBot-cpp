@@ -4,6 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -145,4 +146,52 @@ TEST_CASE("an empty pipeline decides nothing", "[events]") {
     const pipeline stages;
     CHECK(stages.size() == 0);
     CHECK(stages.run(from_human()).empty());
+}
+
+namespace {
+
+/// A feature's own action, as the URL replacer's replace_links is.
+struct own_step {
+    int number = 0;
+};
+
+} // namespace
+
+TEST_CASE("a stage's own actions become background tasks, and the rest pass through", "[events][coro]") {
+    using latibot::events::background_task;
+    using latibot::events::own_stage_result;
+
+    std::vector<int> carried;
+    pipeline stages;
+    stages.add("own", latibot::events::carried_out_by<own_step>(
+                          [](const incoming_message& message) {
+                              own_stage_result<own_step> decided;
+                              decided.actions.emplace_back(own_step{.number = 7});
+                              decided.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = "noted"});
+                              decided.answered = true;
+                              return decided;
+                          },
+                          "doing the step",
+                          [&carried](own_step step) -> dpp::task<void> {
+                              carried.push_back(step.number);
+                              co_return;
+                          }));
+    stages.add("later", [](const incoming_message& message) {
+        stage_result result;
+        // The first stage answered, and this one sees it.
+        if (message.answered) result.actions.emplace_back(send_message{.channel_id = message.channel_id, .content = "seen"});
+        return result;
+    });
+
+    auto actions = stages.run(from_human());
+    REQUIRE(actions.size() == 3);
+    auto* task = std::get_if<background_task>(&actions.front());
+    REQUIRE(task != nullptr);
+    CHECK(task->what == "doing the step");
+    CHECK(sent(actions) == std::vector<std::string>{"noted", "seen"});
+
+    // Nothing is carried out until the task runs.
+    CHECK(carried.empty());
+    task->run().sync_wait_for(std::chrono::seconds{2});
+    CHECK(carried == std::vector<int>{7});
 }

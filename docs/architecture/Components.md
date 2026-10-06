@@ -190,8 +190,8 @@ flowchart TB
 
     pipeline -- "actions" --> carry
     scheduler -- "actions" --> carry
-    carry -- "replace_links" --> tracker
-    carry -- "ask_llm" --> responder
+    carry -- "background_task: post_replacement" --> tracker
+    carry -- "background_task: answer" --> responder
     carry -- "send_message" --> dppOut
 
     registry -- "/speak, /chat,<br/>voice lab's Test" --> tts
@@ -214,7 +214,7 @@ The pattern to notice is the split between **deciding** and **doing**:
 1. DPP calls a handler in `bot`.
 2. The handler asks a feature what should happen. The pipeline and the
    midnight scheduler answer with plain structs called *actions*
-   (`send_message`, `replace_links`, `ask_llm`, `stop_bot`), and the embed
+   (`send_message`, `stop_bot`, and `background_task`, which is how the URL replacer's `replace_links` and the model's `ask_llm` are carried out), and the embed
    tracker with `embed_action`s.
 3. `carry_out` does them, often as a detached coroutine so the handler
    returns at once.

@@ -30,8 +30,8 @@
 #include <string>
 #include <vector>
 
-using latibot::events::ask_llm;
 using latibot::events::incoming_message;
+using latibot::llm::ask_llm;
 using latibot::llm::document_kind;
 using json = nlohmann::json;
 using namespace std::chrono_literals;
@@ -137,7 +137,7 @@ auto from_other_bot(std::string content) -> incoming_message {
 
 /// The stage's ask, when it asked for exactly that. Points into `result`, so
 /// keep the result for as long as the pointer.
-auto asked(const latibot::events::stage_result& result) -> const ask_llm* {
+auto asked(const latibot::llm::stage_result& result) -> const ask_llm* {
     return result.actions.size() == 1 ? std::get_if<ask_llm>(&result.actions.front()) : nullptr;
 }
 

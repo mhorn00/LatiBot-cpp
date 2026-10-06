@@ -47,7 +47,7 @@ llm_stage::llm_stage(stage_services services, ports::clock& clock, std::function
       channels_(clock, rate_window),
       pacing_(clock) {}
 
-auto llm_stage::over_spend_cap(const events::incoming_message& message, bool addressed, events::stage_result& result) -> bool {
+auto llm_stage::over_spend_cap(const events::incoming_message& message, bool addressed, stage_result& result) -> bool {
     const spend_status spend = spend_status_at(
         *services_.usage, {.daily = services_.bootstrap->spend_cap_daily_usd, .monthly = services_.bootstrap->spend_cap_monthly_usd},
         std::chrono::floor<std::chrono::seconds>(clock_->now()));
@@ -69,7 +69,7 @@ auto llm_stage::over_spend_cap(const events::incoming_message& message, bool add
     return true;
 }
 
-auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, events::stage_result& result)
+auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, stage_result& result)
     -> std::optional<std::chrono::seconds> {
     if (services_.blacklist->blocks(message.guild_id, message.author_id, message.author_roles)) {
         util::log().debug("not answering {} in guild {}: blacklisted", message.author_id, message.guild_id);
@@ -93,8 +93,8 @@ auto llm_stage::admit(const events::incoming_message& message, const llm_setting
     return paced.wait;
 }
 
-auto llm_stage::operator()(const events::incoming_message& message) -> events::stage_result {
-    events::stage_result result;
+auto llm_stage::operator()(const events::incoming_message& message) -> stage_result {
+    stage_result result;
 
     // Every person speaking resets the bot-to-bot count, whether or not the
     // model answers them (docs/features/Language_Model.md §2.7).
@@ -132,17 +132,17 @@ auto llm_stage::operator()(const events::incoming_message& message) -> events::s
     const auto session = services_.sessions == nullptr ? std::nullopt : services_.sessions->find(message.guild_id);
     result.consumed = true;
     result.answered = true;
-    result.actions.emplace_back(events::ask_llm{.guild_id = message.guild_id,
-                                                .channel_id = message.channel_id,
-                                                .message_id = message.message_id,
-                                                .author_id = message.author_id,
-                                                .author_name = message.author_name,
-                                                .content = message.content,
-                                                .author_is_bot = message.from_bot,
-                                                .trigger_id = fired ? fired->id : 0,
-                                                .context_prompt = fired ? fired->context_prompt : std::string{},
-                                                .speak = session && session->text_channel == message.channel_id,
-                                                .wait = *wait});
+    result.actions.emplace_back(llm::ask_llm{.guild_id = message.guild_id,
+                                             .channel_id = message.channel_id,
+                                             .message_id = message.message_id,
+                                             .author_id = message.author_id,
+                                             .author_name = message.author_name,
+                                             .content = message.content,
+                                             .author_is_bot = message.from_bot,
+                                             .trigger_id = fired ? fired->id : 0,
+                                             .context_prompt = fired ? fired->context_prompt : std::string{},
+                                             .speak = session && session->text_channel == message.channel_id,
+                                             .wait = *wait});
     return result;
 }
 

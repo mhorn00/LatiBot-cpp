@@ -19,6 +19,26 @@ class discord_gateway;
 
 namespace latibot::events {
 
+/// Post working previews for links a URL rule covers
+/// (docs/features/Url_Replacement.md §3.2).
+///
+/// Carrying this out takes several calls and then some waiting, which is why
+/// it is an action of its own rather than a `send_message`: what gets posted
+/// next depends on whether Discord manages to embed the first attempt. It is
+/// links' own, made a background task by `carried_out_by`.
+struct replace_links {
+    dpp::snowflake guild_id;
+    dpp::snowflake channel_id;
+
+    /// The message the links were in, whose own previews get turned off.
+    dpp::snowflake message_id;
+
+    /// Who posted them, which is who the reaction statistics credit.
+    dpp::snowflake author_id;
+
+    std::vector<planned_link> links;
+};
+
 /// Discord's limit on a message's text. A replacement that would pass it
 /// loses links from the end until it fits, rather than failing outright.
 inline constexpr std::size_t message_length_limit = 2000;
@@ -32,7 +52,7 @@ class url_replacer {
 public:
     explicit url_replacer(const url_rule_store& rules) : rules_(&rules) {}
 
-    auto operator()(const incoming_message& message) const -> stage_result;
+    auto operator()(const incoming_message& message) const -> own_stage_result<replace_links>;
 
 private:
     const url_rule_store* rules_;

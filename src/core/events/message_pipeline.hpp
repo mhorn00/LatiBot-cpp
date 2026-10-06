@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/discord/message_flags.hpp"
-#include "core/events/url_rules.hpp"
 
+#include <dpp/coro/task.h>
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -10,6 +10,8 @@
 #include <functional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -84,51 +86,18 @@ struct stop_bot {
     std::chrono::milliseconds after{0};
 };
 
-/// Post working previews for links a URL rule covers
-/// (docs/features/Url_Replacement.md §3.2).
+/// Work a stage hands off, to be done without holding the pipeline up:
+/// posting a replacement, answering with the model.
 ///
-/// Carrying this out takes several calls and then some waiting, which is why
-/// it is an action of its own rather than a `send_message`: what gets posted
-/// next depends on whether Discord manages to embed the first attempt.
-struct replace_links {
-    dpp::snowflake guild_id;
-    dpp::snowflake channel_id;
+/// A stage with work of its own decides it as its own type, which its tests
+/// read, and `carried_out_by` turns each into one of these when the stage is
+/// added to the pipeline. So the core never needs to know a feature's
+/// actions.
+struct background_task {
+    /// What it is, for the log line if it fails: "posting a replacement".
+    std::string what;
 
-    /// The message the links were in, whose own previews get turned off.
-    dpp::snowflake message_id;
-
-    /// Who posted them, which is who the reaction statistics credit.
-    dpp::snowflake author_id;
-
-    std::vector<planned_link> links;
-};
-
-/// Ask the model to answer a message (docs/features/Language_Model.md).
-///
-/// An action of its own because answering takes a model call, maybe several,
-/// and the stage that decides to answer cannot wait for them: it only
-/// decides, and the shell hands this to the responder.
-struct ask_llm {
-    dpp::snowflake guild_id;
-    dpp::snowflake channel_id;
-    dpp::snowflake message_id;
-    dpp::snowflake author_id;
-    std::string author_name;
-    std::string content;
-    bool author_is_bot = false;
-
-    /// Set when an advanced trigger fired rather than someone addressing the
-    /// bot: which one, and what it asks the model to say.
-    std::int64_t trigger_id = 0;
-    std::string context_prompt;
-
-    /// Also say the reply in the voice session this channel belongs to
-    /// (docs/features/Language_Model.md §2.5).
-    bool speak = false;
-
-    /// How long to wait before answering: bot-to-bot pacing
-    /// (docs/features/Language_Model.md §2.7).
-    std::chrono::seconds wait{0};
+    std::move_only_function<dpp::task<void>()> run;
 };
 
 /// Something a stage wants done.
@@ -136,10 +105,16 @@ struct ask_llm {
 /// Stages return actions rather than performing them, which is what keeps
 /// them pure: a test reads the actions, and the shell is the only code that
 /// touches Discord.
-using action = std::variant<send_message, stop_bot, replace_links, ask_llm>;
+using action = std::variant<send_message, stop_bot, background_task>;
 
-struct stage_result {
-    std::vector<action> actions;
+/// What a stage decided: its actions, and what that means for the rest.
+///
+/// `Action` is `action` for the pipeline. A stage with work of its own
+/// decides `own_action<Own>` instead, and `carried_out_by` makes it an
+/// `action` (docs/features/Message_Pipeline.md §3).
+template <typename Action>
+struct stage_decision {
+    std::vector<Action> actions;
 
     /// Whether later stages should be skipped. A trigger response and a URL
     /// replacement can both fire on one message; an LLM reply should not
@@ -150,6 +125,42 @@ struct stage_result {
     /// `incoming_message::answered`.
     bool answered = false;
 };
+
+using stage_result = stage_decision<action>;
+
+/// The core's actions, or a stage's own.
+template <typename Own>
+using own_action = std::variant<send_message, stop_bot, Own>;
+
+/// What a stage with actions of its own decides.
+template <typename Own>
+using own_stage_result = stage_decision<own_action<Own>>;
+
+/// A pipeline stage made of `stage`, which decides `own_stage_result<Own>`:
+/// each `Own` becomes a `background_task` named `what` that runs
+/// `carry_out(own)`, and everything else passes through as it was.
+template <typename Own, typename Stage, typename CarryOut>
+[[nodiscard]] auto carried_out_by(Stage stage, std::string what, CarryOut carry_out)
+    -> std::function<stage_result(const incoming_message&)> {
+    return [stage = std::move(stage), what = std::move(what), carry_out = std::move(carry_out)](const incoming_message& message) mutable {
+        own_stage_result<Own> decided = stage(message);
+        stage_result result{.actions = {}, .consumed = decided.consumed, .answered = decided.answered};
+        result.actions.reserve(decided.actions.size());
+        for (own_action<Own>& wanted : decided.actions) {
+            std::visit(
+                [&](auto& step) {
+                    if constexpr (std::is_same_v<std::decay_t<decltype(step)>, Own>) {
+                        result.actions.emplace_back(background_task{
+                            .what = what, .run = [carry_out, own = std::move(step)]() mutable { return carry_out(std::move(own)); }});
+                    } else {
+                        result.actions.emplace_back(std::move(step));
+                    }
+                },
+                wanted);
+        }
+        return result;
+    };
+}
 
 /// The ordered stages a message passes through.
 ///

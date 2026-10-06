@@ -248,10 +248,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
               .track_limit = [this](dpp::snowflake guild) { return commands::track_limit_for(guild_settings_, guild); },
               .notify =
                   [this](dpp::snowflake channel, std::string text) {
-                      carry_out({events::send_message{.channel_id = channel,
-                                                      .content = std::move(text),
-                                                      .flags = dpp::m_suppress_notifications,
-                                                      .what = "a note about a track"}});
+                      post(events::send_message{.channel_id = channel,
+                                                .content = std::move(text),
+                                                .flags = dpp::m_suppress_notifications,
+                                                .what = "a note about a track"});
                   }}),
       llm_usage_(database_),
       llm_documents_(database_),
@@ -412,9 +412,16 @@ auto bot::register_stages() -> void {
     // answers, and a simple trigger's reply before it keeps an advanced
     // trigger quiet.
     pipeline_.add("goodbye", events::goodbye_stage(guild_settings_));
-    pipeline_.add("url replacement", events::url_replacer(url_rules_));
+    pipeline_.add("url replacement", events::carried_out_by<events::replace_links>(
+                                         events::url_replacer(url_rules_), "posting a replacement", [this](events::replace_links request) {
+                                             return events::post_replacement(gateway_, replacements_, embed_tracker_, clock_,
+                                                                             std::move(request));
+                                         }));
     pipeline_.add("triggers", [this](const events::incoming_message& message) { return trigger_responder_(message); });
-    pipeline_.add("language model", [this](const events::incoming_message& message) { return llm_stage_(message); });
+    pipeline_.add("language model",
+                  events::carried_out_by<llm::ask_llm>([this](const events::incoming_message& message) { return llm_stage_(message); },
+                                                       "answering with the language model",
+                                                       [this](llm::ask_llm ask) { return answer_with_llm(std::move(ask)); }));
 }
 
 auto bot::provider_for(llm::provider_kind kind) const -> llm::provider* {
@@ -435,7 +442,7 @@ auto bot::llm_services() -> commands::llm_command_services {
             .has_provider = [this](llm::provider_kind kind) { return provider_for(kind) != nullptr; }};
 }
 
-auto bot::answer_with_llm(events::ask_llm ask) -> dpp::task<void> {
+auto bot::answer_with_llm(llm::ask_llm ask) -> dpp::task<void> {
     // Bot-to-bot pacing (docs/features/Language_Model.md §2.7). The turn was
     // claimed when the stage decided, so the wait only spaces it out.
     if (ask.wait > std::chrono::seconds::zero()) co_await cluster_.co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
@@ -1195,10 +1202,16 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     return described;
 }
 
-auto bot::carry_out(const std::vector<events::action>& actions) -> void {
-    for (const events::action& wanted : actions) {
+auto bot::post(events::send_message message) -> void {
+    std::vector<events::action> one;
+    one.emplace_back(std::move(message));
+    carry_out(std::move(one));
+}
+
+auto bot::carry_out(std::vector<events::action> actions) -> void {
+    for (events::action& wanted : actions) {
         std::visit(
-            [this](const auto& step) {
+            [this](auto& step) {
                 using step_type = std::decay_t<decltype(step)>;
 
                 if constexpr (std::is_same_v<step_type, events::send_message>) {
@@ -1221,10 +1234,8 @@ auto bot::carry_out(const std::vector<events::action>& actions) -> void {
                                                 }
                                                 util::log().info("posted {} in channel {} ({}): \"{}\"", what, channel, flags, content);
                                             });
-                } else if constexpr (std::is_same_v<step_type, events::replace_links>) {
-                    detach(events::post_replacement(gateway_, replacements_, embed_tracker_, clock_, step), "posting a replacement");
-                } else if constexpr (std::is_same_v<step_type, events::ask_llm>) {
-                    detach(answer_with_llm(step), "answering with the language model");
+                } else if constexpr (std::is_same_v<step_type, events::background_task>) {
+                    detach(step.run(), step.what);
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");
                     // A thread of its own, so the pause holds up none of
