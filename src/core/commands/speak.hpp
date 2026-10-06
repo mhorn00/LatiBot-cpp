@@ -25,6 +25,8 @@ struct bootstrap;
 
 namespace latibot::commands {
 
+class voice_lab;
+
 // --------------------------------------------------------------------------
 // Decisions
 // --------------------------------------------------------------------------
@@ -104,22 +106,27 @@ private:
     speech_services services_;
 };
 
-/// Stops or skips speech, and sets the limits on it
-/// (docs/features/Speech.md §2.4).
+/// Stops or skips speech, sets the limits on it, and keeps the guild's
+/// custom voices (docs/features/Speech.md §2.4, §3).
 class tts_command final : public command {
 public:
-    explicit tts_command(speech_services services);
+    tts_command(speech_services services, voice_lab& lab);
 
     [[nodiscard]] auto info() const -> const command_info& override { return info_; }
     [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
     auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
+    auto autocomplete(const dpp::autocomplete_t& event) const -> void override;
 
 private:
     auto stop_or_skip(const dpp::slashcommand_t& event, bool skipping) -> dpp::task<void>;
     auto limits(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto open_lab(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto list_voices(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto delete_voice(const dpp::slashcommand_t& event) -> dpp::task<void>;
 
     command_info info_;
     speech_services services_;
+    voice_lab* lab_;
 };
 
 } // namespace latibot::commands

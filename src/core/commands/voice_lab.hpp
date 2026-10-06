@@ -45,7 +45,7 @@ inline constexpr std::string_view lab_name_view = "vlabname";
 inline constexpr std::string_view lab_open_view = "vlabopen";
 
 /// How many saved voices that menu lists: Discord's limit on a menu's
-/// options. A server can keep more, which `/voice lab voice:` opens.
+/// options. A server can keep more, which `/tts voices lab voice:` opens.
 inline constexpr std::size_t saved_voices_offered = 25;
 
 /// The form that edits the whole voice as `[:dv]` text, rather than a group.
@@ -123,7 +123,7 @@ class voice_lab {
 public:
     voice_lab(voice_drafts& drafts, audio::voice_store& store, ports::clock& clock, speech_services speech);
 
-    /// The panel for `/voice lab`, starting from the saved voice `from`, or
+    /// The panel for `/tts voices lab`, starting from the saved voice `from`, or
     /// from the person's draft when `from` is empty. Nothing when there is
     /// no saved voice of that name.
     [[nodiscard]] auto open(dpp::snowflake guild, dpp::snowflake user, std::string_view from) -> std::optional<dpp::message>;

@@ -392,9 +392,9 @@ auto bot::register_commands() -> void {
     const commands::speech_services speech{
         .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
     commands_.add(std::make_unique<commands::speak_command>(speech));
-    commands_.add(std::make_unique<commands::tts_command>(speech));
+    commands_.add(std::make_unique<commands::tts_command>(speech, voice_lab_));
     commands_.add(std::make_unique<commands::chat_command>(speech, raw_));
-    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_, voices_, voice_lab_));
+    commands_.add(std::make_unique<commands::voice_command>(voice_sessions_, guild_settings_));
     commands_.add(std::make_unique<commands::music_command>(commands::music_services{
         .player = &music_, .resolver = &music_resolver_, .settings = &guild_settings_, .unavailable = music_unavailable()}));
     commands_.add(std::make_unique<commands::linkstats_command>(

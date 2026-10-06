@@ -367,11 +367,11 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
-| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:43](../../tests/unit/speak_command_test.cpp#L43) |
-| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:55](../../tests/unit/speak_command_test.cpp#L55) |
-| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:71](../../tests/unit/speak_command_test.cpp#L71) |
-| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:82](../../tests/unit/speak_command_test.cpp#L82) |
-| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:104](../../tests/unit/speak_command_test.cpp#L104) |
+| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:44](../../tests/unit/speak_command_test.cpp#L44) |
+| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:56](../../tests/unit/speak_command_test.cpp#L56) |
+| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:72](../../tests/unit/speak_command_test.cpp#L72) |
+| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:83](../../tests/unit/speak_command_test.cpp#L83) |
+| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:117](../../tests/unit/speak_command_test.cpp#L117) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |

@@ -24,8 +24,8 @@ stays as the record of how the port was designed.
 | 💬 | [`/status`](#status) | Set the bot's presence | [Basic commands](Basic_Commands.md) |
 | 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel | [Voice channels](Voice_Channels.md) |
 | 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice | [Speech](Speech.md) |
-| 🔊 | [`/tts`](#tts) | Stop or skip speech, and set its limits | [Speech](Speech.md) |
-| 🔊 | [`/voice`](#voice) | Voice sessions, and custom voices from the [voice lab](#voice-lab) | [Voice channels](Voice_Channels.md), [Speech](Speech.md#3-custom-voices-and-the-voice-lab) |
+| 🔊 | [`/tts`](#tts) | Stop or skip speech, set its limits, and keep custom voices from the [voice lab](#voice-lab) | [Speech](Speech.md), [Speech §3](Speech.md#3-custom-voices-and-the-voice-lab) |
+| 🔊 | [`/voice`](#voice) | Voice sessions, and how long the bot stays once alone | [Voice channels](Voice_Channels.md) |
 | 🔊 | [`/chat`](#chat) | Say something as a voice message | [Speech](Speech.md) |
 | 🎵 | [`/music`, `/m`](#music) | Play music from a link, with a queue | [Music](Music.md) |
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot | [Basic commands](Basic_Commands.md) |
@@ -273,11 +273,12 @@ defaults.
 
 ### `/tts`
 
-Stops or skips speech, and sets the limits on it.
+Stops or skips speech, sets the limits on it, and keeps this server's custom
+voices.
 
 | | |
 |---|---|
-| **Subcommands** | `stop` · `skip` · `limits` (`characters`, `seconds`) |
+| **Subcommands** | `stop` · `skip` · `limits` (`characters`, `seconds`) · `voices lab` (`voice`) · `voices list` · `voices delete` (`voice`) |
 | **Who** | Speak, by default; changing the limits needs Manage Server |
 | **Where** | servers only |
 | **Bot needs** | Connect, Speak |
@@ -300,15 +301,63 @@ user.
 | `limits`, changed | `/speak now takes up to 500 characters, and stops after 30s` |
 | `limits` changed without Manage Server | `changing the limits needs Manage Server` |
 
-All private.
+All private. Before 2026-10, the custom voices were `/voice lab`, `/voice list`
+and `/voice delete`.
+
+#### Voice lab
+
+`/tts voices lab` opens a private panel for building a custom voice: one of the
+ten built-in voices plus DECtalk's `[:dv]` voice parameters. With `voice` it
+starts from one of this server's saved voices; without, from where you left
+off.
+
+The panel's first line says what you are editing: a new voice not saved yet,
+or a saved one, and then whether it still matches what is saved or has
+**unsaved changes**. Under it is what has been changed, grouped (Pitch,
+Character, Breath, Formants, Parallel formants and tilt, Source gains, Formant
+gains), and the whole voice as inline commands, such as
+`[:nh][:dv ap 200 pr 150]`, which can be pasted into any `/speak`. From it:
+
+- **Open a saved voice** lists this server's saved voices (the first 25, and
+  always the one being edited; `/tts voices lab voice:` opens any). Picking one
+  replaces the draft, so picking the one you are editing throws away your
+  changes to it. The menu only appears once the server has a saved voice.
+- **Change a group of settings** opens a form for up to five of them, each
+  with its range. An empty box goes back to the built-in voice's own value; a
+  value out of range is brought into range, and the panel says so.
+- **As [:dv] text** opens the whole voice as text, to copy, or to paste one in.
+- **Built on** picks the built-in voice underneath.
+- **▶ Test** says a test phrase in the voice channel, joining yours if the bot
+  is not in one.
+- **Save as…** (**Save…** once it has a name) keeps it under a name:
+  lowercase letters, digits, `-` and `_`, up to 32 characters, and never a
+  built-in voice's name. The name you opened it as is filled in; change it to
+  keep a copy. `/speak voice:` then offers it.
+- **New voice** starts again from Paul, with no name.
+
+Your draft is kept for half an hour after you last touched it, so closing the
+panel by accident loses nothing. Anyone may save a voice; replacing or
+deleting one is for whoever made it, or an administrator. A server keeps up to
+100.
+
+`/tts voices list` shows the server's voices, what each is built on and who
+made it, and `/tts voices delete` removes one:
+
+| Situation | Reply |
+|---|---|
+| Deleted | ``deleted `robo` `` |
+| No such voice | `this server has no voice called "robo"` |
+| Somebody else's, and you are not an admin | ``only whoever made `robo`, or an admin, can change it`` |
+| `list` with none saved | `this server has no custom voices yet; make one with /tts voices lab` |
 
 ### `/voice`
 
-Voice sessions, and this server's custom voices.
+Voice sessions, and how long the bot stays once alone. Custom voices are
+[`/tts voices`](#voice-lab).
 
 | | |
 |---|---|
-| **Subcommands** | `start` · `stop` · `grace` (`seconds`) · `lab` (`voice`) · `list` · `delete` (`voice`) |
+| **Subcommands** | `start` · `stop` · `grace` (`seconds`) |
 | **Who** | Speak, by default; changing `grace` needs Manage Server |
 | **Where** | servers only |
 | **Bot needs** | Connect, Speak |
@@ -330,52 +379,6 @@ disconnected, or everyone leaving (see below).
 
 `start` and `stop` answer publicly and silently, as `/join` and `/leave` do.
 The rest answer privately.
-
-#### Voice lab
-
-`/voice lab` opens a private panel for building a custom voice: one of the
-ten built-in voices plus DECtalk's `[:dv]` voice parameters. With `voice` it
-starts from one of this server's saved voices; without, from where you left
-off.
-
-The panel's first line says what you are editing: a new voice not saved yet,
-or a saved one, and then whether it still matches what is saved or has
-**unsaved changes**. Under it is what has been changed, grouped (Pitch,
-Character, Breath, Formants, Parallel formants and tilt, Source gains, Formant
-gains), and the whole voice as inline commands, such as
-`[:nh][:dv ap 200 pr 150]`, which can be pasted into any `/speak`. From it:
-
-- **Open a saved voice** lists this server's saved voices (the first 25, and
-  always the one being edited; `/voice lab voice:` opens any). Picking one
-  replaces the draft, so picking the one you are editing throws away your
-  changes to it. The menu only appears once the server has a saved voice.
-- **Change a group of settings** opens a form for up to five of them, each
-  with its range. An empty box goes back to the built-in voice's own value; a
-  value out of range is brought into range, and the panel says so.
-- **As [:dv] text** opens the whole voice as text, to copy, or to paste one in.
-- **Built on** picks the built-in voice underneath.
-- **▶ Test** says a test phrase in the voice channel, joining yours if the bot
-  is not in one.
-- **Save as…** (**Save…** once it has a name) keeps it under a name:
-  lowercase letters, digits, `-` and `_`, up to 32 characters, and never a
-  built-in voice's name. The name you opened it as is filled in; change it to
-  keep a copy. `/speak voice:` then offers it.
-- **New voice** starts again from Paul, with no name.
-
-Your draft is kept for half an hour after you last touched it, so closing the
-panel by accident loses nothing. Anyone may save a voice; replacing or
-deleting one is for whoever made it, or an administrator. A server keeps up to
-100.
-
-`list` shows the server's voices, what each is built on and who made it, and
-`delete` removes one:
-
-| Situation | Reply |
-|---|---|
-| Deleted | ``deleted `robo` `` |
-| No such voice | `this server has no voice called "robo"` |
-| Somebody else's, and you are not an admin | ``only whoever made `robo`, or an admin, can change it`` |
-| `list` with none saved | `this server has no custom voices yet; make one with /voice lab` |
 
 ### `/chat`
 

@@ -6,6 +6,7 @@
 #include "core/audio/voice_params.hpp"
 #include "core/audio/voice_store.hpp"
 #include "core/commands/options.hpp"
+#include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/discord/voice_state.hpp"
@@ -20,6 +21,7 @@
 #include <algorithm>
 #include <format>
 #include <utility>
+#include <vector>
 
 namespace latibot::commands {
 
@@ -226,16 +228,17 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
 // /tts
 // --------------------------------------------------------------------------
 
-tts_command::tts_command(speech_services services)
+tts_command::tts_command(speech_services services, voice_lab& lab)
     : info_{.name = "tts",
-            .description = "Stop or skip what the bot is saying, or set limits on it.",
+            .description = "Stop or skip what the bot is saying, set limits on it, or keep custom voices.",
             .aliases = {},
             .required_bot_permissions = dpp::p_connect | dpp::p_speak,
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
-      services_(services) {}
+      services_(services),
+      lab_(&lab) {}
 
 auto tts_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -250,7 +253,35 @@ auto tts_command::build(const std::string& name, dpp::snowflake application_id) 
                           .set_min_value(1)
                           .set_max_value(max_seconds_limit));
     payload.add_option(limits);
+
+    dpp::command_option voices(dpp::co_sub_command_group, "voices", "This server's custom voices.");
+    dpp::command_option lab(dpp::co_sub_command, "lab", "Build a custom voice, or change one of this server's.");
+    lab.add_option(dpp::command_option(dpp::co_string, "voice", "A saved voice to start from.", false).set_auto_complete(true));
+    voices.add_option(lab);
+    voices.add_option(dpp::command_option(dpp::co_sub_command, "list", "This server's custom voices."));
+    dpp::command_option remove(dpp::co_sub_command, "delete", "Delete a custom voice (whoever made it, or an admin).");
+    remove.add_option(dpp::command_option(dpp::co_string, "voice", "Which one.", true).set_auto_complete(true));
+    voices.add_option(remove);
+    payload.add_option(voices);
     return payload;
+}
+
+auto tts_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
+    const dpp::command_option* focused = focused_option(event.options);
+    if (focused == nullptr || focused->name != "voice" || event.owner == nullptr) return;
+
+    const auto* typed = std::get_if<std::string>(&focused->value);
+    const std::string filter = audio::normalise_voice_name(typed == nullptr ? std::string_view{} : std::string_view(*typed));
+
+    dpp::interaction_response reply(dpp::ir_autocomplete_reply);
+    std::size_t offered = 0;
+    for (const audio::saved_voice& saved : services_.voices->list(event.command.guild_id)) {
+        if (offered == voice_choices || !saved.name.starts_with(filter)) continue;
+        reply.add_autocomplete_choice(
+            dpp::command_option_choice(std::format("{} (built on {})", saved.name, saved.voice.base), saved.name));
+        ++offered;
+    }
+    event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
 auto tts_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -259,6 +290,12 @@ auto tts_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_await stop_or_skip(event, subcommand == "skip");
     } else if (subcommand == "limits") {
         co_await limits(event);
+    } else if (subcommand == "voices lab") {
+        co_await open_lab(event);
+    } else if (subcommand == "voices list") {
+        co_await list_voices(event);
+    } else if (subcommand == "voices delete") {
+        co_await delete_voice(event);
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
@@ -318,6 +355,54 @@ auto tts_command::limits(const dpp::slashcommand_t& event) -> dpp::task<void> {
                      describe_user(event.command.get_issuing_user()));
     co_await event.co_reply(
         result(event, std::format("/speak now takes up to {} characters, and stops after {}", now.max_characters, now.max_duration)));
+}
+
+auto tts_command::open_lab(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    const std::string from = string_option(event, "voice");
+    auto panel = lab_->open(event.command.guild_id, event.command.get_issuing_user().id, from);
+    if (!panel) {
+        co_await event.co_reply(refusal(event, std::format("this server has no voice called \"{}\"", from)));
+        co_return;
+    }
+    co_await event.co_reply(result(event, std::move(*panel)));
+}
+
+auto tts_command::list_voices(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    const std::vector<audio::saved_voice> saved = services_.voices->list(event.command.guild_id);
+    if (saved.empty()) {
+        co_await event.co_reply(result(event, "this server has no custom voices yet; make one with /tts voices lab"));
+        co_return;
+    }
+
+    std::string text = std::format("**{} custom voice{}**\n", saved.size(), saved.size() == 1 ? "" : "s");
+    for (const audio::saved_voice& voice : saved) {
+        const std::string edits = voice.voice.dv_parameters();
+        text += std::format("`{}`: {}{}{}, by <@{}>\n", voice.name, voice.voice.base, edits.empty() ? "" : " with ", edits,
+                            voice.created_by.str());
+    }
+    dpp::message listed(util::truncate(text, 2000));
+    listed.set_allowed_mentions();
+    co_await event.co_reply(result(event, std::move(listed)));
+}
+
+auto tts_command::delete_voice(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    const std::string name = audio::normalise_voice_name(string_option(event, "voice"));
+
+    const auto saved = services_.voices->find(guild, name);
+    if (!saved) {
+        co_await event.co_reply(refusal(event, std::format("this server has no voice called \"{}\"", name)));
+        co_return;
+    }
+    const bool administrator = invoker_permissions(event).can(dpp::p_administrator);
+    if (const auto refused = voice_change_refusal(event.command.get_issuing_user().id, saved->created_by, administrator, name)) {
+        co_await event.co_reply(refusal(event, *refused));
+        co_return;
+    }
+
+    services_.voices->remove(guild, name);
+    util::log().info("voice {} deleted from guild {} by {}", name, guild, describe_user(event.command.get_issuing_user()));
+    co_await event.co_reply(result(event, std::format("deleted `{}`", name)));
 }
 
 } // namespace latibot::commands

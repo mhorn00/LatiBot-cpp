@@ -121,6 +121,7 @@ duration cannot: commands that wait instead of making audio, and a
 | `stop` | whoever asked for what is playing, an administrator, or a trusted user | Silences the bot and drops everything waiting, **including speech still being made**. Music is not touched: it carries on once speech is over ([Music.md §3.3](Music.md#33-speech-and-music-together)) |
 | `skip` | the same | Drops only what is being said now |
 | `limits [characters] [seconds]` | Speak to see; Manage Server to change | Shows or changes §2.3's limits |
+| `voices lab [voice]`, `voices list`, `voices delete voice` | Speak; replacing or deleting a voice is for whoever made it, or an administrator | The custom voices (§3) |
 
 ### 2.5 `/chat text [voice] [rate]`
 
@@ -143,12 +144,12 @@ synthesizer reads, each clamped to DECtalk's own limits from
   built-in voice's name. A server keeps up to **100**.
 - **Anyone can create one.** Replacing or deleting one is for whoever made
   it, or an administrator.
-- `/voice list` shows them with what each is built on and who made it.
-  `/voice delete voice` removes one.
+- `/tts voices list` shows them with what each is built on and who made
+  it. `/tts voices delete voice` removes one.
 - A saved voice's edits are **read back and written out again** when speech
   is built, never pasted in, since that part of the text is not sanitized.
 
-**`/voice lab [voice]`** opens a private panel for building one:
+**`/tts voices lab [voice]`** opens a private panel for building one:
 
 - The first line says what is being edited (a new voice, or a saved one)
   and whether it has **unsaved changes**.

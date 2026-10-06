@@ -14,6 +14,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -91,14 +92,26 @@ TEST_CASE("the voice commands register, their flags checked against their subcom
 
     latibot::commands::registry commands;
     REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::speak_command>(latibot::commands::speech_services{})));
-    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::tts_command>(latibot::commands::speech_services{})));
-    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::voice_command>(sessions, test.settings, voices, lab)));
+    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::tts_command>(latibot::commands::speech_services{}, lab)));
+    REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::voice_command>(sessions, test.settings)));
 
     const auto* voice = commands.find("voice");
     REQUIRE(voice != nullptr);
     CHECK(voice->info().responses_for("start").result == dpp::m_suppress_notifications);
-    CHECK(voice->info().responses_for("lab").result == dpp::m_ephemeral);
-    CHECK(voice->info().responses_for("delete").result == dpp::m_ephemeral);
+    CHECK(voice->info().responses_for("grace").result == dpp::m_ephemeral);
+
+    // The custom voices are /tts voices, and answer privately like the rest
+    // of /tts.
+    const auto* tts = commands.find("tts");
+    REQUIRE(tts != nullptr);
+    CHECK(tts->info().responses_for("voices lab").result == dpp::m_ephemeral);
+    CHECK(tts->info().responses_for("voices delete").result == dpp::m_ephemeral);
+    const auto paths = latibot::commands::subcommand_paths(tts->build("tts", dpp::snowflake{1}));
+    CHECK(std::ranges::find(paths, "voices lab") != paths.end());
+    CHECK(std::ranges::find(paths, "voices list") != paths.end());
+    CHECK(std::ranges::find(paths, "voices delete") != paths.end());
+    const auto voice_paths = latibot::commands::subcommand_paths(voice->build("voice", dpp::snowflake{1}));
+    CHECK(std::ranges::find(voice_paths, "lab") == voice_paths.end());
 }
 
 TEST_CASE("the voice grace defaults to 30 seconds and is clamped", "[commands]") {

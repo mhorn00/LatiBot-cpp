@@ -145,7 +145,7 @@ auto saved_menu(std::span<const audio::saved_voice> saved, std::string_view edit
 
     const std::string placeholder =
         saved.size() > offered.size()
-            ? std::format("Open a saved voice ({} of {}; /voice lab voice: opens any)", offered.size(), saved.size())
+            ? std::format("Open a saved voice ({} of {}; /tts voices lab voice: opens any)", offered.size(), saved.size())
             : std::string("Open a saved voice");
 
     dpp::component menu;

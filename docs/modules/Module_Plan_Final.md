@@ -93,7 +93,7 @@ These are the places where one feature reaches into another, from the
 flowchart TB
     core["<b>core</b><br/>/ping /say /status /shutdown /goodbye /bots /logs"]
     voice["<b>voice</b> (built with dectalk or music)<br/>/join /leave /voice start|stop|grace"]
-    dectalk["<b>dectalk</b><br/>/speak /tts /chat<br/>/tts voices lab|list|remove"]
+    dectalk["<b>dectalk</b><br/>/speak /tts /chat<br/>/tts voices lab|list|delete"]
     music["<b>music</b><br/>/music"]
     llm["<b>llm</b><br/>/llm /memory"]
     triggers["<b>triggers</b><br/>/trigger"]
@@ -125,7 +125,7 @@ otherwise.
 |---|---|---|---|
 | **core** | `/ping` `/say` `/status` `/shutdown` `/goodbye` `/bots` `/logs`; the pipeline and the goodbye phrase; panel routing; permission warnings; the log channel; backups; the module host | — | — |
 | **voice** | `/join` `/leave` `/voice start`, `stop`, `grace`; the mixer; voice sessions; auto-leave. It has no switch of its own: it is built when dectalk or music is. | core | — |
-| **dectalk** | `/speak` `/tts` `/chat`; `/tts voices lab`, `list`, `remove`; DECtalk itself, which is only built with this module | voice | — |
+| **dectalk** | `/speak` `/tts` `/chat`; `/tts voices lab`, `list`, `delete`; DECtalk itself, which is only built with this module | voice | — |
 | **music** | `/music`; yt-dlp, ffmpeg, cookies, the PO token provider; `util/process` | voice | — |
 | **llm** | `/llm` `/memory`; answering, advanced triggers, memory, aliases, spend | core | speech |
 | **triggers** | `/trigger`; trigger replies | core | — |
@@ -148,7 +148,7 @@ otherwise.
 
 | Before | After | Why |
 |---|---|---|
-| `/voice lab`, `/voice list`, `/voice remove` | `/tts voices lab`, `/tts voices list`, `/tts voices remove` | `/voice` belongs to voice; custom voices are DECtalk's (D4, D27) |
+| `/voice lab`, `/voice list`, `/voice delete` | `/tts voices lab`, `/tts voices list`, `/tts voices delete` | `/voice` belongs to voice; custom voices are DECtalk's (D4, D27) |
 | `/urlrepl ...` | `/links ...` | Your answer to D26 |
 | `/urltoggle` | unchanged | It is for everyone, while `/links` needs Manage Server. Discord sets default permissions per command, not per subcommand, so a toggle inside `/links` would be hidden from ordinary members. |
 
@@ -680,10 +680,10 @@ Nothing is pushed.
 | Phase | Step | Status |
 |---|---|---|
 | 0 | C++23 (`eb0eb67`, `a5cf7e9`); the fuzz build fixed (`dd936f3`) | done |
-| **1. Untie the knots** | 1a `ports::result` → `std::expected` (D31) | |
-| | 1b K3: matching to `util/match` | |
-| | 1c K7: `plan_speak` with the voice code | |
-| | 1d K8: `/tts voices lab`, `list`, `remove` | |
+| **1. Untie the knots** | 1a `ports::result` → `std::expected` (D31) | done, `193acf8` |
+| | 1b K3: matching to `util/match` | done, `1c600c5` |
+| | 1c K7: `plan_speak` with the voice code, as `discord::plan_voice` | done, `4406791` |
+| | 1d K8: `/tts voices lab`, `list`, `delete` | done |
 | | 1e `/urlrepl` → `/links` (D26) | |
 | | 1f K1: generic actions, `background_task` | |
 | | 1g K4–K6: the `speech` interface, offered by the DECtalk code, used by the LLM | |
@@ -713,7 +713,7 @@ Settled across v1 and v2:
 | D1 | Your six modules, plus triggers, linkstats and voice |
 | D2 | Voice is its own module, built when dectalk or music is |
 | D3 | Migrations flattened into per-module version 1s. 1–15 kept, unedited, marked for deletion until you say. |
-| D4, D27 | Custom voices move to `/tts voices lab`, `list` and `remove` |
+| D4, D27 | Custom voices move to `/tts voices lab`, `list` and `delete` |
 | D5 | `core/...` includes for the core, `<module>/...` for modules |
 | D6 | Tests beside each module, one executable per module |
 | D7 | A generated module list |
