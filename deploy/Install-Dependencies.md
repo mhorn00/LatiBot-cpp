@@ -173,7 +173,7 @@ first. Running the script once a month keeps ahead of most of it.
 ## Afterwards, the bot's folder
 
 ```
-LatiBot.exe, dpp.dll, dectalk.dll, dtalk_us.dic    the bot
+LatiBot.exe, dectalk.dll, dtalk_us.dic             the bot
 yt-dlp.exe, ffmpeg.exe, ffprobe.exe, deno.exe       music's programs
 yt-dlp-plugins\bgutil-ytdlp-pot-provider.zip        the PO token plugin
 bgutil-ytdlp-pot-provider\server\                   the PO token provider

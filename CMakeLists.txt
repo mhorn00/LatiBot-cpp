@@ -42,7 +42,7 @@ include(helpers)
 
 latibot_strip_runtime_checks()
 
-# Put every built binary, and DPP's DLL beside them, in one folder per config.
+# Put every built binary, and DECtalk's DLL beside them, in one folder per config.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 find_package(OpenSSL REQUIRED)

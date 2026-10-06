@@ -178,7 +178,7 @@ cmake --build build --config Release
 DPP was built by step 4, so this compiles only LatiBot and DECtalk. Later
 builds only recompile what changed.
 
-Binaries land in `build\bin\Debug\` and `build\bin\Release\`, with `dpp.dll`,
+Binaries land in `build\bin\Debug\` and `build\bin\Release\`, with
 `dectalk.dll` and DECtalk's dictionary beside `LatiBot.exe`, so it runs
 without extra `PATH` setup.
 
@@ -262,13 +262,12 @@ runs it from the repo root, so the same `.env` applies.
 
 ### On another machine
 
-A Release build runs anywhere with these four files from `build\bin\Release\`,
+A Release build runs anywhere with these three files from `build\bin\Release\`,
 kept together in one folder:
 
 | File | |
 |---|---|
-| `LatiBot.exe` | the bot |
-| `dpp.dll` | DPP, with OpenSSL, zlib and opus linked into it |
+| `LatiBot.exe` | the bot, with DPP, OpenSSL, zlib and opus linked into it |
 | `dectalk.dll` | the speech engine |
 | `dtalk_us.dic` | DECtalk's dictionary, which has to stay beside `dectalk.dll` |
 
@@ -657,6 +656,13 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   folders and CI reuse it instead of compiling it again. The package's
   `CMakeLists.txt` sets `CONAN_EXPORTED=ON`, so DPP uses the Conan-provided
   OpenSSL, zlib and opus.
+- **DPP is linked statically**, into `LatiBot.exe` and the tests, so there
+  is no `dpp.dll` to copy or forget (`dpp/*:shared` in `conanfile.py`). DPP's
+  own build warns `Building of static library not supported on non UNIX
+  systems`; it builds and links cleanly all the same, as `dppstatic.lib`, with
+  `DPP_STATIC` defined on both sides so its headers declare no
+  `__declspec(dllimport)`. If a DPP upgrade breaks that, `"dpp/*:shared":
+  True` goes back to the DLL.
 - **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`), in
   `conan/dpp/CMakeLists.txt`. DPP only auto-detects opus on Windows when it
   uses its bundled binaries. The package build's log (`conan create

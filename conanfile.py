@@ -10,7 +10,12 @@ class LatiBotConan(ConanFile):
     generators = "CMakeToolchain", "CMakeDeps"
 
     # FTS5 backs the LLM long-term memory search (plan v4 §14.5).
-    default_options = {"sqlite3/*:enable_fts5": True}
+    default_options = {
+        "sqlite3/*:enable_fts5": True,
+        # DPP linked into LatiBot.exe rather than beside it as dpp.dll
+        # (docs/modules/Module_Plan_Final.md §9.1, I2).
+        "dpp/*:shared": False,
+    }
 
     def requirements(self):
         # DPP, built from the third_party/DPP submodule by conan/dpp; export it

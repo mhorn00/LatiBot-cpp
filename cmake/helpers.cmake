@@ -2,7 +2,7 @@
 
 # MSVC links ASan's runtime dynamically, and it lives beside cl.exe rather
 # than anywhere on PATH, so an instrumented executable fails to start with
-# STATUS_DLL_NOT_FOUND. Copy it next to the binary, as we do for dpp.dll.
+# STATUS_DLL_NOT_FOUND. Copy it next to the binary, as we do for dectalk.dll.
 function(latibot_copy_asan_runtime target)
     if(NOT (LATIBOT_ENABLE_ASAN AND MSVC))
         return()
@@ -59,8 +59,8 @@ function(latibot_map_conan_configs)
     endforeach()
 endfunction()
 
-# DPP is built as a DLL, so every executable that links it needs the runtime
-# DLLs beside it. $<TARGET_RUNTIME_DLLS:...> needs CMake >= 3.21.
+# DECtalk is a DLL, so every executable that links it needs it beside it.
+# $<TARGET_RUNTIME_DLLS:...> needs CMake >= 3.21.
 function(latibot_copy_runtime_dlls target)
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

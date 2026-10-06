@@ -61,20 +61,29 @@ class DppConan(ConanFile):
         dpp = os.path.join(self.source_folder, "DPP")
         copy(self, "LICENSE", src=dpp, dst=os.path.join(self.package_folder, "licenses"))
         copy(self, "*", src=os.path.join(dpp, "include"), dst=os.path.join(self.package_folder, "include"))
-        # DPP's build puts them under DPP/library/<config>.
+        # DPP's build puts them under DPP/library/<config>. Static, dppstatic
+        # is DPP with the voice libraries it needs (mlspp, hpke and the rest)
+        # in one library.
         lib = os.path.join(self.package_folder, "lib")
         bin = os.path.join(self.package_folder, "bin")
-        copy(self, "*/dpp.lib", src=self.build_folder, dst=lib, keep_path=False)
+        library = "dpp" if self.options.shared else "dppstatic"
+        copy(self, f"*/{library}.lib", src=self.build_folder, dst=lib, keep_path=False)
         copy(self, "*/dpp.dll", src=self.build_folder, dst=bin, keep_path=False)
         copy(self, "*/dpp.pdb", src=self.build_folder, dst=bin, keep_path=False)
-        if not os.path.isfile(os.path.join(lib, "dpp.lib")):
-            raise RuntimeError(f"no dpp.lib under {self.build_folder}: DPP's build put it somewhere unexpected")
+        if not os.path.isfile(os.path.join(lib, f"{library}.lib")):
+            raise RuntimeError(f"no {library}.lib under {self.build_folder}: DPP's build put it somewhere unexpected")
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "dpp")
         self.cpp_info.set_property("cmake_target_name", "dpp::dpp")
-        self.cpp_info.libs = ["dpp"]
         # DPP's headers include nlohmann/json from include/dpp.
         self.cpp_info.includedirs = ["include", os.path.join("include", "dpp")]
         self.cpp_info.defines = ["DPP_FORMATTERS"]
         self.cpp_info.requires = ["openssl::openssl", "zlib::zlib", "opus::opus"]
+        if self.options.shared:
+            self.cpp_info.libs = ["dpp"]
+        else:
+            self.cpp_info.libs = ["dppstatic"]
+            # Without it, DPP's headers declare everything __declspec(dllimport).
+            self.cpp_info.defines.append("DPP_STATIC")
+            self.cpp_info.system_libs = ["ws2_32", "wsock32", "crypt32"]

@@ -31,6 +31,13 @@ set(OPUS_LIBRARIES Opus::opus)
 
 add_subdirectory(DPP)
 
+# Static, DPP exports nothing: its headers then declare plain functions rather
+# than __declspec(dllexport) ones. Whoever links it defines DPP_STATIC too
+# (conanfile.py, package_info).
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(dpp PUBLIC DPP_STATIC)
+endif()
+
 # DPP hardcodes OPENSSL_VERSION to 1.1.1f on Windows, which makes mlspp
 # compile its OpenSSL 1.1 code path; that path does not build against
 # OpenSSL 3.
