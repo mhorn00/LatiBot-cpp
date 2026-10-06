@@ -5,7 +5,7 @@
 #include "core/audio/speech_queue.hpp"
 #include "core/audio/voice_mixer.hpp"
 #include "core/audio/voice_store.hpp"
-#include "core/commands/llm.hpp"
+#include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
 #include "core/commands/voice_lab.hpp"
 #include "core/config/bootstrap.hpp"
@@ -19,16 +19,6 @@
 #include "core/events/log_channel.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/events/voice_sessions.hpp"
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/aliases.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/guards.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/provider.hpp"
-#include "core/llm/responder.hpp"
-#include "core/llm/spend.hpp"
-#include "core/llm/stage.hpp"
-#include "core/llm/tools.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/modules/module.hpp"
@@ -145,16 +135,6 @@ private:
     /// frame, the only place a reply says whose message it replies to.
     [[nodiscard]] auto describe(const dpp::message& message, const std::string& raw_event) const -> events::incoming_message;
 
-    /// The provider that serves a kind of model, or null without its key.
-    [[nodiscard]] auto provider_for(llm::provider_kind kind) const -> llm::provider*;
-
-    /// Everything `/llm`, `/memory` and their panels work with.
-    [[nodiscard]] auto llm_services() -> commands::llm_command_services;
-
-    /// Waits out any pacing, then has the model answer
-    /// (docs/features/Language_Model.md).
-    auto answer_with_llm(llm::ask_llm ask) -> dpp::task<void>;
-
     /// Performs what the stages decided.
     auto carry_out(std::vector<events::action> actions) -> void;
 
@@ -230,22 +210,6 @@ private:
     /// Runs the PO token provider for as long as the bot runs; null when it
     /// is not set up.
     std::unique_ptr<music::pot_provider> pot_provider_;
-
-    // The language model (docs/features/Language_Model.md). A provider exists
-    // only when its key is set; the stage and the commands ask `provider_for`
-    // rather than assume.
-    llm::usage_store llm_usage_;
-    llm::document_store llm_documents_;
-    llm::memory_store llm_memories_;
-    llm::alias_store llm_aliases_;
-    llm::blacklist_store llm_blacklist_;
-    llm::advanced_trigger_store llm_triggers_;
-    llm::tool_registry llm_tools_;
-    std::unique_ptr<llm::provider> anthropic_;
-    std::unique_ptr<llm::provider> openai_;
-    llm::responder responder_;
-    llm::llm_stage llm_stage_;
-    commands::llm_panels llm_panels_;
 
     /// Where the log is posted (`/logs`). Destroyed before everything above
     /// it, and unhooked from the logger as it goes, so a line logged while

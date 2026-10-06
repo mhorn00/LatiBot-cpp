@@ -1,4 +1,4 @@
-#include "core/llm/spend.hpp"
+#include "spend.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

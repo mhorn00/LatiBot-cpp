@@ -19,7 +19,6 @@ namespace latibot::db {
 [[nodiscard]] auto core_schema() noexcept -> module_schema;
 
 [[nodiscard]] auto dectalk_schema() noexcept -> module_schema;
-[[nodiscard]] auto llm_schema() noexcept -> module_schema;
 
 /// The schemas of the core and of every feature still inside it, in the
 /// order they are applied: a module's after those it requires.

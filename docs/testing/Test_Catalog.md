@@ -5,13 +5,13 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-999 test cases across 19 components, including 206 sections.
+1003 test cases across 19 components, including 209 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 53 | 6 |
-| [config](#config) | 41 | 23 |
-| [commands](#commands) | 98 | 32 |
+| [db](#db) | 40 | 6 |
+| [config](#config) | 40 | 22 |
+| [commands](#commands) | 81 | 29 |
 | [events](#events) | 39 | 5 |
 | [ui](#ui) | 15 | 0 |
 | [module](#module) | 7 | 0 |
@@ -24,7 +24,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
-| [llm](#llm) | 73 | 0 |
+| [llm](#llm) | 108 | 7 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
 | [util](#util) | 54 | 22 |
@@ -57,19 +57,6 @@ Database (`src/core/db`)
 | a rollback that fails is logged rather than thrown |  |  | [tests/db/database_test.cpp:180](../../tests/db/database_test.cpp#L180) |
 | last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:193](../../tests/db/database_test.cpp#L193) |
 | concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:207](../../tests/db/database_test.cpp#L207) |
-| a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:52](../../tests/db/llm_store_test.cpp#L52) |
-| reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:71](../../tests/db/llm_store_test.cpp#L71) |
-| a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:95](../../tests/db/llm_store_test.cpp#L95) |
-| a document nobody edited reads as its default |  |  | [tests/db/llm_store_test.cpp:107](../../tests/db/llm_store_test.cpp#L107) |
-| every edit is a new version, per guild and per kind |  |  | [tests/db/llm_store_test.cpp:117](../../tests/db/llm_store_test.cpp#L117) |
-| a revert saves the old text as a new version, and can itself be reverted |  |  | [tests/db/llm_store_test.cpp:135](../../tests/db/llm_store_test.cpp#L135) |
-| memories are found by the words in them, only in their own guild |  |  | [tests/db/llm_store_test.cpp:157](../../tests/db/llm_store_test.cpp#L157) |
-| a removed memory leaves the search index too |  |  | [tests/db/llm_store_test.cpp:173](../../tests/db/llm_store_test.cpp#L173) |
-| memories list newest first, and clear by person or all at once |  |  | [tests/db/llm_store_test.cpp:185](../../tests/db/llm_store_test.cpp#L185) |
-| the memories shown up front are about the author, then what matches |  |  | [tests/db/llm_store_test.cpp:206](../../tests/db/llm_store_test.cpp#L206) |
-| the blacklist blocks a user or anyone with a role |  |  | [tests/db/llm_store_test.cpp:223](../../tests/db/llm_store_test.cpp#L223) |
-| advanced triggers are stored per guild and edited in place |  |  | [tests/db/llm_store_test.cpp:244](../../tests/db/llm_store_test.cpp#L244) |
-| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [tests/db/llm_store_test.cpp:276](../../tests/db/llm_store_test.cpp#L276) |
 | a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:41](../../tests/db/migrations_test.cpp#L41) |
 | migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:54](../../tests/db/migrations_test.cpp#L54) |
 | only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:65](../../tests/db/migrations_test.cpp#L65) |
@@ -77,13 +64,13 @@ Database (`src/core/db`)
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:96](../../tests/db/migrations_test.cpp#L96) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:109](../../tests/db/migrations_test.cpp#L109) |
 | a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:65](../../tests/db/schema_versions_test.cpp#L65) |
-| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:82](../../tests/db/schema_versions_test.cpp#L82) |
-| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:95](../../tests/db/schema_versions_test.cpp#L95) |
-| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:119](../../tests/db/schema_versions_test.cpp#L119) |
-| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:135](../../tests/db/schema_versions_test.cpp#L135) |
-| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:151](../../tests/db/schema_versions_test.cpp#L151) |
-| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
-| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:179](../../tests/db/schema_versions_test.cpp#L179) |
+| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:81](../../tests/db/schema_versions_test.cpp#L81) |
+| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:94](../../tests/db/schema_versions_test.cpp#L94) |
+| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:118](../../tests/db/schema_versions_test.cpp#L118) |
+| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:134](../../tests/db/schema_versions_test.cpp#L134) |
+| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:150](../../tests/db/schema_versions_test.cpp#L150) |
+| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:166](../../tests/db/schema_versions_test.cpp#L166) |
+| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:178](../../tests/db/schema_versions_test.cpp#L178) |
 | a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:39](../../tests/db/voice_store_test.cpp#L39) |
 | voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:51](../../tests/db/voice_store_test.cpp#L51) |
 | saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:62](../../tests/db/voice_store_test.cpp#L62) |
@@ -105,28 +92,27 @@ Configuration (`src/core/config`)
 | partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:108](../../tests/db/guild_settings_test.cpp#L108) |
 | all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:118](../../tests/db/guild_settings_test.cpp#L118) |
 | the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:131](../../tests/db/guild_settings_test.cpp#L131) |
-| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:56](../../tests/unit/bootstrap_test.cpp#L56) |
-| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:69](../../tests/unit/bootstrap_test.cpp#L69) |
-| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:81](../../tests/unit/bootstrap_test.cpp#L81) |
-| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:110](../../tests/unit/bootstrap_test.cpp#L110) |
-| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:118](../../tests/unit/bootstrap_test.cpp#L118) |
-| bad config is reported with the key that caused it |  | 8 | [tests/unit/bootstrap_test.cpp:133](../../tests/unit/bootstrap_test.cpp#L133) |
-| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
-| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:179](../../tests/unit/bootstrap_test.cpp#L179) |
-| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
-| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:220](../../tests/unit/bootstrap_test.cpp#L220) |
-| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:226](../../tests/unit/bootstrap_test.cpp#L226) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:236](../../tests/unit/bootstrap_test.cpp#L236) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:252](../../tests/unit/bootstrap_test.cpp#L252) |
-| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:286](../../tests/unit/bootstrap_test.cpp#L286) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:339](../../tests/unit/bootstrap_test.cpp#L339) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
-| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:389](../../tests/unit/bootstrap_test.cpp#L389) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:402](../../tests/unit/bootstrap_test.cpp#L402) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:411](../../tests/unit/bootstrap_test.cpp#L411) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:423](../../tests/unit/bootstrap_test.cpp#L423) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:436](../../tests/unit/bootstrap_test.cpp#L436) |
+| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:38](../../tests/unit/bootstrap_test.cpp#L38) |
+| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:48](../../tests/unit/bootstrap_test.cpp#L48) |
+| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:60](../../tests/unit/bootstrap_test.cpp#L60) |
+| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:88](../../tests/unit/bootstrap_test.cpp#L88) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:96](../../tests/unit/bootstrap_test.cpp#L96) |
+| bad config is reported with the key that caused it |  | 8 | [tests/unit/bootstrap_test.cpp:111](../../tests/unit/bootstrap_test.cpp#L111) |
+| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:152](../../tests/unit/bootstrap_test.cpp#L152) |
+| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:169](../../tests/unit/bootstrap_test.cpp#L169) |
+| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:193](../../tests/unit/bootstrap_test.cpp#L193) |
+| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:199](../../tests/unit/bootstrap_test.cpp#L199) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:209](../../tests/unit/bootstrap_test.cpp#L209) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:217](../../tests/unit/bootstrap_test.cpp#L217) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:225](../../tests/unit/bootstrap_test.cpp#L225) |
+| secrets come from the environment |  | 4 | [tests/unit/bootstrap_test.cpp:259](../../tests/unit/bootstrap_test.cpp#L259) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:299](../../tests/unit/bootstrap_test.cpp#L299) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:326](../../tests/unit/bootstrap_test.cpp#L326) |
+| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:344](../../tests/unit/bootstrap_test.cpp#L344) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:357](../../tests/unit/bootstrap_test.cpp#L357) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:366](../../tests/unit/bootstrap_test.cpp#L366) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:378](../../tests/unit/bootstrap_test.cpp#L378) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:391](../../tests/unit/bootstrap_test.cpp#L391) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -178,31 +164,14 @@ Command framework (`src/core/commands`)
 | the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:53](../../tests/unit/command_responses_test.cpp#L53) |
 | the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:70](../../tests/unit/command_responses_test.cpp#L70) |
 | only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:91](../../tests/unit/command_responses_test.cpp#L91) |
-| the personality is open to everyone until an admin narrows it to a role |  |  | [tests/unit/llm_command_test.cpp:67](../../tests/unit/llm_command_test.cpp#L67) |
-| a document is cut into form parts between lines, and joins back the same |  |  | [tests/unit/llm_command_test.cpp:78](../../tests/unit/llm_command_test.cpp#L78) |
-| a document too long for a form has no form, and a line longer than a part is cut |  |  | [tests/unit/llm_command_test.cpp:98](../../tests/unit/llm_command_test.cpp#L98) |
-| the document form fits a modal and is filled with the current text |  |  | [tests/unit/llm_command_test.cpp:109](../../tests/unit/llm_command_test.cpp#L109) |
-| a document is shown inline when short, and attached when not |  |  | [tests/unit/llm_command_test.cpp:120](../../tests/unit/llm_command_test.cpp#L120) |
-| saving a large document warns that it is sent with every message |  |  | [tests/unit/llm_command_test.cpp:134](../../tests/unit/llm_command_test.cpp#L134) |
-| history lists the newest versions first, with who and when |  |  | [tests/unit/llm_command_test.cpp:140](../../tests/unit/llm_command_test.cpp#L140) |
-| the settings panel shows every setting and fits a message |  |  | [tests/unit/llm_command_test.cpp:154](../../tests/unit/llm_command_test.cpp#L154) |
-| each settings form fits a modal and is filled with the current values |  |  | [tests/unit/llm_command_test.cpp:163](../../tests/unit/llm_command_test.cpp#L163) |
-| a settings form is stored whole or not at all, naming what was out of range |  |  | [tests/unit/llm_command_test.cpp:172](../../tests/unit/llm_command_test.cpp#L172) |
-| the memory list pages ten at a time, carrying whose list it is |  |  | [tests/unit/llm_command_test.cpp:188](../../tests/unit/llm_command_test.cpp#L188) |
-| the status says what was spent against the caps |  |  | [tests/unit/llm_command_test.cpp:205](../../tests/unit/llm_command_test.cpp#L205) |
-| the llm and memory commands register, within Discord's limits |  |  | [tests/unit/llm_command_test.cpp:218](../../tests/unit/llm_command_test.cpp#L218) |
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:61](../../tests/unit/panels_test.cpp#L61) |
-| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:144](../../tests/unit/panels_test.cpp#L144) |
-| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:166](../../tests/unit/panels_test.cpp#L166) |
-| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:176](../../tests/unit/panels_test.cpp#L176) |
-| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:200](../../tests/unit/panels_test.cpp#L200) |
-| the language model's settings panel stores what its forms set |  |  | [tests/unit/panels_test.cpp:251](../../tests/unit/panels_test.cpp#L251) |
-| the language model's settings panel switches it on and off, for Manage Server only |  |  | [tests/unit/panels_test.cpp:270](../../tests/unit/panels_test.cpp#L270) |
-| a document's form saves what was typed, not blanks |  | 3 | [tests/unit/panels_test.cpp:283](../../tests/unit/panels_test.cpp#L283) |
-| the memory list pages |  |  | [tests/unit/panels_test.cpp:316](../../tests/unit/panels_test.cpp#L316) |
+| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:53](../../tests/unit/panels_test.cpp#L53) |
+| the voice lab keeps what its forms set, and the Test says it in that voice |  |  | [tests/unit/panels_test.cpp:136](../../tests/unit/panels_test.cpp#L136) |
+| the voice lab's text form replaces the whole voice |  |  | [tests/unit/panels_test.cpp:158](../../tests/unit/panels_test.cpp#L158) |
+| the voice lab saves a voice, says when it has changed since, and opens it again |  |  | [tests/unit/panels_test.cpp:168](../../tests/unit/panels_test.cpp#L168) |
+| the voice lab will not save over someone else's voice |  |  | [tests/unit/panels_test.cpp:192](../../tests/unit/panels_test.cpp#L192) |
 | only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
 | a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
 | administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
@@ -969,83 +938,118 @@ Music (`src/core/music`)
 
 ## llm
 
-The language model (`src/core/llm`)
+The language model module (`src/modules/llm`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| an alias is u and six letters that spell nothing |  |  | [tests/unit/llm_aliases_test.cpp:43](../../tests/unit/llm_aliases_test.cpp#L43) |
-| each person keeps one alias per server |  |  | [tests/unit/llm_aliases_test.cpp:57](../../tests/unit/llm_aliases_test.cpp#L57) |
-| mentions become aliases, and of the bot its name |  |  | [tests/unit/llm_aliases_test.cpp:74](../../tests/unit/llm_aliases_test.cpp#L74) |
-| roles, channels, emoji, timestamps and commands lose their ids |  |  | [tests/unit/llm_aliases_test.cpp:84](../../tests/unit/llm_aliases_test.cpp#L84) |
-| names written in text become markers, as whole words |  |  | [tests/unit/llm_aliases_test.cpp:96](../../tests/unit/llm_aliases_test.cpp#L96) |
-| a name too short to tell from a word is left |  |  | [tests/unit/llm_aliases_test.cpp:110](../../tests/unit/llm_aliases_test.cpp#L110) |
-| a marker already written is kept as it is |  |  | [tests/unit/llm_aliases_test.cpp:117](../../tests/unit/llm_aliases_test.cpp#L117) |
-| what the model writes gets its names back |  |  | [tests/unit/llm_aliases_test.cpp:124](../../tests/unit/llm_aliases_test.cpp#L124) |
-| someone known from before, not in this request, still gets their name |  |  | [tests/unit/llm_aliases_test.cpp:141](../../tests/unit/llm_aliases_test.cpp#L141) |
-| nothing sent names anyone, or gives an id |  |  | [tests/unit/llm_aliases_test.cpp:149](../../tests/unit/llm_aliases_test.cpp#L149) |
-| memories show the people they name as mentions in Discord |  |  | [tests/unit/llm_aliases_test.cpp:160](../../tests/unit/llm_aliases_test.cpp#L160) |
-| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [tests/unit/llm_answer_test.cpp:165](../../tests/unit/llm_answer_test.cpp#L165) |
-| an addressed message is handed to the model and consumed |  |  | [tests/unit/llm_answer_test.cpp:186](../../tests/unit/llm_answer_test.cpp#L186) |
-| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [tests/unit/llm_answer_test.cpp:200](../../tests/unit/llm_answer_test.cpp#L200) |
-| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [tests/unit/llm_answer_test.cpp:212](../../tests/unit/llm_answer_test.cpp#L212) |
-| a blacklisted user or role is not answered, and the message is still consumed |  |  | [tests/unit/llm_answer_test.cpp:240](../../tests/unit/llm_answer_test.cpp#L240) |
-| past a spend cap the bot says so once, then stays quiet |  |  | [tests/unit/llm_answer_test.cpp:252](../../tests/unit/llm_answer_test.cpp#L252) |
-| one person asking too often is rate limited, per minute |  |  | [tests/unit/llm_answer_test.cpp:272](../../tests/unit/llm_answer_test.cpp#L272) |
-| another bot is answered at the pace the guild set, until a person speaks |  |  | [tests/unit/llm_answer_test.cpp:288](../../tests/unit/llm_answer_test.cpp#L288) |
-| a message in a voice session's text channel is answered out loud too |  |  | [tests/unit/llm_answer_test.cpp:311](../../tests/unit/llm_answer_test.cpp#L311) |
-| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [tests/unit/llm_answer_test.cpp:325](../../tests/unit/llm_answer_test.cpp#L325) |
-| the model can remember something about the person it is answering | `coro` |  | [tests/unit/llm_answer_test.cpp:376](../../tests/unit/llm_answer_test.cpp#L376) |
-| a mention the model writes is posted as one, and spoken as a name | `coro` |  | [tests/unit/llm_answer_test.cpp:394](../../tests/unit/llm_answer_test.cpp#L394) |
-| the model's tools see people as aliases | `coro` |  | [tests/unit/llm_answer_test.cpp:400](../../tests/unit/llm_answer_test.cpp#L400) |
-| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [tests/unit/llm_answer_test.cpp:415](../../tests/unit/llm_answer_test.cpp#L415) |
-| remember refuses what is too long, or a server that is full |  |  | [tests/unit/llm_answer_test.cpp:432](../../tests/unit/llm_answer_test.cpp#L432) |
-| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [tests/unit/llm_answer_test.cpp:446](../../tests/unit/llm_answer_test.cpp#L446) |
-| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [tests/unit/llm_answer_test.cpp:463](../../tests/unit/llm_answer_test.cpp#L463) |
-| a spoken answer is prepared by the speech capability, posted as spoken, and said | `coro` |  | [tests/unit/llm_answer_test.cpp:483](../../tests/unit/llm_answer_test.cpp#L483) |
-| without the speech capability a reply is only posted | `coro` |  | [tests/unit/llm_answer_test.cpp:502](../../tests/unit/llm_answer_test.cpp#L502) |
-| a long answer is posted as several messages, only the first a reply | `coro` |  | [tests/unit/llm_answer_test.cpp:528](../../tests/unit/llm_answer_test.cpp#L528) |
-| the conversation keeps the newest messages that fit the token budget |  |  | [tests/unit/llm_answer_test.cpp:547](../../tests/unit/llm_answer_test.cpp#L547) |
-| a transcript line cannot pass itself off as someone else speaking |  |  | [tests/unit/llm_answer_test.cpp:569](../../tests/unit/llm_answer_test.cpp#L569) |
-| the fixed rules come first, then the system document, then the personality |  |  | [tests/unit/llm_answer_test.cpp:584](../../tests/unit/llm_answer_test.cpp#L584) |
-| a reply too long for one message is split on line breaks, three messages at most |  |  | [tests/unit/llm_answer_test.cpp:597](../../tests/unit/llm_answer_test.cpp#L597) |
-| a rate limit allows so many per window, then frees up as they age |  |  | [tests/unit/llm_guards_test.cpp:44](../../tests/unit/llm_guards_test.cpp#L44) |
-| bot turns in a row stop at the limit until a person speaks |  |  | [tests/unit/llm_guards_test.cpp:67](../../tests/unit/llm_guards_test.cpp#L67) |
-| a bot turn soon after the last one waits out the delay |  |  | [tests/unit/llm_guards_test.cpp:82](../../tests/unit/llm_guards_test.cpp#L82) |
-| the day's bot turns are capped per guild, and come back the next day |  |  | [tests/unit/llm_guards_test.cpp:94](../../tests/unit/llm_guards_test.cpp#L94) |
-| pacing can insist on a person first, or refuse bots entirely |  |  | [tests/unit/llm_guards_test.cpp:107](../../tests/unit/llm_guards_test.cpp#L107) |
-| an advanced trigger fires on its roll, then waits out its cooldown in that channel |  |  | [tests/unit/llm_guards_test.cpp:124](../../tests/unit/llm_guards_test.cpp#L124) |
-| an advanced trigger needs its pattern, and to be on |  |  | [tests/unit/llm_guards_test.cpp:141](../../tests/unit/llm_guards_test.cpp#L141) |
-| a setting out of its range is refused with the range |  |  | [tests/unit/llm_guards_test.cpp:155](../../tests/unit/llm_guards_test.cpp#L155) |
-| every setting fits a modal: labels short enough, and at most five to a form |  |  | [tests/unit/llm_guards_test.cpp:174](../../tests/unit/llm_guards_test.cpp#L174) |
-| a diff shows removed and added lines, and only the unchanged lines near them |  |  | [tests/unit/llm_guards_test.cpp:192](../../tests/unit/llm_guards_test.cpp#L192) |
-| a memory search is made of the message's words, quoted, and never of FTS syntax |  |  | [tests/unit/llm_guards_test.cpp:198](../../tests/unit/llm_guards_test.cpp#L198) |
-| token estimates are a quarter of the characters, rounded up |  |  | [tests/unit/llm_guards_test.cpp:205](../../tests/unit/llm_guards_test.cpp#L205) |
-| every model has a price, and the ids are the API's own |  |  | [tests/unit/llm_provider_test.cpp:58](../../tests/unit/llm_provider_test.cpp#L58) |
-| a call costs its tokens at the model's prices, cache included |  |  | [tests/unit/llm_provider_test.cpp:70](../../tests/unit/llm_provider_test.cpp#L70) |
-| provider names are read case-insensitively |  |  | [tests/unit/llm_provider_test.cpp:80](../../tests/unit/llm_provider_test.cpp#L80) |
-| an Anthropic request caches the stable instructions and nothing after them |  |  | [tests/unit/llm_provider_test.cpp:90](../../tests/unit/llm_provider_test.cpp#L90) |
-| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [tests/unit/llm_provider_test.cpp:102](../../tests/unit/llm_provider_test.cpp#L102) |
-| the last Anthropic round forbids tools but still declares them |  |  | [tests/unit/llm_provider_test.cpp:116](../../tests/unit/llm_provider_test.cpp#L116) |
-| an Anthropic request sends tool calls and their results in the API's shape |  |  | [tests/unit/llm_provider_test.cpp:125](../../tests/unit/llm_provider_test.cpp#L125) |
-| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [tests/unit/llm_provider_test.cpp:145](../../tests/unit/llm_provider_test.cpp#L145) |
-| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [tests/unit/llm_provider_test.cpp:166](../../tests/unit/llm_provider_test.cpp#L166) |
-| an Anthropic error carries the status and the API's own message |  |  | [tests/unit/llm_provider_test.cpp:188](../../tests/unit/llm_provider_test.cpp#L188) |
-| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [tests/unit/llm_provider_test.cpp:196](../../tests/unit/llm_provider_test.cpp#L196) |
-| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [tests/unit/llm_provider_test.cpp:208](../../tests/unit/llm_provider_test.cpp#L208) |
-| a transport failure reaches the caller as an error | `coro` |  | [tests/unit/llm_provider_test.cpp:227](../../tests/unit/llm_provider_test.cpp#L227) |
-| an OpenAI request puts the instructions in one system message, stable part first |  |  | [tests/unit/llm_provider_test.cpp:242](../../tests/unit/llm_provider_test.cpp#L242) |
-| an OpenAI request sends each tool result as its own message |  |  | [tests/unit/llm_provider_test.cpp:255](../../tests/unit/llm_provider_test.cpp#L255) |
-| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [tests/unit/llm_provider_test.cpp:271](../../tests/unit/llm_provider_test.cpp#L271) |
-| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [tests/unit/llm_provider_test.cpp:293](../../tests/unit/llm_provider_test.cpp#L293) |
-| an OpenAI error carries the API's message |  |  | [tests/unit/llm_provider_test.cpp:301](../../tests/unit/llm_provider_test.cpp#L301) |
-| the OpenAI provider authenticates with a bearer token | `coro` |  | [tests/unit/llm_provider_test.cpp:307](../../tests/unit/llm_provider_test.cpp#L307) |
-| the model has to be one the bot can price, from the provider named |  |  | [tests/unit/llm_provider_test.cpp:330](../../tests/unit/llm_provider_test.cpp#L330) |
-| a tool registered twice is refused |  |  | [tests/unit/llm_tools_test.cpp:44](../../tests/unit/llm_tools_test.cpp#L44) |
-| an unknown tool, or one that throws, is an error the model reads |  |  | [tests/unit/llm_tools_test.cpp:49](../../tests/unit/llm_tools_test.cpp#L49) |
-| the tool loop runs what the model asks for and hands the result back | `coro` |  | [tests/unit/llm_tools_test.cpp:64](../../tests/unit/llm_tools_test.cpp#L64) |
-| after the last round of tools the model has to answer | `coro` |  | [tests/unit/llm_tools_test.cpp:93](../../tests/unit/llm_tools_test.cpp#L93) |
-| a failure mid-loop is reported, and what was spent before it still counted | `coro` |  | [tests/unit/llm_tools_test.cpp:113](../../tests/unit/llm_tools_test.cpp#L113) |
-| when the last turn says nothing, what was said along the way is kept | `coro` |  | [tests/unit/llm_tools_test.cpp:128](../../tests/unit/llm_tools_test.cpp#L128) |
+| an alias is u and six letters that spell nothing |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:48](../../src/modules/llm/tests/llm_aliases_test.cpp#L48) |
+| each person keeps one alias per server |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:62](../../src/modules/llm/tests/llm_aliases_test.cpp#L62) |
+| mentions become aliases, and of the bot its name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:79](../../src/modules/llm/tests/llm_aliases_test.cpp#L79) |
+| roles, channels, emoji, timestamps and commands lose their ids |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:89](../../src/modules/llm/tests/llm_aliases_test.cpp#L89) |
+| names written in text become markers, as whole words |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:101](../../src/modules/llm/tests/llm_aliases_test.cpp#L101) |
+| a name too short to tell from a word is left |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:115](../../src/modules/llm/tests/llm_aliases_test.cpp#L115) |
+| a marker already written is kept as it is |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:122](../../src/modules/llm/tests/llm_aliases_test.cpp#L122) |
+| what the model writes gets its names back |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:129](../../src/modules/llm/tests/llm_aliases_test.cpp#L129) |
+| someone known from before, not in this request, still gets their name |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:146](../../src/modules/llm/tests/llm_aliases_test.cpp#L146) |
+| nothing sent names anyone, or gives an id |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:154](../../src/modules/llm/tests/llm_aliases_test.cpp#L154) |
+| memories show the people they name as mentions in Discord |  |  | [src/modules/llm/tests/llm_aliases_test.cpp:165](../../src/modules/llm/tests/llm_aliases_test.cpp#L165) |
+| a message is addressed by a mention, a reply, or starting with the bot's name |  |  | [src/modules/llm/tests/llm_answer_test.cpp:167](../../src/modules/llm/tests/llm_answer_test.cpp#L167) |
+| an addressed message is handed to the model and consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:188](../../src/modules/llm/tests/llm_answer_test.cpp#L188) |
+| the model stays quiet in a guild that has not turned it on, or has no key |  |  | [src/modules/llm/tests/llm_answer_test.cpp:202](../../src/modules/llm/tests/llm_answer_test.cpp#L202) |
+| an advanced trigger asks the model to speak up, unless a simple trigger already answered |  |  | [src/modules/llm/tests/llm_answer_test.cpp:214](../../src/modules/llm/tests/llm_answer_test.cpp#L214) |
+| a blacklisted user or role is not answered, and the message is still consumed |  |  | [src/modules/llm/tests/llm_answer_test.cpp:242](../../src/modules/llm/tests/llm_answer_test.cpp#L242) |
+| past a spend cap the bot says so once, then stays quiet |  |  | [src/modules/llm/tests/llm_answer_test.cpp:254](../../src/modules/llm/tests/llm_answer_test.cpp#L254) |
+| one person asking too often is rate limited, per minute |  |  | [src/modules/llm/tests/llm_answer_test.cpp:274](../../src/modules/llm/tests/llm_answer_test.cpp#L274) |
+| another bot is answered at the pace the guild set, until a person speaks |  |  | [src/modules/llm/tests/llm_answer_test.cpp:290](../../src/modules/llm/tests/llm_answer_test.cpp#L290) |
+| a message in a voice session's text channel is answered out loud too |  |  | [src/modules/llm/tests/llm_answer_test.cpp:313](../../src/modules/llm/tests/llm_answer_test.cpp#L313) |
+| an answer reads the channel, builds the prompt, records the spend and replies | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:327](../../src/modules/llm/tests/llm_answer_test.cpp#L327) |
+| the model can remember something about the person it is answering | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:378](../../src/modules/llm/tests/llm_answer_test.cpp#L378) |
+| a mention the model writes is posted as one, and spoken as a name | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:396](../../src/modules/llm/tests/llm_answer_test.cpp#L396) |
+| the model's tools see people as aliases | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:402](../../src/modules/llm/tests/llm_answer_test.cpp#L402) |
+| the model may forget only what is about, or was saved for, whoever it is answering |  |  | [src/modules/llm/tests/llm_answer_test.cpp:417](../../src/modules/llm/tests/llm_answer_test.cpp#L417) |
+| remember refuses what is too long, or a server that is full |  |  | [src/modules/llm/tests/llm_answer_test.cpp:434](../../src/modules/llm/tests/llm_answer_test.cpp#L434) |
+| when the model fails, someone who asked hears so and a trigger stays silent | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:448](../../src/modules/llm/tests/llm_answer_test.cpp#L448) |
+| an advanced trigger's reply follows the style document, and posts silently | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:465](../../src/modules/llm/tests/llm_answer_test.cpp#L465) |
+| a spoken answer is prepared by the speech capability, posted as spoken, and said | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:485](../../src/modules/llm/tests/llm_answer_test.cpp#L485) |
+| without the speech capability a reply is only posted | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:504](../../src/modules/llm/tests/llm_answer_test.cpp#L504) |
+| a long answer is posted as several messages, only the first a reply | `coro` |  | [src/modules/llm/tests/llm_answer_test.cpp:530](../../src/modules/llm/tests/llm_answer_test.cpp#L530) |
+| the conversation keeps the newest messages that fit the token budget |  |  | [src/modules/llm/tests/llm_answer_test.cpp:549](../../src/modules/llm/tests/llm_answer_test.cpp#L549) |
+| a transcript line cannot pass itself off as someone else speaking |  |  | [src/modules/llm/tests/llm_answer_test.cpp:571](../../src/modules/llm/tests/llm_answer_test.cpp#L571) |
+| the fixed rules come first, then the system document, then the personality |  |  | [src/modules/llm/tests/llm_answer_test.cpp:586](../../src/modules/llm/tests/llm_answer_test.cpp#L586) |
+| a reply too long for one message is split on line breaks, three messages at most |  |  | [src/modules/llm/tests/llm_answer_test.cpp:599](../../src/modules/llm/tests/llm_answer_test.cpp#L599) |
+| the personality is open to everyone until an admin narrows it to a role |  |  | [src/modules/llm/tests/llm_command_test.cpp:67](../../src/modules/llm/tests/llm_command_test.cpp#L67) |
+| a document is cut into form parts between lines, and joins back the same |  |  | [src/modules/llm/tests/llm_command_test.cpp:78](../../src/modules/llm/tests/llm_command_test.cpp#L78) |
+| a document too long for a form has no form, and a line longer than a part is cut |  |  | [src/modules/llm/tests/llm_command_test.cpp:98](../../src/modules/llm/tests/llm_command_test.cpp#L98) |
+| the document form fits a modal and is filled with the current text |  |  | [src/modules/llm/tests/llm_command_test.cpp:109](../../src/modules/llm/tests/llm_command_test.cpp#L109) |
+| a document is shown inline when short, and attached when not |  |  | [src/modules/llm/tests/llm_command_test.cpp:120](../../src/modules/llm/tests/llm_command_test.cpp#L120) |
+| saving a large document warns that it is sent with every message |  |  | [src/modules/llm/tests/llm_command_test.cpp:134](../../src/modules/llm/tests/llm_command_test.cpp#L134) |
+| history lists the newest versions first, with who and when |  |  | [src/modules/llm/tests/llm_command_test.cpp:140](../../src/modules/llm/tests/llm_command_test.cpp#L140) |
+| the settings panel shows every setting and fits a message |  |  | [src/modules/llm/tests/llm_command_test.cpp:154](../../src/modules/llm/tests/llm_command_test.cpp#L154) |
+| each settings form fits a modal and is filled with the current values |  |  | [src/modules/llm/tests/llm_command_test.cpp:163](../../src/modules/llm/tests/llm_command_test.cpp#L163) |
+| a settings form is stored whole or not at all, naming what was out of range |  |  | [src/modules/llm/tests/llm_command_test.cpp:172](../../src/modules/llm/tests/llm_command_test.cpp#L172) |
+| the memory list pages ten at a time, carrying whose list it is |  |  | [src/modules/llm/tests/llm_command_test.cpp:188](../../src/modules/llm/tests/llm_command_test.cpp#L188) |
+| the status says what was spent against the caps |  |  | [src/modules/llm/tests/llm_command_test.cpp:205](../../src/modules/llm/tests/llm_command_test.cpp#L205) |
+| the llm and memory commands register, within Discord's limits |  |  | [src/modules/llm/tests/llm_command_test.cpp:218](../../src/modules/llm/tests/llm_command_test.cpp#L218) |
+| a rate limit allows so many per window, then frees up as they age |  |  | [src/modules/llm/tests/llm_guards_test.cpp:44](../../src/modules/llm/tests/llm_guards_test.cpp#L44) |
+| bot turns in a row stop at the limit until a person speaks |  |  | [src/modules/llm/tests/llm_guards_test.cpp:67](../../src/modules/llm/tests/llm_guards_test.cpp#L67) |
+| a bot turn soon after the last one waits out the delay |  |  | [src/modules/llm/tests/llm_guards_test.cpp:82](../../src/modules/llm/tests/llm_guards_test.cpp#L82) |
+| the day's bot turns are capped per guild, and come back the next day |  |  | [src/modules/llm/tests/llm_guards_test.cpp:94](../../src/modules/llm/tests/llm_guards_test.cpp#L94) |
+| pacing can insist on a person first, or refuse bots entirely |  |  | [src/modules/llm/tests/llm_guards_test.cpp:107](../../src/modules/llm/tests/llm_guards_test.cpp#L107) |
+| an advanced trigger fires on its roll, then waits out its cooldown in that channel |  |  | [src/modules/llm/tests/llm_guards_test.cpp:124](../../src/modules/llm/tests/llm_guards_test.cpp#L124) |
+| an advanced trigger needs its pattern, and to be on |  |  | [src/modules/llm/tests/llm_guards_test.cpp:141](../../src/modules/llm/tests/llm_guards_test.cpp#L141) |
+| a setting out of its range is refused with the range |  |  | [src/modules/llm/tests/llm_guards_test.cpp:155](../../src/modules/llm/tests/llm_guards_test.cpp#L155) |
+| every setting fits a modal: labels short enough, and at most five to a form |  |  | [src/modules/llm/tests/llm_guards_test.cpp:174](../../src/modules/llm/tests/llm_guards_test.cpp#L174) |
+| a diff shows removed and added lines, and only the unchanged lines near them |  |  | [src/modules/llm/tests/llm_guards_test.cpp:192](../../src/modules/llm/tests/llm_guards_test.cpp#L192) |
+| a memory search is made of the message's words, quoted, and never of FTS syntax |  |  | [src/modules/llm/tests/llm_guards_test.cpp:198](../../src/modules/llm/tests/llm_guards_test.cpp#L198) |
+| token estimates are a quarter of the characters, rounded up |  |  | [src/modules/llm/tests/llm_guards_test.cpp:205](../../src/modules/llm/tests/llm_guards_test.cpp#L205) |
+| the llm section reads its defaults, and the spend caps cannot be negative |  |  | [src/modules/llm/tests/llm_module_test.cpp:49](../../src/modules/llm/tests/llm_module_test.cpp#L49) |
+| a model the bot cannot price stops the module from starting |  |  | [src/modules/llm/tests/llm_module_test.cpp:64](../../src/modules/llm/tests/llm_module_test.cpp#L64) |
+| the providers' keys come from the environment, and are masked in the log |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:73](../../src/modules/llm/tests/llm_module_test.cpp#L73) |
+| the model speaks only when someone offers speech |  | 2 | [src/modules/llm/tests/llm_module_test.cpp:93](../../src/modules/llm/tests/llm_module_test.cpp#L93) |
+| the llm README lists what the module registers |  |  | [src/modules/llm/tests/llm_module_test.cpp:108](../../src/modules/llm/tests/llm_module_test.cpp#L108) |
+| the language model's settings panel stores what its forms set |  |  | [src/modules/llm/tests/llm_panel_test.cpp:89](../../src/modules/llm/tests/llm_panel_test.cpp#L89) |
+| the language model's settings panel switches it on and off, for Manage Server only |  |  | [src/modules/llm/tests/llm_panel_test.cpp:108](../../src/modules/llm/tests/llm_panel_test.cpp#L108) |
+| a document's form saves what was typed, not blanks |  | 3 | [src/modules/llm/tests/llm_panel_test.cpp:121](../../src/modules/llm/tests/llm_panel_test.cpp#L121) |
+| the memory list pages |  |  | [src/modules/llm/tests/llm_panel_test.cpp:154](../../src/modules/llm/tests/llm_panel_test.cpp#L154) |
+| every model has a price, and the ids are the API's own |  |  | [src/modules/llm/tests/llm_provider_test.cpp:58](../../src/modules/llm/tests/llm_provider_test.cpp#L58) |
+| a call costs its tokens at the model's prices, cache included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:70](../../src/modules/llm/tests/llm_provider_test.cpp#L70) |
+| provider names are read case-insensitively |  |  | [src/modules/llm/tests/llm_provider_test.cpp:80](../../src/modules/llm/tests/llm_provider_test.cpp#L80) |
+| an Anthropic request caches the stable instructions and nothing after them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:90](../../src/modules/llm/tests/llm_provider_test.cpp#L90) |
+| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [src/modules/llm/tests/llm_provider_test.cpp:102](../../src/modules/llm/tests/llm_provider_test.cpp#L102) |
+| the last Anthropic round forbids tools but still declares them |  |  | [src/modules/llm/tests/llm_provider_test.cpp:116](../../src/modules/llm/tests/llm_provider_test.cpp#L116) |
+| an Anthropic request sends tool calls and their results in the API's shape |  |  | [src/modules/llm/tests/llm_provider_test.cpp:125](../../src/modules/llm/tests/llm_provider_test.cpp#L125) |
+| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [src/modules/llm/tests/llm_provider_test.cpp:145](../../src/modules/llm/tests/llm_provider_test.cpp#L145) |
+| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [src/modules/llm/tests/llm_provider_test.cpp:166](../../src/modules/llm/tests/llm_provider_test.cpp#L166) |
+| an Anthropic error carries the status and the API's own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:188](../../src/modules/llm/tests/llm_provider_test.cpp#L188) |
+| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [src/modules/llm/tests/llm_provider_test.cpp:196](../../src/modules/llm/tests/llm_provider_test.cpp#L196) |
+| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:208](../../src/modules/llm/tests/llm_provider_test.cpp#L208) |
+| a transport failure reaches the caller as an error | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:227](../../src/modules/llm/tests/llm_provider_test.cpp#L227) |
+| an OpenAI request puts the instructions in one system message, stable part first |  |  | [src/modules/llm/tests/llm_provider_test.cpp:242](../../src/modules/llm/tests/llm_provider_test.cpp#L242) |
+| an OpenAI request sends each tool result as its own message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:255](../../src/modules/llm/tests/llm_provider_test.cpp#L255) |
+| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [src/modules/llm/tests/llm_provider_test.cpp:271](../../src/modules/llm/tests/llm_provider_test.cpp#L271) |
+| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [src/modules/llm/tests/llm_provider_test.cpp:293](../../src/modules/llm/tests/llm_provider_test.cpp#L293) |
+| an OpenAI error carries the API's message |  |  | [src/modules/llm/tests/llm_provider_test.cpp:301](../../src/modules/llm/tests/llm_provider_test.cpp#L301) |
+| the OpenAI provider authenticates with a bearer token | `coro` |  | [src/modules/llm/tests/llm_provider_test.cpp:307](../../src/modules/llm/tests/llm_provider_test.cpp#L307) |
+| the model has to be one the bot can price, from the provider named |  |  | [src/modules/llm/tests/llm_provider_test.cpp:331](../../src/modules/llm/tests/llm_provider_test.cpp#L331) |
+| a recorded call is priced, and counted in its day and month |  |  | [src/modules/llm/tests/llm_store_test.cpp:57](../../src/modules/llm/tests/llm_store_test.cpp#L57) |
+| reaching a cap says which one, and the month outranks the day |  |  | [src/modules/llm/tests/llm_store_test.cpp:76](../../src/modules/llm/tests/llm_store_test.cpp#L76) |
+| a cap notice is due once per guild and period |  |  | [src/modules/llm/tests/llm_store_test.cpp:100](../../src/modules/llm/tests/llm_store_test.cpp#L100) |
+| a document nobody edited reads as its default |  |  | [src/modules/llm/tests/llm_store_test.cpp:112](../../src/modules/llm/tests/llm_store_test.cpp#L112) |
+| every edit is a new version, per guild and per kind |  |  | [src/modules/llm/tests/llm_store_test.cpp:122](../../src/modules/llm/tests/llm_store_test.cpp#L122) |
+| a revert saves the old text as a new version, and can itself be reverted |  |  | [src/modules/llm/tests/llm_store_test.cpp:140](../../src/modules/llm/tests/llm_store_test.cpp#L140) |
+| memories are found by the words in them, only in their own guild |  |  | [src/modules/llm/tests/llm_store_test.cpp:162](../../src/modules/llm/tests/llm_store_test.cpp#L162) |
+| a removed memory leaves the search index too |  |  | [src/modules/llm/tests/llm_store_test.cpp:178](../../src/modules/llm/tests/llm_store_test.cpp#L178) |
+| memories list newest first, and clear by person or all at once |  |  | [src/modules/llm/tests/llm_store_test.cpp:190](../../src/modules/llm/tests/llm_store_test.cpp#L190) |
+| the memories shown up front are about the author, then what matches |  |  | [src/modules/llm/tests/llm_store_test.cpp:211](../../src/modules/llm/tests/llm_store_test.cpp#L211) |
+| the blacklist blocks a user or anyone with a role |  |  | [src/modules/llm/tests/llm_store_test.cpp:228](../../src/modules/llm/tests/llm_store_test.cpp#L228) |
+| advanced triggers are stored per guild and edited in place |  |  | [src/modules/llm/tests/llm_store_test.cpp:249](../../src/modules/llm/tests/llm_store_test.cpp#L249) |
+| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [src/modules/llm/tests/llm_store_test.cpp:281](../../src/modules/llm/tests/llm_store_test.cpp#L281) |
+| a tool registered twice is refused |  |  | [src/modules/llm/tests/llm_tools_test.cpp:44](../../src/modules/llm/tests/llm_tools_test.cpp#L44) |
+| an unknown tool, or one that throws, is an error the model reads |  |  | [src/modules/llm/tests/llm_tools_test.cpp:49](../../src/modules/llm/tests/llm_tools_test.cpp#L49) |
+| the tool loop runs what the model asks for and hands the result back | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:64](../../src/modules/llm/tests/llm_tools_test.cpp#L64) |
+| after the last round of tools the model has to answer | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:93](../../src/modules/llm/tests/llm_tools_test.cpp#L93) |
+| a failure mid-loop is reported, and what was spent before it still counted | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:113](../../src/modules/llm/tests/llm_tools_test.cpp#L113) |
+| when the last turn says nothing, what was said along the way is kept | `coro` |  | [src/modules/llm/tests/llm_tools_test.cpp:128](../../src/modules/llm/tests/llm_tools_test.cpp#L128) |
 
 ## ports
 

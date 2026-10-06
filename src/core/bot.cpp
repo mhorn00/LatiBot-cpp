@@ -16,11 +16,6 @@
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
 #include "core/events/stage_order.hpp"
-#include "core/llm/anthropic.hpp"
-#include "core/llm/config_check.hpp"
-#include "core/llm/memory_tools.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/openai.hpp"
 #include "core/modules/host.hpp"
 #include "core/modules/module.hpp"
 #include "core/ui/interaction.hpp"
@@ -116,10 +111,7 @@ auto music_extras(const std::optional<std::filesystem::path>& deno, const std::o
 
 /// What the log channel masks, in case anything ever logs one of them.
 auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> {
-    std::vector<std::string> secrets{credentials.discord_token};
-    if (credentials.anthropic_key) secrets.push_back(*credentials.anthropic_key);
-    if (credentials.openai_key) secrets.push_back(*credentials.openai_key);
-    return secrets;
+    return {credentials.discord_token};
 }
 
 } // namespace
@@ -162,43 +154,9 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
                                                 .flags = dpp::m_suppress_notifications,
                                                 .what = "a note about a track"});
                   }}),
-      llm_usage_(database_),
-      llm_documents_(database_),
-      llm_memories_(database_),
-      llm_aliases_(database_),
-      llm_blacklist_(database_),
-      llm_triggers_(database_),
-      anthropic_(credentials.anthropic_key ? std::make_unique<llm::anthropic_provider>(http_, *credentials.anthropic_key) : nullptr),
-      openai_(credentials.openai_key ? std::make_unique<llm::openai_provider>(http_, *credentials.openai_key) : nullptr),
-      responder_({.discord = &gateway_,
-                  .clock = &clock_,
-                  .settings = &guild_settings_,
-                  .bootstrap = &settings_,
-                  .documents = &llm_documents_,
-                  .memories = &llm_memories_,
-                  .usage = &llm_usage_,
-                  .tools = &llm_tools_,
-                  .aliases = &llm_aliases_,
-                  .provider_for = [this](llm::provider_kind kind) { return provider_for(kind); },
-                  .speech = &dectalk_speech_},
-                 [this] { return llm::bot_identity{.id = cluster_.me.id, .name = cluster_.me.username}; }),
-      llm_stage_({.settings = &guild_settings_,
-                  .bootstrap = &settings_,
-                  .blacklist = &llm_blacklist_,
-                  .triggers = &llm_triggers_,
-                  .usage = &llm_usage_,
-                  .speech = &dectalk_speech_,
-                  .has_provider = [this](llm::provider_kind kind) { return provider_for(kind) != nullptr; },
-                  .me = [this] { return llm::bot_identity{.id = cluster_.me.id, .name = cluster_.me.username}; }},
-                 clock_),
-      llm_panels_(llm_services()),
       log_destinations_(guild_settings_),
       log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
-
-    // A model the bot cannot price stops startup, as a bad config.json
-    // key does, before anything connects.
-    llm::check_config(settings_);
 
     util::log().info("LatiBot {} starting", version_string());
     util::log().debug("log level {}; {} trusted guild(s), {} trusted user(s)", util::to_string(settings_.log_level),
@@ -211,21 +169,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     db::prepare_schema_versions(database_);
     for (const db::module_schema& schema : db::builtin_schemas()) {
         db::apply_schema(database_, schema);
-    }
-
-    // The model's memory, as tools it can call
-    // (docs/features/Language_Model.md §3.4).
-    llm::add_memory_tools(llm_tools_, llm_memories_);
-
-    // Info: a missing key is the whole reason the model would never answer,
-    // and the log is where that question gets asked.
-    if (anthropic_ == nullptr && openai_ == nullptr) {
-        util::log().info("the language model is off everywhere: neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set");
-    } else {
-        util::log().info("the language model can use {}{}{}; {} by default, capped at ${:.2f} a day and ${:.2f} a month",
-                         anthropic_ != nullptr ? "Anthropic" : "", anthropic_ != nullptr && openai_ != nullptr ? " and " : "",
-                         openai_ != nullptr ? "OpenAI" : "", settings_.llm.model, settings_.llm.spend_cap_daily_usd,
-                         settings_.llm.spend_cap_monthly_usd);
     }
 
     // Music plays through the mixer, which reads it from the player.
@@ -259,8 +202,6 @@ auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
-    commands_.add(std::make_unique<commands::llm_command>(llm_services()));
-    commands_.add(std::make_unique<commands::memory_command>(llm_services()));
 
     const commands::speech_services speech{
         .engine = &tts_, .queue = &speech_, .settings = &guild_settings_, .bootstrap = &settings_, .voices = &voices_};
@@ -275,40 +216,9 @@ auto bot::register_commands() -> void {
 auto bot::register_stages() -> void {
     // Each at its position, which decides where it runs, whatever order the
     // lines are in (events/stage_order.hpp, docs/features/Message_Pipeline.md
-    // §2.2). Modules add theirs: links' replacement at `rewrite`, triggers' replies
-    // at `reply`.
-    // The model is last: it consumes what it answers, and a simple trigger's
-    // reply before it keeps an advanced trigger quiet.
+    // §2.2). Modules add theirs: links' replacement at `rewrite`, triggers'
+    // replies at `reply`, the language model at `model`.
     pipeline_.add(events::stage_order::stop, "goodbye", events::goodbye_stage(guild_settings_));
-    pipeline_.add(events::stage_order::model, "language model",
-                  events::carried_out_by<llm::ask_llm>([this](const events::incoming_message& message) { return llm_stage_(message); },
-                                                       "answering with the language model",
-                                                       [this](llm::ask_llm ask) { return answer_with_llm(std::move(ask)); }));
-}
-
-auto bot::provider_for(llm::provider_kind kind) const -> llm::provider* {
-    return kind == llm::provider_kind::openai ? openai_.get() : anthropic_.get();
-}
-
-auto bot::llm_services() -> commands::llm_command_services {
-    return {.settings = &guild_settings_,
-            .bootstrap = &settings_,
-            .documents = &llm_documents_,
-            .triggers = &llm_triggers_,
-            .blacklist = &llm_blacklist_,
-            .memories = &llm_memories_,
-            .aliases = &llm_aliases_,
-            .usage = &llm_usage_,
-            .http = &http_,
-            .clock = &clock_,
-            .has_provider = [this](llm::provider_kind kind) { return provider_for(kind) != nullptr; }};
-}
-
-auto bot::answer_with_llm(llm::ask_llm ask) -> dpp::task<void> {
-    // Bot-to-bot pacing (docs/features/Language_Model.md §2.7). The turn was
-    // claimed when the stage decided, so the wait only spaces it out.
-    if (ask.wait > std::chrono::seconds::zero()) co_await cluster_.co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
-    co_await responder_.answer(std::move(ask));
 }
 
 auto bot::register_events() -> void {
@@ -688,8 +598,7 @@ auto bot::route_component(const dpp::interaction_create_t& event, const ui::page
     // §4.6), and then those still in the core, each saying whether the view
     // was one of its own.
     if (panels_.claimed(state.view)) return panels_.on_component(event, state, chosen);
-    return voice_lab_.on_component(event, state, chosen) || llm_panels_.on_component(event, state, chosen) ||
-           commands::on_music_component(music_, event, state);
+    return voice_lab_.on_component(event, state, chosen) || commands::on_music_component(music_, event, state);
 }
 
 auto bot::on_form(const dpp::form_submit_t& event) -> void {
@@ -706,7 +615,7 @@ auto bot::on_form(const dpp::form_submit_t& event) -> void {
 
     // Answered when it fails or is not recognised, as a button is.
     try {
-        if (state && (panels_.on_form(event, *state) || voice_lab_.on_form(event, *state) || llm_panels_.on_form(event, *state))) {
+        if (state && (panels_.on_form(event, *state) || voice_lab_.on_form(event, *state))) {
             // Each panel answers its own.
         } else {
             util::log().debug("a modal submission with an unrecognised id \"{}\"", event.custom_id);
@@ -781,6 +690,9 @@ auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
 }
 
 auto bot::start_modules(const modules::module_factory& make_modules) -> void {
+    // DECtalk's speech, until DECtalk is a module of its own and offers it
+    // itself (docs/modules/Module_Plan_Final.md §5.3).
+    capabilities_.offer<capabilities::speech>(dectalk_speech_, "dectalk (still in the core)");
     modules_ = modules::start_modules(make_modules, *this, capabilities_);
     // Before connecting, which is when DPP reads them.
     cluster_.intents |= module_intents_;

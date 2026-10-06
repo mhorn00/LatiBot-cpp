@@ -12,17 +12,6 @@
 
 namespace latibot::config {
 
-/// "llm": which model answers, and what it is allowed to cost
-/// (docs/features/Language_Model.md §3.2). Which providers and models are
-/// allowed is the language model's to say (`llm::check_config`).
-struct llm_config {
-    std::string provider{"anthropic"};
-    std::string model{"claude-haiku-4-5"};
-    double spend_cap_daily_usd = 2.0;
-    double spend_cap_monthly_usd = 20.0;
-    int tool_rounds = 4;
-};
-
 /// "music": where its programs are (docs/features/Music.md §5, §4.10).
 struct music_config {
     /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
@@ -38,7 +27,6 @@ struct music_config {
     int pot_provider_port = 4416;
 };
 
-[[nodiscard]] auto llm_section() -> const section<llm_config>&;
 [[nodiscard]] auto music_section() -> const section<music_config>&;
 
 } // namespace latibot::config

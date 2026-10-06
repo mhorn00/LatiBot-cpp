@@ -1,12 +1,13 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/settings.hpp"
-#include "core/llm/spend.hpp"
 #include "core/ui/paginator.hpp"
+#include "documents.hpp"
+#include "llm_config.hpp"
+#include "memory.hpp"
+#include "models.hpp"
+#include "settings.hpp"
+#include "spend.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>
@@ -24,7 +25,6 @@
 
 namespace latibot::config {
 class guild_settings;
-struct bootstrap;
 } // namespace latibot::config
 
 namespace latibot::llm {
@@ -128,7 +128,8 @@ inline constexpr std::string_view memory_list_view = "memlist";
 /// Everything `/llm` and `/memory` work with.
 struct llm_command_services {
     config::guild_settings* settings = nullptr;
-    const config::bootstrap* bootstrap = nullptr;
+    /// config.json's llm section.
+    const llm::llm_config* section = nullptr;
     llm::document_store* documents = nullptr;
     llm::advanced_trigger_store* triggers = nullptr;
     llm::blacklist_store* blacklist = nullptr;

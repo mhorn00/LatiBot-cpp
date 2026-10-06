@@ -1,6 +1,7 @@
 #pragma once
 
-#include "core/llm/guards.hpp"
+#include "guards.hpp"
+#include "llm_config.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -12,7 +13,6 @@
 
 namespace latibot::config {
 class guild_settings;
-struct bootstrap;
 } // namespace latibot::config
 
 namespace latibot::llm {
@@ -98,7 +98,7 @@ struct llm_settings {
 
 /// The guild's settings, each clamped into its range. The model falls back
 /// to `config.json`'s when the stored one is not a model the bot knows.
-[[nodiscard]] auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake guild, const config::bootstrap& bootstrap)
+[[nodiscard]] auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake guild, const llm_config& section)
     -> llm_settings;
 
 } // namespace latibot::llm

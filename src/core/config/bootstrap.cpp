@@ -90,7 +90,7 @@ constexpr std::array<moved_key, 12> moved_keys{{
 
 /// The sections the core reads itself, for the features still inside it.
 /// Each leaves this list when its module takes it.
-constexpr std::array<std::string_view, 2> feature_sections{"llm", "music"};
+constexpr std::array<std::string_view, 1> feature_sections{"music"};
 
 /// Every section in config.json, by name, with any old flat key moved into
 /// its own. A top-level key that is neither the core's, a section, nor an
@@ -195,7 +195,6 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
 
     read_storage_keys(parsed, config);
 
-    config.llm = llm_section().read(take_section(gathered, "llm"));
     config.music = music_section().read(take_section(gathered, "music"));
     // What is left is the modules'.
     config.sections = std::move(gathered);
@@ -216,7 +215,6 @@ auto bootstrap::default_json(const nlohmann::ordered_json& module_sections) -> s
     file["backup_interval_minutes"] = defaults.backup_interval.count();
     file["trusted_guilds"] = nlohmann::ordered_json::array();
     file["trusted_users"] = nlohmann::ordered_json::array();
-    file["llm"] = llm_section().defaults();
     file["music"] = music_section().defaults();
     for (const auto& [name, section] : module_sections.items()) {
         file[name] = section;
@@ -297,8 +295,6 @@ auto secrets::from_environment() -> secrets {
     }
     loaded.discord_token = *token;
 
-    if (const auto key = util::env_var("ANTHROPIC_API_KEY"); key && !key->empty()) loaded.anthropic_key = *key;
-    if (const auto key = util::env_var("OPENAI_API_KEY"); key && !key->empty()) loaded.openai_key = *key;
     if (const auto profile = util::env_var("LATIBOT_YTDLP_FIREFOX_PROFILE"); profile && !profile->empty()) {
         loaded.ytdlp_firefox_profile = std::filesystem::path(*profile);
     }

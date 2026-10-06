@@ -3,9 +3,10 @@
 // markers in place of names, and names put back only in what is posted.
 // Every id and name here is made up.
 
+#include "aliases.hpp"
 #include "core/db/database.hpp"
-#include "core/llm/aliases.hpp"
 
+#include "llm_module.hpp"
 #include "mocks/mock_discord.hpp"
 #include "support/schema.hpp"
 
@@ -35,7 +36,11 @@ struct fixture {
     latibot::testing::mock_discord discord;
     people cast{aliases, discord, guild, bot_id, "LatiBot"};
 
-    fixture() { latibot::testing::create_schema(db); }
+    fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::llm::llm_schema());
+        latibot::db::apply_schema(db, latibot::llm::llm_schema());
+    }
 };
 
 } // namespace

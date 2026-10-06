@@ -1,8 +1,8 @@
-#include "core/llm/prompt.hpp"
+#include "prompt.hpp"
 
-#include "core/llm/aliases.hpp"
-#include "core/llm/documents.hpp"
+#include "aliases.hpp"
 #include "core/util/text.hpp"
+#include "documents.hpp"
 
 #include <format>
 #include <ranges>

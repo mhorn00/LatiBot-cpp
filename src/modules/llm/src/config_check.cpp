@@ -1,22 +1,22 @@
-#include "core/llm/config_check.hpp"
+#include "config_check.hpp"
 
-#include "core/config/bootstrap.hpp"
-#include "core/llm/models.hpp"
+#include "core/config/config_error.hpp"
+#include "models.hpp"
 
 #include <format>
 #include <string>
 
 namespace latibot::llm {
 
-auto check_config(const config::bootstrap& config) -> void {
-    const auto provider = provider_from_string(config.llm.provider);
+auto check_config(const llm_config& section) -> void {
+    const auto provider = provider_from_string(section.provider);
     if (!provider) {
-        throw config::config_error(R"(config key "llm.provider" has ")" + config.llm.provider + R"(", expected: anthropic, openai)");
+        throw config::config_error(R"(config key "llm.provider" has ")" + section.provider + R"(", expected: anthropic, openai)");
     }
 
     // Only models with a known price, since the spend caps are worked out
     // from it: a model the bot cannot price would spend without being counted.
-    const model_info* model = find_model(config.llm.model);
+    const model_info* model = find_model(section.model);
     if (model == nullptr) {
         std::string known;
         for (const model_info& candidate : known_models()) {
@@ -24,7 +24,7 @@ auto check_config(const config::bootstrap& config) -> void {
             known += candidate.id;
         }
         throw config::config_error(std::format(
-            R"(config key "llm.model" has "{}", which is not a model the bot knows the price of. Known: {})", config.llm.model, known));
+            R"(config key "llm.model" has "{}", which is not a model the bot knows the price of. Known: {})", section.model, known));
     }
     if (model->provider != *provider) {
         throw config::config_error(std::format(R"(config key "llm.model" names a model from {}, but "llm.provider" is {})",

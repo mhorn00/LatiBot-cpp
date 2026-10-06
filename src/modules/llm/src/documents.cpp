@@ -1,4 +1,4 @@
-#include "core/llm/documents.hpp"
+#include "documents.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

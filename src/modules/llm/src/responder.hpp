@@ -1,10 +1,11 @@
 #pragma once
 
-#include "core/llm/ask.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/prompt.hpp"
-#include "core/llm/provider.hpp"
-#include "core/llm/settings.hpp"
+#include "ask.hpp"
+#include "llm_config.hpp"
+#include "models.hpp"
+#include "prompt.hpp"
+#include "provider.hpp"
+#include "settings.hpp"
 
 #include <dpp/coro/task.h>
 #include <dpp/message.h>
@@ -21,7 +22,6 @@ class speech;
 
 namespace latibot::config {
 class guild_settings;
-struct bootstrap;
 } // namespace latibot::config
 
 namespace latibot::ports {
@@ -50,7 +50,8 @@ struct responder_services {
     ports::discord_gateway* discord = nullptr;
     ports::clock* clock = nullptr;
     const config::guild_settings* settings = nullptr;
-    const config::bootstrap* bootstrap = nullptr;
+    /// config.json's llm section.
+    const llm_config* section = nullptr;
     const document_store* documents = nullptr;
     const memory_store* memories = nullptr;
     usage_store* usage = nullptr;

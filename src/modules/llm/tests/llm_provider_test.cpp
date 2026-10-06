@@ -1,8 +1,8 @@
-#include "core/config/bootstrap.hpp"
-#include "core/llm/anthropic.hpp"
-#include "core/llm/config_check.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/openai.hpp"
+#include "anthropic.hpp"
+#include "config_check.hpp"
+#include "llm_config.hpp"
+#include "models.hpp"
+#include "openai.hpp"
 
 #include "mocks/mock_http.hpp"
 
@@ -322,7 +322,8 @@ namespace {
 
 /// `config.json` text as read, then checked by the language model.
 auto checked(std::string_view text) -> void {
-    latibot::llm::check_config(latibot::config::bootstrap::from_json(text));
+    const auto parsed = nlohmann::json::parse(text);
+    latibot::llm::check_config(latibot::llm::llm_section().read(parsed.contains("llm") ? parsed.at("llm") : nlohmann::json::object()));
 }
 
 } // namespace

@@ -1,4 +1,4 @@
-#include "core/llm/aliases.hpp"
+#include "aliases.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/llm/memory.hpp"
+#include "memory.hpp"
 
 #include <dpp/snowflake.h>
 

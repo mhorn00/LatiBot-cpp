@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/llm/models.hpp"
-#include "core/llm/provider.hpp"
+#include "models.hpp"
+#include "provider.hpp"
 
 #include <dpp/snowflake.h>
 

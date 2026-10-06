@@ -84,9 +84,6 @@ TEST_CASE("a section's defaults are every key, in the table's order", "[config]"
 
 TEST_CASE("every key of every feature section says what it is for", "[config]") {
     // What a module's README lists, and later checks against.
-    for (const auto& each : latibot::config::llm_section().keys()) {
-        CHECK_FALSE(each.description().empty());
-    }
     for (const auto& each : latibot::config::music_section().keys()) {
         CHECK_FALSE(each.description().empty());
     }

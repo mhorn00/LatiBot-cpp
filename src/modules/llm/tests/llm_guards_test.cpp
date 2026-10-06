@@ -1,8 +1,8 @@
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/guards.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/settings.hpp"
+#include "advanced_triggers.hpp"
+#include "documents.hpp"
+#include "guards.hpp"
+#include "memory.hpp"
+#include "settings.hpp"
 
 #include "mocks/mock_clock.hpp"
 

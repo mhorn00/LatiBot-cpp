@@ -1,18 +1,17 @@
-#include "core/llm/responder.hpp"
+#include "responder.hpp"
 
+#include "aliases.hpp"
 #include "core/capabilities/speech.hpp"
-#include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/llm/aliases.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/settings.hpp"
-#include "core/llm/spend.hpp"
-#include "core/llm/tools.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ports/discord_gateway.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "documents.hpp"
+#include "memory.hpp"
+#include "settings.hpp"
+#include "spend.hpp"
+#include "tools.hpp"
 
 #include <format>
 #include <ranges>
@@ -59,7 +58,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     const bot_identity me = me_();
     const bool addressed = ask.trigger_id == 0;
 
-    const llm_settings settings = load_llm_settings(*services_.settings, ask.guild_id, *services_.bootstrap);
+    const llm_settings settings = load_llm_settings(*services_.settings, ask.guild_id, *services_.section);
     const model_info* model = find_model(settings.model);
     provider* answering = model == nullptr ? nullptr : services_.provider_for(model->provider);
     if (answering == nullptr) {
@@ -91,7 +90,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     const tool_context context{
         .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
     auto outcome = co_await run_tool_loop(
-        *answering, std::move(call), *services_.tools, context, services_.bootstrap->llm.tool_rounds, [&](const usage& used) {
+        *answering, std::move(call), *services_.tools, context, services_.section->tool_rounds, [&](const usage& used) {
             report.used += used;
             report.cost += services_.usage->record(ask.guild_id, *model, used, seconds_now(*services_.clock));
         });

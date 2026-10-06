@@ -1,6 +1,6 @@
-#include "core/llm/tools.hpp"
+#include "tools.hpp"
 
-#include "mocks/mock_llm.hpp"
+#include "mock_llm.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

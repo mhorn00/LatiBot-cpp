@@ -1,9 +1,8 @@
-#include "core/llm/settings.hpp"
+#include "settings.hpp"
 
-#include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/llm/models.hpp"
 #include "core/util/text.hpp"
+#include "models.hpp"
 
 #include <algorithm>
 #include <array>
@@ -88,14 +87,14 @@ auto setting_value(const config::guild_settings& settings, dpp::snowflake guild,
     return clamped(spec, settings.get_int(guild, spec.key, spec.fallback));
 }
 
-auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake guild, const config::bootstrap& bootstrap) -> llm_settings {
+auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake guild, const llm_config& section) -> llm_settings {
     llm_settings loaded;
     loaded.enabled = settings.get_bool(guild, enabled_key, false);
 
     // A model since removed from the table, or a hand-edited typo, falls
     // back rather than failing every message with a 404 from the provider.
-    loaded.model = settings.get(guild, model_key, bootstrap.llm.model);
-    if (find_model(loaded.model) == nullptr) loaded.model = bootstrap.llm.model;
+    loaded.model = settings.get(guild, model_key, section.model);
+    if (find_model(loaded.model) == nullptr) loaded.model = section.model;
 
     loaded.context_messages = as_int(settings, guild, "llm_context_messages");
     loaded.context_tokens = as_int(settings, guild, "llm_context_tokens");

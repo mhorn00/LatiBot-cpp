@@ -1,6 +1,6 @@
-#include "core/commands/llm.hpp"
+#include "llm_command.hpp"
 #include "core/commands/registry.hpp"
-#include "core/llm/settings.hpp"
+#include "settings.hpp"
 
 #include "support/discord_limits.hpp"
 
@@ -64,7 +64,7 @@ auto walk_options(const std::vector<dpp::command_option>& options, int depth, in
 
 } // namespace
 
-TEST_CASE("the personality is open to everyone until an admin narrows it to a role", "[commands]") {
+TEST_CASE("the personality is open to everyone until an admin narrows it to a role", "[llm]") {
     constexpr dpp::snowflake editors{55};
     const std::vector<dpp::snowflake> none;
     const std::vector<dpp::snowflake> with_role{editors};
@@ -75,7 +75,7 @@ TEST_CASE("the personality is open to everyone until an admin narrows it to a ro
     CHECK(latibot::commands::may_edit_personality(true, guild, editors, none));
 }
 
-TEST_CASE("a document is cut into form parts between lines, and joins back the same", "[commands]") {
+TEST_CASE("a document is cut into form parts between lines, and joins back the same", "[llm]") {
     std::string text;
     for (int line = 0; line < 300; ++line) {
         text += std::format("line {} of a long personality, which goes on a while\n", line);
@@ -95,7 +95,7 @@ TEST_CASE("a document is cut into form parts between lines, and joins back the s
     CHECK(join_document_parts(std::vector<std::string>{"one", "", "three"}) == "one\nthree");
 }
 
-TEST_CASE("a document too long for a form has no form, and a line longer than a part is cut", "[commands]") {
+TEST_CASE("a document too long for a form has no form, and a line longer than a part is cut", "[llm]") {
     CHECK_FALSE(document_parts(std::string(25000, 'x')).has_value());
     CHECK_FALSE(latibot::commands::document_form(document_kind::personality, std::string(25000, 'x')).has_value());
 
@@ -106,7 +106,7 @@ TEST_CASE("a document too long for a form has no form, and a line longer than a 
     CHECK(parts->at(2).size() == 1000);
 }
 
-TEST_CASE("the document form fits a modal and is filled with the current text", "[commands]") {
+TEST_CASE("the document form fits a modal and is filled with the current text", "[llm]") {
     const auto form = latibot::commands::document_form(document_kind::system, "be nice");
     REQUIRE(form.has_value());
     latibot::testing::check_modal_fits(*form);
@@ -117,7 +117,7 @@ TEST_CASE("the document form fits a modal and is filled with the current text", 
     CHECK(form->custom_id == "llmdoc:0:system");
 }
 
-TEST_CASE("a document is shown inline when short, and attached when not", "[commands]") {
+TEST_CASE("a document is shown inline when short, and attached when not", "[llm]") {
     const latibot::llm::document_version short_one{.version = 3, .content = "be nice", .edited_by = {}, .edited_at = {}, .note = {}};
     const dpp::message inline_message = latibot::commands::render_document(document_kind::personality, short_one, false);
     CHECK(inline_message.content == "The personality, version 3:\n```\nbe nice\n```");
@@ -131,13 +131,13 @@ TEST_CASE("a document is shown inline when short, and attached when not", "[comm
     latibot::testing::check_message_fits(attached);
 }
 
-TEST_CASE("saving a large document warns that it is sent with every message", "[commands]") {
+TEST_CASE("saving a large document warns that it is sent with every message", "[llm]") {
     CHECK(latibot::commands::describe_saved(document_kind::personality, 2, "short") ==
           "saved the personality as version 2 (about 2 tokens)");
     CHECK(latibot::commands::describe_saved(document_kind::system, 5, std::string(8000, 'a')).contains("sent with every message"));
 }
 
-TEST_CASE("history lists the newest versions first, with who and when", "[commands]") {
+TEST_CASE("history lists the newest versions first, with who and when", "[llm]") {
     const std::vector<latibot::llm::document_version> versions{
         {.version = 2,
          .content = "b",
@@ -151,7 +151,7 @@ TEST_CASE("history lists the newest versions first, with who and when", "[comman
     CHECK(latibot::commands::render_history(document_kind::personality, {}).contains("default"));
 }
 
-TEST_CASE("the settings panel shows every setting and fits a message", "[commands]") {
+TEST_CASE("the settings panel shows every setting and fits a message", "[llm]") {
     const dpp::message panel = latibot::commands::render_llm_settings(default_values(), true);
     latibot::testing::check_message_fits(panel);
     for (const auto& spec : latibot::llm::setting_specs()) {
@@ -160,7 +160,7 @@ TEST_CASE("the settings panel shows every setting and fits a message", "[command
     CHECK(panel.content.contains("**on**"));
 }
 
-TEST_CASE("each settings form fits a modal and is filled with the current values", "[commands]") {
+TEST_CASE("each settings form fits a modal and is filled with the current values", "[llm]") {
     for (const std::string_view group : latibot::llm::setting_groups()) {
         const auto form = latibot::commands::llm_settings_form(group, default_values());
         REQUIRE(form.has_value());
@@ -169,7 +169,7 @@ TEST_CASE("each settings form fits a modal and is filled with the current values
     CHECK_FALSE(latibot::commands::llm_settings_form("nope", default_values()).has_value());
 }
 
-TEST_CASE("a settings form is stored whole or not at all, naming what was out of range", "[commands]") {
+TEST_CASE("a settings form is stored whole or not at all, naming what was out of range", "[llm]") {
     const std::map<std::string, std::string, std::less<>> good{
         {"llm_context_messages", "20"}, {"llm_context_tokens", "4000"}, {"llm_trigger_context", "3"}};
     const auto stored = latibot::commands::read_llm_settings_form("context", good);
@@ -185,7 +185,7 @@ TEST_CASE("a settings form is stored whole or not at all, naming what was out of
     CHECK(*reason == "\"Token budget for them\" takes a whole number from 200 to 20000; nothing was changed");
 }
 
-TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[commands]") {
+TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[llm]") {
     std::vector<latibot::llm::memory> page;
     page.reserve(10);
     for (int index = 0; index < 10; ++index) {
@@ -202,7 +202,7 @@ TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[co
     CHECK(everyone.content.contains("(<@7>)"));
 }
 
-TEST_CASE("the status says what was spent against the caps", "[commands]") {
+TEST_CASE("the status says what was spent against the caps", "[llm]") {
     latibot::commands::llm_overview overview;
     overview.enabled = true;
     overview.model = "claude-haiku-4-5";
@@ -215,7 +215,7 @@ TEST_CASE("the status says what was spent against the caps", "[commands]") {
           "Spent today: $0.50 of $2.00. This month: $3.25 of $20.00, $1.00 of it here.");
 }
 
-TEST_CASE("the llm and memory commands register, within Discord's limits", "[commands]") {
+TEST_CASE("the llm and memory commands register, within Discord's limits", "[llm]") {
     latibot::commands::registry commands;
     const latibot::commands::llm_command_services none{};
     REQUIRE_NOTHROW(commands.add(std::make_unique<latibot::commands::llm_command>(none)));

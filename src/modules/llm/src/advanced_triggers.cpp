@@ -1,4 +1,4 @@
-#include "core/llm/advanced_triggers.hpp"
+#include "advanced_triggers.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

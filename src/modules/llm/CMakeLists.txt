@@ -1,0 +1,32 @@
+# The language model module (README.md).
+latibot_module(llm CONFIG
+    SOURCES
+        src/advanced_triggers.cpp
+        src/aliases.cpp
+        src/anthropic.cpp
+        src/config_check.cpp
+        src/documents.cpp
+        src/guards.cpp
+        src/llm_command.cpp
+        src/memory.cpp
+        src/memory_tools.cpp
+        src/models.cpp
+        src/module.cpp
+        src/openai.cpp
+        src/prompt.cpp
+        src/responder.cpp
+        src/settings.cpp
+        src/spend.cpp
+        src/stage.cpp
+        src/tools.cpp
+    TESTS
+        tests/llm_aliases_test.cpp
+        tests/llm_answer_test.cpp
+        tests/llm_command_test.cpp
+        tests/llm_guards_test.cpp
+        tests/llm_module_test.cpp
+        tests/llm_panel_test.cpp
+        tests/llm_provider_test.cpp
+        tests/llm_store_test.cpp
+        tests/llm_tools_test.cpp
+)

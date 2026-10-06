@@ -5,19 +5,19 @@
   "backup_interval_minutes": 360,
   "trusted_guilds": [],
   "trusted_users": [],
-  "llm": {
-    "provider": "anthropic",
-    "model": "claude-haiku-4-5",
-    "spend_cap_daily_usd": 2.0,
-    "spend_cap_monthly_usd": 20.0,
-    "tool_rounds": 4
-  },
   "music": {
     "ytdlp_path": "",
     "ffmpeg_path": "",
     "deno_path": "",
     "pot_provider_path": "",
     "pot_provider_port": 4416
+  },
+  "llm": {
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5",
+    "spend_cap_daily_usd": 2.0,
+    "spend_cap_monthly_usd": 20.0,
+    "tool_rounds": 4
   },
   "nicknames": {
     "track_changes": true

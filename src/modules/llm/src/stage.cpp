@@ -1,12 +1,11 @@
-#include "core/llm/stage.hpp"
+#include "stage.hpp"
 
 #include "core/capabilities/speech.hpp"
-#include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/llm/settings.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "settings.hpp"
 
 #include <cctype>
 #include <format>
@@ -48,10 +47,9 @@ llm_stage::llm_stage(stage_services services, ports::clock& clock, std::function
       pacing_(clock) {}
 
 auto llm_stage::over_spend_cap(const events::incoming_message& message, bool addressed, stage_result& result) -> bool {
-    const spend_status spend =
-        spend_status_at(*services_.usage,
-                        {.daily = services_.bootstrap->llm.spend_cap_daily_usd, .monthly = services_.bootstrap->llm.spend_cap_monthly_usd},
-                        std::chrono::floor<std::chrono::seconds>(clock_->now()));
+    const spend_status spend = spend_status_at(
+        *services_.usage, {.daily = services_.section->spend_cap_daily_usd, .monthly = services_.section->spend_cap_monthly_usd},
+        std::chrono::floor<std::chrono::seconds>(clock_->now()));
     if (!spend.over()) return false;
 
     // Said once per guild per period, where it was asked, and warned about in
@@ -102,7 +100,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     if (!message.from_bot) pacing_.human_spoke(message.channel_id);
     if (message.guild_id.empty()) return result;
 
-    const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.bootstrap);
+    const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.section);
     if (!settings.enabled) return result;
 
     const bot_identity me = services_.me();

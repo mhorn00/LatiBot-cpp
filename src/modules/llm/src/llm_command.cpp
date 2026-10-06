@@ -1,16 +1,15 @@
-#include "core/commands/llm.hpp"
+#include "llm_command.hpp"
 
+#include "advanced_triggers.hpp"
+#include "aliases.hpp"
 #include "core/commands/options.hpp"
-#include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/aliases.hpp"
-#include "core/llm/guards.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ports/http_client.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "guards.hpp"
 
 #include <dpp/cluster.h>
 
@@ -491,11 +490,10 @@ auto llm_command::manage(const dpp::slashcommand_t& event, std::string_view path
 
 auto llm_command::status(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
-    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.bootstrap);
+    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
     const auto now = seconds_now(*services_.clock);
     const llm::model_info* model = llm::find_model(settings.model);
-    const llm::spend_caps caps{.daily = services_.bootstrap->llm.spend_cap_daily_usd,
-                               .monthly = services_.bootstrap->llm.spend_cap_monthly_usd};
+    const llm::spend_caps caps{.daily = services_.section->spend_cap_daily_usd, .monthly = services_.section->spend_cap_monthly_usd};
 
     const llm_overview overview{
         .enabled = settings.enabled,
@@ -514,7 +512,7 @@ auto llm_command::switch_to(const dpp::slashcommand_t& event, bool on) -> dpp::t
                      describe_user(event.command.get_issuing_user()));
 
     std::string reply = on ? "ok, i'll answer here when addressed" : "ok, i'll stay quiet here";
-    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.bootstrap);
+    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
     const llm::model_info* model = llm::find_model(settings.model);
     if (on && (model == nullptr || !services_.has_provider(model->provider))) {
         reply += ", but there's no API key for its model on the bot, so it can't yet";
@@ -544,7 +542,7 @@ auto llm_command::model(const dpp::slashcommand_t& event) -> dpp::task<void> {
 auto llm_command::may_change(const dpp::slashcommand_t& event, llm::document_kind kind) const -> bool {
     const bool admin = manages_server(event);
     if (kind != llm::document_kind::personality) return admin;
-    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, event.command.guild_id, *services_.bootstrap);
+    const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, event.command.guild_id, *services_.section);
     return may_edit_personality(admin, event.command.guild_id, settings.personality_role, event.command.member.get_roles());
 }
 
@@ -681,7 +679,7 @@ auto llm_command::editors(const dpp::slashcommand_t& event) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const auto role = snowflake_option(event, "role");
     if (!role) {
-        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.bootstrap);
+        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
         co_await event.co_reply(
             result(event, settings.personality_role == guild
                               ? std::string("anyone can edit the personality here")
@@ -997,7 +995,7 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
         // Checked again: the form could have been opened before a role was
         // taken away.
         const bool admin = manages_server(event);
-        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.bootstrap);
+        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
         const bool allowed = *kind == llm::document_kind::personality
                                  ? may_edit_personality(admin, guild, settings.personality_role, event.command.member.get_roles())
                                  : admin;

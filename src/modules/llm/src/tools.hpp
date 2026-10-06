@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/llm/provider.hpp"
+#include "provider.hpp"
 
 #include <dpp/snowflake.h>
 

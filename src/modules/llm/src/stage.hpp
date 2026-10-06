@@ -1,13 +1,14 @@
 #pragma once
 
+#include "advanced_triggers.hpp"
+#include "ask.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/ask.hpp"
-#include "core/llm/guards.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/responder.hpp"
-#include "core/llm/settings.hpp"
-#include "core/llm/spend.hpp"
+#include "guards.hpp"
+#include "llm_config.hpp"
+#include "models.hpp"
+#include "responder.hpp"
+#include "settings.hpp"
+#include "spend.hpp"
 
 #include <chrono>
 #include <functional>
@@ -16,7 +17,6 @@
 
 namespace latibot::config {
 class guild_settings;
-struct bootstrap;
 } // namespace latibot::config
 
 namespace latibot::events {}
@@ -46,7 +46,8 @@ using stage_result = events::own_stage_result<ask_llm>;
 
 struct stage_services {
     const config::guild_settings* settings = nullptr;
-    const config::bootstrap* bootstrap = nullptr;
+    /// config.json's llm section.
+    const llm_config* section = nullptr;
     const blacklist_store* blacklist = nullptr;
     const advanced_trigger_store* triggers = nullptr;
     const usage_store* usage = nullptr;

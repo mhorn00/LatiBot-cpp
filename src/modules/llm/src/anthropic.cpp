@@ -1,7 +1,7 @@
-#include "core/llm/anthropic.hpp"
+#include "anthropic.hpp"
 
-#include "core/llm/json_read.hpp"
-#include "core/llm/models.hpp"
+#include "json_read.hpp"
+#include "models.hpp"
 
 #include <format>
 #include <utility>

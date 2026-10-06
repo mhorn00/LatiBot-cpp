@@ -1,4 +1,4 @@
-#include "core/llm/models.hpp"
+#include "models.hpp"
 
 #include "core/util/text.hpp"
 

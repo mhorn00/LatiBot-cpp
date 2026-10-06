@@ -1,22 +1,23 @@
-#include "core/config/bootstrap.hpp"
+#include "advanced_triggers.hpp"
+#include "aliases.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/aliases.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/guards.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/memory_tools.hpp"
-#include "core/llm/responder.hpp"
-#include "core/llm/settings.hpp"
-#include "core/llm/spend.hpp"
-#include "core/llm/stage.hpp"
-#include "core/llm/tools.hpp"
 #include "core/util/text.hpp"
+#include "documents.hpp"
+#include "guards.hpp"
+#include "llm_config.hpp"
+#include "memory.hpp"
+#include "memory_tools.hpp"
+#include "responder.hpp"
+#include "settings.hpp"
+#include "spend.hpp"
+#include "stage.hpp"
+#include "tools.hpp"
 
+#include "llm_module.hpp"
+#include "mock_llm.hpp"
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
-#include "mocks/mock_llm.hpp"
 #include "mocks/mock_speech.hpp"
 #include "support/schema.hpp"
 
@@ -50,7 +51,7 @@ constexpr std::chrono::sys_seconds noon{std::chrono::sys_days{std::chrono::year{
 struct fixture {
     latibot::db::database db{":memory:"};
     latibot::config::guild_settings settings{db};
-    latibot::config::bootstrap config;
+    latibot::llm::llm_config config;
     latibot::llm::blacklist_store blacklist{db};
     latibot::llm::advanced_trigger_store triggers{db};
     latibot::llm::usage_store usage{db};
@@ -68,7 +69,7 @@ struct fixture {
     double roll = 0.0;
 
     latibot::llm::llm_stage stage{{.settings = &settings,
-                                   .bootstrap = &config,
+                                   .section = &config,
                                    .blacklist = &blacklist,
                                    .triggers = &triggers,
                                    .usage = &usage,
@@ -81,7 +82,7 @@ struct fixture {
     latibot::llm::responder responder{{.discord = &discord,
                                        .clock = &clock,
                                        .settings = &settings,
-                                       .bootstrap = &config,
+                                       .section = &config,
                                        .documents = &documents,
                                        .memories = &memories,
                                        .usage = &usage,
@@ -93,6 +94,7 @@ struct fixture {
 
     fixture() {
         latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::llm::llm_schema());
         settings.set_bool(guild, latibot::llm::enabled_key, true);
         latibot::llm::add_memory_tools(tools, memories);
     }
@@ -251,7 +253,7 @@ TEST_CASE("a blacklisted user or role is not answered, and the message is still 
 
 TEST_CASE("past a spend cap the bot says so once, then stays quiet", "[llm]") {
     fixture test;
-    test.config.llm.spend_cap_daily_usd = 0.5;
+    test.config.spend_cap_daily_usd = 0.5;
     const auto* haiku = latibot::llm::find_model("claude-haiku-4-5");
     REQUIRE(haiku != nullptr);
     test.usage.record(guild, *haiku, {.input_tokens = 600'000, .output_tokens = 0, .cache_write_tokens = 0, .cache_read_tokens = 0}, noon);
@@ -504,7 +506,7 @@ TEST_CASE("without the speech capability a reply is only posted", "[llm][coro]")
     latibot::llm::responder silent{{.discord = &test.discord,
                                     .clock = &test.clock,
                                     .settings = &test.settings,
-                                    .bootstrap = &test.config,
+                                    .section = &test.config,
                                     .documents = &test.documents,
                                     .memories = &test.memories,
                                     .usage = &test.usage,

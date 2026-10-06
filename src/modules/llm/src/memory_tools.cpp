@@ -1,6 +1,6 @@
-#include "core/llm/memory_tools.hpp"
+#include "memory_tools.hpp"
 
-#include "core/llm/aliases.hpp"
+#include "aliases.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 

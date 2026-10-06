@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/llm/provider.hpp"
 #include "core/ports/http_client.hpp"
+#include "provider.hpp"
 
 #include <string>
 #include <string_view>

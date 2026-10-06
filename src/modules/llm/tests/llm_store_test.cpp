@@ -1,14 +1,15 @@
-#include "core/config/bootstrap.hpp"
+#include "advanced_triggers.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/llm/advanced_triggers.hpp"
-#include "core/llm/documents.hpp"
-#include "core/llm/guards.hpp"
-#include "core/llm/memory.hpp"
-#include "core/llm/models.hpp"
-#include "core/llm/settings.hpp"
-#include "core/llm/spend.hpp"
+#include "documents.hpp"
+#include "guards.hpp"
+#include "llm_config.hpp"
+#include "memory.hpp"
+#include "models.hpp"
+#include "settings.hpp"
+#include "spend.hpp"
 
+#include "llm_module.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_approx.hpp>
@@ -35,7 +36,11 @@ constexpr std::chrono::sys_seconds noon{std::chrono::sys_days{std::chrono::year{
 struct fixture {
     latibot::db::database db{":memory:"};
 
-    fixture() { latibot::testing::create_schema(db); }
+    fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::llm::llm_schema());
+        latibot::db::apply_schema(db, latibot::llm::llm_schema());
+    }
 };
 
 auto remembered(std::string content, std::optional<dpp::snowflake> about = std::nullopt, dpp::snowflake in = guild,
@@ -49,7 +54,7 @@ auto remembered(std::string content, std::optional<dpp::snowflake> about = std::
 // Usage and the spend caps
 // --------------------------------------------------------------------------
 
-TEST_CASE("a recorded call is priced, and counted in its day and month", "[db]") {
+TEST_CASE("a recorded call is priced, and counted in its day and month", "[llm]") {
     fixture test;
     latibot::llm::usage_store usage(test.db);
     const auto* haiku = latibot::llm::find_model("claude-haiku-4-5");
@@ -68,7 +73,7 @@ TEST_CASE("a recorded call is priced, and counted in its day and month", "[db]")
     CHECK(status.period.empty());
 }
 
-TEST_CASE("reaching a cap says which one, and the month outranks the day", "[db]") {
+TEST_CASE("reaching a cap says which one, and the month outranks the day", "[llm]") {
     fixture test;
     latibot::llm::usage_store usage(test.db);
     const auto* haiku = latibot::llm::find_model("claude-haiku-4-5");
@@ -92,7 +97,7 @@ TEST_CASE("reaching a cap says which one, and the month outranks the day", "[db]
     CHECK(usage.spent_between(guild, latibot::llm::month_start(noon), noon + 1s) == Catch::Approx(0.0));
 }
 
-TEST_CASE("a cap notice is due once per guild and period", "[db]") {
+TEST_CASE("a cap notice is due once per guild and period", "[llm]") {
     latibot::llm::spend_notices notices;
     CHECK(notices.first(guild, "2026-03-15"));
     CHECK_FALSE(notices.first(guild, "2026-03-15"));
@@ -104,7 +109,7 @@ TEST_CASE("a cap notice is due once per guild and period", "[db]") {
 // Documents
 // --------------------------------------------------------------------------
 
-TEST_CASE("a document nobody edited reads as its default", "[db]") {
+TEST_CASE("a document nobody edited reads as its default", "[llm]") {
     fixture test;
     const latibot::llm::document_store documents(test.db);
 
@@ -114,7 +119,7 @@ TEST_CASE("a document nobody edited reads as its default", "[db]") {
     CHECK(documents.history(guild, document_kind::personality).empty());
 }
 
-TEST_CASE("every edit is a new version, per guild and per kind", "[db]") {
+TEST_CASE("every edit is a new version, per guild and per kind", "[llm]") {
     fixture test;
     latibot::llm::document_store documents(test.db);
 
@@ -132,7 +137,7 @@ TEST_CASE("every edit is a new version, per guild and per kind", "[db]") {
     CHECK(history[1].content == "first");
 }
 
-TEST_CASE("a revert saves the old text as a new version, and can itself be reverted", "[db]") {
+TEST_CASE("a revert saves the old text as a new version, and can itself be reverted", "[llm]") {
     fixture test;
     latibot::llm::document_store documents(test.db);
     documents.save(guild, document_kind::personality, "first", alice, noon);
@@ -154,7 +159,7 @@ TEST_CASE("a revert saves the old text as a new version, and can itself be rever
 // Memory
 // --------------------------------------------------------------------------
 
-TEST_CASE("memories are found by the words in them, only in their own guild", "[db]") {
+TEST_CASE("memories are found by the words in them, only in their own guild", "[llm]") {
     fixture test;
     latibot::llm::memory_store memories(test.db);
     memories.add(remembered("Alice is allergic to peanuts", alice));
@@ -170,7 +175,7 @@ TEST_CASE("memories are found by the words in them, only in their own guild", "[
     CHECK(memories.search(guild, "\"movie\" OR NEAR(", 5).size() == 1);
 }
 
-TEST_CASE("a removed memory leaves the search index too", "[db]") {
+TEST_CASE("a removed memory leaves the search index too", "[llm]") {
     fixture test;
     latibot::llm::memory_store memories(test.db);
     const auto id = memories.add(remembered("Bob plays the tuba"));
@@ -182,7 +187,7 @@ TEST_CASE("a removed memory leaves the search index too", "[db]") {
     CHECK_FALSE(memories.find(id, guild).has_value());
 }
 
-TEST_CASE("memories list newest first, and clear by person or all at once", "[db]") {
+TEST_CASE("memories list newest first, and clear by person or all at once", "[llm]") {
     fixture test;
     latibot::llm::memory_store memories(test.db);
     memories.add(remembered("old about alice", alice, guild, noon));
@@ -203,7 +208,7 @@ TEST_CASE("memories list newest first, and clear by person or all at once", "[db
     CHECK(memories.count(guild) == 0);
 }
 
-TEST_CASE("the memories shown up front are about the author, then what matches", "[db]") {
+TEST_CASE("the memories shown up front are about the author, then what matches", "[llm]") {
     fixture test;
     latibot::llm::memory_store memories(test.db);
     memories.add(remembered("Alice prefers tea", alice, guild, noon));
@@ -220,7 +225,7 @@ TEST_CASE("the memories shown up front are about the author, then what matches",
 // Blacklist, advanced triggers, settings
 // --------------------------------------------------------------------------
 
-TEST_CASE("the blacklist blocks a user or anyone with a role", "[db]") {
+TEST_CASE("the blacklist blocks a user or anyone with a role", "[llm]") {
     fixture test;
     latibot::llm::blacklist_store blacklist(test.db);
     constexpr dpp::snowflake muted_role{77};
@@ -241,7 +246,7 @@ TEST_CASE("the blacklist blocks a user or anyone with a role", "[db]") {
     CHECK_FALSE(blacklist.blocks(guild, bob, none));
 }
 
-TEST_CASE("advanced triggers are stored per guild and edited in place", "[db]") {
+TEST_CASE("advanced triggers are stored per guild and edited in place", "[llm]") {
     fixture test;
     latibot::llm::advanced_trigger_store triggers(test.db);
 
@@ -273,10 +278,10 @@ TEST_CASE("advanced triggers are stored per guild and edited in place", "[db]") 
     CHECK(triggers.for_guild(guild).empty());
 }
 
-TEST_CASE("a guild's model settings are read clamped, with the model falling back to the config's", "[db]") {
+TEST_CASE("a guild's model settings are read clamped, with the model falling back to the config's", "[llm]") {
     fixture test;
     latibot::config::guild_settings settings(test.db);
-    const latibot::config::bootstrap config;
+    const latibot::llm::llm_config config;
 
     const auto fresh = latibot::llm::load_llm_settings(settings, guild, config);
     CHECK_FALSE(fresh.enabled);

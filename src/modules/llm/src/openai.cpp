@@ -1,6 +1,6 @@
-#include "core/llm/openai.hpp"
+#include "openai.hpp"
 
-#include "core/llm/json_read.hpp"
+#include "json_read.hpp"
 
 #include <format>
 #include <utility>

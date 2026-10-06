@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/llm/memory.hpp"
-#include "core/llm/tools.hpp"
+#include "memory.hpp"
+#include "tools.hpp"
 
 namespace latibot::llm {
 

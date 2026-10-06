@@ -23,7 +23,6 @@ add_library(latibot_core STATIC
     core/db/schemas.cpp
     core/db/statement.cpp
     core/commands/basic.cpp
-    core/commands/llm.cpp
     core/commands/logs.cpp
     core/commands/message_options.cpp
     core/commands/options.cpp
@@ -49,22 +48,6 @@ add_library(latibot_core STATIC
     core/events/log_channel.cpp
     core/events/message_pipeline.cpp
     core/events/voice_sessions.cpp
-    core/llm/advanced_triggers.cpp
-    core/llm/aliases.cpp
-    core/llm/anthropic.cpp
-    core/llm/config_check.cpp
-    core/llm/documents.cpp
-    core/llm/guards.cpp
-    core/llm/memory.cpp
-    core/llm/memory_tools.cpp
-    core/llm/models.cpp
-    core/llm/openai.cpp
-    core/llm/prompt.cpp
-    core/llm/responder.cpp
-    core/llm/settings.cpp
-    core/llm/spend.cpp
-    core/llm/stage.cpp
-    core/llm/tools.cpp
     core/modules/capability_registry.cpp
     core/modules/host.cpp
     core/modules/module.cpp
