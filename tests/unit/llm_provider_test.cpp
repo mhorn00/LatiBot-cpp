@@ -1,4 +1,6 @@
+#include "core/config/bootstrap.hpp"
 #include "core/llm/anthropic.hpp"
+#include "core/llm/config_check.hpp"
 #include "core/llm/models.hpp"
 #include "core/llm/openai.hpp"
 
@@ -6,10 +8,14 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_exception.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include <chrono>
 #include <string>
+#include <string_view>
 
+using Catch::Matchers::ContainsSubstring;
 using latibot::llm::request;
 using latibot::llm::speaker;
 using latibot::llm::stop_reason;
@@ -310,4 +316,28 @@ TEST_CASE("the OpenAI provider authenticates with a bearer token", "[llm][coro]"
     REQUIRE(http.requests.size() == 1);
     CHECK(http.requests[0].url == latibot::llm::openai_url);
     CHECK(http.requests[0].headers == std::vector<std::pair<std::string, std::string>>{{"Authorization", "Bearer test-key"}});
+}
+
+namespace {
+
+/// `config.json` text as read, then checked by the language model.
+auto checked(std::string_view text) -> void {
+    latibot::llm::check_config(latibot::config::bootstrap::from_json(text));
+}
+
+} // namespace
+
+TEST_CASE("the model has to be one the bot can price, from the provider named", "[llm]") {
+    // The spend caps are worked out from each model's price, so a model the
+    // bot has no price for would spend without being counted
+    // (docs/features/Language_Model.md §3.2).
+    REQUIRE_THROWS_MATCHES(checked(R"({"llm_model": "claude-3-opus"})"), latibot::config::config_error,
+                           Catch::Matchers::MessageMatches(ContainsSubstring("claude-haiku-4-5")));
+    REQUIRE_THROWS_MATCHES(checked(R"({"llm_provider": "mistral"})"), latibot::config::config_error,
+                           Catch::Matchers::MessageMatches(ContainsSubstring("anthropic, openai")));
+    REQUIRE_THROWS_MATCHES(checked(R"({"llm_model": "gpt-6-luna"})"), latibot::config::config_error,
+                           Catch::Matchers::MessageMatches(ContainsSubstring("from openai")));
+
+    CHECK_NOTHROW(checked(R"({"llm_provider": "openai", "llm_model": "gpt-6-luna"})"));
+    CHECK_NOTHROW(checked("{}"));
 }

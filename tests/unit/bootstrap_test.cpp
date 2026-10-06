@@ -159,20 +159,9 @@ TEST_CASE("bad config is reported with the key that caused it", "[config]") {
     }
 }
 
-TEST_CASE("the model has to be one the bot can price, from the provider named", "[config]") {
-    // The spend caps are worked out from each model's price, so a model the
-    // bot has no price for would spend without being counted
-    // (docs/features/Language_Model.md §3.2).
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_model": "claude-3-opus"})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("claude-haiku-4-5")));
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_provider": "mistral"})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("anthropic, openai")));
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"llm_model": "gpt-6-luna"})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("from openai")));
+TEST_CASE("the spend caps cannot be negative", "[config]") {
     REQUIRE_THROWS_AS(bootstrap::from_json(R"({"spend_cap_daily_usd": -1})"), config_error);
-
-    const bootstrap openai = bootstrap::from_json(R"({"llm_provider": "openai", "llm_model": "gpt-6-luna"})");
-    CHECK(openai.llm_model == "gpt-6-luna");
+    REQUIRE_THROWS_AS(bootstrap::from_json(R"({"spend_cap_monthly_usd": -1})"), config_error);
 }
 
 TEST_CASE("emoji copies are kept for every emote used, unless the config says otherwise", "[config]") {

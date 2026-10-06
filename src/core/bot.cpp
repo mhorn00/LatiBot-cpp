@@ -21,6 +21,7 @@
 #include "core/events/goodbye.hpp"
 #include "core/events/nickname_import.hpp"
 #include "core/llm/anthropic.hpp"
+#include "core/llm/config_check.hpp"
 #include "core/llm/memory_tools.hpp"
 #include "core/llm/models.hpp"
 #include "core/llm/openai.hpp"
@@ -287,6 +288,10 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials)
       log_destinations_(guild_settings_),
       log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
+
+    // A model the bot cannot price stops startup, as a bad config.json
+    // key does, before anything connects.
+    llm::check_config(settings_);
 
     util::log().info("LatiBot {} starting", version_string());
     util::log().debug("log level {}; {} trusted guild(s), {} trusted user(s)", util::to_string(settings_.log_level),

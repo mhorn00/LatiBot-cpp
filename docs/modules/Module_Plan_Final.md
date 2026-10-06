@@ -686,8 +686,8 @@ Nothing is pushed.
 | | 1d K8: `/tts voices lab`, `list`, `delete` | done, `0dde567` |
 | | 1e `/urlrepl` → `/links` (D26) | done, `089c839` |
 | | 1f K1: generic actions, `background_task` | done, `5965399` |
-| | 1g K4–K6: the `speech` interface, offered by the DECtalk code, used by the LLM | done |
-| | 1h K2: the LLM checks its own config | |
+| | 1g K4–K6: the `speech` interface, offered by the DECtalk code, used by the LLM | done, `76c4cfc` |
+| | 1h K2: the LLM checks its own config | done |
 | **2. The build system** | 2a DPP as a Conan package (I1), static if it links cleanly (I2) | |
 | | 2b Ninja Multi-Config (I3), after its checks; folders under `build/` (§9.2) | |
 | | 2c Workflow presets (I4), the lockfile (I7), the install step (I5) | |

@@ -67,6 +67,7 @@ add_library(latibot_core STATIC
     core/llm/advanced_triggers.cpp
     core/llm/aliases.cpp
     core/llm/anthropic.cpp
+    core/llm/config_check.cpp
     core/llm/documents.cpp
     core/llm/guards.cpp
     core/llm/memory.cpp

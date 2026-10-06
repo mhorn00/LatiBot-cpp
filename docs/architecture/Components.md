@@ -233,8 +233,10 @@ everything). Dotted arrows are a single include. Every folder also includes
 flowchart TB
     commands["commands/"]
     llm["llm/"]
+    music["music/"]
     events["events/"]
     audio["audio/"]
+    capabilities["capabilities/"]
     ui["ui/"]
     config["config/"]
     discord["discord/"]
@@ -242,6 +244,7 @@ flowchart TB
     db["db/"]
 
     commands --> llm
+    commands --> music
     commands --> events
     commands --> audio
     commands --> ui
@@ -249,12 +252,15 @@ flowchart TB
     commands --> discord
     commands --> ports
 
-    llm -.-> commands
-    llm --> events
-    llm --> audio
+    llm --> capabilities
+    llm -.-> events
     llm --> config
     llm --> ports
     llm --> db
+
+    music --> audio
+    music --> ports
+    music --> db
 
     events --> config
     events --> discord
@@ -263,27 +269,39 @@ flowchart TB
     events -.-> ui
 
     audio --> ports
+    audio -.-> capabilities
+    audio -.-> commands
+    audio -.-> events
     audio -.-> db
 
     ui -.-> discord
     config -.-> db
-    config -.-> llm
     discord --> ports
+    discord -.-> commands
 ```
 
 Almost everything points downwards, from features to building blocks to
-ports and the database. The three single includes that point elsewhere, and
-why:
+ports and the database. The single includes that point elsewhere, and why:
 
-- `llm/responder.cpp` → `commands/speak.hpp`: the model's spoken replies
-  follow the same per-server speech limits as `/speak`.
-- `config/bootstrap.cpp` → `llm/models.hpp`: `config.json`'s `llm_model` is
-  checked against the list of known models when it is read.
+- `audio/dectalk_speech.cpp` → `commands/speak.hpp` and
+  `events/voice_sessions.hpp`: DECtalk's implementation of the `speech`
+  capability follows `/speak`'s limits, and speaks in the voice session's
+  channel. All three end up in the dectalk and voice modules
+  (docs/modules/Module_Plan_Final.md).
+- `discord/unregister_commands.cpp` → `commands/unregister.hpp`: the
+  `--unregister-commands` switch is the command logic, run without a
+  gateway.
 - `events/embed_watch.cpp` → `ui/paginator.hpp`: the Retry button on a
   failed replacement is a panel id like any other.
 
-`commands/` ↔ `llm/` is the only cycle. It is between `.cpp` files only, so
-no header includes another in a circle.
+`llm/` reaches no other feature: the model speaks through
+`capabilities/speech.hpp`, which `audio/dectalk_speech` implements, and its
+trigger matching is in `util/match`. Nothing in `config/` knows the models;
+`llm::check_config` does.
+
+`commands/` ↔ `audio/` is the only cycle, and both sides are DECtalk's: the
+`/speak` commands and its speech capability. It is between `.cpp` files
+only, so no header includes another in a circle.
 
 ## 5. The features, what starts them, and where they keep things
 

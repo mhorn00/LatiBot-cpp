@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-948 test cases across 12 components, including 202 sections.
+949 test cases across 12 components, including 202 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -17,7 +17,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
-| [llm](#llm) | 72 | 0 |
+| [llm](#llm) | 73 | 0 |
 | [ports](#ports) | 7 | 0 |
 | [log](#log) | 32 | 0 |
 | [util](#util) | 54 | 22 |
@@ -206,22 +206,22 @@ Configuration (`src/core/config`)
 | IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:108](../../tests/unit/bootstrap_test.cpp#L108) |
 | a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:116](../../tests/unit/bootstrap_test.cpp#L116) |
 | bad config is reported with the key that caused it |  | 6 | [tests/unit/bootstrap_test.cpp:131](../../tests/unit/bootstrap_test.cpp#L131) |
-| the model has to be one the bot can price, from the provider named |  |  | [tests/unit/bootstrap_test.cpp:162](../../tests/unit/bootstrap_test.cpp#L162) |
-| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:178](../../tests/unit/bootstrap_test.cpp#L178) |
-| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:185](../../tests/unit/bootstrap_test.cpp#L185) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:200](../../tests/unit/bootstrap_test.cpp#L200) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:211](../../tests/unit/bootstrap_test.cpp#L211) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:219](../../tests/unit/bootstrap_test.cpp#L219) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:227](../../tests/unit/bootstrap_test.cpp#L227) |
-| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:261](../../tests/unit/bootstrap_test.cpp#L261) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:314](../../tests/unit/bootstrap_test.cpp#L314) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:341](../../tests/unit/bootstrap_test.cpp#L341) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:353](../../tests/unit/bootstrap_test.cpp#L353) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:375](../../tests/unit/bootstrap_test.cpp#L375) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:384](../../tests/unit/bootstrap_test.cpp#L384) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:393](../../tests/unit/bootstrap_test.cpp#L393) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:405](../../tests/unit/bootstrap_test.cpp#L405) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:418](../../tests/unit/bootstrap_test.cpp#L418) |
+| the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:162](../../tests/unit/bootstrap_test.cpp#L162) |
+| emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:167](../../tests/unit/bootstrap_test.cpp#L167) |
+| music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:174](../../tests/unit/bootstrap_test.cpp#L174) |
+| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:189](../../tests/unit/bootstrap_test.cpp#L189) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:200](../../tests/unit/bootstrap_test.cpp#L200) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:208](../../tests/unit/bootstrap_test.cpp#L208) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:216](../../tests/unit/bootstrap_test.cpp#L216) |
+| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:250](../../tests/unit/bootstrap_test.cpp#L250) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:303](../../tests/unit/bootstrap_test.cpp#L303) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:330](../../tests/unit/bootstrap_test.cpp#L330) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:342](../../tests/unit/bootstrap_test.cpp#L342) |
+| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:364](../../tests/unit/bootstrap_test.cpp#L364) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:373](../../tests/unit/bootstrap_test.cpp#L373) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:382](../../tests/unit/bootstrap_test.cpp#L382) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:394](../../tests/unit/bootstrap_test.cpp#L394) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:407](../../tests/unit/bootstrap_test.cpp#L407) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -914,25 +914,26 @@ The language model (`src/core/llm`)
 | a diff shows removed and added lines, and only the unchanged lines near them |  |  | [tests/unit/llm_guards_test.cpp:192](../../tests/unit/llm_guards_test.cpp#L192) |
 | a memory search is made of the message's words, quoted, and never of FTS syntax |  |  | [tests/unit/llm_guards_test.cpp:198](../../tests/unit/llm_guards_test.cpp#L198) |
 | token estimates are a quarter of the characters, rounded up |  |  | [tests/unit/llm_guards_test.cpp:205](../../tests/unit/llm_guards_test.cpp#L205) |
-| every model has a price, and the ids are the API's own |  |  | [tests/unit/llm_provider_test.cpp:52](../../tests/unit/llm_provider_test.cpp#L52) |
-| a call costs its tokens at the model's prices, cache included |  |  | [tests/unit/llm_provider_test.cpp:64](../../tests/unit/llm_provider_test.cpp#L64) |
-| provider names are read case-insensitively |  |  | [tests/unit/llm_provider_test.cpp:74](../../tests/unit/llm_provider_test.cpp#L74) |
-| an Anthropic request caches the stable instructions and nothing after them |  |  | [tests/unit/llm_provider_test.cpp:84](../../tests/unit/llm_provider_test.cpp#L84) |
-| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [tests/unit/llm_provider_test.cpp:96](../../tests/unit/llm_provider_test.cpp#L96) |
-| the last Anthropic round forbids tools but still declares them |  |  | [tests/unit/llm_provider_test.cpp:110](../../tests/unit/llm_provider_test.cpp#L110) |
-| an Anthropic request sends tool calls and their results in the API's shape |  |  | [tests/unit/llm_provider_test.cpp:119](../../tests/unit/llm_provider_test.cpp#L119) |
-| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [tests/unit/llm_provider_test.cpp:139](../../tests/unit/llm_provider_test.cpp#L139) |
-| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [tests/unit/llm_provider_test.cpp:160](../../tests/unit/llm_provider_test.cpp#L160) |
-| an Anthropic error carries the status and the API's own message |  |  | [tests/unit/llm_provider_test.cpp:182](../../tests/unit/llm_provider_test.cpp#L182) |
-| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [tests/unit/llm_provider_test.cpp:190](../../tests/unit/llm_provider_test.cpp#L190) |
-| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [tests/unit/llm_provider_test.cpp:202](../../tests/unit/llm_provider_test.cpp#L202) |
-| a transport failure reaches the caller as an error | `coro` |  | [tests/unit/llm_provider_test.cpp:221](../../tests/unit/llm_provider_test.cpp#L221) |
-| an OpenAI request puts the instructions in one system message, stable part first |  |  | [tests/unit/llm_provider_test.cpp:236](../../tests/unit/llm_provider_test.cpp#L236) |
-| an OpenAI request sends each tool result as its own message |  |  | [tests/unit/llm_provider_test.cpp:249](../../tests/unit/llm_provider_test.cpp#L249) |
-| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [tests/unit/llm_provider_test.cpp:265](../../tests/unit/llm_provider_test.cpp#L265) |
-| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [tests/unit/llm_provider_test.cpp:287](../../tests/unit/llm_provider_test.cpp#L287) |
-| an OpenAI error carries the API's message |  |  | [tests/unit/llm_provider_test.cpp:295](../../tests/unit/llm_provider_test.cpp#L295) |
-| the OpenAI provider authenticates with a bearer token | `coro` |  | [tests/unit/llm_provider_test.cpp:301](../../tests/unit/llm_provider_test.cpp#L301) |
+| every model has a price, and the ids are the API's own |  |  | [tests/unit/llm_provider_test.cpp:58](../../tests/unit/llm_provider_test.cpp#L58) |
+| a call costs its tokens at the model's prices, cache included |  |  | [tests/unit/llm_provider_test.cpp:70](../../tests/unit/llm_provider_test.cpp#L70) |
+| provider names are read case-insensitively |  |  | [tests/unit/llm_provider_test.cpp:80](../../tests/unit/llm_provider_test.cpp#L80) |
+| an Anthropic request caches the stable instructions and nothing after them |  |  | [tests/unit/llm_provider_test.cpp:90](../../tests/unit/llm_provider_test.cpp#L90) |
+| an Anthropic request never sends temperature, and sends effort only to models that take it |  |  | [tests/unit/llm_provider_test.cpp:102](../../tests/unit/llm_provider_test.cpp#L102) |
+| the last Anthropic round forbids tools but still declares them |  |  | [tests/unit/llm_provider_test.cpp:116](../../tests/unit/llm_provider_test.cpp#L116) |
+| an Anthropic request sends tool calls and their results in the API's shape |  |  | [tests/unit/llm_provider_test.cpp:125](../../tests/unit/llm_provider_test.cpp#L125) |
+| an assistant turn Anthropic wrote goes back exactly as it came, thinking included |  |  | [tests/unit/llm_provider_test.cpp:145](../../tests/unit/llm_provider_test.cpp#L145) |
+| an Anthropic reply is read into text, calls, usage and a stop reason |  |  | [tests/unit/llm_provider_test.cpp:166](../../tests/unit/llm_provider_test.cpp#L166) |
+| an Anthropic error carries the status and the API's own message |  |  | [tests/unit/llm_provider_test.cpp:188](../../tests/unit/llm_provider_test.cpp#L188) |
+| an Anthropic reply of the wrong shape is an error, not a crash |  |  | [tests/unit/llm_provider_test.cpp:196](../../tests/unit/llm_provider_test.cpp#L196) |
+| the Anthropic provider sends its key and version, and posts to the Messages API | `coro` |  | [tests/unit/llm_provider_test.cpp:208](../../tests/unit/llm_provider_test.cpp#L208) |
+| a transport failure reaches the caller as an error | `coro` |  | [tests/unit/llm_provider_test.cpp:227](../../tests/unit/llm_provider_test.cpp#L227) |
+| an OpenAI request puts the instructions in one system message, stable part first |  |  | [tests/unit/llm_provider_test.cpp:242](../../tests/unit/llm_provider_test.cpp#L242) |
+| an OpenAI request sends each tool result as its own message |  |  | [tests/unit/llm_provider_test.cpp:255](../../tests/unit/llm_provider_test.cpp#L255) |
+| an OpenAI reply is read into calls, and cached input is counted apart |  |  | [tests/unit/llm_provider_test.cpp:271](../../tests/unit/llm_provider_test.cpp#L271) |
+| an OpenAI refusal is a refusal, with its explanation as the text |  |  | [tests/unit/llm_provider_test.cpp:293](../../tests/unit/llm_provider_test.cpp#L293) |
+| an OpenAI error carries the API's message |  |  | [tests/unit/llm_provider_test.cpp:301](../../tests/unit/llm_provider_test.cpp#L301) |
+| the OpenAI provider authenticates with a bearer token | `coro` |  | [tests/unit/llm_provider_test.cpp:307](../../tests/unit/llm_provider_test.cpp#L307) |
+| the model has to be one the bot can price, from the provider named |  |  | [tests/unit/llm_provider_test.cpp:330](../../tests/unit/llm_provider_test.cpp#L330) |
 | a tool registered twice is refused |  |  | [tests/unit/llm_tools_test.cpp:44](../../tests/unit/llm_tools_test.cpp#L44) |
 | an unknown tool, or one that throws, is an error the model reads |  |  | [tests/unit/llm_tools_test.cpp:49](../../tests/unit/llm_tools_test.cpp#L49) |
 | the tool loop runs what the model asks for and hands the result back | `coro` |  | [tests/unit/llm_tools_test.cpp:64](../../tests/unit/llm_tools_test.cpp#L64) |
