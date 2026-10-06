@@ -1,5 +1,7 @@
+import os
+
 from conan import ConanFile
-from conan.tools.cmake import cmake_layout
+from conan.tools.cmake import CMakeDeps, CMakeToolchain
 
 
 class LatiBotConan(ConanFile):
@@ -7,7 +9,6 @@ class LatiBotConan(ConanFile):
     version = "0.1.0"
     package_type = "application"
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeToolchain", "CMakeDeps"
 
     # FTS5 backs the LLM long-term memory search (plan v4 §14.5).
     default_options = {
@@ -31,4 +32,14 @@ class LatiBotConan(ConanFile):
         self.test_requires("catch2/3.16.0")
 
     def layout(self):
-        cmake_layout(self)
+        # Every build folder is under build/, and they all share these files
+        # (docs/modules/Module_Plan_Final.md §9.2). Debug and Release are
+        # installed side by side, for the multi-config generator.
+        self.folders.generators = os.path.join("build", "conan")
+
+    def generate(self):
+        toolchain = CMakeToolchain(self, generator="Ninja Multi-Config")
+        # CMakePresets.json is ours; Conan's presets would only shadow it.
+        toolchain.user_presets_path = False
+        toolchain.generate()
+        CMakeDeps(self).generate()

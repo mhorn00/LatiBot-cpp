@@ -1,8 +1,8 @@
 # Static analysis for our own code only. Third-party headers (DPP, Catch2,
 # CTRE, SQLite) are excluded through HeaderFilterRegex.
 #
-# Run through the ninja-tidy preset, which produces compile_commands.json:
-#   cmake --preset ninja-tidy && clang-tidy -p build-tidy src/**/*.cpp
+# Run through tools/Invoke-ClangTidy.ps1, which reads the default preset's
+# compile_commands.json (build/build), Debug entries only.
 #
 # Why the disabled checks are disabled:
 #   misc-include-cleaner            unusable against the MSVC standard headers

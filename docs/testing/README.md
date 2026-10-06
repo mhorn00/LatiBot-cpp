@@ -181,9 +181,9 @@ a few seed inputs in `tests/fuzz/corpus/<target>/`. Pass a directory for new
 inputs first, which is where libFuzzer writes, and the seeds after it:
 
 ```powershell
-cmake --preset fuzz; cmake --build build-fuzz --config Debug
-New-Item -ItemType Directory -Force build-fuzz\corpus\fuzz_url_scan
-.\build-fuzz\bin\Debug\fuzz_url_scan.exe build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
+cmake --preset fuzz; cmake --build --preset fuzz
+New-Item -ItemType Directory -Force build\build-fuzz\corpus\fuzz_url_scan
+.\build\build-fuzz\bin\Debug\fuzz_url_scan.exe build\build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
 ```
 
 **Benchmarks** are hidden tests tagged `[!benchmark]` and `[.]`, so neither
@@ -256,11 +256,11 @@ reason logic lives behind ports rather than inside event handlers.
 
 `.vscode/settings.json` points the
 [TestMate C++](https://marketplace.visualstudio.com/items?itemName=matepek.vscode-catch2-test-adapter)
-extension at `build/bin/Debug/latibot_tests.exe` and groups it the way the
+extension at `build/build/bin/Debug/latibot_tests.exe` and groups it the way the
 catalog is grouped:
 
 ```
-LatiBot tests           build/bin/Debug/
+LatiBot tests           build/build/bin/Debug/
   [db]
     tests/db/backup_test.cpp
       a backup is a complete, valid copy
@@ -293,7 +293,7 @@ to be built last, and edited code appears to have no effect.
 pick a configuration. Listing both would put two copies of every test in the
 tree, whose tags and results drift apart as soon as one config is rebuilt and
 the other is not. Release and ASan go through `ctest --preset release` and
-`ctest --preset asan`. Widen `pattern` to `build/bin/*/latibot_tests.exe` if
+`ctest --preset asan`. Widen `pattern` to `build/build/bin/*/latibot_tests.exe` if
 you would rather have them in the sidebar.
 
 **A run looks instantaneous because it is.** The whole suite takes well under

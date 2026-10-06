@@ -9,7 +9,7 @@
       "name": "Run the bot (Debug)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/bin/Debug/LatiBot.exe",
+      "program": "${workspaceFolder}/build/build/bin/Debug/LatiBot.exe",
       "args": [],
 
       // The bot resolves .env, config.json and data/ relative to the working
@@ -26,7 +26,7 @@
       "name": "Run the bot (Release)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/bin/Release/LatiBot.exe",
+      "program": "${workspaceFolder}/build/build/bin/Release/LatiBot.exe",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",

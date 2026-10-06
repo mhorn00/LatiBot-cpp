@@ -688,8 +688,8 @@ Nothing is pushed.
 | | 1f K1: generic actions, `background_task` | done, `5965399` |
 | | 1g K4–K6: the `speech` interface, offered by the DECtalk code, used by the LLM | done, `76c4cfc` |
 | | 1h K2: the LLM checks its own config | done, `86b0f29` |
-| **2. The build system** | 2a DPP as a Conan package (I1), static if it links cleanly (I2) | |
-| | 2b Ninja Multi-Config (I3), after its checks; folders under `build/` (§9.2) | |
+| **2. The build system** | 2a DPP as a Conan package (I1), static if it links cleanly (I2) | done, `8b00511`, `ca194d0`: static links cleanly |
+| | 2b Ninja Multi-Config (I3), after its checks; folders under `build/` (§9.2) | done |
 | | 2c Workflow presets (I4), the lockfile (I7), the install step (I5) | |
 | | 2d The precompiled header, measured (I8) | |
 | | 2e CI: the cached DPP, ASan (I9); the README, `DevEnvSetup.ps1`, tasks, testing docs | |

@@ -14,8 +14,9 @@
       3. The git submodules (DPP and DECtalk).
       4. A Conan profile, detected if there is none, and pointed at an
          installed compiler if it names one that is not installed.
-      5. The dependencies, for Debug and Release, and for clang-tidy.
-      6. `cmake --preset msvc`, and a `.env` copied from `.env.example`.
+      5. DPP's recipe, then the dependencies for Debug and Release, into
+         build\conan.
+      6. `cmake --preset default`, and a `.env` copied from `.env.example`.
 
     Run it from Windows PowerShell or PowerShell 7. It works in either, since
     a fresh machine only has the first, and the execution policy there blocks
@@ -37,19 +38,15 @@
     works. The first build takes about ten minutes.
 
 .PARAMETER ResetBuild
-    Deletes build\ when it was configured for a different compiler than the
-    Conan profile now names, instead of stopping to ask. Only build output is
-    lost.
-
-.PARAMETER SkipTidy
-    Leaves out the dependency install clang-tidy needs.
+    Deletes build\ when it was configured with a different Visual Studio than
+    the Conan profile now names, instead of stopping to ask. Only build output
+    is lost.
 #>
 [CmdletBinding()]
 param(
     [switch] $CheckOnly,
     [switch] $Build,
-    [switch] $ResetBuild,
-    [switch] $SkipTidy
+    [switch] $ResetBuild
 )
 
 # Written for Windows PowerShell 5.1 as well as PowerShell 7, since installing
@@ -78,9 +75,9 @@ $vsComponents = @(
 
 # Conan's compiler.version for each Visual Studio, and the toolset it builds with.
 $conanVersions = @{
-    '195' = @{ Range = '[18.0,19.0)'; Toolset = 'v145'; Name = 'Visual Studio 2026' }
-    '194' = @{ Range = '[17.10,18.0)'; Toolset = 'v143'; Name = 'Visual Studio 2022' }
-    '193' = @{ Range = '[17.0,17.10)'; Toolset = 'v143'; Name = 'Visual Studio 2022, before 17.10' }
+    '195' = @{ Range = '[18.0,19.0)'; Folder = '18'; Name = 'Visual Studio 2026' }
+    '194' = @{ Range = '[17.10,18.0)'; Folder = '2022'; Name = 'Visual Studio 2022' }
+    '193' = @{ Range = '[17.0,17.10)'; Folder = '2022'; Name = 'Visual Studio 2022, before 17.10' }
 }
 
 $script:missing = New-Object System.Collections.Generic.List[string]
@@ -397,26 +394,26 @@ function Initialize-ConanProfile {
 # 5. Dependencies
 # --------------------------------------------------------------------------
 
-# build\ remembers the toolset it was first configured with, and refuses
-# another. Found before the install that would change it, so the choice is
-# made while nothing has been touched.
+# A build folder remembers the compiler it was first configured with: with
+# Ninja, the one the Visual Studio environment pointed at. Found before the
+# install that would change it, so the choice is made while nothing has been
+# touched.
 function Confirm-BuildToolset([string] $ProfileVersion) {
-    $cache = Join-Path $repo 'build\CMakeCache.txt'
+    $cache = Join-Path $repo 'build\build\CMakeCache.txt'
     if (-not $ProfileVersion -or -not (Test-Path $cache)) { return }
 
-    $wanted = $conanVersions[$ProfileVersion].Toolset
-    $line = Select-String -Path $cache -Pattern '^CMAKE_GENERATOR_TOOLSET:[A-Z]+=(.*)$' | Select-Object -First 1
+    $wanted = $conanVersions[$ProfileVersion]
+    $line = Select-String -Path $cache -Pattern '^CMAKE_CXX_COMPILER:[A-Z]+=(.*)$' | Select-Object -First 1
     if (-not $line) { return }
     $had = $line.Matches[0].Groups[1].Value.Trim()
-    if ($had -eq $wanted) { return }
+    if ($had -match "Microsoft Visual Studio[\\/]$([regex]::Escape($wanted.Folder))[\\/]") { return }
 
     $build = Join-Path $repo 'build'
     if (-not $ResetBuild -and -not $CheckOnly) {
-        throw ("build\ was configured for the $had toolset, and the Conan profile now builds with $wanted. " +
-               'CMake will not switch a configured folder. Run this again with -ResetBuild to delete build\ ' +
-               '(only build output), or delete it yourself.')
+        throw ("build\build was configured with the compiler at $had, and the Conan profile now builds with $($wanted.Name). " +
+               'Run this again with -ResetBuild to delete build\ (only build output), or delete it yourself.')
     }
-    if (-not (Request-Change "delete build\, configured for $had rather than $wanted")) { return }
+    if (-not (Request-Change "delete build\, configured with $had rather than $($wanted.Name)")) { return }
     Remove-Item -Recurse -Force -LiteralPath $build
 }
 
@@ -434,13 +431,9 @@ function Initialize-Dependencies([string] $ProfileVersion) {
     # Conan skips whatever is already built and cached, so running these on
     # a machine that has everything takes seconds. The first time, each builds
     # every dependency from source: about ten minutes.
-    $toolchain = Join-Path $repo 'build\generators\conan_toolchain.cmake'
-    $tidyToolchain = Join-Path $repo 'build\Debug\generators\conan_toolchain.cmake'
+    $toolchain = Join-Path $repo 'build\conan\conan_toolchain.cmake'
     if ($CheckOnly) {
         if (-not (Test-Path $toolchain)) { Request-Change 'install the dependencies for Debug and Release' | Out-Null }
-        if (-not $SkipTidy -and -not (Test-Path $tidyToolchain)) {
-            Request-Change 'install the dependencies for clang-tidy' | Out-Null
-        }
         if (Test-Path $toolchain) { Write-Ok 'installed (a real run also refreshes them)' }
         return
     }
@@ -453,15 +446,7 @@ function Initialize-Dependencies([string] $ProfileVersion) {
     Write-Doing 'conan install, Release and Debug (seconds when cached, ten minutes each when not)'
     Invoke-ConanInstall 'Release'
     Invoke-ConanInstall 'Debug'
-    if (-not $SkipTidy) {
-        # user_presets= keeps this install's presets out of CMakeUserPresets.json,
-        # where its conan-debug would clash with the one above and leave CMake
-        # unable to read any presets.
-        Write-Doing 'conan install for clang-tidy'
-        Invoke-ConanInstall 'Debug' @('-c', 'tools.cmake.cmaketoolchain:generator=Ninja',
-                                      '-c', 'tools.cmake.cmaketoolchain:user_presets=')
-    }
-    Write-Ok 'installed'
+    Write-Ok 'installed into build\conan'
 }
 
 # --------------------------------------------------------------------------
@@ -469,19 +454,27 @@ function Initialize-Dependencies([string] $ProfileVersion) {
 # --------------------------------------------------------------------------
 
 function Repair-UserPresets {
-    # The broken state the tidy install used to leave behind (README step 4).
-    $presets = Get-NativeOutput cmake @('--list-presets')
-    if ($presets.Text -notmatch 'Duplicate preset') { return }
-    if (-not (Request-Change 'remove the CMakeUserPresets.json whose duplicate conan-debug hides every preset')) { return }
-    Remove-Item -LiteralPath (Join-Path $repo 'CMakeUserPresets.json') -Force
-    Invoke-ConanInstall 'Release'
-    Invoke-ConanInstall 'Debug'
+    # Conan used to write CMakeUserPresets.json, including its own presets from
+    # build\generators. It no longer does, and a leftover one breaks every
+    # preset once that folder goes.
+    $user = Join-Path $repo 'CMakeUserPresets.json'
+    if (-not (Test-Path $user)) { return }
+    if ((Get-Content -LiteralPath $user -Raw) -notmatch 'generators') { return }
+    if (-not (Request-Change "remove the CMakeUserPresets.json Conan wrote, which Conan no longer uses")) { return }
+    Remove-Item -LiteralPath $user -Force
+}
+
+# The Visual Studio environment Ninja needs, as Conan wrote it for the profile's
+# compiler, around one command line.
+function Invoke-InBuildEnvironment([string] $CommandLine) {
+    $conanbuild = Join-Path $repo 'build\conan\conanbuild.bat'
+    return Get-NativeOutput cmd @('/d', '/c', "`"$conanbuild`" && $CommandLine")
 }
 
 function Initialize-Configure {
     Write-Section 'Configure'
     if (-not (Test-Command 'cmake')) { Write-Note 'skipped until CMake is installed'; return }
-    if (-not (Test-Path (Join-Path $repo 'build\generators\conan_toolchain.cmake'))) {
+    if (-not (Test-Path (Join-Path $repo 'build\conan\conan_toolchain.cmake'))) {
         Write-Note 'skipped until the dependencies are installed'
         return
     }
@@ -490,19 +483,19 @@ function Initialize-Configure {
     try {
         Repair-UserPresets
         if ($CheckOnly) {
-            if (Test-Path (Join-Path $repo 'build\CMakeCache.txt')) { Write-Ok 'build\ is configured' }
-            else { Request-Change 'cmake --preset msvc' | Out-Null }
+            if (Test-Path (Join-Path $repo 'build\build\CMakeCache.txt')) { Write-Ok 'build\build is configured' }
+            else { Request-Change 'cmake --preset default' | Out-Null }
             return
         }
         # Kept quiet unless it fails: a setup script's job is to say whether it
         # worked, and a configure's pages of output bury that.
-        Write-Doing 'cmake --preset msvc'
-        $configure = Get-NativeOutput cmake @('--preset', 'msvc')
+        Write-Doing 'cmake --preset default'
+        $configure = Invoke-InBuildEnvironment 'cmake --preset default'
         if ($configure.ExitCode -ne 0) {
             Write-Host $configure.Text
-            throw "cmake --preset msvc failed with exit code $($configure.ExitCode)"
+            throw "cmake --preset default failed with exit code $($configure.ExitCode)"
         }
-        Write-Ok 'build\ is configured'
+        Write-Ok 'build\build is configured'
     } finally {
         Pop-Location
     }
@@ -526,10 +519,12 @@ function Invoke-BuildAndTest {
     Write-Section 'Build and test (Debug)'
     Push-Location $repo
     try {
-        Write-Doing 'cmake --build --preset msvc-debug (about ten minutes the first time)'
-        Invoke-Native cmake @('--build', '--preset', 'msvc-debug')
-        Write-Doing 'ctest --preset debug'
-        Invoke-Native ctest @('--preset', 'debug', '-j', "$([Environment]::ProcessorCount)")
+        Write-Doing 'cmake --workflow --preset debug: configure, build, test'
+        $workflow = Invoke-InBuildEnvironment 'cmake --workflow --preset debug'
+        if ($workflow.ExitCode -ne 0) {
+            Write-Host $workflow.Text
+            throw "cmake --workflow --preset debug failed with exit code $($workflow.ExitCode)"
+        }
         Write-Ok 'built, and every test passed'
     } finally {
         Pop-Location
@@ -557,4 +552,4 @@ if ($CheckOnly) {
     exit 0
 }
 Write-Host 'Everything is set up.' -ForegroundColor Green
-if (-not $Build) { Write-Host 'Build with: cmake --build --preset msvc-debug, then test with: ctest --preset debug' }
+if (-not $Build) { Write-Host 'Build and test with: cmake --workflow --preset debug, in a Developer PowerShell (README.md, step 5)' }

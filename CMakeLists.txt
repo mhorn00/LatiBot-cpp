@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
+# Conan installs only these two, so no other configuration could link.
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 
 project(LatiBot LANGUAGES C CXX)
@@ -29,7 +30,8 @@ if(MSVC)
     set(CMAKE_CXX23_STANDARD_COMPILE_OPTION "${latibot_cxx23_switch}")
     set(CMAKE_CXX23_EXTENSION_COMPILE_OPTION "${latibot_cxx23_switch}")
 endif()
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # only honoured by the Ninja presets
+# For clang-tidy (tools/Invoke-ClangTidy.ps1), which reads the Debug entries.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(LATIBOT_BUILD_TESTS "Build the unit tests" ON)
 option(LATIBOT_BUILD_FUZZERS "Build the libFuzzer targets" OFF)

@@ -147,9 +147,9 @@ The default `conancenter` remote is all that's needed.
 ## 4. Install dependencies
 
 DPP is a package built from the `third_party/DPP` submodule
-([conan/dpp](conan/dpp/conanfile.py)), so tell Conan about it first. Then,
-since MSVC is a multi-config toolchain, install both configurations into the
-same `build/generators` folder:
+([conan/dpp](conan/dpp/conanfile.py)), so tell Conan about it first. Then
+install both configurations; they go side by side into `build\conan`, which
+every build folder shares:
 
 ```powershell
 conan export conan/dpp
@@ -169,24 +169,24 @@ the commands again takes seconds.
 
 ## 5. Configure and build
 
-```powershell
-cmake --preset msvc
-cmake --build build --config Debug
-cmake --build build --config Release
-```
-
-DPP was built by step 4, so this compiles only LatiBot and DECtalk. Later
-builds only recompile what changed.
-
-Binaries land in `build\bin\Debug\` and `build\bin\Release\`, with
-`dectalk.dll` and DECtalk's dictionary beside `LatiBot.exe`, so it runs
-without extra `PATH` setup.
-
-Check the setup with the tests, which need nothing else:
+The presets build with Ninja, which needs the Visual Studio developer
+environment: run these in a **Developer PowerShell for VS**, or after
+`build\conan\conanbuild.bat` in a `cmd` prompt. VS Code's CMake Tools sets the
+environment up by itself (step 6).
 
 ```powershell
-ctest --preset debug
+cmake --workflow --preset debug     # configure, build, then test Debug
+cmake --workflow --preset release   # the same for Release
 ```
+
+Or one step at a time: `cmake --preset default`, `cmake --build --preset
+debug`, `ctest --preset debug`. DPP was built by step 4, so this compiles
+only LatiBot and DECtalk, and later builds only recompile what changed.
+
+Every build folder is under `build\`. The default preset builds in
+`build\build`, and binaries land in `build\build\bin\Debug\` and
+`build\build\bin\Release\`, with `dectalk.dll` and DECtalk's dictionary
+beside `LatiBot.exe`, so it runs without extra `PATH` setup.
 
 Every test should pass.
 
@@ -194,7 +194,7 @@ Every test should pass.
 
 Install the recommended extensions when prompted (`.vscode/extensions.json`),
 then **select a configure preset once**: the CMake status bar, or
-`CMake: Select Configure Preset` → **msvc**.
+`CMake: Select Configure Preset` → **default**.
 
 That selection is what makes IntelliSense work. CMake Tools supplies cpptools
 the include paths, defines and compiler for every file, and it only does so
@@ -248,7 +248,7 @@ Either set them in the shell:
 
 ```powershell
 $env:DISCORD_BOT_TOKEN = "your-token-here"
-.\build\bin\Release\LatiBot.exe
+.\build\build\bin\Release\LatiBot.exe
 ```
 
 or copy [.env.example](.env.example) to `.env` (git-ignored) and fill it in —
@@ -262,7 +262,7 @@ runs it from the repo root, so the same `.env` applies.
 
 ### On another machine
 
-A Release build runs anywhere with these three files from `build\bin\Release\`,
+A Release build runs anywhere with these three files from `build\build\bin\Release\`,
 kept together in one folder:
 
 | File | |
@@ -362,7 +362,7 @@ production account instead:
 
 ```powershell
 $env:LATIBOT_DEBUG_RECOMPUTE_BOT_ID = "the production bot's user ID"
-.\build\bin\Debug\LatiBot.exe
+.\build\build\bin\Debug\LatiBot.exe
 ```
 
 or put the same line in `.env`. Startup logs a warning while it is set. Run
@@ -377,7 +377,7 @@ commands beside the real ones, so every command shows twice. To remove them
 when done testing:
 
 ```powershell
-.\build\bin\Debug\LatiBot.exe --unregister-commands
+.\build\build\bin\Debug\LatiBot.exe --unregister-commands
 ```
 
 or run the **Unregister the bot's commands (Debug)** task. It signs in as
@@ -417,7 +417,7 @@ the bot sees, and DPP's own gateway chatter.
 To keep the output to one file:
 
 ```powershell
-.\build\bin\Release\LatiBot.exe 2> latibot.log
+.\build\build\bin\Release\LatiBot.exe 2> latibot.log
 ```
 
 **A log channel.** `/logs set` posts the log in one Discord channel as well,
@@ -532,7 +532,7 @@ Unit tests use [Catch2 v3](https://github.com/catchorg/Catch2) and run through
 CTest:
 
 ```powershell
-ctest --preset debug      # or: ctest --test-dir build -C Debug --output-on-failure
+ctest --preset debug      # or: ctest --test-dir build\build -C Debug --output-on-failure
 ```
 
 In VS Code, the TestMate C++ extension puts the whole suite under one node in
@@ -552,8 +552,8 @@ optional traits (`[coro]`, `[threads]`, `[fs]`, `[golden]`), which select
 subsets:
 
 ```powershell
-.\build\bin\Debug\latibot_tests.exe "[db]"           # one component
-.\build\bin\Debug\latibot_tests.exe "[config]~[fs]"  # config, minus file I/O
+.\build\build\bin\Debug\latibot_tests.exe "[db]"           # one component
+.\build\build\bin\Debug\latibot_tests.exe "[config]~[fs]"  # config, minus file I/O
 ```
 
 `[live]` tests need a test bot token in `LATIBOT_TEST_TOKEN` and are excluded
@@ -561,23 +561,27 @@ from the test presets.
 
 ### Build presets
 
-| Preset | What it's for |
-|---|---|
-| `msvc` | the normal Debug/Release build |
-| `asan` | our targets with `/fsanitize=address` (needs the ASan component) |
-| `fuzz` | libFuzzer targets in `tests/fuzz` (needs the ASan component) |
-| `ninja-tidy` | generates `compile_commands.json` for clang-tidy |
+Every preset builds with Ninja Multi-Config, in a folder under `build\`, from
+the dependencies in `build\conan` (step 4), and in the Visual Studio
+environment (step 5). A workflow preset configures, builds and tests in one
+command.
+
+| Configure preset | Folder | What it's for | Workflow |
+|---|---|---|---|
+| `default` | `build\build` | the normal Debug/Release build, and the `compile_commands.json` clang-tidy reads | `debug`, `release` |
+| `asan` | `build\build-asan` | our targets with `/fsanitize=address` (needs the ASan component) | `asan` |
+| `fuzz` | `build\build-fuzz` | libFuzzer targets in `tests/fuzz` (needs the ASan component) | none: build, then run by hand |
 
 ```powershell
 # AddressSanitizer
-cmake --preset asan; cmake --build build-asan --config Debug; ctest --preset asan
+cmake --workflow --preset asan
 
 # Fuzzing (runs until stopped; -max_total_time=60 for a short run). New inputs
 # go in the first folder, seeds come from the second; also fuzz_text and
 # fuzz_legacy_parser.
-cmake --preset fuzz; cmake --build build-fuzz --config Debug
-New-Item -ItemType Directory -Force build-fuzz\corpus\fuzz_url_scan
-.\build-fuzz\bin\Debug\fuzz_url_scan.exe build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
+cmake --preset fuzz; cmake --build --preset fuzz
+New-Item -ItemType Directory -Force build\build-fuzz\corpus\fuzz_url_scan
+.\build\build-fuzz\bin\Debug\fuzz_url_scan.exe build\build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
 
 # clang-tidy and clang-format, through the scripts in tools/
 pwsh tools/Invoke-ClangTidy.ps1                  # src/
@@ -585,20 +589,9 @@ pwsh tools/Invoke-ClangTidy.ps1 -IncludeTests    # src/ and tests/
 pwsh tools/Invoke-ClangFormat.ps1 -Check         # report, change nothing
 ```
 
-The clang-tidy script needs a Ninja-flavoured dependency install once, since
-the Visual Studio generator cannot produce `compile_commands.json`. It says so
-if the install is missing rather than starting a long build on its own:
-
-```powershell
-conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 -c tools.cmake.cmaketoolchain:generator=Ninja -c tools.cmake.cmaketoolchain:user_presets=
-```
-
-The empty `user_presets=` at the end matters. Without it Conan adds this
-install's presets to `CMakeUserPresets.json` beside the ones from step 4, both
-define `conan-debug`, and CMake then refuses to read any presets at all:
-`Duplicate preset: "conan-debug"`, from the command line and CMake Tools
-alike. If that has happened, delete `CMakeUserPresets.json` and run the two
-installs from step 4 again.
+The clang-tidy script configures the default preset and reads its
+`compile_commands.json`, Debug entries only, so it needs nothing beyond
+step 4.
 
 ### VS Code tasks
 
@@ -612,9 +605,10 @@ nothing is exclusive to the editor.
 ## Project layout
 
 ```
-CMakeLists.txt      top-level build definition (also configures the DPP submodule)
-CMakePresets.json   msvc / asan / fuzz / ninja-tidy presets
-conanfile.py        Conan recipe: openssl, zlib, opus, sqlite3, ctre, catch2
+CMakeLists.txt      top-level build definition
+CMakePresets.json   default / asan / fuzz presets, and their workflows
+conanfile.py        Conan recipe: dpp, openssl, sqlite3, ctre, catch2
+conan/dpp/          the recipe that builds DPP from the third_party/DPP submodule
 config.example.json what the bot writes as config.json on its first run
 .env.example        the environment variables, to copy to .env
 cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
@@ -699,19 +693,24 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   draft features that change with every compiler update. Only our own code is
   C++23: DPP stays C++20, and the Conan packages are installed as C++20.
 - **`CMAKE_CONFIGURATION_TYPES` is limited to `Debug;Release`.** Without that,
-  the Visual Studio generator also expects `MinSizeRel`/`RelWithDebInfo`, which
+  the multi-config generator also expects `MinSizeRel`/`RelWithDebInfo`, which
   Conan hasn't installed.
-- **`CMakeUserPresets.json` is generated by Conan and machine-specific.** It's
-  git-ignored and recreated by steps 4/5. Our own `CMakePresets.json` is
-  checked in and points at the toolchain file Conan generates.
-- **DPP's headers are marked as system headers** (`SYSTEM TRUE` on the `dpp`
-  target, plus `/external:W0`). Our code builds with `/W4 /WX`, and DPP's
-  public headers produce C4251/C4100 warnings that we can't fix from here.
+- **Conan no longer writes `CMakeUserPresets.json`.** Our own
+  `CMakePresets.json` is checked in and points at the toolchain in
+  `build\conan`. An old `CMakeUserPresets.json` that includes
+  `build/generators` is left from before; delete it (`DevEnvSetup.ps1` offers
+  to).
+- **DPP's headers are system headers**, as every Conan package's are
+  (`/external:I` with `/external:W0`). Our code builds with `/W4 /WX`, and
+  DPP's public headers produce C4251/C4100 warnings that we can't fix from
+  here.
 - **Warnings are errors by default** for our targets
   (`-DLATIBOT_WARNINGS_AS_ERRORS=OFF` turns that off while experimenting).
-- **No preset names a Visual Studio version.** CMake picks the installed one.
-  Pinning it is what broke the first CI run: GitHub's Windows image moved from
-  VS 2022 to VS 2026, and a pinned generator cannot find an instance.
+- **No preset names a Visual Studio version.** The compiler is whichever the
+  Conan profile names: `build\conan\conanbuild.bat` loads that Visual Studio's
+  environment, and CMake Tools finds the installed one. Pinning a version is
+  what broke the first CI run: GitHub's Windows image moved from VS 2022 to
+  VS 2026.
 - **The `asan` preset disables the STL's container annotations**
   (`_DISABLE_STL_ANNOTATION`). Conan's Catch2 is not instrumented, and mixing
   annotated and unannotated objects fails to link with `LNK2038`. The cost is
@@ -724,10 +723,11 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   the 2026 path:
   `& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\VC\Tools\Llvm\x64\bin\clang-tidy.exe"`.
 - **`IMPORTED_LOCATION not set for imported target "CONAN_LIB::…_RELEASE"
-  configuration "Debug"`**, dozens of times, is what configuring `build/`
-  printed before `latibot_map_conan_configs()` in `cmake/helpers.cmake`. CMake
-  4.4, answering the codemodel query VS Code's CMake Tools leaves in
-  `build/.cmake/api/v1/query/`, asks each of Conan's per-configuration
+  configuration "Debug"`**, dozens of times, is what configuring a
+  multi-config build printed before `latibot_map_conan_configs()` in
+  `cmake/helpers.cmake`. CMake 4.4, answering the codemodel query VS Code's
+  CMake Tools leaves in `build/build/.cmake/api/v1/query/`, asks each of
+  Conan's per-configuration
   libraries where it lives in the *other* configuration. The helper points
   each at its own, which answers that without changing what is built. Any
   new `find_package` of a Conan package needs the helper called after it, in

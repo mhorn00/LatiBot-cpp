@@ -61,10 +61,14 @@ endfunction()
 
 # DECtalk is a DLL, so every executable that links it needs it beside it.
 # $<TARGET_RUNTIME_DLLS:...> needs CMake >= 3.21.
+#
+# A target with no DLLs to copy, such as a fuzzer, runs `cmake -E true`
+# instead: copy_if_different given only a destination fails.
 function(latibot_copy_runtime_dlls target)
+    set(dlls "$<TARGET_RUNTIME_DLLS:${target}>")
     add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_RUNTIME_DLLS:${target}>" "$<TARGET_FILE_DIR:${target}>"
+        COMMAND ${CMAKE_COMMAND} -E "$<IF:$<BOOL:${dlls}>,copy_if_different,true>"
+            "${dlls}" "$<TARGET_FILE_DIR:${target}>"
         COMMAND_EXPAND_LISTS
     )
 endfunction()

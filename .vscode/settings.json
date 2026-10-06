@@ -16,7 +16,7 @@
       // test in the tree whose tags and results drift whenever one config is
       // rebuilt and the other is not. Release and ASan go through their ctest
       // presets; widen this pattern if you would rather have them here.
-      "pattern": "build/bin/Debug/latibot_tests.exe",
+      "pattern": "build/build/bin/Debug/latibot_tests.exe",
       "cwd": "${absDirpath}",
       // Say so loudly if the binary is missing, instead of showing an empty tree.
       "strictPattern": true,

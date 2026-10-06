@@ -1,112 +1,110 @@
 {
-  "version": 3,
+  "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 25,
     "patch": 0
   },
   "configurePresets": [
     {
-      "name": "msvc",
-      "displayName": "MSVC (Debug + Release)",
-      "description": "Default multi-config build, used locally and by CI. The Visual Studio version is deliberately not pinned: CMake picks the installed one, which is what keeps this working across VS 2022 and VS 2026. Needs: conan install . --build=missing -s build_type=Release -s compiler.cppstd=20, and again with -s build_type=Debug",
-      "binaryDir": "${sourceDir}/build",
-      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake"
+      "name": "base",
+      "hidden": true,
+      "description": "Ninja Multi-Config with MSVC, its dependencies from Conan in build/conan. Needs the Visual Studio developer environment: VS Code's CMake Tools sets it up for Ninja presets, and a terminal needs the Developer PowerShell. Needs: conan export conan/dpp, then conan install . --build=missing -s build_type=Debug, and again with Release (README.md, step 4).",
+      "generator": "Ninja Multi-Config",
+      "toolchainFile": "${sourceDir}/build/conan/conan_toolchain.cmake",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "default",
+      "inherits": "base",
+      "displayName": "Debug and Release",
+      "description": "The everyday build, and what CI builds. Also writes compile_commands.json, which clang-tidy reads.",
+      "binaryDir": "${sourceDir}/build/build"
     },
     {
       "name": "asan",
-      "displayName": "MSVC + AddressSanitizer",
-      "description": "Debug build of our targets with /fsanitize=address. Needs the VC.ASAN component.",
-      "binaryDir": "${sourceDir}/build-asan",
-      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
+      "inherits": "base",
+      "displayName": "AddressSanitizer",
+      "description": "Our targets with /fsanitize=address. Needs the VC.ASAN component.",
+      "binaryDir": "${sourceDir}/build/build-asan",
       "cacheVariables": {
         "LATIBOT_ENABLE_ASAN": "ON"
       }
     },
     {
       "name": "fuzz",
-      "displayName": "MSVC + libFuzzer",
-      "description": "Builds the fuzz targets in tests/fuzz. Needs the VC.ASAN component.",
-      "binaryDir": "${sourceDir}/build-fuzz",
-      "toolchainFile": "${sourceDir}/build/generators/conan_toolchain.cmake",
+      "inherits": "base",
+      "displayName": "libFuzzer",
+      "description": "The fuzz targets in tests/fuzz. Needs the VC.ASAN component.",
+      "binaryDir": "${sourceDir}/build/build-fuzz",
       "cacheVariables": {
         "LATIBOT_ENABLE_ASAN": "ON",
         "LATIBOT_BUILD_FUZZERS": "ON"
       }
-    },
-    {
-      "name": "ninja-tidy",
-      "displayName": "Ninja (compile_commands.json for clang-tidy)",
-      "description": "Needs: conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 -c tools.cmake.cmaketoolchain:generator=Ninja -c tools.cmake.cmaketoolchain:user_presets=, and a shell with vcvars loaded (build/Debug/generators/conanbuild.bat)",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-tidy",
-      "toolchainFile": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      }
     }
   ],
   "buildPresets": [
-    {
-      "name": "msvc-debug",
-      "configurePreset": "msvc",
-      "configuration": "Debug"
-    },
-    {
-      "name": "msvc-release",
-      "configurePreset": "msvc",
-      "configuration": "Release"
-    },
-    {
-      "name": "asan",
-      "configurePreset": "asan",
-      "configuration": "Debug"
-    },
-    {
-      "name": "fuzz",
-      "configurePreset": "fuzz",
-      "configuration": "Debug"
-    },
-    {
-      "name": "ninja-tidy",
-      "configurePreset": "ninja-tidy"
-    }
+    { "name": "debug", "configurePreset": "default", "configuration": "Debug" },
+    { "name": "release", "configurePreset": "default", "configuration": "Release" },
+    { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
+    { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" }
   ],
   "testPresets": [
     {
       "name": "debug",
-      "configurePreset": "msvc",
+      "configurePreset": "default",
       "configuration": "Debug",
-      "output": {
-        "outputOnFailure": true
-      },
-      "filter": {
-        "exclude": {
-          "name": "\\[live\\]"
-        }
-      }
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
     },
     {
       "name": "release",
-      "configurePreset": "msvc",
+      "configurePreset": "default",
       "configuration": "Release",
-      "output": {
-        "outputOnFailure": true
-      },
-      "filter": {
-        "exclude": {
-          "name": "\\[live\\]"
-        }
-      }
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
     },
     {
       "name": "asan",
       "configurePreset": "asan",
       "configuration": "Debug",
-      "output": {
-        "outputOnFailure": true
-      }
+      "output": { "outputOnFailure": true }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "debug" },
+        { "type": "test", "name": "debug" }
+      ]
+    },
+    {
+      "name": "release",
+      "displayName": "Release: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "default" },
+        { "type": "build", "name": "release" },
+        { "type": "test", "name": "release" }
+      ]
+    },
+    {
+      "name": "asan",
+      "displayName": "AddressSanitizer: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "asan" },
+        { "type": "build", "name": "asan" },
+        { "type": "test", "name": "asan" }
+      ]
     }
   ]
 }
