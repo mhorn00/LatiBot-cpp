@@ -157,3 +157,12 @@ add_custom_target(latibot_deploy_files ALL
     DEPENDS "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.ps1" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
 )
 add_dependencies(LatiBot latibot_deploy_files)
+
+# The folder a server needs: `cmake --install build/build --config Release`
+# writes it to out/LatiBot (CMakePresets.json, installDir), so the bot that
+# runs is never the one being rebuilt (docs/modules/Module_Plan_Final.md §9.1,
+# I5). README.md, "On another machine", says what else goes beside it.
+install(TARGETS LatiBot RUNTIME DESTINATION .)
+install(TARGETS dectalk RUNTIME DESTINATION .)
+install(FILES "${DECTALK_DICTIONARY}" DESTINATION .)
+install(FILES ${LATIBOT_DEPLOY_SOURCES} DESTINATION .)

@@ -418,7 +418,8 @@ function Confirm-BuildToolset([string] $ProfileVersion) {
 }
 
 function Invoke-ConanInstall([string] $BuildType, [string[]] $Extra = @()) {
-    $arguments = @('install', $repo, '--build=missing', '-s', "build_type=$BuildType", '-s', 'compiler.cppstd=20') + $Extra
+    $arguments = @('install', $repo, '--build=missing', '-s', "build_type=$BuildType", '-s', 'compiler.cppstd=20',
+                   '--lockfile-partial') + $Extra
     Invoke-Native conan $arguments
 }
 

@@ -11,6 +11,7 @@
       "hidden": true,
       "description": "Ninja Multi-Config with MSVC, its dependencies from Conan in build/conan. Needs the Visual Studio developer environment: VS Code's CMake Tools sets it up for Ninja presets, and a terminal needs the Developer PowerShell. Needs: conan export conan/dpp, then conan install . --build=missing -s build_type=Debug, and again with Release (README.md, step 4).",
       "generator": "Ninja Multi-Config",
+      "installDir": "${sourceDir}/out/LatiBot",
       "toolchainFile": "${sourceDir}/build/conan/conan_toolchain.cmake",
       "architecture": { "value": "x64", "strategy": "external" },
       "toolset": { "value": "host=x64", "strategy": "external" },

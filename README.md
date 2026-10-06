@@ -153,13 +153,16 @@ every build folder shares:
 
 ```powershell
 conan export conan/dpp
-conan install . --build=missing -s build_type=Release -s compiler.cppstd=20
-conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
+conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
+conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial
 ```
 
 This provides DPP, built once per configuration and kept in Conan's cache,
 with its OpenSSL, zlib and opus; SQLite with FTS5; CTRE; and Catch2 for the
-tests. `-s compiler.cppstd=20` is required: CTRE
+tests. `conan.lock` pins every one of them, and their recipes' revisions,
+except DPP, which the submodule pins; `--lockfile-partial` is what lets DPP
+through. A recipe's revision depends on its files' line endings, so locking
+DPP would fail on any checkout whose line endings differ. `-s compiler.cppstd=20` is required: CTRE
 refuses anything below C++17, and without it the profile's `14` applies.
 
 ConanCenter has no prebuilt binaries for the VS 2026 compiler yet, so the
@@ -262,14 +265,21 @@ runs it from the repo root, so the same `.env` applies.
 
 ### On another machine
 
-A Release build runs anywhere with these three files from `build\build\bin\Release\`,
-kept together in one folder:
+A Release build runs anywhere with these three files, kept together in one
+folder:
 
 | File | |
 |---|---|
 | `LatiBot.exe` | the bot, with DPP, OpenSSL, zlib and opus linked into it |
 | `dectalk.dll` | the speech engine |
 | `dtalk_us.dic` | DECtalk's dictionary, which has to stay beside `dectalk.dll` |
+
+`cmake --install build\build --config Release`, after a Release build, writes
+them to `out\LatiBot\` with `Install-Dependencies.ps1` and its readme: the
+folder to copy to a server (the VS Code task *Install the bot (Release)* does
+both). Running the bot from there, rather than from `build\`, also means a
+build never fights the running executable. Put `config.json`, `.env` and
+`data\` beside it, since the bot reads them from where it runs.
 
 For music, add [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [ffmpeg](https://ffmpeg.org/) as `yt-dlp.exe` and `ffmpeg.exe` in the same
@@ -736,5 +746,10 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   check out that tag, set `version` in `conan/dpp/conanfile.py` to match, then
   `conan export conan/dpp` and the two `conan install` commands of step 4,
   which build the new DPP once. Commit the submodule and the recipe together.
-- **To add a dependency:** add it to `requirements()` in `conanfile.py`, re-run
-  both `conan install` commands, then reconfigure.
+- **To add or change a dependency:** edit `requirements()` in
+  `conanfile.py`, then write the lockfile again, without DPP:
+  `conan lock create . -s build_type=Debug -s compiler.cppstd=20 --lockfile-out=conan.lock`,
+  the same with `-s build_type=Release --lockfile=conan.lock`, then
+  `conan lock remove --requires="dpp/*" --lockfile=conan.lock --lockfile-out=conan.lock`.
+  Commit `conan.lock` with the change, then run both `conan install`
+  commands and reconfigure.

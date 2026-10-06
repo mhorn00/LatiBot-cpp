@@ -58,6 +58,18 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
+      // The folder a server needs, from a fresh Release build, in out/LatiBot
+      // (README.md, "On another machine"). Run the live bot from there, and
+      // building never fights the running executable.
+      "label": "Install the bot (Release)",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--install", "build/build", "--config", "Release"],
+      "dependsOn": ["Build bot (Release)"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
       // Deletes every slash command the bot in .env has registered, then
       // exits, so a test bot's commands stop sitting beside the real bot's
       // as duplicates. Whose commands go depends only on DISCORD_BOT_TOKEN,
@@ -177,7 +189,7 @@
       // moving the DPP submodule; the first run builds the dependencies.
       "label": "Conan: install dependencies",
       "type": "shell",
-      "command": "conan export conan/dpp && conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 && conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20",
+      "command": "conan export conan/dpp && conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial && conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial",
       "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }

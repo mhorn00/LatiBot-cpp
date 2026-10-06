@@ -44,8 +44,8 @@ if (-not (Test-Path $toolchain)) {
 The dependencies are not installed. Run these once (the first time builds them from source, so allow several minutes):
 
   conan export conan/dpp
-  conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
-  conan install . --build=missing -s build_type=Release -s compiler.cppstd=20
+  conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial
+  conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
 "@
 }
 
