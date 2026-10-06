@@ -12,9 +12,10 @@ its timer.
 
 | | |
 |---|---|
-| **Code** | `src/core/events/midnight.*`, `src/core/commands/midnight.*` |
-| **Tests** | `tests/unit/midnight_test.cpp`, `tests/unit/midnight_command_test.cpp`, `tests/db/midnight_store_test.cpp` |
-| **Tables** | `midnight_messages` (migration 5); `message_flags` (migration 9) |
+| **Module** | `midnight`, the first one (docs/modules/Module_Plan_Final.md): `src/core/events/midnight_module.*` registers the command and the timer |
+| **Code** | `src/core/events/midnight.*`, `src/core/commands/midnight.*`, `src/core/events/midnight_module.*` |
+| **Tests** | `tests/unit/midnight_test.cpp`, `tests/unit/midnight_command_test.cpp`, `tests/unit/midnight_module_test.cpp`, `tests/db/midnight_store_test.cpp` |
+| **Tables** | `midnight_messages`, the module's schema version 1 (was migrations 5 and 9) |
 | **Plan** | Replaces plan §10 and §21.10 |
 | **Status** | Built in phase 2 (2026-09-23); the missed-midnight rule since 2026-09-24 |
 

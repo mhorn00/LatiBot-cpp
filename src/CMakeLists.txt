@@ -58,6 +58,7 @@ add_library(latibot_core STATIC
     core/events/media_posts.cpp
     core/events/message_pipeline.cpp
     core/events/midnight.cpp
+    core/events/midnight_module.cpp
     core/events/nickname_import.cpp
     core/events/nicknames.cpp
     core/events/reactions.cpp
@@ -84,9 +85,9 @@ add_library(latibot_core STATIC
     core/llm/spend.cpp
     core/llm/stage.cpp
     core/llm/tools.cpp
-    core/module/capability_registry.cpp
-    core/module/host.cpp
-    core/module/module.cpp
+    core/modules/capability_registry.cpp
+    core/modules/host.cpp
+    core/modules/module.cpp
     core/music/cookies.cpp
     core/music/links.cpp
     core/music/music_player.cpp

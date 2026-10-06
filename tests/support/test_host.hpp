@@ -6,8 +6,8 @@
 #include "core/db/database.hpp"
 #include "core/discord/raw_api.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/module/capability_registry.hpp"
-#include "core/module/host.hpp"
+#include "core/modules/capability_registry.hpp"
+#include "core/modules/host.hpp"
 #include "core/ui/panel_routes.hpp"
 
 #include "mocks/mock_clock.hpp"
@@ -35,7 +35,7 @@ namespace latibot::testing {
 /// it off: its commands in `registry`, its stages in `stages`, its timers in
 /// `timers` (fired with `fire`), what it posts in `posted`. The services are
 /// the usual mocks, and an in-memory database with the schema applied.
-class test_host final : public module::host {
+class test_host final : public modules::host {
 public:
     struct timer {
         std::chrono::seconds interval{};
@@ -65,7 +65,7 @@ public:
     commands::registry registry;
     ui::panel_routes routes;
     events::pipeline stages;
-    module::capability_registry offered;
+    modules::capability_registry offered;
 
     std::vector<timer> timers;
     std::vector<std::string> listeners;
@@ -75,7 +75,9 @@ public:
     std::vector<events::send_message> posted;
     std::vector<detached_task> detached;
 
-    test_host() { create_schema(data); }
+    /// The database as the bot leaves it for its modules: their own tables
+    /// come from `modules::start_modules`.
+    test_host() { create_builtin_schema(data); }
 
     [[nodiscard]] auto database() -> db::database& override { return data; }
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings; }
@@ -91,7 +93,7 @@ public:
     [[nodiscard]] auto clock() -> ports::clock& override { return fake_clock; }
     [[nodiscard]] auto cluster() -> dpp::cluster& override { return bot_cluster; }
     [[nodiscard]] auto me() const -> const dpp::user& override { return self; }
-    [[nodiscard]] auto capabilities() const -> const module::capability_registry& override { return offered; }
+    [[nodiscard]] auto capabilities() const -> const modules::capability_registry& override { return offered; }
     [[nodiscard]] auto slash_commands() -> commands::registry& override { return registry; }
     [[nodiscard]] auto panels() -> ui::panel_routes& override { return routes; }
 

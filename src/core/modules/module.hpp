@@ -8,7 +8,7 @@
 #include <string_view>
 #include <vector>
 
-namespace latibot::module {
+namespace latibot::modules {
 
 class capability_registry;
 class host;
@@ -66,4 +66,4 @@ auto start_modules(const module_factory& make, host& bot, capability_registry& o
 /// chooses its own.
 auto enabled_modules(host& bot) -> module_list;
 
-} // namespace latibot::module
+} // namespace latibot::modules

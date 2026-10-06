@@ -1,8 +1,8 @@
-#include "core/module/host.hpp"
+#include "core/modules/host.hpp"
 
 #include "core/util/log.hpp"
 
-namespace latibot::module {
+namespace latibot::modules {
 
 auto report_failure(std::string_view what, const std::exception* error) -> void {
     if (error != nullptr) {
@@ -12,4 +12,4 @@ auto report_failure(std::string_view what, const std::exception* error) -> void 
     }
 }
 
-} // namespace latibot::module
+} // namespace latibot::modules

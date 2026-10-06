@@ -6,13 +6,13 @@
 #include <typeindex>
 #include <typeinfo>
 
-namespace latibot::module {
+namespace latibot::modules {
 
 /// What modules offer each other: one implementation per interface
 /// (docs/modules/Module_Plan_Final.md §5.2).
 ///
 /// The interfaces live in `core/capabilities/`. A module offers one in
-/// `module::offer`, and another looks it up in `module::start`, when every
+/// `modules::offer`, and another looks it up in `modules::start`, when every
 /// offer has been made. Looking up one nobody offers gives null, which is how
 /// a module copes with the other not being built: the language model never
 /// speaks without dectalk, and that is all.
@@ -57,4 +57,4 @@ private:
     std::map<std::type_index, offering> offered_;
 };
 
-} // namespace latibot::module
+} // namespace latibot::modules

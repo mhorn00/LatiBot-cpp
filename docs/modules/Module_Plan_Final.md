@@ -170,8 +170,8 @@ says so.
 ### 4.1 The interface
 
 ```cpp
-// src/core/include/core/module/module.hpp
-namespace latibot::module {
+// src/core/include/core/modules/module.hpp
+namespace latibot::modules {
 
 class module {
 public:
@@ -192,7 +192,7 @@ public:
     virtual auto start(host& bot) -> void = 0;
 };
 
-} // namespace latibot::module
+} // namespace latibot::modules
 ```
 
 Each module has one factory, `make_module(host&)`. The factory reads the
@@ -213,6 +213,10 @@ members of the module, as they are members of `bot` today.
 | Carrying out | `post(send_message)`, `detach(task, what)` | `carry_out` |
 
 The details:
+- **The namespace is `modules`, not `module`,** and the folder
+  `core/modules/`. Inside a class derived from `module`, the name `module`
+  means the base class, so `module::host` would not compile there; and the
+  codebase's namespaces are plural (`commands`, `events`, `ports`).
 - **Two names differ from v2:** `bootstrap()` rather than `config()`, and
   `slash_commands()` rather than `commands()`. The bot is the host, and a
   member called `config` or `commands` would hide those namespaces throughout
@@ -328,8 +332,9 @@ public:
 };
 ```
 
-It is `capability_registry`, in `core/module/`, so that inside the module
-namespace the name `capabilities` still means the interfaces' namespace.
+It is `capability_registry`, in `core/modules/`, so that inside the
+`modules` namespace the name `capabilities` still means the interfaces'
+namespace.
 
 Keep them few and small. One that grows module-specific types becomes a
 bridge instead.
@@ -416,7 +421,7 @@ conan/dpp/conanfile.py               the DPP recipe (§9)
   - `commands/registry`, `commands/options`, `commands/message_options`;
   - `events/message_pipeline`, `events/stage_order`;
   - `discord/message_flags`, `discord/raw_api`;
-  - `module/` and `capabilities/`.
+  - `modules/` and `capabilities/`.
 - **Include paths:**
   - the core keeps `#include "core/..."`;
   - modules use their own prefix, such as `#include "llm/aliases.hpp"`.
@@ -703,7 +708,7 @@ Nothing is pushed.
 | **3. The module interface** | 3a `module`, `host`, `capabilities`, `stage_order`; `bot` becomes the host | done: also `ui::panel_routes`, and `tests/support/test_host.hpp` for modules' tests |
 | | 3b `schema_versions`, the flattened schemas, adoption, the comparison test (§7) | done: the schemas are in `core/db/schemas.cpp` until each module takes its own; tests build databases from them |
 | | 3c Config sections and key tables (§8) | done: the four feature sections live in `core/config/feature_sections.*` until their modules take them; `host::section` for modules |
-| | 3d midnight as the first module | |
+| | 3d midnight as the first module | done: `events::make_midnight_module`, in `src/enabled_modules.cpp`; the namespace became `modules` (§4.2) |
 | **4. Folders and targets** | `src/core/{include,src,tests}`, `src/app`, `latibot_module()`, the generated list, per-module test executables; midnight moved | |
 | **5. The other modules** | nicknames, triggers, links, linkstats, voice (with K9), dectalk, music, llm. Each step brings its settings table, its README with the sync test, and its tests moved and retagged. | |
 | **6. Matrix and docs** | `Test-ModuleMatrix.ps1`, the core-only CI job, the architecture docs, the user guide | |

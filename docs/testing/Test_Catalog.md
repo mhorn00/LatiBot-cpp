@@ -5,7 +5,7 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-979 test cases across 13 components, including 206 sections.
+982 test cases across 13 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
@@ -14,7 +14,7 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 | [commands](#commands) | 197 | 55 |
 | [events](#events) | 200 | 40 |
 | [ui](#ui) | 15 | 0 |
-| [module](#module) | 7 | 0 |
+| [module](#module) | 10 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
 | [music](#music) | 101 | 31 |
@@ -681,10 +681,13 @@ Panels and paging (`src/core/ui`)
 
 ## module
 
-The module interface and the host (`src/core/module`)
+The module interface and the host (`src/core/modules`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
+| the midnight module creates its own table when it is built |  |  | [tests/unit/midnight_module_test.cpp:44](../../tests/unit/midnight_module_test.cpp#L44) |
+| the midnight module adds /midnight and checks the clock every thirty seconds |  |  | [tests/unit/midnight_module_test.cpp:57](../../tests/unit/midnight_module_test.cpp#L57) |
+| the midnight tick posts what is due through the host |  |  | [tests/unit/midnight_module_test.cpp:72](../../tests/unit/midnight_module_test.cpp#L72) |
 | a capability is found once offered, and null when nobody offers it |  |  | [tests/unit/module_test.cpp:94](../../tests/unit/module_test.cpp#L94) |
 | one capability offered twice stops startup, naming both modules |  |  | [tests/unit/module_test.cpp:110](../../tests/unit/module_test.cpp#L110) |
 | every module offers before any starts, so the list's order does not matter |  |  | [tests/unit/module_test.cpp:123](../../tests/unit/module_test.cpp#L123) |

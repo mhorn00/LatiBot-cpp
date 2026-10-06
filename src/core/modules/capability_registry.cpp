@@ -1,10 +1,10 @@
-#include "core/module/capability_registry.hpp"
+#include "core/modules/capability_registry.hpp"
 
 #include <format>
 #include <stdexcept>
 #include <utility>
 
-namespace latibot::module {
+namespace latibot::modules {
 
 auto capability_registry::add(const std::type_info& wanted, void* implementation, std::string_view by) -> void {
     const auto [where, added] = offered_.try_emplace(wanted, offering{.implementation = implementation, .by = std::string(by)});
@@ -23,4 +23,4 @@ auto capability_registry::owner(const std::type_info& wanted) const -> std::stri
     return found == offered_.end() ? std::string_view{} : std::string_view{found->second.by};
 }
 
-} // namespace latibot::module
+} // namespace latibot::modules

@@ -5,7 +5,6 @@
 #include "core/commands/chat.hpp"
 #include "core/commands/linkstats.hpp"
 #include "core/commands/logs.hpp"
-#include "core/commands/midnight.hpp"
 #include "core/commands/music.hpp"
 #include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
@@ -27,8 +26,8 @@
 #include "core/llm/memory_tools.hpp"
 #include "core/llm/models.hpp"
 #include "core/llm/openai.hpp"
-#include "core/module/host.hpp"
-#include "core/module/module.hpp"
+#include "core/modules/host.hpp"
+#include "core/modules/module.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/util/log.hpp"
@@ -203,7 +202,7 @@ auto secrets_of(const config::secrets& credentials) -> std::vector<std::string> 
 
 } // namespace
 
-bot::bot(config::bootstrap settings, const config::secrets& credentials, const module::module_factory& make_modules)
+bot::bot(config::bootstrap settings, const config::secrets& credentials, const modules::module_factory& make_modules)
     : settings_(std::move(settings)),
       database_(prepare(settings_.database_path)),
       guild_settings_(database_),
@@ -216,8 +215,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       triggers_(database_),
       trigger_panel_(triggers_),
       trigger_responder_(triggers_, clock_),
-      midnight_(database_),
-      midnight_scheduler_(midnight_, clock_),
       url_rules_(database_),
       url_panel_(url_rules_),
       replacements_(database_),
@@ -395,7 +392,6 @@ auto bot::register_commands() -> void {
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
     commands_.add(std::make_unique<commands::nickname_command>(nicknames_, pending_nicknames_, clock_, cluster_));
     commands_.add(std::make_unique<commands::nicknames_command>(nicknames_));
-    commands_.add(std::make_unique<commands::midnight_command>(midnight_, clock_));
     commands_.add(std::make_unique<commands::links_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
@@ -660,9 +656,9 @@ auto run_guarded(std::string_view what, const std::function<void()>& work) -> vo
     try {
         work();
     } catch (const std::exception& error) {
-        module::report_failure(what, &error);
+        modules::report_failure(what, &error);
     } catch (...) {
-        module::report_failure(what, nullptr);
+        modules::report_failure(what, nullptr);
     }
 }
 
@@ -685,14 +681,6 @@ auto bot::after(std::chrono::seconds delay, std::string name, std::function<void
 }
 
 auto bot::register_timers() -> void {
-    // Polling the wall clock is the fix for the Java bot's random-fire bug:
-    // it computed a delay from the wall clock and then waited on a monotonic
-    // timer, so a machine that slept woke up and posted at whatever time it
-    // happened to be (docs/features/Midnight.md §1).
-    every(events::midnight_tick, "the midnight tick", [this] { carry_out(midnight_scheduler_.tick()); });
-
-    util::log().debug("midnight messages checked every {}", events::midnight_tick);
-
     // One timer for every replacement being watched, rather than one each:
     // the tracker knows whose time is up, and a second is as fine as DPP's
     // timers go. Most ticks find nothing and cost a lock.
@@ -1241,8 +1229,8 @@ auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
     module_permissions_.emplace_back(bits, std::move(purpose));
 }
 
-auto bot::start_modules(const module::module_factory& make_modules) -> void {
-    modules_ = module::start_modules(make_modules, *this, capabilities_);
+auto bot::start_modules(const modules::module_factory& make_modules) -> void {
+    modules_ = modules::start_modules(make_modules, *this, capabilities_);
     // Before connecting, which is when DPP reads them.
     cluster_.intents |= module_intents_;
 

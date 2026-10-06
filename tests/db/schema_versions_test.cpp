@@ -51,7 +51,7 @@ auto versions_of(database& db) -> std::map<std::string, int> {
 
 auto every_module_at_one() -> std::map<std::string, int> {
     std::map<std::string, int> versions;
-    for (const module_schema& schema : latibot::db::builtin_schemas()) {
+    for (const module_schema& schema : latibot::testing::all_schemas()) {
         versions.emplace(std::string(schema.module), 1);
     }
     return versions;
@@ -152,7 +152,7 @@ TEST_CASE("a new database gets schema_versions, and every module its version 1",
     database& db = fixture.db;
 
     CHECK(latibot::db::prepare_schema_versions(db) == schema_origin::fresh);
-    for (const module_schema& schema : latibot::db::builtin_schemas()) {
+    for (const module_schema& schema : latibot::testing::all_schemas()) {
         CHECK(latibot::db::apply_schema(db, schema) == 1);
     }
 
@@ -195,7 +195,7 @@ TEST_CASE("an old database is brought to migration 15, then adopted with its dat
     CHECK(versions_of(db) == every_module_at_one());
 
     // Nothing is created twice.
-    for (const module_schema& schema : latibot::db::builtin_schemas()) {
+    for (const module_schema& schema : latibot::testing::all_schemas()) {
         CHECK(latibot::db::apply_schema(db, schema) == 1);
     }
     CHECK(latibot::events::trigger_store(db).for_guild(dpp::snowflake{1}).size() == 1);
@@ -206,11 +206,11 @@ TEST_CASE("adoption records every module of migration 15, and only those", "[db]
     // A module built in later must find its row, or it would create tables
     // that are already there.
     std::set<std::string_view> adopted(latibot::db::adopted_modules().begin(), latibot::db::adopted_modules().end());
-    std::set<std::string_view> builtin;
-    for (const module_schema& schema : latibot::db::builtin_schemas()) {
-        builtin.insert(schema.module);
+    std::set<std::string_view> every;
+    for (const module_schema& schema : latibot::testing::all_schemas()) {
+        every.insert(schema.module);
     }
-    CHECK(adopted == builtin);
+    CHECK(adopted == every);
 }
 
 TEST_CASE("a database the bot did not write is refused", "[db]") {
@@ -274,7 +274,7 @@ TEST_CASE("a gap in a module's steps is refused", "[db]") {
 }
 
 TEST_CASE("every module's steps run 1, 2, 3 with no gaps", "[db]") {
-    for (const module_schema& schema : latibot::db::builtin_schemas()) {
+    for (const module_schema& schema : latibot::testing::all_schemas()) {
         INFO(schema.module);
         CHECK_FALSE(schema.module.empty());
         int expected = 1;

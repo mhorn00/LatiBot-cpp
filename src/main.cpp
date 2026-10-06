@@ -2,7 +2,7 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/command_line.hpp"
 #include "core/discord/unregister_commands.hpp"
-#include "core/module/module.hpp"
+#include "core/modules/module.hpp"
 #include "core/util/ca_certificates.hpp"
 #include "core/util/env.hpp"
 #include "core/util/log.hpp"
@@ -50,7 +50,7 @@ auto main(int argc, char** argv) -> int {
         // register everything again straight away.
         if (command_line.unregister_commands) return latibot::discord::unregister_commands(credentials.discord_token) ? 0 : 1;
 
-        latibot::bot bot(settings, credentials, latibot::module::enabled_modules);
+        latibot::bot bot(settings, credentials, latibot::modules::enabled_modules);
         bot.run();
         return 0;
     } catch (const std::exception& error) {

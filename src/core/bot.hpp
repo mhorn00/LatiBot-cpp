@@ -24,7 +24,6 @@
 #include "core/events/log_channel.hpp"
 #include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/triggers.hpp"
@@ -41,9 +40,9 @@
 #include "core/llm/spend.hpp"
 #include "core/llm/stage.hpp"
 #include "core/llm/tools.hpp"
-#include "core/module/capability_registry.hpp"
-#include "core/module/host.hpp"
-#include "core/module/module.hpp"
+#include "core/modules/capability_registry.hpp"
+#include "core/modules/host.hpp"
+#include "core/modules/module.hpp"
 #include "core/music/music_player.hpp"
 #include "core/music/pot_provider.hpp"
 #include "core/music/yt_dlp.hpp"
@@ -76,9 +75,9 @@ namespace latibot {
 /// builds them with `make_modules`, has each offer its capabilities and then
 /// start, and only then connects. The features not yet moved into a module
 /// are still its own members.
-class bot final : public module::host {
+class bot final : public modules::host {
 public:
-    bot(config::bootstrap settings, const config::secrets& credentials, const module::module_factory& make_modules);
+    bot(config::bootstrap settings, const config::secrets& credentials, const modules::module_factory& make_modules);
 
     bot(const bot&) = delete;
     auto operator=(const bot&) -> bot& = delete;
@@ -86,7 +85,7 @@ public:
     /// Connects and blocks until the bot shuts down.
     auto run() -> void;
 
-    // module::host
+    // modules::host
     [[nodiscard]] auto database() -> db::database& override { return database_; }
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings_; }
     [[nodiscard]] auto bootstrap() const -> const config::bootstrap& override { return settings_; }
@@ -97,7 +96,7 @@ public:
     [[nodiscard]] auto clock() -> ports::clock& override { return clock_; }
     [[nodiscard]] auto cluster() -> dpp::cluster& override { return cluster_; }
     [[nodiscard]] auto me() const -> const dpp::user& override { return cluster_.me; }
-    [[nodiscard]] auto capabilities() const -> const module::capability_registry& override { return capabilities_; }
+    [[nodiscard]] auto capabilities() const -> const modules::capability_registry& override { return capabilities_; }
     [[nodiscard]] auto slash_commands() -> commands::registry& override { return commands_; }
     [[nodiscard]] auto panels() -> ui::panel_routes& override { return panels_; }
     auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void override;
@@ -115,7 +114,7 @@ protected:
 private:
     /// Builds the modules, has each offer, then start, and logs what they
     /// added (docs/modules/Module_Plan_Final.md §4.3).
-    auto start_modules(const module::module_factory& make_modules) -> void;
+    auto start_modules(const modules::module_factory& make_modules) -> void;
 
     auto register_commands() -> void;
     auto register_stages() -> void;
@@ -126,8 +125,9 @@ private:
     auto on_ready(const dpp::ready_t& event) -> void;
 
     /// Starts the things that happen on a clock rather than on an event: the
-    /// midnight messages, the embed tracker's one-second tick and the
-    /// database backups (docs/features/Operations.md §2).
+    /// embed tracker's one-second tick, the log channel, auto-leave and the
+    /// database backups (docs/features/Operations.md §2). Modules start
+    /// their own.
     auto register_timers() -> void;
 
     /// Why music cannot play, when yt-dlp or ffmpeg was not found; empty
@@ -254,8 +254,6 @@ private:
     events::trigger_store triggers_;
     commands::trigger_panel trigger_panel_;
     events::trigger_responder trigger_responder_;
-    events::midnight_store midnight_;
-    events::midnight_scheduler midnight_scheduler_;
     events::url_rule_store url_rules_;
     commands::url_panel url_panel_;
     events::replacement_store replacements_;
@@ -344,7 +342,7 @@ private:
     // What the modules registered (docs/modules/Module_Plan_Final.md §4.2).
     // The routes and the capabilities point into the modules, which are
     // destroyed first.
-    module::capability_registry capabilities_;
+    modules::capability_registry capabilities_;
     ui::panel_routes panels_;
     std::uint32_t module_intents_ = 0;
     /// Permissions modules asked for, checked with the commands' in each
@@ -357,7 +355,7 @@ private:
 
     /// The modules, in dependency order. After everything they were given,
     /// so they are destroyed before any of it.
-    module::module_list modules_;
+    modules::module_list modules_;
 
     /// The pause between the goodbye and shutting down. Last, so it is
     /// joined first when the bot is destroyed, while the cluster it shuts

@@ -1,10 +1,10 @@
-#include "core/module/module.hpp"
+#include "core/modules/module.hpp"
 
 #include "core/db/schema_versions.hpp"
-#include "core/module/capability_registry.hpp"
-#include "core/module/host.hpp"
+#include "core/modules/capability_registry.hpp"
+#include "core/modules/host.hpp"
 
-namespace latibot::module {
+namespace latibot::modules {
 
 auto start_modules(const module_factory& make, host& bot, capability_registry& offered) -> module_list {
     module_list modules = make(bot);
@@ -24,4 +24,4 @@ auto start_modules(const module_factory& make, host& bot, capability_registry& o
     return modules;
 }
 
-} // namespace latibot::module
+} // namespace latibot::modules

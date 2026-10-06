@@ -2,9 +2,9 @@
 // and what the host does with a listener (docs/modules/Module_Plan_Final.md
 // §4 and §5).
 
-#include "core/module/module.hpp"
-#include "core/module/capability_registry.hpp"
-#include "core/module/host.hpp"
+#include "core/modules/module.hpp"
+#include "core/modules/capability_registry.hpp"
+#include "core/modules/host.hpp"
 
 #include "support/capture_log.hpp"
 #include "support/test_host.hpp"
@@ -18,9 +18,9 @@
 #include <string_view>
 #include <vector>
 
-using latibot::module::capability_registry;
-using latibot::module::host;
-using latibot::module::module_list;
+using latibot::modules::capability_registry;
+using latibot::modules::host;
+using latibot::modules::module_list;
 using latibot::testing::test_host;
 
 namespace {
@@ -51,7 +51,7 @@ public:
 };
 
 /// Offers a greeting, and records when it was asked to.
-class greeter final : public latibot::module::module {
+class greeter final : public latibot::modules::module {
 public:
     explicit greeter(std::vector<std::string>& journal) : journal_(&journal) {}
 
@@ -68,7 +68,7 @@ private:
 };
 
 /// Uses the greeting if somebody offers it.
-class listener final : public latibot::module::module {
+class listener final : public latibot::modules::module {
 public:
     explicit listener(std::vector<std::string>& journal) : journal_(&journal) {}
 
@@ -83,7 +83,7 @@ private:
 };
 
 /// Refuses to start, as a module with a bad config section would.
-class broken final : public latibot::module::module {
+class broken final : public latibot::modules::module {
 public:
     [[nodiscard]] auto name() const -> std::string_view override { return "broken"; }
     auto start(host& /*bot*/) -> void override { throw std::runtime_error("broken's config section is wrong"); }
@@ -126,7 +126,7 @@ TEST_CASE("every module offers before any starts, so the list's order does not m
     std::vector<std::string> journal;
     test_host bot;
 
-    const module_list modules = latibot::module::start_modules(
+    const module_list modules = latibot::modules::start_modules(
         [&journal](host& /*host*/) {
             module_list made;
             made.push_back(std::make_unique<listener>(journal));
@@ -143,7 +143,7 @@ TEST_CASE("without the module that offers it, a capability is null and the user 
     std::vector<std::string> journal;
     test_host bot;
 
-    const module_list modules = latibot::module::start_modules(
+    const module_list modules = latibot::modules::start_modules(
         [&journal](host& /*host*/) {
             module_list made;
             made.push_back(std::make_unique<listener>(journal));
@@ -157,7 +157,7 @@ TEST_CASE("without the module that offers it, a capability is null and the user 
 TEST_CASE("a module that throws while starting stops startup", "[module]") {
     test_host bot;
 
-    CHECK_THROWS_WITH(latibot::module::start_modules(
+    CHECK_THROWS_WITH(latibot::modules::start_modules(
                           [](host& /*host*/) {
                               module_list made;
                               made.push_back(std::make_unique<broken>());

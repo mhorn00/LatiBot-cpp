@@ -34,7 +34,7 @@ namespace latibot::ui {
 class panel_routes;
 }
 
-namespace latibot::module {
+namespace latibot::modules {
 
 class capability_registry;
 
@@ -46,7 +46,7 @@ auto report_failure(std::string_view what, const std::exception* error) -> void;
 ///
 /// The bot is the host. A module keeps the services it needs as pointers,
 /// which live as long as the bot does, and registers everything else from
-/// `module::start`. Registering is only for startup: nothing here may be
+/// `modules::start`. Registering is only for startup: nothing here may be
 /// called once the bot has connected.
 class host {
 public:
@@ -154,4 +154,4 @@ protected:
     virtual auto note_listener(std::string_view name) -> void = 0;
 };
 
-} // namespace latibot::module
+} // namespace latibot::modules

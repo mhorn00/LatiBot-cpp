@@ -44,6 +44,7 @@ add_executable(latibot_tests
     unit/message_pipeline_test.cpp
     unit/module_test.cpp
     unit/midnight_command_test.cpp
+    unit/midnight_module_test.cpp
     unit/midnight_test.cpp
     unit/music_command_test.cpp
     unit/music_cookies_test.cpp

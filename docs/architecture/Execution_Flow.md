@@ -703,9 +703,10 @@ the events need the privileged Server Members intent.
 
 `bot::register_timers`, `bot::attribute_later`
 
-All timers run on the main thread (section 3). Each is wrapped in
-`guarded()`, which logs an exception rather than letting it stop the timer
-for good.
+All timers run on the main thread (section 3). Each is started through the
+host's `every` or `after`, which log an exception under the timer's name
+rather than letting it stop the timer for good. A module starts its own the
+same way: the midnight tick is the midnight module's.
 
 ```mermaid
 flowchart LR
@@ -721,7 +722,7 @@ flowchart LR
 
     dpp --> m & e & l & a & b & n & c
 
-    m -- "send_message actions,<br/>at local midnight" --> carry["bot::carry_out()"]
+    m -- "send_message actions,<br/>at local midnight" --> carry["host.post(), from the midnight module"]
     e -- "edits for previews<br/>that did not arrive" --> carryE["carry_out(embed actions)<br/>detached"]
     l -- "posts what was logged,<br/>backing off on errors" --> gw["discord_gateway"]
     a -- "servers where the bot<br/>was alone for the grace period" --> leave["shard->disconnect_voice()"]

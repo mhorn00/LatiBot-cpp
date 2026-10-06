@@ -47,7 +47,7 @@ struct bootstrap {
 
     /// Every other object in config.json, as one object by name: a module's
     /// section, which the module reads with its own table
-    /// (`module::host::section`). One no module reads is warned about and
+    /// (`modules::host::section`). One no module reads is warned about and
     /// ignored. JSON rather than a std::map, whose move can throw.
     nlohmann::json sections = nlohmann::json::object();
 

@@ -8,7 +8,7 @@
 
 // The config.json sections of the features still inside the core
 // (docs/modules/Module_Plan_Final.md §8.1). Each moves into its module when
-// the module moves out, and is then read through `module::host::section`.
+// the module moves out, and is then read through `modules::host::section`.
 
 namespace latibot::config {
 

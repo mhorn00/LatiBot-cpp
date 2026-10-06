@@ -98,35 +98,6 @@ constexpr std::array<migration, 1> nicknames_steps{{
      )sql"},
 }};
 
-constexpr std::array<migration, 1> midnight_steps{{
-    {.version = 1, .name = "midnight_messages", .sql = R"sql(
-        -- A message posted once per local day, per timezone.
-        CREATE TABLE midnight_messages (
-            id              INTEGER PRIMARY KEY,
-            guild_id        INTEGER NOT NULL,
-            channel_id      INTEGER NOT NULL,
-
-            -- An IANA name. Different entries in one guild may use different
-            -- zones, which is the point of there being any number of them.
-            timezone        TEXT    NOT NULL,
-
-            message         TEXT    NOT NULL,
-            enabled         INTEGER NOT NULL DEFAULT 1,
-
-            -- The local date this last posted, YYYY-MM-DD, NULL for never.
-            -- Saved rather than counted from, so a restart at 00:00:30 does
-            -- not post a second time.
-            last_fired_date TEXT,
-
-            -- How it is posted, as Discord's message flags: 4096 is
-            -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS.
-            message_flags   INTEGER NOT NULL DEFAULT 4096
-        );
-
-        CREATE INDEX midnight_messages_by_guild ON midnight_messages (guild_id);
-     )sql"},
-}};
-
 constexpr std::array<migration, 1> links_steps{{
     {.version = 1, .name = "url rules and replacements", .sql = R"sql(
         -- Where links to a site go instead, in the order to try them. A rule
@@ -459,11 +430,10 @@ constexpr auto schema_of(std::string_view module, std::span<const migration> ste
 }
 
 // Each after the modules it requires: linkstats after links.
-constexpr std::array<module_schema, 8> builtin{{
+constexpr std::array<module_schema, 7> builtin{{
     schema_of("core", core_steps),
     schema_of("triggers", triggers_steps),
     schema_of("nicknames", nicknames_steps),
-    schema_of("midnight", midnight_steps),
     schema_of("links", links_steps),
     schema_of("linkstats", linkstats_steps),
     schema_of("dectalk", dectalk_steps),
@@ -481,20 +451,17 @@ auto triggers_schema() noexcept -> module_schema {
 auto nicknames_schema() noexcept -> module_schema {
     return builtin[2];
 }
-auto midnight_schema() noexcept -> module_schema {
+auto links_schema() noexcept -> module_schema {
     return builtin[3];
 }
-auto links_schema() noexcept -> module_schema {
+auto linkstats_schema() noexcept -> module_schema {
     return builtin[4];
 }
-auto linkstats_schema() noexcept -> module_schema {
+auto dectalk_schema() noexcept -> module_schema {
     return builtin[5];
 }
-auto dectalk_schema() noexcept -> module_schema {
-    return builtin[6];
-}
 auto llm_schema() noexcept -> module_schema {
-    return builtin[7];
+    return builtin[6];
 }
 
 auto builtin_schemas() noexcept -> std::span<const module_schema> {
