@@ -11,8 +11,8 @@ See [README.md](README.md) for the strategy, conventions and tag meanings.
 |---|---:|---:|
 | [db](#db) | 155 | 21 |
 | [config](#config) | 37 | 21 |
-| [commands](#commands) | 198 | 55 |
-| [events](#events) | 196 | 40 |
+| [commands](#commands) | 197 | 55 |
+| [events](#events) | 197 | 40 |
 | [ui](#ui) | 11 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 71 | 12 |
@@ -367,12 +367,11 @@ Command framework (`src/core/commands`)
 | every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
 | replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
 | response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
-| speech goes where the bot is, or joins whoever asked |  |  | [tests/unit/speak_command_test.cpp:45](../../tests/unit/speak_command_test.cpp#L45) |
-| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:59](../../tests/unit/speak_command_test.cpp#L59) |
-| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:71](../../tests/unit/speak_command_test.cpp#L71) |
-| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:87](../../tests/unit/speak_command_test.cpp#L87) |
-| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:98](../../tests/unit/speak_command_test.cpp#L98) |
-| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:120](../../tests/unit/speak_command_test.cpp#L120) |
+| speech refuses blank text and text over the guild's limit |  |  | [tests/unit/speak_command_test.cpp:43](../../tests/unit/speak_command_test.cpp#L43) |
+| speech limits default, are per guild, and are clamped |  |  | [tests/unit/speak_command_test.cpp:55](../../tests/unit/speak_command_test.cpp#L55) |
+| speech is stopped by whoever asked for it, an admin or a trusted user |  |  | [tests/unit/speak_command_test.cpp:71](../../tests/unit/speak_command_test.cpp#L71) |
+| the voice commands register, their flags checked against their subcommands |  |  | [tests/unit/speak_command_test.cpp:82](../../tests/unit/speak_command_test.cpp#L82) |
+| the voice grace defaults to 30 seconds and is clamped |  |  | [tests/unit/speak_command_test.cpp:104](../../tests/unit/speak_command_test.cpp#L104) |
 | responses are one per line |  |  | [tests/unit/trigger_command_test.cpp:24](../../tests/unit/trigger_command_test.cpp#L24) |
 | a leading number and bar sets the weight |  |  | [tests/unit/trigger_command_test.cpp:33](../../tests/unit/trigger_command_test.cpp#L33) |
 | a bar that is not a weight stays part of the response |  |  | [tests/unit/trigger_command_test.cpp:43](../../tests/unit/trigger_command_test.cpp#L43) |
@@ -628,13 +627,14 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a mirror is its host plus an optional suffix |  |  | [tests/unit/url_rules_test.cpp:115](../../tests/unit/url_rules_test.cpp#L115) |
 | a typed domain is reduced to its rule host |  |  | [tests/unit/url_rules_test.cpp:123](../../tests/unit/url_rules_test.cpp#L123) |
 | the Java rule file is read line by line |  |  | [tests/unit/url_rules_test.cpp:129](../../tests/unit/url_rules_test.cpp#L129) |
-| a voice session is kept until it ends, one per guild |  |  | [tests/unit/voice_sessions_test.cpp:28](../../tests/unit/voice_sessions_test.cpp#L28) |
-| a session follows the bot when it is moved |  |  | [tests/unit/voice_sessions_test.cpp:49](../../tests/unit/voice_sessions_test.cpp#L49) |
-| the bot leaves once it has been alone for the grace period |  |  | [tests/unit/voice_sessions_test.cpp:61](../../tests/unit/voice_sessions_test.cpp#L61) |
-| someone coming back within the grace period keeps the bot |  |  | [tests/unit/voice_sessions_test.cpp:76](../../tests/unit/voice_sessions_test.cpp#L76) |
-| being seen alone again does not restart the wait |  |  | [tests/unit/voice_sessions_test.cpp:93](../../tests/unit/voice_sessions_test.cpp#L93) |
-| a bot that is not in voice, or has left, is not waited on |  |  | [tests/unit/voice_sessions_test.cpp:105](../../tests/unit/voice_sessions_test.cpp#L105) |
-| each guild waits its own grace period |  |  | [tests/unit/voice_sessions_test.cpp:117](../../tests/unit/voice_sessions_test.cpp#L117) |
+| a voice session is kept until it ends, one per guild |  |  | [tests/unit/voice_sessions_test.cpp:29](../../tests/unit/voice_sessions_test.cpp#L29) |
+| a session follows the bot when it is moved |  |  | [tests/unit/voice_sessions_test.cpp:50](../../tests/unit/voice_sessions_test.cpp#L50) |
+| the bot leaves once it has been alone for the grace period |  |  | [tests/unit/voice_sessions_test.cpp:62](../../tests/unit/voice_sessions_test.cpp#L62) |
+| someone coming back within the grace period keeps the bot |  |  | [tests/unit/voice_sessions_test.cpp:77](../../tests/unit/voice_sessions_test.cpp#L77) |
+| being seen alone again does not restart the wait |  |  | [tests/unit/voice_sessions_test.cpp:94](../../tests/unit/voice_sessions_test.cpp#L94) |
+| a bot that is not in voice, or has left, is not waited on |  |  | [tests/unit/voice_sessions_test.cpp:106](../../tests/unit/voice_sessions_test.cpp#L106) |
+| each guild waits its own grace period |  |  | [tests/unit/voice_sessions_test.cpp:118](../../tests/unit/voice_sessions_test.cpp#L118) |
+| what plays goes where the bot is, or joins whoever asked |  |  | [tests/unit/voice_sessions_test.cpp:130](../../tests/unit/voice_sessions_test.cpp#L130) |
 
 ## ui
 

@@ -21,9 +21,7 @@
 
 using namespace std::chrono_literals;
 using latibot::commands::may_stop_speech;
-using latibot::commands::plan_speak;
 using latibot::commands::speak_refusal;
-using latibot::commands::speak_route;
 using latibot::commands::speech_limits;
 using latibot::commands::speech_limits_for;
 
@@ -41,20 +39,6 @@ struct settings_fixture {
 };
 
 } // namespace
-
-TEST_CASE("speech goes where the bot is, or joins whoever asked", "[commands]") {
-    const dpp::snowflake bot_channel{1};
-    const dpp::snowflake caller_channel{2};
-
-    CHECK(plan_speak(bot_channel, caller_channel).route == speak_route::bot_channel);
-    CHECK(plan_speak(bot_channel, caller_channel).channel == bot_channel);
-    CHECK(plan_speak(bot_channel, {}).route == speak_route::bot_channel);
-
-    CHECK(plan_speak({}, caller_channel).route == speak_route::join_caller);
-    CHECK(plan_speak({}, caller_channel).channel == caller_channel);
-
-    CHECK(plan_speak({}, {}).route == speak_route::nowhere);
-}
 
 TEST_CASE("speech refuses blank text and text over the guild's limit", "[commands]") {
     const speech_limits limits{.max_characters = 10};

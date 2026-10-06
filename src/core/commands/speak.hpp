@@ -29,25 +29,6 @@ namespace latibot::commands {
 // Decisions
 // --------------------------------------------------------------------------
 
-/// Where `/speak` speaks.
-enum class speak_route : std::uint8_t {
-    /// Where the bot already is: a voice session's channel, or wherever
-    /// `/join` put it.
-    bot_channel,
-    /// The bot is not in voice, so it joins whoever asked, as the Java bot
-    /// did.
-    join_caller,
-    /// Neither of them is in voice.
-    nowhere,
-};
-
-struct speak_plan {
-    speak_route route = speak_route::nowhere;
-    dpp::snowflake channel;
-};
-
-[[nodiscard]] auto plan_speak(dpp::snowflake bot_channel, dpp::snowflake caller_channel) noexcept -> speak_plan;
-
 /// Per-guild limits on speech (docs/features/Speech.md §2.3).
 struct speech_limits {
     std::size_t max_characters = 1000;

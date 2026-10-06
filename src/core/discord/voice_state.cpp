@@ -9,6 +9,12 @@
 
 namespace latibot::discord {
 
+auto plan_voice(dpp::snowflake bot_channel, dpp::snowflake caller_channel) noexcept -> voice_plan {
+    if (!bot_channel.empty()) return {.route = voice_route::bot_channel, .channel = bot_channel};
+    if (!caller_channel.empty()) return {.route = voice_route::join_caller, .channel = caller_channel};
+    return {.route = voice_route::nowhere, .channel = {}};
+}
+
 auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::snowflake {
     const dpp::guild* guild = dpp::find_guild(guild_id);
     if (guild == nullptr) return {};

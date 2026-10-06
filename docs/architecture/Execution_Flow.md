@@ -516,7 +516,7 @@ sequenceDiagram
     participant vc as DPP voice thread
 
     cmd->>cmd: speak_refusal (length), resolve_voice
-    cmd->>cmd: plan_speak: the bot's channel, or the caller's
+    cmd->>cmd: plan_voice: the bot's channel, or the caller's
     cmd->>cmd: sanitize_speech (strips commands this user may not use)
     opt the bot is not in voice
         cmd->>shard: connect_voice(caller's channel)

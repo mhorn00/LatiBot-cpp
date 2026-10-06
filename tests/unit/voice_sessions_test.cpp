@@ -2,6 +2,7 @@
 // (docs/features/Voice_Channels.md §2.2, §2.3).
 
 #include "core/events/voice_sessions.hpp"
+#include "core/discord/voice_state.hpp"
 
 #include "mocks/mock_clock.hpp"
 
@@ -124,4 +125,20 @@ TEST_CASE("each guild waits its own grace period", "[events]") {
 
     const auto grace = [](dpp::snowflake which) { return which == guild ? 5s : 60s; };
     CHECK(leaving.due(grace) == std::vector<dpp::snowflake>{guild});
+}
+
+TEST_CASE("what plays goes where the bot is, or joins whoever asked", "[events]") {
+    using latibot::discord::plan_voice;
+    using latibot::discord::voice_route;
+    const dpp::snowflake bot_channel{1};
+    const dpp::snowflake caller_channel{2};
+
+    CHECK(plan_voice(bot_channel, caller_channel).route == voice_route::bot_channel);
+    CHECK(plan_voice(bot_channel, caller_channel).channel == bot_channel);
+    CHECK(plan_voice(bot_channel, {}).route == voice_route::bot_channel);
+
+    CHECK(plan_voice({}, caller_channel).route == voice_route::join_caller);
+    CHECK(plan_voice({}, caller_channel).channel == caller_channel);
+
+    CHECK(plan_voice({}, {}).route == voice_route::nowhere);
 }

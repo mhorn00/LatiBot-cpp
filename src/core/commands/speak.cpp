@@ -27,12 +27,6 @@ namespace latibot::commands {
 // Decisions
 // --------------------------------------------------------------------------
 
-auto plan_speak(dpp::snowflake bot_channel, dpp::snowflake caller_channel) noexcept -> speak_plan {
-    if (!bot_channel.empty()) return {.route = speak_route::bot_channel, .channel = bot_channel};
-    if (!caller_channel.empty()) return {.route = speak_route::join_caller, .channel = caller_channel};
-    return {.route = speak_route::nowhere, .channel = {}};
-}
-
 auto speech_limits_for(const config::guild_settings& settings, dpp::snowflake guild) -> speech_limits {
     const speech_limits defaults;
     const std::int64_t characters = settings.get_int(guild, tts_max_characters_key, static_cast<std::int64_t>(defaults.max_characters));
@@ -180,8 +174,9 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
     voice.volume = static_cast<int>(int_option(event, "volume").value_or(100));
 
     dpp::discord_client* shard = event.from();
-    const speak_plan plan = plan_speak(discord::bot_voice_channel(shard, guild), discord::voice_channel_of(guild, caller));
-    if (plan.route == speak_route::nowhere) {
+    const discord::voice_plan plan =
+        discord::plan_voice(discord::bot_voice_channel(shard, guild), discord::voice_channel_of(guild, caller));
+    if (plan.route == discord::voice_route::nowhere) {
         co_await event.co_reply(refusal(event, "i'm not in a voice channel, and neither are you"));
         co_return;
     }
@@ -193,7 +188,7 @@ auto speak_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void>
         co_return;
     }
 
-    if (plan.route == speak_route::join_caller) {
+    if (plan.route == discord::voice_route::join_caller) {
         if (shard == nullptr) {
             co_await event.co_reply(refusal(event, "i can't reach the gateway right now"));
             co_return;

@@ -371,11 +371,14 @@ auto voice_lab::on_component(const dpp::interaction_create_t& event, const ui::p
     } else if (state.view == lab_reset_view) {
         draft = voice_draft{};
     } else if (state.view == lab_test_view) {
-        const speak_plan plan = plan_speak(discord::bot_voice_channel(event.from(), guild), discord::voice_channel_of(guild, user));
-        if (plan.route == speak_route::nowhere) {
+        const discord::voice_plan plan =
+            discord::plan_voice(discord::bot_voice_channel(event.from(), guild), discord::voice_channel_of(guild, user));
+        if (plan.route == discord::voice_route::nowhere) {
             draft.note = "i'm not in a voice channel, and neither are you";
         } else {
-            if (plan.route == speak_route::join_caller && event.from() != nullptr) event.from()->connect_voice(guild, plan.channel);
+            if (plan.route == discord::voice_route::join_caller && event.from() != nullptr) {
+                event.from()->connect_voice(guild, plan.channel);
+            }
             draft.note = "saying the test phrase";
             ui::detach(test(guild, user, draft.voice), "the voice lab's test");
         }

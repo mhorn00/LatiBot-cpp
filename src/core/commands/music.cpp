@@ -1,7 +1,6 @@
 #include "core/commands/music.hpp"
 
 #include "core/commands/options.hpp"
-#include "core/commands/speak.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/discord/voice_state.hpp"
 #include "core/music/links.hpp"
@@ -387,12 +386,13 @@ auto music_command::play(const dpp::slashcommand_t& event) -> dpp::task<void> {
     // Where it plays: wherever the bot is, or else the caller's channel.
     // Anyone may queue from anywhere once the bot is in one.
     dpp::discord_client* shard = event.from();
-    const speak_plan plan = plan_speak(discord::bot_voice_channel(shard, guild), discord::voice_channel_of(guild, caller));
-    if (plan.route == speak_route::nowhere) {
+    const discord::voice_plan plan =
+        discord::plan_voice(discord::bot_voice_channel(shard, guild), discord::voice_channel_of(guild, caller));
+    if (plan.route == discord::voice_route::nowhere) {
         co_await event.co_reply(refusal(event, "i'm not in a voice channel, and neither are you"));
         co_return;
     }
-    if (plan.route == speak_route::join_caller && shard == nullptr) {
+    if (plan.route == discord::voice_route::join_caller && shard == nullptr) {
         co_await event.co_reply(refusal(event, "i can't reach the gateway right now"));
         co_return;
     }
@@ -423,7 +423,7 @@ auto music_command::play(const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_return;
     }
 
-    if (plan.route == speak_route::join_caller) {
+    if (plan.route == discord::voice_route::join_caller) {
         shard->connect_voice(guild, plan.channel);
         util::log().info("joined voice channel {} in guild {} to play music for {}", plan.channel, guild,
                          describe_user(event.command.get_issuing_user()));

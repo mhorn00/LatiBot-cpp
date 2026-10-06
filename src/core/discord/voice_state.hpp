@@ -2,6 +2,8 @@
 
 #include <dpp/snowflake.h>
 
+#include <cstdint>
+
 namespace dpp {
 class cluster;
 class discord_client;
@@ -12,6 +14,26 @@ namespace latibot::discord {
 
 // Where people and the bot are in voice, read from DPP's cache. Ids are 0
 // for "not in a voice channel", as DPP reports an absent id.
+
+/// Where something is played: speech, music or a voice lab preview.
+enum class voice_route : std::uint8_t {
+    /// Where the bot already is: a voice session's channel, or wherever
+    /// `/join` put it.
+    bot_channel,
+    /// The bot is not in voice, so it joins whoever asked, as the Java bot
+    /// did.
+    join_caller,
+    /// Neither of them is in voice.
+    nowhere,
+};
+
+struct voice_plan {
+    voice_route route = voice_route::nowhere;
+    dpp::snowflake channel;
+};
+
+/// Where to play, given where the bot and whoever asked are.
+[[nodiscard]] auto plan_voice(dpp::snowflake bot_channel, dpp::snowflake caller_channel) noexcept -> voice_plan;
 
 /// The voice channel a member is in.
 [[nodiscard]] auto voice_channel_of(dpp::snowflake guild_id, dpp::snowflake user_id) -> dpp::snowflake;
