@@ -146,16 +146,20 @@ The default `conancenter` remote is all that's needed.
 
 ## 4. Install dependencies
 
-MSVC is a multi-config toolchain, so install both configurations into the same
-`build/generators` folder:
+DPP is a package built from the `third_party/DPP` submodule
+([conan/dpp](conan/dpp/conanfile.py)), so tell Conan about it first. Then,
+since MSVC is a multi-config toolchain, install both configurations into the
+same `build/generators` folder:
 
 ```powershell
+conan export conan/dpp
 conan install . --build=missing -s build_type=Release -s compiler.cppstd=20
 conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20
 ```
 
-This provides OpenSSL, zlib and opus (DPP's dependencies), SQLite with FTS5,
-CTRE, and Catch2 for the tests. `-s compiler.cppstd=20` is required: CTRE
+This provides DPP, built once per configuration and kept in Conan's cache,
+with its OpenSSL, zlib and opus; SQLite with FTS5; CTRE; and Catch2 for the
+tests. `-s compiler.cppstd=20` is required: CTRE
 refuses anything below C++17, and without it the profile's `14` applies.
 
 ConanCenter has no prebuilt binaries for the VS 2026 compiler yet, so the
@@ -171,11 +175,8 @@ cmake --build build --config Debug
 cmake --build build --config Release
 ```
 
-The first build of each configuration compiles DPP from source, about ten
-minutes each. Later builds only recompile what changed. Configure prints a
-lot of DPP's own output, including `CMAKE_CXX_STANDARD ... modified to 17`
-warnings, which are expected; it should include
-`VOICE support will be enabled`.
+DPP was built by step 4, so this compiles only LatiBot and DECtalk. Later
+builds only recompile what changed.
 
 Binaries land in `build\bin\Debug\` and `build\bin\Release\`, with `dpp.dll`,
 `dectalk.dll` and DECtalk's dictionary beside `LatiBot.exe`, so it runs
@@ -651,11 +652,15 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
 
 - **Why DPP is built from source:** it enables C++20 coroutines, and it avoids
   the outdated OpenSSL 1.1.1 / zlib 1.2.11 binaries DPP bundles for Windows.
-  `CMakeLists.txt` sets `CONAN_EXPORTED=ON` so DPP uses the Conan-provided
-  packages instead.
-- **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`). DPP only
-  auto-detects opus on Windows when it uses its bundled binaries. Configure
-  output should include `VOICE support will be enabled`.
+  It is a Conan package, `conan/dpp`, built from the `third_party/DPP`
+  submodule once per configuration and kept in Conan's cache, so build
+  folders and CI reuse it instead of compiling it again. The package's
+  `CMakeLists.txt` sets `CONAN_EXPORTED=ON`, so DPP uses the Conan-provided
+  OpenSSL, zlib and opus.
+- **Voice support is forced on** (`HAVE_OPUS_OPUS_H`, `OPUS_LIBRARIES`), in
+  `conan/dpp/CMakeLists.txt`. DPP only auto-detects opus on Windows when it
+  uses its bundled binaries. The package build's log (`conan create
+  conan/dpp`) should include `VOICE support will be enabled`.
 - **DECtalk is built from the untouched submodule** by `cmake/dectalk.cmake`,
   as `dectalk.dll` plus the `dtalk_us.dic` dictionary it compiles beside it.
   Every DECtalk source is compiled with `cmake/dectalk_zeroed_heap.h`
@@ -672,12 +677,13 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   The roots therefore stay whatever Windows Update says they are, and nothing
   has to be vendored or installed alongside. Set `SSL_CERT_FILE` yourself to
   override it.
-- **`WITH_OPENSSL3` on the `hpke` target:** DPP hardcodes `OPENSSL_VERSION` to
-  1.1.1f on Windows, which makes its `mlspp` dependency pick an OpenSSL 1.1
-  code path that doesn't compile against OpenSSL 3. Recheck this when
-  upgrading DPP.
-- **"CMAKE_CXX_STANDARD ... modified to 17" warnings** during configure are
-  expected. DPP sets 17 in its own scope but compiles the `dpp` target as C++20.
+- **`WITH_OPENSSL3` on the `hpke` target**, in `conan/dpp/CMakeLists.txt`:
+  DPP hardcodes `OPENSSL_VERSION` to 1.1.1f on Windows, which makes its
+  `mlspp` dependency pick an OpenSSL 1.1 code path that doesn't compile
+  against OpenSSL 3. Recheck this when upgrading DPP.
+- **"CMAKE_CXX_STANDARD ... modified to 17" warnings** in the DPP package's
+  build are expected. DPP sets 17 in its own scope but compiles the `dpp`
+  target as C++20.
 - **Three linker warnings in a clean build are expected**, none of them ours:
   `LNK4017` from `dectalk.def`'s `DESCRIPTION` line, in each configuration,
   and `LNK4075` from DPP's own link settings in Debug.
@@ -721,6 +727,8 @@ The original Java bot lives in `java-reference/` locally. It is deliberately
   new `find_package` of a Conan package needs the helper called after it, in
   the same directory; if these errors come back, that is the likely cause.
 - **To upgrade DPP:** `git -C third_party/DPP fetch --depth 1 origin tag vX.Y.Z`,
-  check out that tag, commit the submodule change, then rebuild.
+  check out that tag, set `version` in `conan/dpp/conanfile.py` to match, then
+  `conan export conan/dpp` and the two `conan install` commands of step 4,
+  which build the new DPP once. Commit the submodule and the recipe together.
 - **To add a dependency:** add it to `requirements()` in `conanfile.py`, re-run
   both `conan install` commands, then reconfigure.

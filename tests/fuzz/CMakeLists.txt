@@ -33,7 +33,7 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/log.cpp
 )
 target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(latibot_fuzz_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
+target_link_libraries(latibot_fuzz_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
 latibot_target_warnings(latibot_fuzz_core)
 latibot_target_sanitizers(latibot_fuzz_core)
 if(MSVC)

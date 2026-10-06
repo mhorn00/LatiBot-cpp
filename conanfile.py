@@ -13,10 +13,11 @@ class LatiBotConan(ConanFile):
     default_options = {"sqlite3/*:enable_fts5": True}
 
     def requirements(self):
-        # DPP is vendored in third_party/DPP and built from source; these are its dependencies.
+        # DPP, built from the third_party/DPP submodule by conan/dpp; export it
+        # first with `conan export conan/dpp`. It brings zlib and opus.
+        self.requires("dpp/10.1.6")
+        # The same OpenSSL DPP links; LatiBot hashes emoji images with it.
         self.requires("openssl/3.6.4")
-        self.requires("zlib/1.3.2")
-        self.requires("opus/1.6.1")
         self.requires("sqlite3/3.53.4")
         # Compile-time regular expressions, used by the URL scanner (plan v4 §9.1).
         self.requires("ctre/3.11.0")

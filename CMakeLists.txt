@@ -42,41 +42,16 @@ include(helpers)
 
 latibot_strip_runtime_checks()
 
-# Put every built binary (ours and DPP's DLL) in one folder per config.
+# Put every built binary, and DPP's DLL beside them, in one folder per config.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
-find_package(Opus REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ctre REQUIRED)
+# DPP, built from third_party/DPP by conan/dpp/conanfile.py, once per
+# configuration rather than once per build folder.
+find_package(dpp REQUIRED)
 latibot_map_conan_configs()
-
-# DPP from source (third_party/DPP), linked against the Conan-provided
-# OpenSSL/zlib/opus instead of the outdated binaries bundled in DPP's win32/ folder.
-set(CONAN_EXPORTED ON CACHE BOOL "" FORCE)
-set(DPP_NO_VCPKG ON CACHE BOOL "" FORCE)
-set(DPP_BUILD_TEST OFF CACHE BOOL "" FORCE)
-set(DPP_INSTALL OFF CACHE BOOL "" FORCE)
-set(BUILD_VOICE_SUPPORT ON CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-# std::formatter<dpp::snowflake>, so an id can go straight into std::format and
-# the logger can see it is an id (core/util/log.hpp colours it by type).
-set(DPP_FORMATTERS ON CACHE BOOL "" FORCE)
-# DPP only detects opus on Windows via its bundled-binaries path, so voice
-# support must be switched on explicitly when using external dependencies.
-set(HAVE_OPUS_OPUS_H ON)
-set(OPUS_LIBRARIES Opus::opus)
-add_subdirectory(third_party/DPP EXCLUDE_FROM_ALL)
-# DPP hardcodes OPENSSL_VERSION to 1.1.1f on Windows, which makes mlspp compile
-# its OpenSSL 1.1 code path; that path does not build against OpenSSL 3.
-target_compile_definitions(hpke PRIVATE WITH_OPENSSL3)
-# DPP's public headers are not /W4-clean (C4251 on exported std types, unused
-# parameters in templates). We build our own code with warnings as errors, so
-# treat DPP's includes as system headers for anything that consumes them.
-if(NOT CMAKE_VERSION VERSION_LESS 3.25)
-    set_target_properties(dpp PROPERTIES SYSTEM TRUE)
-endif()
 
 include(dectalk)
 

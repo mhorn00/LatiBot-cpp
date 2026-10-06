@@ -100,7 +100,7 @@ add_library(latibot_core STATIC
 
 # Headers are included as "core/<area>/<file>.hpp".
 target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(latibot_core PUBLIC dpp SQLite::SQLite3 ctre::ctre)
+target_link_libraries(latibot_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
 # DECtalk (cmake/dectalk.cmake). Its header stays out of ours: only
 # core/audio/dectalk_engine.cpp includes it.
 target_link_libraries(latibot_core PRIVATE dectalk)

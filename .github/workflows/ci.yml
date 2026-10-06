@@ -65,15 +65,24 @@ jobs:
           conan profile detect --force
           conan profile show -s compiler.cppstd=20
 
-      # Cache the built dependency packages (OpenSSL, zlib, opus, SQLite,
-      # CTRE, Catch2). DPP itself is built from source by our CMake and is not
-      # cached; that is the slowest part of a cold run.
+      # Cache the built dependency packages: DPP (conan/dpp, built from the
+      # submodule), OpenSSL, zlib, opus, SQLite, CTRE and Catch2. The key
+      # includes the DPP recipe and the submodule's commit, so a DPP change
+      # builds it again.
+      - name: Find the DPP submodule's commit
+        id: dpp
+        shell: bash
+        run: echo "commit=$(git rev-parse HEAD:third_party/DPP)" >> "$GITHUB_OUTPUT"
+
       - name: Cache Conan packages
         uses: actions/cache@v6
         with:
           path: ~/.conan2/p
-          key: conan-${{ runner.os }}-${{ matrix.configuration }}-${{ hashFiles('conanfile.py') }}
+          key: conan-${{ runner.os }}-${{ matrix.configuration }}-${{ hashFiles('conanfile.py', 'conan/dpp/**') }}-${{ steps.dpp.outputs.commit }}
           restore-keys: conan-${{ runner.os }}-${{ matrix.configuration }}-
+
+      - name: Export the DPP recipe
+        run: conan export conan/dpp
 
       - name: Install dependencies
         run: conan install . --build=missing -s build_type=${{ matrix.configuration }} -s compiler.cppstd=20

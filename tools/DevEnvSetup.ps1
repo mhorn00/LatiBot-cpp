@@ -445,6 +445,11 @@ function Initialize-Dependencies([string] $ProfileVersion) {
         return
     }
 
+    # DPP is a package built from the submodule (conan/dpp), which Conan
+    # must know of before the install can ask for it.
+    Write-Doing 'conan export conan/dpp'
+    Invoke-Native conan @('export', (Join-Path $repo 'conan\dpp'))
+
     Write-Doing 'conan install, Release and Debug (seconds when cached, ten minutes each when not)'
     Invoke-ConanInstall 'Release'
     Invoke-ConanInstall 'Debug'
