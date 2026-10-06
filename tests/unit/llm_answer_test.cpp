@@ -221,7 +221,7 @@ TEST_CASE("an advanced trigger asks the model to speak up, unless a simple trigg
     const auto id = test.triggers.add({.id = 0,
                                        .guild_id = guild,
                                        .pattern = "pizza",
-                                       .mode = latibot::events::match_mode::whole_word,
+                                       .mode = latibot::util::match_mode::whole_word,
                                        .context_prompt = "Defend pineapple on it.",
                                        .probability = 1.0,
                                        .cooldown = 0s,

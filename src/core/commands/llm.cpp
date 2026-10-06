@@ -68,7 +68,7 @@ auto group_title(std::string_view group) -> std::string_view {
 
 auto describe_trigger(const llm::advanced_trigger& entry) -> std::string {
     std::string line = std::format("`{}` **{}** ({}, {:.0f}%, ", entry.id, entry.pattern,
-                                   entry.mode == events::match_mode::substring ? "anywhere" : "whole word", entry.probability * 100);
+                                   entry.mode == util::match_mode::substring ? "anywhere" : "whole word", entry.probability * 100);
     line += entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s cooldown", entry.cooldown.count());
     if (!entry.enabled) line += ", disabled";
     line += std::format(") -> {}", util::truncate(entry.context_prompt, 120));
@@ -748,7 +748,7 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
     if (const std::string prompt(util::trim(string_option(event, "prompt"))); !prompt.empty()) entry.context_prompt = prompt;
     if (const auto chance = int_option(event, "chance")) entry.probability = static_cast<double>(*chance) / 100.0;
     if (const auto cooldown = int_option(event, "cooldown")) entry.cooldown = std::chrono::seconds{*cooldown};
-    if (const auto mode = events::match_mode_from_string(string_option(event, "mode"))) entry.mode = *mode;
+    if (const auto mode = util::match_mode_from_string(string_option(event, "mode"))) entry.mode = *mode;
     entry.enabled = bool_option(event, "enabled").value_or(entry.enabled);
 
     if (entry.pattern.empty() || entry.context_prompt.empty()) {

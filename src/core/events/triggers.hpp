@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/events/message_pipeline.hpp"
+#include "core/util/match.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -25,20 +26,14 @@ class clock;
 
 namespace latibot::events {
 
-/// How a trigger's pattern is compared against a message
-/// (docs/features/Triggers.md §2.1).
-///
-/// Users do not write regular expressions: a pattern is literal text, and the
-/// only choice is whether it has to stand alone as a word.
-enum class match_mode : std::uint8_t {
-    /// "420" fires on "420" but not on "4200".
-    whole_word,
-    /// "420" fires on "4200" too.
-    substring,
-};
-
-[[nodiscard]] auto to_string(match_mode mode) noexcept -> std::string_view;
-[[nodiscard]] auto match_mode_from_string(std::string_view name) -> std::optional<match_mode>;
+// How a pattern matches and when a trigger may fire again are shared with
+// the language model's advanced triggers, so they live in util/match; the
+// names are kept here for the triggers' own code.
+using util::match_mode;
+using util::match_mode_from_string;
+using util::matches;
+using util::off_cooldown;
+using util::to_string;
 
 struct weighted_response {
     std::string text;
@@ -77,23 +72,12 @@ inline constexpr std::chrono::seconds default_trigger_cooldown{30};
 // Decisions
 // --------------------------------------------------------------------------
 
-/// Whether `content` fires `pattern`. Case-insensitive, and the pattern is
-/// literal text rather than a regular expression.
-[[nodiscard]] auto matches(std::string_view content, std::string_view pattern, match_mode mode) -> bool;
-
 /// Picks a response, weighted.
 ///
 /// `roll` is any number; the caller owns the randomness, which is what makes
 /// the distribution testable. Returns nullptr when there is nothing to pick:
 /// no responses, or every weight zero or negative.
 [[nodiscard]] auto choose(std::span<const weighted_response> responses, std::uint64_t roll) -> const weighted_response*;
-
-/// Whether a trigger may fire again in a channel.
-///
-/// `last_fired` is empty when it has not fired there yet. A zero cooldown
-/// always allows it, which is the documented way to turn cooldowns off.
-[[nodiscard]] auto off_cooldown(std::optional<std::chrono::steady_clock::time_point> last_fired, std::chrono::steady_clock::time_point now,
-                                std::chrono::seconds cooldown) -> bool;
 
 // --------------------------------------------------------------------------
 // Storage

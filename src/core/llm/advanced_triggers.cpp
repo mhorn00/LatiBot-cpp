@@ -18,7 +18,7 @@ auto read_trigger(db::statement& row) -> advanced_trigger {
     return {.id = row.get<std::int64_t>(0),
             .guild_id = row.get<dpp::snowflake>(1),
             .pattern = row.get<std::string>(2),
-            .mode = events::match_mode_from_string(row.get<std::string>(3)).value_or(events::match_mode::whole_word),
+            .mode = util::match_mode_from_string(row.get<std::string>(3)).value_or(util::match_mode::whole_word),
             .context_prompt = row.get<std::string>(4),
             .probability = row.get<double>(5),
             .cooldown = std::chrono::seconds{row.get<std::int64_t>(6)},
@@ -53,7 +53,7 @@ auto advanced_trigger_store::add(const advanced_trigger& entry) -> std::int64_t 
     db_->prepare(
            "INSERT INTO llm_triggers (guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by) "
            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-           entry.guild_id, entry.pattern, events::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(),
+           entry.guild_id, entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(),
            entry.enabled, entry.created_by)
         .run();
     return db_->last_insert_rowid();
@@ -64,7 +64,7 @@ auto advanced_trigger_store::update(const advanced_trigger& entry) -> bool {
     db_->prepare(
            "UPDATE llm_triggers SET pattern = ?, match_mode = ?, context_prompt = ?, probability = ?, cooldown_s = ?, enabled = ? "
            "WHERE id = ? AND guild_id = ?",
-           entry.pattern, events::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(), entry.enabled,
+           entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(), entry.enabled,
            entry.id, entry.guild_id)
         .run();
     return db_->changes() > 0;
@@ -84,7 +84,7 @@ advanced_trigger_matcher::advanced_trigger_matcher(ports::clock& clock, std::fun
 auto advanced_trigger_matcher::fire(const std::vector<advanced_trigger>& triggers, dpp::snowflake channel, std::string_view content)
     -> std::optional<advanced_trigger> {
     for (const advanced_trigger& entry : triggers) {
-        if (!entry.enabled || !events::matches(content, entry.pattern, entry.mode)) continue;
+        if (!entry.enabled || !util::matches(content, entry.pattern, entry.mode)) continue;
 
         // Cooldown, roll and claim under one lock, as the simple triggers do,
         // so two messages at once cannot both fire it.
@@ -93,7 +93,7 @@ auto advanced_trigger_matcher::fire(const std::vector<advanced_trigger>& trigger
         const auto key = std::pair{entry.id, channel};
         const auto seen = last_fired_.find(key);
         const auto last = seen == last_fired_.end() ? std::nullopt : std::optional(seen->second);
-        if (!events::off_cooldown(last, now, entry.cooldown)) {
+        if (!util::off_cooldown(last, now, entry.cooldown)) {
             util::log().debug("advanced trigger {} matched but is on cooldown in channel {}", entry.id, channel);
             continue;
         }

@@ -247,7 +247,7 @@ TEST_CASE("advanced triggers are stored per guild and edited in place", "[db]") 
     latibot::llm::advanced_trigger entry{.id = 0,
                                          .guild_id = guild,
                                          .pattern = "pineapple pizza",
-                                         .mode = latibot::events::match_mode::substring,
+                                         .mode = latibot::util::match_mode::substring,
                                          .context_prompt = "Defend it with unreasonable passion.",
                                          .probability = 0.5,
                                          .cooldown = 600s,
@@ -257,7 +257,7 @@ TEST_CASE("advanced triggers are stored per guild and edited in place", "[db]") 
 
     const auto found = triggers.find(entry.id, guild);
     REQUIRE(found.has_value());
-    CHECK(found->mode == latibot::events::match_mode::substring);
+    CHECK(found->mode == latibot::util::match_mode::substring);
     CHECK(found->probability == Catch::Approx(0.5));
     CHECK(found->cooldown == 600s);
     CHECK_FALSE(triggers.find(entry.id, other_guild).has_value());

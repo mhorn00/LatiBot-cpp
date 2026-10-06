@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/events/triggers.hpp"
+#include "core/util/match.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -33,7 +33,7 @@ struct advanced_trigger {
     /// Matched as the simple triggers match: literal text, whole word or
     /// anywhere, ignoring case.
     std::string pattern;
-    events::match_mode mode = events::match_mode::whole_word;
+    util::match_mode mode = util::match_mode::whole_word;
 
     /// What to say, in a line: "Someone mentioned pineapple pizza. Defend
     /// it with unreasonable passion." How to say it is the guild's

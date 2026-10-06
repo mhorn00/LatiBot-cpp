@@ -90,6 +90,7 @@ add_library(latibot_core STATIC
     core/util/ca_certificates.cpp
     core/util/env.cpp
     core/util/log.cpp
+    core/util/match.cpp
     core/util/process.cpp
     core/util/text.cpp
     core/util/url_scan.cpp
