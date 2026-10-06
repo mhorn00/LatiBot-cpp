@@ -31,7 +31,6 @@ add_library(latibot_core STATIC
     core/commands/bots.cpp
     core/commands/chat.cpp
     core/commands/music.cpp
-    core/commands/nickname.cpp
     core/commands/trigger.cpp
     core/commands/urlrepl.cpp
     core/commands/preflight.cpp
@@ -56,8 +55,6 @@ add_library(latibot_core STATIC
     core/events/log_channel.cpp
     core/events/media_posts.cpp
     core/events/message_pipeline.cpp
-    core/events/nickname_import.cpp
-    core/events/nicknames.cpp
     core/events/reactions.cpp
     core/events/triggers.cpp
     core/events/embed_watch.cpp

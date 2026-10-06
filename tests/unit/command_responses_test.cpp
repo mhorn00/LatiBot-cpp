@@ -6,14 +6,12 @@
 #include "core/commands/bots.hpp"
 #include "core/commands/linkstats.hpp"
 #include "core/commands/message_options.hpp"
-#include "core/commands/nickname.hpp"
 #include "core/commands/registry.hpp"
 #include "core/commands/trigger.hpp"
 #include "core/commands/urlrepl.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/events/bot_allowlist.hpp"
-#include "core/events/nicknames.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/triggers.hpp"
 #include "core/events/url_rules.hpp"
@@ -36,7 +34,6 @@ struct stores {
     latibot::config::guild_settings settings{db};
     latibot::events::bot_allowlist allowlist{db};
     latibot::events::trigger_store triggers{db};
-    latibot::events::nickname_store nicknames{db};
     latibot::events::url_rule_store url_rules{db};
     latibot::events::reaction_store reactions{db};
     latibot::testing::mock_clock clock;
@@ -60,19 +57,14 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::goodbye_command>(all.settings)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::bots_command>(all.allowlist)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::trigger_command>(all.triggers)));
-    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::nicknames_command>(all.nicknames)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::links_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::urltoggle_command>(all.url_rules)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::linkstats_command>(all.reactions)));
-    CHECK(commands.size() == 11);
+    CHECK(commands.size() == 10);
 }
 
 TEST_CASE("the views meant for the room are public and the rest are private", "[commands]") {
     stores all;
-
-    const latibot::commands::nicknames_command nicknames(all.nicknames);
-    CHECK(nicknames.info().responses_for("").result == dpp::m_suppress_notifications);
-    CHECK(nicknames.info().responses_for("").refusal == dpp::m_ephemeral);
 
     const latibot::commands::linkstats_command linkstats(all.reactions);
     const command_info& stats = linkstats.info();

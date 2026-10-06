@@ -1,4 +1,4 @@
-#include "core/commands/nickname.hpp"
+#include "nickname_command.hpp"
 
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"

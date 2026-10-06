@@ -24,7 +24,6 @@
 #include "core/events/log_channel.hpp"
 #include "core/events/media_posts.hpp"
 #include "core/events/message_pipeline.hpp"
-#include "core/events/nicknames.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/triggers.hpp"
 #include "core/events/url_replacer.hpp"
@@ -183,36 +182,10 @@ private:
     /// Modal submissions.
     auto on_form(const dpp::form_submit_t& event) -> void;
 
-    /// Records a nickname change, if it is one, and says which row it wrote.
-    ///
-    /// Shared by the gateway event and the startup sweep, because "is this
-    /// different from what we last saw" is the same question either way
-    /// (docs/features/Nicknames.md §3).
-    auto record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                         events::nickname_source source) -> std::optional<std::int64_t>;
-
-    /// A nickname change seen on the gateway.
-    auto on_member_update(const dpp::guild_member& member) -> void;
-
-    /// An audit entry that may name who made a change already recorded.
-    auto on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void;
-
-    /// Asks Discord for the audit log a little later, for the one row it was
-    /// hoping to attribute.
-    ///
-    /// The safety net for a gateway entry that never arrived — a reconnect, a
-    /// dropped event (docs/features/Nicknames.md §3). Costs one API call per
-    /// change that is still unattributed when it runs, which is normally none
-    /// of them.
-    auto attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void;
-
     /// Someone's voice state changed, the bot's included. Tidies up after the
     /// bot leaves a channel, however that happened, and tells the auto-leave
     /// check whether it is on its own (docs/features/Voice_Channels.md §2.3).
     auto on_voice_state(const dpp::voicestate& state) -> void;
-
-    /// Writes down nicknames that changed while the bot was not running.
-    auto reconcile_nicknames(const dpp::guild& guild) -> void;
 
     /// Copies the Java bot's URL rules into a guild, once
     /// (docs/features/Url_Replacement.md §2.7).
@@ -249,8 +222,6 @@ private:
     ports::system_clock clock_;
 
     events::bot_allowlist bot_allowlist_;
-    events::nickname_store nicknames_;
-    events::pending_nicknames pending_nicknames_;
     events::trigger_store triggers_;
     commands::trigger_panel trigger_panel_;
     events::trigger_responder trigger_responder_;

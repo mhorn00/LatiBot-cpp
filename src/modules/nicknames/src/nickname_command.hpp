@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/events/nicknames.hpp"
+#include "nicknames.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/message.h>

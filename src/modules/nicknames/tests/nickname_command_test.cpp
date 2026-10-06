@@ -1,4 +1,7 @@
-#include "core/commands/nickname.hpp"
+#include "nickname_command.hpp"
+
+#include "core/commands/registry.hpp"
+#include "core/db/database.hpp"
 #include "core/ui/paginator.hpp"
 
 #include "support/discord_limits.hpp"
@@ -7,6 +10,7 @@
 
 #include <chrono>
 #include <format>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,7 +39,7 @@ auto history_of(std::size_t entries) -> std::vector<nickname_change> {
 
 } // namespace
 
-TEST_CASE("an empty history says so rather than showing an empty page", "[commands]") {
+TEST_CASE("an empty history says so rather than showing an empty page", "[nicknames]") {
     const dpp::message reply = render_nickname_history({}, member, 0);
 
     CHECK(reply.content.contains("Nothing recorded here yet."));
@@ -44,7 +48,7 @@ TEST_CASE("an empty history says so rather than showing an empty page", "[comman
     CHECK(reply.components.empty());
 }
 
-TEST_CASE("a history page shows its entries and where it is", "[commands]") {
+TEST_CASE("a history page shows its entries and where it is", "[nicknames]") {
     const auto history = history_of(3);
     const dpp::message reply = render_nickname_history(history, member, 0);
 
@@ -54,7 +58,7 @@ TEST_CASE("a history page shows its entries and where it is", "[commands]") {
     CHECK(reply.content.contains("Page 1 of 1"));
 }
 
-TEST_CASE("a long history pages, and the buttons remember whose it is", "[commands]") {
+TEST_CASE("a long history pages, and the buttons remember whose it is", "[nicknames]") {
     const auto history = history_of(nicknames_per_page * 2);
     const dpp::message reply = render_nickname_history(history, member, 1);
 
@@ -78,7 +82,7 @@ TEST_CASE("a long history pages, and the buttons remember whose it is", "[comman
     CHECK(state->argument == "3000");
 }
 
-TEST_CASE("a page number from a stale button is brought back in range", "[commands]") {
+TEST_CASE("a page number from a stale button is brought back in range", "[nicknames]") {
     const auto history = history_of(3);
 
     // The history was longer when that button was made. Clamping beats an
@@ -87,14 +91,14 @@ TEST_CASE("a page number from a stale button is brought back in range", "[comman
     CHECK(reply.content.contains("Page 1 of 1"));
 }
 
-TEST_CASE("a history is posted for the room, not just for whoever asked", "[commands]") {
+TEST_CASE("a history is posted for the room, not just for whoever asked", "[nicknames]") {
     // The one list this bot posts publicly: half the point of a nickname
     // history is showing it to the person it is about.
     CHECK((render_nickname_history(history_of(3), member, 0).flags & dpp::m_ephemeral) == 0);
     CHECK((render_nickname_history({}, member, 0).flags & dpp::m_ephemeral) == 0);
 }
 
-TEST_CASE("a history reply cannot ping the people it names", "[commands]") {
+TEST_CASE("a history reply cannot ping the people it names", "[nicknames]") {
     auto history = history_of(1);
     history.front().changed_by = dpp::snowflake{4000};
 
@@ -107,4 +111,19 @@ TEST_CASE("a history reply cannot ping the people it names", "[commands]") {
     CHECK_FALSE(reply.allowed_mentions.parse_users);
     CHECK_FALSE(reply.allowed_mentions.parse_everyone);
     CHECK_FALSE(reply.allowed_mentions.parse_roles);
+}
+
+TEST_CASE("the nicknames command passes the registry's checks and pages publicly", "[nicknames]") {
+    // The checks registry::add makes of every command, for this one
+    // (docs/modules/Module_Plan_Final.md §10). /nickname needs a live
+    // cluster, so only /nicknames is built here.
+    latibot::db::database db{":memory:"};
+    latibot::events::nickname_store store(db);
+
+    latibot::commands::registry commands;
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::nicknames_command>(store)));
+
+    const latibot::commands::nicknames_command nicknames(store);
+    CHECK(nicknames.info().responses_for("").result == dpp::m_suppress_notifications);
+    CHECK(nicknames.info().responses_for("").refusal == dpp::m_ephemeral);
 }

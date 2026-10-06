@@ -40,7 +40,6 @@ struct bootstrap {
 
     // The sections of the features still inside the core
     // (core/config/feature_sections.hpp). Each moves to its module.
-    nicknames_config nicknames;
     linkstats_config linkstats;
     llm_config llm;
     music_config music;
@@ -74,13 +73,17 @@ struct bootstrap {
     /// defaults; a file that cannot be written is logged and the defaults
     /// used all the same. Throws `config_error` when something is there that
     /// cannot be read, rather than writing over it.
-    [[nodiscard]] static auto load(const std::filesystem::path& path) -> bootstrap;
+    ///
+    /// `module_sections` are the built modules' sections at their defaults,
+    /// `modules::enabled_config_defaults()`, for the file written.
+    [[nodiscard]] static auto load(const std::filesystem::path& path,
+                                   const nlohmann::ordered_json& module_sections = nlohmann::ordered_json::object()) -> bootstrap;
 
     /// The file `load` writes: every key at its default, except `log_level`,
     /// left out so each build keeps its own, then each section's.
     /// config.example.json in the repo is exactly this text, which a test
     /// checks.
-    [[nodiscard]] static auto default_json() -> std::string;
+    [[nodiscard]] static auto default_json(const nlohmann::ordered_json& module_sections = nlohmann::ordered_json::object()) -> std::string;
 
     /// Whether this user may use the host-touching DECtalk commands here.
     [[nodiscard]] auto is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool;

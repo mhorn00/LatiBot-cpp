@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <map>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -90,19 +89,31 @@ constexpr std::array<moved_key, 12> moved_keys{{
 }};
 
 /// The sections the core reads itself, for the features still inside it.
-constexpr std::array<std::string_view, 4> feature_sections{"nicknames", "linkstats", "llm", "music"};
+/// Each leaves this list when its module takes it.
+constexpr std::array<std::string_view, 3> feature_sections{"linkstats", "llm", "music"};
 
-/// Each feature section's object, with any old flat key moved into it.
-auto gather_feature_sections(const json& parsed) -> std::map<std::string_view, json> {
-    std::map<std::string_view, json> gathered;
-    for (const std::string_view name : feature_sections) {
-        const auto found = parsed.find(std::string(name));
-        gathered[name] = found != parsed.end() ? *found : json::object();
+/// Every section in config.json, by name, with any old flat key moved into
+/// its own. A top-level key that is neither the core's, a section, nor an
+/// old key is a typo, and stops startup.
+auto gather_sections(const json& parsed) -> json {
+    json gathered = json::object();
+    for (const auto& [key, value] : parsed.items()) {
+        if (std::ranges::contains(core_keys, key)) continue;
+        if (std::ranges::contains(moved_keys, std::string_view{key}, &moved_key::old_name)) continue;
+        // A feature section that is not an object is kept, for its own
+        // read to refuse by name.
+        if (value.is_object() || std::ranges::contains(feature_sections, key)) {
+            gathered[key] = value;
+            continue;
+        }
+        throw config_error("unknown config key \"" + key + "\"");
     }
+
     for (const moved_key& moved : moved_keys) {
         const auto found = parsed.find(std::string(moved.old_name));
         if (found == parsed.end()) continue;
-        json& into = gathered[moved.section];
+        json& into = gathered[std::string(moved.section)];
+        if (into.is_null()) into = json::object();
         if (!into.is_object()) continue; // the section's own read says what is wrong
         if (into.contains(std::string(moved.name))) {
             throw config_error(
@@ -115,18 +126,14 @@ auto gather_feature_sections(const json& parsed) -> std::map<std::string_view, j
     return gathered;
 }
 
-/// Sorts every top-level key: the core's, a feature section, an old flat
-/// key, or a module's section. Anything else is a typo, and stops startup.
-auto sort_keys(const json& parsed, bootstrap& config) -> void {
-    for (const auto& [key, value] : parsed.items()) {
-        if (std::ranges::contains(core_keys, key) || std::ranges::contains(feature_sections, key)) continue;
-        if (std::ranges::contains(moved_keys, std::string_view{key}, &moved_key::old_name)) continue;
-        if (value.is_object()) {
-            config.sections[key] = value;
-            continue;
-        }
-        throw config_error("unknown config key \"" + key + "\"");
-    }
+/// Takes one section out of `gathered`, or an empty object when it is not
+/// there.
+auto take_section(json& gathered, std::string_view name) -> json {
+    const auto found = gathered.find(std::string(name));
+    if (found == gathered.end()) return json::object();
+    json section = std::move(*found);
+    gathered.erase(found);
+    return section;
 }
 
 /// Where the database lives and how often it is copied.
@@ -149,7 +156,7 @@ auto read_storage_keys(const json& parsed, bootstrap& config) -> void {
 /// Writes the defaults where the configuration was looked for. Never fatal:
 /// the defaults are what the bot runs on either way, and a folder it cannot
 /// write to is no reason not to start.
-auto write_default_config(const std::filesystem::path& path) -> void {
+auto write_default_config(const std::filesystem::path& path, const nlohmann::ordered_json& module_sections) -> void {
     const std::string shown = std::filesystem::absolute(path).generic_string();
 
     std::error_code error;
@@ -157,7 +164,7 @@ auto write_default_config(const std::filesystem::path& path) -> void {
 
     std::ofstream file;
     if (!error) file.open(path, std::ios::binary);
-    if (file) file << bootstrap::default_json();
+    if (file) file << bootstrap::default_json(module_sections);
     if (file) file.close();
     if (error || !file) {
         util::log().warn("no configuration file at {}, and one could not be written there; using defaults", shown);
@@ -177,7 +184,7 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
     if (!parsed.is_object()) throw config_error("config file must contain a JSON object");
 
     bootstrap config;
-    sort_keys(parsed, config);
+    json gathered = gather_sections(parsed);
 
     if (parsed.contains("log_level")) {
         const std::string name = require_string(parsed, "log_level");
@@ -188,11 +195,11 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
 
     read_storage_keys(parsed, config);
 
-    auto gathered = gather_feature_sections(parsed);
-    config.nicknames = nicknames_section().read(gathered["nicknames"]);
-    config.linkstats = linkstats_section().read(gathered["linkstats"]);
-    config.llm = llm_section().read(gathered["llm"]);
-    config.music = music_section().read(gathered["music"]);
+    config.linkstats = linkstats_section().read(take_section(gathered, "linkstats"));
+    config.llm = llm_section().read(take_section(gathered, "llm"));
+    config.music = music_section().read(take_section(gathered, "music"));
+    // What is left is the modules'.
+    config.sections = std::move(gathered);
 
     if (parsed.contains("trusted_guilds")) config.trusted_guilds = require_snowflakes(parsed, "trusted_guilds");
     if (parsed.contains("trusted_users")) config.trusted_users = require_snowflakes(parsed, "trusted_users");
@@ -200,7 +207,7 @@ auto bootstrap::from_json(std::string_view text) -> bootstrap {
     return config;
 }
 
-auto bootstrap::default_json() -> std::string {
+auto bootstrap::default_json(const nlohmann::ordered_json& module_sections) -> std::string {
     // Ordered, so the file reads in the order the keys are documented.
     const bootstrap defaults;
     nlohmann::ordered_json file;
@@ -210,14 +217,16 @@ auto bootstrap::default_json() -> std::string {
     file["backup_interval_minutes"] = defaults.backup_interval.count();
     file["trusted_guilds"] = nlohmann::ordered_json::array();
     file["trusted_users"] = nlohmann::ordered_json::array();
-    file["nicknames"] = nicknames_section().defaults();
     file["linkstats"] = linkstats_section().defaults();
     file["llm"] = llm_section().defaults();
     file["music"] = music_section().defaults();
+    for (const auto& [name, section] : module_sections.items()) {
+        file[name] = section;
+    }
     return file.dump(2) + "\n";
 }
 
-auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
+auto bootstrap::load(const std::filesystem::path& path, const nlohmann::ordered_json& module_sections) -> bootstrap {
     bootstrap config;
 
     std::error_code error;
@@ -225,7 +234,7 @@ auto bootstrap::load(const std::filesystem::path& path) -> bootstrap {
         // A missing file is the ordinary case on a fresh install: every value
         // has a default, and the only thing the bot truly needs is the token
         // from the environment.
-        write_default_config(path);
+        write_default_config(path, module_sections);
     } else {
         // Something is there, so it is somebody's configuration: one that
         // cannot be read stops startup rather than being replaced.

@@ -201,17 +201,6 @@ TEST_CASE("music's programs are looked for unless the config names them", "[conf
     REQUIRE_THROWS_AS(bootstrap::from_json(R"({"music": {"pot_provider_port": 70000}})"), config_error);
 }
 
-TEST_CASE("nickname tracking is on unless the config turns it off", "[config]") {
-    // This is the one setting that decides which gateway intents are asked
-    // for, so a wrong value is the difference between connecting and being
-    // turned away (docs/features/Operations.md §3).
-    CHECK(bootstrap::from_json("{}").nicknames.track_changes);
-    CHECK_FALSE(bootstrap::from_json(R"({"nicknames": {"track_changes": false}})").nicknames.track_changes);
-
-    REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"nicknames": {"track_changes": "yes"}})"), config_error,
-                           Catch::Matchers::MessageMatches(ContainsSubstring("nicknames.track_changes")));
-}
-
 TEST_CASE("a key from before sections still works, and the log says where it went", "[config]") {
     // Remove after: you say so (docs/modules/Module_Plan_Final.md §8.1).
     const latibot::testing::capture_log captured(latibot::util::log_level::warn);
@@ -220,7 +209,8 @@ TEST_CASE("a key from before sections still works, and the log says where it wen
         R"({"track_nicknames": false, "llm_model": "claude-sonnet-5", "llm_tool_rounds": 2, "spend_cap_daily_usd": 1.5,
             "emoji_copy_min_uses": 3, "pot_provider_port": 8080, "ytdlp_path": "C:/tools/yt-dlp.exe"})");
 
-    CHECK_FALSE(config.nicknames.track_changes);
+    // A module's section, which the module reads with its own table.
+    CHECK(config.sections.at("nicknames").at("track_changes") == false);
     CHECK(config.llm.model == "claude-sonnet-5");
     CHECK(config.llm.tool_rounds == 2);
     CHECK(config.llm.spend_cap_daily_usd == 1.5);
@@ -404,7 +394,6 @@ TEST_CASE("the written defaults load as the defaults", "[config]") {
     CHECK(written.backup_directory == defaults.backup_directory);
     CHECK(written.backups_to_keep == defaults.backups_to_keep);
     CHECK(written.backup_interval == defaults.backup_interval);
-    CHECK(written.nicknames.track_changes == defaults.nicknames.track_changes);
     CHECK(written.trusted_guilds == defaults.trusted_guilds);
     CHECK(written.trusted_users == defaults.trusted_users);
     CHECK(written.llm.provider == defaults.llm.provider);
@@ -418,13 +407,17 @@ TEST_CASE("the written defaults load as the defaults", "[config]") {
     CHECK(written.sections.empty());
 }
 
-TEST_CASE("the example config is exactly what the bot writes", "[config][fs]") {
-    // config.example.json is for reading on GitHub; the bot writes its own.
-    // Line endings aside, since git may check the example out with CRLF.
-    std::string example = read_file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json");
-    std::erase(example, '\r');
+TEST_CASE("a module's section in the written defaults comes after the core's", "[config]") {
+    // The modules' own come from the generated list
+    // (modules::enabled_config_defaults); tests/app checks the example file
+    // with them.
+    nlohmann::ordered_json modules = nlohmann::ordered_json::object();
+    modules["weather"] = {{"enabled", true}};
+    const std::string written = bootstrap::default_json(modules);
 
-    CHECK(example == bootstrap::default_json());
+    CHECK(written.contains(R"("weather": {)"));
+    CHECK(written.find("\"music\"") < written.find("\"weather\""));
+    CHECK(bootstrap::from_json(written).sections.at("weather").at("enabled") == true);
 }
 
 TEST_CASE("a config file in a folder that does not exist yet is written there", "[config][fs]") {

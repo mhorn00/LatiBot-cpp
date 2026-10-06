@@ -2,16 +2,6 @@
 
 namespace latibot::config {
 
-auto nicknames_section() -> const section<nicknames_config>& {
-    static const section<nicknames_config> table{
-        "nicknames",
-        {
-            key("track_changes", &nicknames_config::track_changes,
-                "Records nickname changes as they happen. Needs the Server Members intent in the developer portal."),
-        }};
-    return table;
-}
-
 auto linkstats_section() -> const section<linkstats_config>& {
     static const section<linkstats_config> table{
         "linkstats",

@@ -6,7 +6,6 @@
 #include "core/commands/linkstats.hpp"
 #include "core/commands/logs.hpp"
 #include "core/commands/music.hpp"
-#include "core/commands/nickname.hpp"
 #include "core/commands/preflight.hpp"
 #include "core/commands/speak.hpp"
 #include "core/commands/trigger.hpp"
@@ -19,7 +18,6 @@
 #include "core/discord/message_flags.hpp"
 #include "core/discord/voice_state.hpp"
 #include "core/events/goodbye.hpp"
-#include "core/events/nickname_import.hpp"
 #include "core/events/stage_order.hpp"
 #include "core/llm/anthropic.hpp"
 #include "core/llm/config_check.hpp"
@@ -51,43 +49,13 @@
 namespace latibot {
 namespace {
 
-/// The intents to connect with.
+/// The intents to connect with, before the modules add theirs.
 ///
 /// i_message_content is privileged and must also be enabled in the Discord
 /// developer portal. Without it every guild message arrives with an empty
 /// `content`, which silently disables the whole pipeline: the goodbye phrase
 /// and the triggers both read it (docs/features/Operations.md §3).
-///
-/// i_guild_members is privileged in the same way, and is the only way
-/// nickname changes and a complete member list arrive at all
-/// (docs/features/Operations.md §3). It is asked for only when nickname
-/// tracking is on, because a bot that asks for an intent it was not granted
-/// is refused the gateway outright.
-auto intents_for(const config::bootstrap& settings) -> std::uint32_t {
-    std::uint32_t intents = dpp::i_default_intents | dpp::i_message_content;
-    if (settings.nicknames.track_changes) intents |= dpp::i_guild_members;
-    return intents;
-}
-
-/// How many audit entries the delayed fallback asks for.
-///
-/// Enough to find one change among the moderation that happened around it,
-/// small enough to stay one page.
-constexpr std::uint32_t audit_fallback_entries = 25;
-
-/// The guild an audit entry belongs to.
-///
-/// `dpp::audit_entry` does not carry it, and the event's own payload is the
-/// only place it appears, so this reaches past DPP into the raw frame.
-auto guild_of(const dpp::guild_audit_log_entry_create_t& event) -> dpp::snowflake {
-    const auto frame = nlohmann::json::parse(event.raw_event, nullptr, /*allow_exceptions=*/false);
-    if (frame.is_discarded() || !frame.contains("d")) return {};
-
-    const auto& payload = frame.at("d");
-    const auto found = payload.find("guild_id");
-    if (found == payload.end() || !found->is_string()) return {};
-    return dpp::snowflake(found->get<std::string>());
-}
+constexpr std::uint32_t core_intents = dpp::i_default_intents | dpp::i_message_content;
 
 /// Who wrote the message a reply replies to, or 0.
 ///
@@ -108,17 +76,7 @@ auto replied_to_author(const std::string& raw_event) -> dpp::snowflake {
     return dpp::snowflake(id->get<std::string>());
 }
 
-/// The nickname an audit entry says a member ended up with, or nothing when
-/// the entry is not about a nickname at all.
-auto nickname_change_in(const dpp::audit_entry& entry) -> std::optional<dpp::audit_change> {
-    for (const dpp::audit_change& change : entry.changes) {
-        if (change.key == "nick") return change;
-    }
-    return std::nullopt;
-}
-
 using ui::answer_privately;
-using ui::update_panel;
 
 /// What a button, menu or form no panel claims hears back. It is one of ours,
 /// since Discord only sends the bot its own, so it is from a build whose
@@ -206,12 +164,11 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     : settings_(std::move(settings)),
       database_(prepare(settings_.database_path)),
       guild_settings_(database_),
-      cluster_(credentials.discord_token, intents_for(settings_)),
+      cluster_(credentials.discord_token, core_intents),
       gateway_(cluster_),
       http_(cluster_),
       raw_(cluster_),
       bot_allowlist_(database_),
-      nicknames_(database_),
       triggers_(database_),
       trigger_panel_(triggers_),
       trigger_responder_(triggers_, clock_),
@@ -297,15 +254,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
     util::log().debug("log level {}; {} trusted guild(s), {} trusted user(s)", util::to_string(settings_.log_level),
                       settings_.trusted_guilds.size(), settings_.trusted_users.size());
 
-    // Worth an info line rather than a debug one: it is the difference between
-    // a bot that connects and one that Discord turns away, and the reason is
-    // a toggle on a web page nobody looks at twice a year.
-    if (settings_.nicknames.track_changes) {
-        util::log().info("nickname tracking is on; this needs the Server Members intent enabled in the Discord developer portal");
-    } else {
-        util::log().info("nickname tracking is off; /nickname still works, but changes made elsewhere are not recorded");
-    }
-
     // A warning rather than info: it changes what a recompute records, and
     // it should not be the kind of thing that stays set by accident.
     if (settings_.recompute_bot_id) {
@@ -352,14 +300,6 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
                          util::to_string(destination->level));
     }
 
-    // Years of history from the Java bot, if its file was left beside the
-    // database. Importing is idempotent, so this needs no marker file and no
-    // "have I done this already" flag (docs/features/Nicknames.md §4).
-    const std::filesystem::path legacy = settings_.database_path.parent_path() / "nicknames.json";
-    if (const auto imported = events::import_nicknames_file(nicknames_, legacy); imported.value_or(0) > 0) {
-        util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
-    }
-
     // Read before the connection starts, so everything found was cut off by
     // the last run rather than being watched by this one. Each guild's are
     // settled once it connects.
@@ -390,8 +330,6 @@ auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::trigger_command>(triggers_));
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
-    commands_.add(std::make_unique<commands::nickname_command>(nicknames_, pending_nicknames_, clock_, cluster_));
-    commands_.add(std::make_unique<commands::nicknames_command>(nicknames_));
     commands_.add(std::make_unique<commands::links_command>(url_rules_));
     commands_.add(std::make_unique<commands::urltoggle_command>(url_rules_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
@@ -464,18 +402,8 @@ auto bot::register_events() -> void {
     // one level to configure. DPP hands over finished text, so there are no
     // types left to colour; the [dpp] tag is coloured instead, which is what
     // tells its lines apart from ours at a glance.
-    cluster_.on_log([this](const dpp::log_t& event) {
+    cluster_.on_log([](const dpp::log_t& event) {
         util::log().log(discord::log_level_of(event.severity), "{} {}", util::log_source{"dpp"}, event.message);
-
-        // 4014 is the gateway refusing a privileged intent, and DPP reports
-        // it as a websocket number in a reconnect loop. The cause is always
-        // the same toggle, so say which one rather than leaving somebody to
-        // look the code up (docs/features/Operations.md §3).
-        if (settings_.nicknames.track_changes && event.message.contains("4014")) {
-            util::log().error(
-                "Discord refused the Server Members intent. Enable it under Bot > Privileged Gateway Intents "
-                "in the Discord developer portal, or set \"track_changes\": false in the \"nicknames\" section of config.json.");
-        }
     });
 
     // A coroutine handler: DPP keeps `event` alive until it finishes, so a
@@ -495,7 +423,6 @@ auto bot::register_events() -> void {
         util::log().info("in guild {} ({})", guild.name, guild.id);
 
         check_permissions(guild);
-        reconcile_nicknames(guild);
         import_url_rules(guild);
         settle_stranded_replacements(guild.id);
 
@@ -570,19 +497,6 @@ auto bot::register_events() -> void {
             util::log().debug("every reaction cleared from replacement {}: {}", event.message_id, gone);
         }
     });
-
-    // Only when tracking is on, because DPP warns about a handler attached
-    // without the intent that feeds it — which would be true and useless
-    // noise for somebody who turned the feature off deliberately.
-    //
-    // Recording and attributing are separate events on purpose: the change is
-    // written down the moment it is seen, and the audit log fills in who did
-    // it if and when it arrives (docs/features/Nicknames.md §3).
-    if (settings_.nicknames.track_changes) {
-        cluster_.on_guild_member_update([this](const dpp::guild_member_update_t& event) { on_member_update(event.updated); });
-        cluster_.on_guild_audit_log_entry_create(
-            [this](const dpp::guild_audit_log_entry_create_t& event) { on_audit_entry(event.entry, guild_of(event)); });
-    }
 
     cluster_.on_autocomplete([this](const dpp::autocomplete_t& event) { commands_.offer_completions(event.name, event); });
 
@@ -741,110 +655,6 @@ auto bot::register_timers() -> void {
                      settings_.backups_to_keep);
 }
 
-auto bot::record_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname,
-                          events::nickname_source source) -> std::optional<std::int64_t> {
-    const auto latest = nicknames_.latest(guild_id, user_id);
-    if (!events::is_new_nickname(latest, nickname)) return std::nullopt;
-
-    const std::int64_t row = nicknames_.record({.guild_id = guild_id,
-                                                .user_id = user_id,
-                                                .nickname = nickname,
-                                                .changed_at = clock_.now(),
-                                                // Nobody yet: the audit log fills this in if it can.
-                                                .changed_by = std::nullopt,
-                                                .source = source,
-                                                .imported_raw = {}});
-
-    util::log().info("{} in guild {} is now called {} (recorded as {})", user_id, guild_id,
-                     nickname ? std::format("\"{}\"", *nickname) : "nothing", events::to_string(source));
-    return row;
-}
-
-auto bot::on_member_update(const dpp::guild_member& member) -> void {
-    // DPP's cached member is already the new one by the time this runs, so
-    // "what were they called before" can only come from our own history.
-    const std::string current = member.get_nickname();
-    const std::optional<std::string> nickname = current.empty() ? std::nullopt : std::optional(current);
-
-    // A change the bot just made is already in the history with the invoker
-    // against it, and recording it again would lose that
-    // (docs/features/Nicknames.md §3).
-    if (pending_nicknames_.claim(member.guild_id, member.user_id, nickname, clock_.now())) {
-        util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id, member.guild_id);
-        return;
-    }
-
-    const auto row = record_nickname(member.guild_id, member.user_id, nickname, events::nickname_source::seen);
-    if (!row) {
-        // Member updates fire for roles, timeouts and avatars too, so most of
-        // them are not about a nickname at all.
-        util::log().trace("member update for {} in guild {} changed no nickname", member.user_id, member.guild_id);
-        return;
-    }
-
-    // Recording never waits on attribution, so this is the only thing that
-    // notices the audit entry never turning up
-    // (docs/features/Nicknames.md §3).
-    attribute_later(member.guild_id, member.user_id, *row);
-}
-
-auto bot::attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void {
-    after(events::audit_fallback_delay, "the audit log fallback", [this, guild_id, user_id, row] {
-        const auto waiting = nicknames_.find(row);
-        if (!waiting || waiting->changed_by) {
-            // The gateway entry arrived, which is the ordinary path.
-            return;
-        }
-
-        util::log().debug("no audit entry arrived for nickname row {}; asking Discord", row);
-        cluster_.guild_auditlog_get(guild_id, 0, dpp::aut_member_update, 0, 0, audit_fallback_entries,
-                                    [this, guild_id, user_id](const dpp::confirmation_callback_t& reply) {
-                                        if (reply.is_error()) {
-                                            // Almost always a missing View Audit Log, which the
-                                            // permission preflight already warns about per guild.
-                                            util::log().debug("could not read the audit log for guild {}: {}", guild_id,
-                                                              reply.get_error().message);
-                                            return;
-                                        }
-
-                                        const auto* entries = std::get_if<dpp::auditlog>(&reply.value);
-                                        if (entries == nullptr) return;
-
-                                        // Every recent entry about this member goes through the
-                                        // same path as a live one, which decides which row, if
-                                        // any, it attributes.
-                                        for (const dpp::audit_entry& entry : entries->entries) {
-                                            if (entry.target_id == user_id) on_audit_entry(entry, guild_id);
-                                        }
-                                    });
-    });
-}
-
-auto bot::on_audit_entry(const dpp::audit_entry& entry, dpp::snowflake guild_id) -> void {
-    if (entry.type != dpp::aut_member_update || guild_id.empty()) return;
-
-    const auto change = nickname_change_in(entry);
-    if (!change) return;
-
-    const std::optional<std::string> nickname = events::audit_nickname(change->new_value);
-    const auto row = nicknames_.unattributed(guild_id, entry.target_id, nickname, clock_.now(), events::pending_nickname_ttl);
-    if (!row) {
-        util::log().debug("audit entry {} names no change we are still waiting to attribute", entry.id);
-        return;
-    }
-
-    if (!events::may_attribute(*row, entry.user_id, cluster_.me.id)) {
-        // Discord names the bot whenever the bot called the API, which would
-        // overwrite the one attribution that was never in doubt.
-        util::log().debug("audit entry {} attributes a change to the bot itself; leaving row {} alone", entry.id, row->id);
-        return;
-    }
-
-    if (nicknames_.attribute(row->id, entry.user_id, events::nickname_source::audit_log)) {
-        util::log().info("{}'s nickname change in guild {} was made by {}", row->user_id, guild_id, entry.user_id);
-    }
-}
-
 auto bot::on_voice_state(const dpp::voicestate& state) -> void {
     const dpp::snowflake guild = state.guild_id;
     const bool about_the_bot = state.user_id == cluster_.me.id;
@@ -866,24 +676,6 @@ auto bot::on_voice_state(const dpp::voicestate& state) -> void {
     // sees the channel as it is now.
     const dpp::snowflake channel = about_the_bot ? state.channel_id : discord::bot_voice_channel(cluster_, guild);
     auto_leave_.observe(guild, !channel.empty(), discord::humans_in(guild, channel, cluster_.me.id));
-}
-
-auto bot::reconcile_nicknames(const dpp::guild& guild) -> void {
-    if (!settings_.nicknames.track_changes) return;
-
-    // Changes made while the bot was not running have nobody to attribute
-    // them to, which is why they are marked as their own source rather than
-    // guessed at (docs/features/Nicknames.md §3).
-    int recorded = 0;
-    for (const auto& [user_id, member] : guild.members) {
-        const std::string current = member.get_nickname();
-        if (record_nickname(guild.id, user_id, current.empty() ? std::nullopt : std::optional(current), events::nickname_source::startup)) {
-            ++recorded;
-        }
-    }
-
-    util::log().debug("{}: checked {} member(s) for nickname changes made while offline, recorded {}", guild.name, guild.members.size(),
-                      recorded);
 }
 
 auto bot::import_url_rules(const dpp::guild& guild) -> void {
@@ -1118,15 +910,10 @@ auto bot::on_component(const dpp::interaction_create_t& event, const std::string
 
 auto bot::route_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen,
                           const commands::user_label& who) -> bool {
-    const dpp::snowflake guild = event.command.guild_id;
-
     // Every one of these edits the message the component is on rather than
     // posting a new one, which is why the state rides in the custom_id: there
     // is nothing here to expire, leak, or lose across a restart.
-    if (state.view == commands::nickname_history_view) {
-        const dpp::snowflake subject(state.argument);
-        update_panel(event, commands::render_nickname_history(nicknames_.history(guild, subject), subject, state.page));
-    } else if (state.view == events::url_retry_view) {
+    if (state.view == events::url_retry_view) {
         retry_replacement(event, dpp::snowflake(state.argument), who);
     } else if (panels_.claimed(state.view)) {
         // A module's panel (docs/modules/Module_Plan_Final.md §4.6).

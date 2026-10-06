@@ -1,4 +1,4 @@
-#include "core/events/nicknames.hpp"
+#include "nicknames.hpp"
 
 #include "core/db/database.hpp"
 #include "core/db/statement.hpp"

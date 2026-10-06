@@ -14,9 +14,10 @@ follows a change through.
 
 | | |
 |---|---|
-| **Code** | `src/core/events/nicknames.*`, `src/core/events/nickname_import.*`, `src/core/commands/nickname.*`; the gateway handlers in `src/core/bot.cpp` |
-| **Tests** | `tests/unit/{nicknames,nickname_import,nickname_command}_test.cpp`, `tests/db/{nickname_store,nickname_import}_test.cpp` |
-| **Tables** | `nickname_history` (migration 4) |
+| **Module** | `nicknames`: [its README](../../src/modules/nicknames/README.md) lists what it owns |
+| **Code** | `src/modules/nicknames/src/`: `nicknames.*`, `nickname_import.*`, `nickname_command.*`, and `module.cpp`, which holds the gateway handlers |
+| **Tests** | `src/modules/nicknames/tests/`, built as `latibot_nicknames_tests` |
+| **Tables** | `nickname_history`, the module's schema version 1 (was migration 4) |
 | **Config** | `track_changes` in the `nicknames` section of `config.json` (on by default; was `track_nicknames`) |
 | **Plan** | Replaces plan §8, §21.8 and §21.9 |
 | **Status** | Built in phase 2 (2026-09-23). `/nickname` has been deferred since 2026-09-25 and not seen working in Discord since |

@@ -1,6 +1,6 @@
 # Feature modules (docs/modules/Module_Plan_Final.md §6.3).
 #
-#   latibot_module(<name>
+#   latibot_module(<name> [CONFIG]
 #       SOURCES  <file>...      # src/..., the library's own
 #       REQUIRES <module>...    # modules it is built against, already added
 #       LINKS    <target>...    # libraries only this module needs
@@ -14,16 +14,20 @@
 #
 # Every module has a public include/<name>/module.hpp declaring
 # `latibot::<name>::make_module(modules::host&)`, which the generated module
-# list calls (latibot_write_module_list).
+# list calls (latibot_write_module_list). With CONFIG, the module has a
+# section in config.json, and the header also declares
+# `latibot::<name>::config_defaults()`, its section at its defaults, which the
+# generated list gathers for the config.json the bot writes.
 #
 # Whether a module is built is its switch, LATIBOT_WITH_<NAME>, which
 # src/modules/CMakeLists.txt checks before adding it. Modules are added in
 # dependency order, so that is the order the bot builds them in.
 
 set_property(GLOBAL PROPERTY LATIBOT_MODULES "")
+set_property(GLOBAL PROPERTY LATIBOT_CONFIG_MODULES "")
 
 function(latibot_module name)
-    cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "SOURCES;REQUIRES;LINKS;TESTS")
+    cmake_parse_arguments(PARSE_ARGV 1 arg "CONFIG" "" "SOURCES;REQUIRES;LINKS;TESTS")
     string(TOUPPER "${name}" upper)
 
     foreach(required IN LISTS arg_REQUIRES)
@@ -52,6 +56,9 @@ function(latibot_module name)
     latibot_target_sanitizers(${target})
 
     set_property(GLOBAL APPEND PROPERTY LATIBOT_MODULES ${name})
+    if(arg_CONFIG)
+        set_property(GLOBAL APPEND PROPERTY LATIBOT_CONFIG_MODULES ${name})
+    endif()
 
     # Its tests are made in tests/CMakeLists.txt, where the shared test
     # support is: what they are, and where the module's private headers are.
@@ -68,11 +75,17 @@ endfunction()
 function(latibot_write_module_list output)
     get_property(names GLOBAL PROPERTY LATIBOT_MODULES)
 
+    get_property(configured GLOBAL PROPERTY LATIBOT_CONFIG_MODULES)
+
     set(includes "")
     set(calls "")
+    set(sections "")
     foreach(name IN LISTS names)
         string(APPEND includes "#include \"${name}/module.hpp\"\n")
         string(APPEND calls "    modules.push_back(${name}::make_module(bot));\n")
+    endforeach()
+    foreach(name IN LISTS configured)
+        string(APPEND sections "    sections[\"${name}\"] = ${name}::config_defaults();\n")
     endforeach()
     if(NOT names)
         set(calls "    static_cast<void>(bot);\n")
@@ -95,6 +108,11 @@ namespace latibot::modules {
 auto enabled_modules(host& bot) -> module_list {
     module_list modules;
 @calls@    return modules;
+}
+
+auto enabled_config_defaults() -> nlohmann::ordered_json {
+    nlohmann::ordered_json sections = nlohmann::ordered_json::object();
+@sections@    return sections;
 }
 
 } // namespace latibot::modules

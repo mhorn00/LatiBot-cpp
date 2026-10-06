@@ -5,17 +5,18 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-986 test cases across 15 components, including 206 sections.
+992 test cases across 16 components, including 206 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 150 | 23 |
-| [config](#config) | 44 | 23 |
-| [commands](#commands) | 191 | 55 |
-| [events](#events) | 185 | 40 |
+| [db](#db) | 130 | 23 |
+| [config](#config) | 43 | 23 |
+| [commands](#commands) | 185 | 55 |
+| [events](#events) | 150 | 35 |
 | [ui](#ui) | 15 | 0 |
 | [module](#module) | 7 | 0 |
-| [app](#app) | 4 | 0 |
+| [app](#app) | 5 | 0 |
+| [nicknames](#nicknames) | 67 | 5 |
 | [midnight](#midnight) | 39 | 0 |
 | [discord](#discord) | 8 | 0 |
 | [audio](#audio) | 76 | 12 |
@@ -97,26 +98,6 @@ Database (`src/core/db`)
 | a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:97](../../tests/db/migrations_test.cpp#L97) |
 | the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:110](../../tests/db/migrations_test.cpp#L110) |
 | an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:123](../../tests/db/migrations_test.cpp#L123) |
-| an import writes the history it read |  |  | [tests/db/nickname_import_test.cpp:43](../../tests/db/nickname_import_test.cpp#L43) |
-| importing the same file twice adds nothing the second time |  |  | [tests/db/nickname_import_test.cpp:57](../../tests/db/nickname_import_test.cpp#L57) |
-| an import does not disturb history the bot recorded itself |  |  | [tests/db/nickname_import_test.cpp:70](../../tests/db/nickname_import_test.cpp#L70) |
-| a cleared nickname is imported once, not once per run |  |  | [tests/db/nickname_import_test.cpp:91](../../tests/db/nickname_import_test.cpp#L91) |
-| no file to import is not a problem | `fs` |  | [tests/db/nickname_import_test.cpp:108](../../tests/db/nickname_import_test.cpp#L108) |
-| a file beside the database is read and imported | `fs` |  | [tests/db/nickname_import_test.cpp:115](../../tests/db/nickname_import_test.cpp#L115) |
-| a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:40](../../tests/db/nickname_store_test.cpp#L40) |
-| a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:61](../../tests/db/nickname_store_test.cpp#L61) |
-| history reads newest first |  |  | [tests/db/nickname_store_test.cpp:74](../../tests/db/nickname_store_test.cpp#L74) |
-| two changes in the same second keep the order they were recorded |  |  | [tests/db/nickname_store_test.cpp:88](../../tests/db/nickname_store_test.cpp#L88) |
-| history is per guild |  |  | [tests/db/nickname_store_test.cpp:101](../../tests/db/nickname_store_test.cpp#L101) |
-| the latest row is what a new sighting is compared against |  |  | [tests/db/nickname_store_test.cpp:115](../../tests/db/nickname_store_test.cpp#L115) |
-| an audit entry finds the row it describes |  |  | [tests/db/nickname_store_test.cpp:128](../../tests/db/nickname_store_test.cpp#L128) |
-| an audit entry does not attach itself to an older identical change |  |  | [tests/db/nickname_store_test.cpp:138](../../tests/db/nickname_store_test.cpp#L138) |
-| an audit entry for a different nickname matches nothing |  |  | [tests/db/nickname_store_test.cpp:148](../../tests/db/nickname_store_test.cpp#L148) |
-| a row that already names somebody is not offered for attribution |  |  | [tests/db/nickname_store_test.cpp:156](../../tests/db/nickname_store_test.cpp#L156) |
-| attributing a row fills in the author and where it came from |  |  | [tests/db/nickname_store_test.cpp:166](../../tests/db/nickname_store_test.cpp#L166) |
-| the first audit entry to attribute a row wins |  |  | [tests/db/nickname_store_test.cpp:179](../../tests/db/nickname_store_test.cpp#L179) |
-| a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:192](../../tests/db/nickname_store_test.cpp#L192) |
-| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:205](../../tests/db/nickname_store_test.cpp#L205) |
 | only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:96](../../tests/db/reaction_store_test.cpp#L96) |
 | taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:108](../../tests/db/reaction_store_test.cpp#L108) |
 | a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:117](../../tests/db/reaction_store_test.cpp#L117) |
@@ -207,22 +188,21 @@ Configuration (`src/core/config`)
 | the spend caps cannot be negative |  |  | [tests/unit/bootstrap_test.cpp:175](../../tests/unit/bootstrap_test.cpp#L175) |
 | emoji copies are kept for every emote used, unless the config says otherwise |  |  | [tests/unit/bootstrap_test.cpp:180](../../tests/unit/bootstrap_test.cpp#L180) |
 | music's programs are looked for unless the config names them |  |  | [tests/unit/bootstrap_test.cpp:187](../../tests/unit/bootstrap_test.cpp#L187) |
-| nickname tracking is on unless the config turns it off |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
-| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:215](../../tests/unit/bootstrap_test.cpp#L215) |
-| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:238](../../tests/unit/bootstrap_test.cpp#L238) |
-| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:254](../../tests/unit/bootstrap_test.cpp#L254) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:262](../../tests/unit/bootstrap_test.cpp#L262) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:270](../../tests/unit/bootstrap_test.cpp#L270) |
-| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:304](../../tests/unit/bootstrap_test.cpp#L304) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:357](../../tests/unit/bootstrap_test.cpp#L357) |
-| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:384](../../tests/unit/bootstrap_test.cpp#L384) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:396](../../tests/unit/bootstrap_test.cpp#L396) |
-| the example config is exactly what the bot writes | `fs` |  | [tests/unit/bootstrap_test.cpp:421](../../tests/unit/bootstrap_test.cpp#L421) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:430](../../tests/unit/bootstrap_test.cpp#L430) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:439](../../tests/unit/bootstrap_test.cpp#L439) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:451](../../tests/unit/bootstrap_test.cpp#L451) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:464](../../tests/unit/bootstrap_test.cpp#L464) |
+| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:204](../../tests/unit/bootstrap_test.cpp#L204) |
+| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:228](../../tests/unit/bootstrap_test.cpp#L228) |
+| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:234](../../tests/unit/bootstrap_test.cpp#L234) |
+| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:244](../../tests/unit/bootstrap_test.cpp#L244) |
+| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:252](../../tests/unit/bootstrap_test.cpp#L252) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:260](../../tests/unit/bootstrap_test.cpp#L260) |
+| secrets come from the environment |  | 5 | [tests/unit/bootstrap_test.cpp:294](../../tests/unit/bootstrap_test.cpp#L294) |
+| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:347](../../tests/unit/bootstrap_test.cpp#L347) |
+| loading the configuration applies the recompute bot override as the build allows | `fs` |  | [tests/unit/bootstrap_test.cpp:374](../../tests/unit/bootstrap_test.cpp#L374) |
+| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:386](../../tests/unit/bootstrap_test.cpp#L386) |
+| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:410](../../tests/unit/bootstrap_test.cpp#L410) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:423](../../tests/unit/bootstrap_test.cpp#L423) |
+| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:432](../../tests/unit/bootstrap_test.cpp#L432) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:444](../../tests/unit/bootstrap_test.cpp#L444) |
+| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:457](../../tests/unit/bootstrap_test.cpp#L457) |
 | no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
 | a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
 | the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
@@ -270,11 +250,11 @@ Command framework (`src/core/commands`)
 | an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
 | an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
 | an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:49](../../tests/unit/command_responses_test.cpp#L49) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:70](../../tests/unit/command_responses_test.cpp#L70) |
-| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:110](../../tests/unit/command_responses_test.cpp#L110) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:122](../../tests/unit/command_responses_test.cpp#L122) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:143](../../tests/unit/command_responses_test.cpp#L143) |
+| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:46](../../tests/unit/command_responses_test.cpp#L46) |
+| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:66](../../tests/unit/command_responses_test.cpp#L66) |
+| the URL dry run hides the previews of the links it shows |  |  | [tests/unit/command_responses_test.cpp:102](../../tests/unit/command_responses_test.cpp#L102) |
+| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:114](../../tests/unit/command_responses_test.cpp#L114) |
+| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:135](../../tests/unit/command_responses_test.cpp#L135) |
 | changing aliases and recomputing need Manage Server, and reading does not |  |  | [tests/unit/linkstats_command_test.cpp:66](../../tests/unit/linkstats_command_test.cpp#L66) |
 | custom emojis with names alike are listed a group at a time |  | 3 | [tests/unit/linkstats_command_test.cpp:95](../../tests/unit/linkstats_command_test.cpp#L95) |
 | emojis alike are merged from the list by somebody with Manage Server |  | 3 | [tests/unit/linkstats_command_test.cpp:135](../../tests/unit/linkstats_command_test.cpp#L135) |
@@ -321,12 +301,6 @@ Command framework (`src/core/commands`)
 | only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
 | the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
 | the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| an empty history says so rather than showing an empty page |  |  | [tests/unit/nickname_command_test.cpp:38](../../tests/unit/nickname_command_test.cpp#L38) |
-| a history page shows its entries and where it is |  |  | [tests/unit/nickname_command_test.cpp:47](../../tests/unit/nickname_command_test.cpp#L47) |
-| a long history pages, and the buttons remember whose it is |  |  | [tests/unit/nickname_command_test.cpp:57](../../tests/unit/nickname_command_test.cpp#L57) |
-| a page number from a stale button is brought back in range |  |  | [tests/unit/nickname_command_test.cpp:81](../../tests/unit/nickname_command_test.cpp#L81) |
-| a history is posted for the room, not just for whoever asked |  |  | [tests/unit/nickname_command_test.cpp:90](../../tests/unit/nickname_command_test.cpp#L90) |
-| a history reply cannot ping the people it names |  |  | [tests/unit/nickname_command_test.cpp:97](../../tests/unit/nickname_command_test.cpp#L97) |
 | a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:93](../../tests/unit/panels_test.cpp#L93) |
 | the trigger panel adds a trigger as it was typed |  |  | [tests/unit/panels_test.cpp:149](../../tests/unit/panels_test.cpp#L149) |
 | the trigger panel's form, sent back untouched, changes nothing |  |  | [tests/unit/panels_test.cpp:177](../../tests/unit/panels_test.cpp#L177) |
@@ -550,41 +524,6 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
 | an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
 | a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
-| a winter timestamp is read as Central Standard Time |  |  | [tests/unit/nickname_import_test.cpp:34](../../tests/unit/nickname_import_test.cpp#L34) |
-| a summer timestamp is read as Central Daylight Time |  |  | [tests/unit/nickname_import_test.cpp:39](../../tests/unit/nickname_import_test.cpp#L39) |
-| the hour that happens twice each November takes the earlier one |  |  | [tests/unit/nickname_import_test.cpp:44](../../tests/unit/nickname_import_test.cpp#L44) |
-| the hour that never happens each March is shifted forward |  |  | [tests/unit/nickname_import_test.cpp:52](../../tests/unit/nickname_import_test.cpp#L52) |
-| dates before the 2007 rule change use the rules of their own year |  |  | [tests/unit/nickname_import_test.cpp:62](../../tests/unit/nickname_import_test.cpp#L62) |
-| a timestamp that is not one is refused rather than guessed at |  |  | [tests/unit/nickname_import_test.cpp:69](../../tests/unit/nickname_import_test.cpp#L69) |
-| an imported author is kept only when it is not the guess |  |  | [tests/unit/nickname_import_test.cpp:80](../../tests/unit/nickname_import_test.cpp#L80) |
-| a member's entries are read with their guild and id |  |  | [tests/unit/nickname_import_test.cpp:95](../../tests/unit/nickname_import_test.cpp#L95) |
-| an imported entry keeps the text its time was read from |  |  | [tests/unit/nickname_import_test.cpp:124](../../tests/unit/nickname_import_test.cpp#L124) |
-| a cleared nickname imports as nothing rather than as an empty name |  |  | [tests/unit/nickname_import_test.cpp:141](../../tests/unit/nickname_import_test.cpp#L141) |
-| one unreadable entry does not lose the rest |  |  | [tests/unit/nickname_import_test.cpp:155](../../tests/unit/nickname_import_test.cpp#L155) |
-| malformed shapes are named rather than dropped quietly |  | 5 | [tests/unit/nickname_import_test.cpp:174](../../tests/unit/nickname_import_test.cpp#L174) |
-| an empty file imports nothing and complains about nothing |  |  | [tests/unit/nickname_import_test.cpp:199](../../tests/unit/nickname_import_test.cpp#L199) |
-| a first sighting is recorded only when there is a nickname to record |  |  | [tests/unit/nicknames_test.cpp:40](../../tests/unit/nicknames_test.cpp#L40) |
-| the same nickname again is not a change |  |  | [tests/unit/nicknames_test.cpp:48](../../tests/unit/nicknames_test.cpp#L48) |
-| clearing a nickname is a change |  |  | [tests/unit/nicknames_test.cpp:55](../../tests/unit/nicknames_test.cpp#L55) |
-| an audit entry describes a row by member and resulting nickname |  |  | [tests/unit/nicknames_test.cpp:70](../../tests/unit/nicknames_test.cpp#L70) |
-| an audit entry can describe a cleared nickname |  |  | [tests/unit/nicknames_test.cpp:79](../../tests/unit/nicknames_test.cpp#L79) |
-| the bot is never recorded as the one who made a change |  |  | [tests/unit/nicknames_test.cpp:86](../../tests/unit/nicknames_test.cpp#L86) |
-| an audit entry with no actor attributes nothing |  |  | [tests/unit/nicknames_test.cpp:95](../../tests/unit/nicknames_test.cpp#L95) |
-| a row that already names somebody is left alone |  |  | [tests/unit/nicknames_test.cpp:99](../../tests/unit/nicknames_test.cpp#L99) |
-| an audit entry's nickname arrives as JSON rather than as text |  |  | [tests/unit/nicknames_test.cpp:106](../../tests/unit/nicknames_test.cpp#L106) |
-| an unreadable audit value is treated as no nickname |  |  | [tests/unit/nicknames_test.cpp:120](../../tests/unit/nicknames_test.cpp#L120) |
-| a change the bot just made is claimed once |  |  | [tests/unit/nicknames_test.cpp:129](../../tests/unit/nicknames_test.cpp#L129) |
-| an expectation only matches the change it was made for |  |  | [tests/unit/nicknames_test.cpp:142](../../tests/unit/nicknames_test.cpp#L142) |
-| an expectation stops applying once it has expired |  |  | [tests/unit/nicknames_test.cpp:153](../../tests/unit/nicknames_test.cpp#L153) |
-| expired expectations are cleared out as new ones arrive |  |  | [tests/unit/nicknames_test.cpp:163](../../tests/unit/nicknames_test.cpp#L163) |
-| a change Discord refused stops being expected |  |  | [tests/unit/nicknames_test.cpp:174](../../tests/unit/nicknames_test.cpp#L174) |
-| clearing a nickname is expected and claimed like any other change |  |  | [tests/unit/nicknames_test.cpp:184](../../tests/unit/nicknames_test.cpp#L184) |
-| a cleared nickname reads as cleared rather than as a blank |  |  | [tests/unit/nicknames_test.cpp:197](../../tests/unit/nicknames_test.cpp#L197) |
-| who changed it is a mention, unknown, or nothing |  |  | [tests/unit/nicknames_test.cpp:203](../../tests/unit/nicknames_test.cpp#L203) |
-| a history line carries the nickname, the time and the author |  |  | [tests/unit/nicknames_test.cpp:217](../../tests/unit/nicknames_test.cpp#L217) |
-| an imported history line says nothing about who |  |  | [tests/unit/nicknames_test.cpp:229](../../tests/unit/nicknames_test.cpp#L229) |
-| the attachment spells out times rather than leaving markup in a file |  |  | [tests/unit/nicknames_test.cpp:236](../../tests/unit/nicknames_test.cpp#L236) |
-| one entry is not described as one entries |  |  | [tests/unit/nicknames_test.cpp:255](../../tests/unit/nicknames_test.cpp#L255) |
 | a reaction is keyed by id when custom, by itself when Unicode |  |  | [tests/unit/reactions_test.cpp:12](../../tests/unit/reactions_test.cpp#L12) |
 | the colour-form selector does not make a second emoji |  |  | [tests/unit/reactions_test.cpp:21](../../tests/unit/reactions_test.cpp#L21) |
 | typed emojis are understood in every form a command sees |  |  | [tests/unit/reactions_test.cpp:26](../../tests/unit/reactions_test.cpp#L26) |
@@ -665,10 +604,85 @@ The bot as built, with every module this build includes (`tests/app`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:132](../../tests/app/modules_test.cpp#L132) |
-| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:147](../../tests/app/modules_test.cpp#L147) |
-| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:179](../../tests/app/modules_test.cpp#L179) |
-| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:216](../../tests/app/modules_test.cpp#L216) |
+| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:135](../../tests/app/modules_test.cpp#L135) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:150](../../tests/app/modules_test.cpp#L150) |
+| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:182](../../tests/app/modules_test.cpp#L182) |
+| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:219](../../tests/app/modules_test.cpp#L219) |
+| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:237](../../tests/app/modules_test.cpp#L237) |
+
+## nicknames
+
+The nicknames module (`src/modules/nicknames`)
+
+| Test | Traits | Sections | Source |
+|---|---|---:|---|
+| an empty history says so rather than showing an empty page |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:42](../../src/modules/nicknames/tests/nickname_command_test.cpp#L42) |
+| a history page shows its entries and where it is |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:51](../../src/modules/nicknames/tests/nickname_command_test.cpp#L51) |
+| a long history pages, and the buttons remember whose it is |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:61](../../src/modules/nicknames/tests/nickname_command_test.cpp#L61) |
+| a page number from a stale button is brought back in range |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:85](../../src/modules/nicknames/tests/nickname_command_test.cpp#L85) |
+| a history is posted for the room, not just for whoever asked |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:94](../../src/modules/nicknames/tests/nickname_command_test.cpp#L94) |
+| a history reply cannot ping the people it names |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:101](../../src/modules/nicknames/tests/nickname_command_test.cpp#L101) |
+| the nicknames command passes the registry's checks and pages publicly |  |  | [src/modules/nicknames/tests/nickname_command_test.cpp:116](../../src/modules/nicknames/tests/nickname_command_test.cpp#L116) |
+| an import writes the history it read |  |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:46](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L46) |
+| importing the same file twice adds nothing the second time |  |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:60](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L60) |
+| an import does not disturb history the bot recorded itself |  |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:73](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L73) |
+| a cleared nickname is imported once, not once per run |  |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:94](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L94) |
+| no file to import is not a problem | `fs` |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:111](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L111) |
+| a file beside the database is read and imported | `fs` |  | [src/modules/nicknames/tests/nickname_import_store_test.cpp:118](../../src/modules/nicknames/tests/nickname_import_store_test.cpp#L118) |
+| a winter timestamp is read as Central Standard Time |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:34](../../src/modules/nicknames/tests/nickname_import_test.cpp#L34) |
+| a summer timestamp is read as Central Daylight Time |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:39](../../src/modules/nicknames/tests/nickname_import_test.cpp#L39) |
+| the hour that happens twice each November takes the earlier one |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:44](../../src/modules/nicknames/tests/nickname_import_test.cpp#L44) |
+| the hour that never happens each March is shifted forward |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:52](../../src/modules/nicknames/tests/nickname_import_test.cpp#L52) |
+| dates before the 2007 rule change use the rules of their own year |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:62](../../src/modules/nicknames/tests/nickname_import_test.cpp#L62) |
+| a timestamp that is not one is refused rather than guessed at |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:69](../../src/modules/nicknames/tests/nickname_import_test.cpp#L69) |
+| an imported author is kept only when it is not the guess |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:80](../../src/modules/nicknames/tests/nickname_import_test.cpp#L80) |
+| a member's entries are read with their guild and id |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:95](../../src/modules/nicknames/tests/nickname_import_test.cpp#L95) |
+| an imported entry keeps the text its time was read from |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:124](../../src/modules/nicknames/tests/nickname_import_test.cpp#L124) |
+| a cleared nickname imports as nothing rather than as an empty name |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:141](../../src/modules/nicknames/tests/nickname_import_test.cpp#L141) |
+| one unreadable entry does not lose the rest |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:155](../../src/modules/nicknames/tests/nickname_import_test.cpp#L155) |
+| malformed shapes are named rather than dropped quietly |  | 5 | [src/modules/nicknames/tests/nickname_import_test.cpp:174](../../src/modules/nicknames/tests/nickname_import_test.cpp#L174) |
+| an empty file imports nothing and complains about nothing |  |  | [src/modules/nicknames/tests/nickname_import_test.cpp:199](../../src/modules/nicknames/tests/nickname_import_test.cpp#L199) |
+| a recorded change comes back as it went in |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:43](../../src/modules/nicknames/tests/nickname_store_test.cpp#L43) |
+| a cleared nickname is stored as nothing, not as an empty string |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:64](../../src/modules/nicknames/tests/nickname_store_test.cpp#L64) |
+| history reads newest first |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:77](../../src/modules/nicknames/tests/nickname_store_test.cpp#L77) |
+| two changes in the same second keep the order they were recorded |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:91](../../src/modules/nicknames/tests/nickname_store_test.cpp#L91) |
+| history is per guild |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:104](../../src/modules/nicknames/tests/nickname_store_test.cpp#L104) |
+| the latest row is what a new sighting is compared against |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:118](../../src/modules/nicknames/tests/nickname_store_test.cpp#L118) |
+| an audit entry finds the row it describes |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:131](../../src/modules/nicknames/tests/nickname_store_test.cpp#L131) |
+| an audit entry does not attach itself to an older identical change |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:141](../../src/modules/nicknames/tests/nickname_store_test.cpp#L141) |
+| an audit entry for a different nickname matches nothing |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:151](../../src/modules/nicknames/tests/nickname_store_test.cpp#L151) |
+| a row that already names somebody is not offered for attribution |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:159](../../src/modules/nicknames/tests/nickname_store_test.cpp#L159) |
+| attributing a row fills in the author and where it came from |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:169](../../src/modules/nicknames/tests/nickname_store_test.cpp#L169) |
+| the first audit entry to attribute a row wins |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:182](../../src/modules/nicknames/tests/nickname_store_test.cpp#L182) |
+| a change that did not go through can be taken back |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:195](../../src/modules/nicknames/tests/nickname_store_test.cpp#L195) |
+| an imported row keeps the text its timestamp was read from |  |  | [src/modules/nicknames/tests/nickname_store_test.cpp:208](../../src/modules/nicknames/tests/nickname_store_test.cpp#L208) |
+| nickname tracking is on unless the config turns it off |  |  | [src/modules/nicknames/tests/nicknames_module_test.cpp:50](../../src/modules/nicknames/tests/nicknames_module_test.cpp#L50) |
+| tracking asks for the Server Members intent and the audit log, and listens |  |  | [src/modules/nicknames/tests/nicknames_module_test.cpp:63](../../src/modules/nicknames/tests/nicknames_module_test.cpp#L63) |
+| with tracking off, the module asks for nothing privileged and listens to nothing |  |  | [src/modules/nicknames/tests/nicknames_module_test.cpp:74](../../src/modules/nicknames/tests/nicknames_module_test.cpp#L74) |
+| a key the nicknames section does not have stops the module from starting |  |  | [src/modules/nicknames/tests/nicknames_module_test.cpp:89](../../src/modules/nicknames/tests/nicknames_module_test.cpp#L89) |
+| the nicknames README lists what the module registers |  |  | [src/modules/nicknames/tests/nicknames_module_test.cpp:96](../../src/modules/nicknames/tests/nicknames_module_test.cpp#L96) |
+| a first sighting is recorded only when there is a nickname to record |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:40](../../src/modules/nicknames/tests/nicknames_test.cpp#L40) |
+| the same nickname again is not a change |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:48](../../src/modules/nicknames/tests/nicknames_test.cpp#L48) |
+| clearing a nickname is a change |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:55](../../src/modules/nicknames/tests/nicknames_test.cpp#L55) |
+| an audit entry describes a row by member and resulting nickname |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:70](../../src/modules/nicknames/tests/nicknames_test.cpp#L70) |
+| an audit entry can describe a cleared nickname |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:79](../../src/modules/nicknames/tests/nicknames_test.cpp#L79) |
+| the bot is never recorded as the one who made a change |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:86](../../src/modules/nicknames/tests/nicknames_test.cpp#L86) |
+| an audit entry with no actor attributes nothing |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:95](../../src/modules/nicknames/tests/nicknames_test.cpp#L95) |
+| a row that already names somebody is left alone |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:99](../../src/modules/nicknames/tests/nicknames_test.cpp#L99) |
+| an audit entry's nickname arrives as JSON rather than as text |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:106](../../src/modules/nicknames/tests/nicknames_test.cpp#L106) |
+| an unreadable audit value is treated as no nickname |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:120](../../src/modules/nicknames/tests/nicknames_test.cpp#L120) |
+| a change the bot just made is claimed once |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:129](../../src/modules/nicknames/tests/nicknames_test.cpp#L129) |
+| an expectation only matches the change it was made for |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:142](../../src/modules/nicknames/tests/nicknames_test.cpp#L142) |
+| an expectation stops applying once it has expired |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:153](../../src/modules/nicknames/tests/nicknames_test.cpp#L153) |
+| expired expectations are cleared out as new ones arrive |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:163](../../src/modules/nicknames/tests/nicknames_test.cpp#L163) |
+| a change Discord refused stops being expected |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:174](../../src/modules/nicknames/tests/nicknames_test.cpp#L174) |
+| clearing a nickname is expected and claimed like any other change |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:184](../../src/modules/nicknames/tests/nicknames_test.cpp#L184) |
+| a cleared nickname reads as cleared rather than as a blank |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:197](../../src/modules/nicknames/tests/nicknames_test.cpp#L197) |
+| who changed it is a mention, unknown, or nothing |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:203](../../src/modules/nicknames/tests/nicknames_test.cpp#L203) |
+| a history line carries the nickname, the time and the author |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:217](../../src/modules/nicknames/tests/nicknames_test.cpp#L217) |
+| an imported history line says nothing about who |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:229](../../src/modules/nicknames/tests/nicknames_test.cpp#L229) |
+| the attachment spells out times rather than leaving markup in a file |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:236](../../src/modules/nicknames/tests/nicknames_test.cpp#L236) |
+| one entry is not described as one entries |  |  | [src/modules/nicknames/tests/nicknames_test.cpp:255](../../src/modules/nicknames/tests/nicknames_test.cpp#L255) |
 
 ## midnight
 

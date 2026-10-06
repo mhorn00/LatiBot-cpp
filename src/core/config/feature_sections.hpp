@@ -12,18 +12,6 @@
 
 namespace latibot::config {
 
-/// "nicknames" (docs/features/Nicknames.md §3).
-struct nicknames_config {
-    /// Whether to watch for nickname changes.
-    ///
-    /// This is the one setting that decides which intents the bot asks for:
-    /// nickname changes only arrive with the privileged Server Members
-    /// intent, which must also be switched on in the Discord developer
-    /// portal. A bot that asks for an intent it was not granted is refused
-    /// the gateway entirely, so this is the way to turn the request off.
-    bool track_changes = true;
-};
-
 /// "linkstats" (docs/features/Link_Stats.md §10).
 struct linkstats_config {
     /// How many reactions an emote needs before the bot keeps its own copy
@@ -58,7 +46,6 @@ struct music_config {
     int pot_provider_port = 4416;
 };
 
-[[nodiscard]] auto nicknames_section() -> const section<nicknames_config>&;
 [[nodiscard]] auto linkstats_section() -> const section<linkstats_config>&;
 [[nodiscard]] auto llm_section() -> const section<llm_config>&;
 [[nodiscard]] auto music_section() -> const section<music_config>&;

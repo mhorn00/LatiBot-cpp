@@ -2,6 +2,8 @@
 
 #include "core/db/migrations.hpp"
 
+#include <dpp/json.h>
+
 #include <functional>
 #include <memory>
 #include <span>
@@ -62,8 +64,12 @@ using module_factory = std::function<module_list(host&)>;
 auto start_modules(const module_factory& make, host& bot, capability_registry& offered) -> module_list;
 
 /// This build's modules: the `module_factory` the executable runs with.
-/// Defined by the executable, not the core, so a test linking the core
-/// chooses its own.
+/// Defined by the generated module list, not the core, so a test linking the
+/// core chooses its own.
 auto enabled_modules(host& bot) -> module_list;
+
+/// This build's modules' config.json sections, each at its defaults, for
+/// the file the bot writes when there is none (`config::bootstrap::load`).
+auto enabled_config_defaults() -> nlohmann::ordered_json;
 
 } // namespace latibot::modules

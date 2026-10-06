@@ -1,5 +1,5 @@
-#include "core/events/nickname_import.hpp"
 #include "core/db/database.hpp"
+#include "nickname_import.hpp"
 
 #include "support/schema.hpp"
 #include "support/temp_directory.hpp"
@@ -25,7 +25,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     nickname_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::events::nicknames_schema());
+    }
 };
 
 constexpr std::string_view two_entries = R"json({
@@ -40,7 +43,7 @@ constexpr std::string_view two_entries = R"json({
 
 } // namespace
 
-TEST_CASE("an import writes the history it read", "[db]") {
+TEST_CASE("an import writes the history it read", "[nicknames]") {
     store_fixture fixture;
 
     const import_report report = read_nicknames_json(two_entries);
@@ -54,7 +57,7 @@ TEST_CASE("an import writes the history it read", "[db]") {
     CHECK(history.back().nickname == "one");
 }
 
-TEST_CASE("importing the same file twice adds nothing the second time", "[db]") {
+TEST_CASE("importing the same file twice adds nothing the second time", "[nicknames]") {
     store_fixture fixture;
 
     const import_report report = read_nicknames_json(two_entries);
@@ -67,7 +70,7 @@ TEST_CASE("importing the same file twice adds nothing the second time", "[db]") 
     CHECK(fixture.store.count(guild, member) == 2);
 }
 
-TEST_CASE("an import does not disturb history the bot recorded itself", "[db]") {
+TEST_CASE("an import does not disturb history the bot recorded itself", "[nicknames]") {
     store_fixture fixture;
 
     // Somebody's nickname today, watched live and attributed.
@@ -88,7 +91,7 @@ TEST_CASE("an import does not disturb history the bot recorded itself", "[db]") 
     CHECK(history.front().changed_by == dpp::snowflake{333});
 }
 
-TEST_CASE("a cleared nickname is imported once, not once per run", "[db]") {
+TEST_CASE("a cleared nickname is imported once, not once per run", "[nicknames]") {
     store_fixture fixture;
 
     // NULL never equals NULL in SQL, so a cleared nickname is the row most
@@ -105,14 +108,14 @@ TEST_CASE("a cleared nickname is imported once, not once per run", "[db]") {
     CHECK(import_nicknames(fixture.store, report) == 0);
 }
 
-TEST_CASE("no file to import is not a problem", "[db][fs]") {
+TEST_CASE("no file to import is not a problem", "[nicknames][fs]") {
     store_fixture fixture;
     const latibot::testing::temp_directory temp;
 
     CHECK_FALSE(import_nicknames_file(fixture.store, temp.path() / "nicknames.json").has_value());
 }
 
-TEST_CASE("a file beside the database is read and imported", "[db][fs]") {
+TEST_CASE("a file beside the database is read and imported", "[nicknames][fs]") {
     store_fixture fixture;
     const latibot::testing::temp_directory temp;
 

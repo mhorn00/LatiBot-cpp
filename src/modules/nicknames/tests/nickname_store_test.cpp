@@ -1,5 +1,5 @@
 #include "core/db/database.hpp"
-#include "core/events/nicknames.hpp"
+#include "nicknames.hpp"
 
 #include "support/schema.hpp"
 
@@ -25,7 +25,10 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     nickname_store store{db};
 
-    store_fixture() { latibot::testing::create_schema(db); }
+    store_fixture() {
+        latibot::testing::create_schema(db);
+        latibot::db::apply_schema(db, latibot::events::nicknames_schema());
+    }
 };
 
 /// A fixed instant, so "recorded a minute ago" is exact rather than racy.
@@ -37,7 +40,7 @@ auto change_to(std::optional<std::string> nickname, std::chrono::system_clock::t
 
 } // namespace
 
-TEST_CASE("a recorded change comes back as it went in", "[db]") {
+TEST_CASE("a recorded change comes back as it went in", "[nicknames]") {
     store_fixture fixture;
 
     nickname_change written = change_to("worm scientist");
@@ -58,7 +61,7 @@ TEST_CASE("a recorded change comes back as it went in", "[db]") {
     CHECK(read->imported_raw.empty());
 }
 
-TEST_CASE("a cleared nickname is stored as nothing, not as an empty string", "[db]") {
+TEST_CASE("a cleared nickname is stored as nothing, not as an empty string", "[nicknames]") {
     store_fixture fixture;
 
     // One of the three Java bugs being fixed while porting
@@ -71,7 +74,7 @@ TEST_CASE("a cleared nickname is stored as nothing, not as an empty string", "[d
     CHECK_FALSE(read->nickname.has_value());
 }
 
-TEST_CASE("history reads newest first", "[db]") {
+TEST_CASE("history reads newest first", "[nicknames]") {
     store_fixture fixture;
 
     fixture.store.record(change_to("first", noon));
@@ -85,7 +88,7 @@ TEST_CASE("history reads newest first", "[db]") {
     CHECK(history[2].nickname == "first");
 }
 
-TEST_CASE("two changes in the same second keep the order they were recorded", "[db]") {
+TEST_CASE("two changes in the same second keep the order they were recorded", "[nicknames]") {
     store_fixture fixture;
 
     // Only the second is stored, so a rename undone immediately would
@@ -98,7 +101,7 @@ TEST_CASE("two changes in the same second keep the order they were recorded", "[
     CHECK(history[0].nickname == "later");
 }
 
-TEST_CASE("history is per guild", "[db]") {
+TEST_CASE("history is per guild", "[nicknames]") {
     store_fixture fixture;
 
     fixture.store.record(change_to("here"));
@@ -112,7 +115,7 @@ TEST_CASE("history is per guild", "[db]") {
     CHECK(fixture.store.history(guild, member).front().nickname == "here");
 }
 
-TEST_CASE("the latest row is what a new sighting is compared against", "[db]") {
+TEST_CASE("the latest row is what a new sighting is compared against", "[nicknames]") {
     store_fixture fixture;
 
     CHECK_FALSE(fixture.store.latest(guild, member).has_value());
@@ -125,7 +128,7 @@ TEST_CASE("the latest row is what a new sighting is compared against", "[db]") {
     CHECK(latest->nickname == "current");
 }
 
-TEST_CASE("an audit entry finds the row it describes", "[db]") {
+TEST_CASE("an audit entry finds the row it describes", "[nicknames]") {
     store_fixture fixture;
 
     const std::int64_t id = fixture.store.record(change_to("worm scientist", noon));
@@ -135,7 +138,7 @@ TEST_CASE("an audit entry finds the row it describes", "[db]") {
     CHECK(found->id == id);
 }
 
-TEST_CASE("an audit entry does not attach itself to an older identical change", "[db]") {
+TEST_CASE("an audit entry does not attach itself to an older identical change", "[nicknames]") {
     store_fixture fixture;
 
     // Somebody used this nickname last week and is using it again now. Without
@@ -145,7 +148,7 @@ TEST_CASE("an audit entry does not attach itself to an older identical change", 
     CHECK_FALSE(fixture.store.unattributed(guild, member, "worm scientist", noon, 10s).has_value());
 }
 
-TEST_CASE("an audit entry for a different nickname matches nothing", "[db]") {
+TEST_CASE("an audit entry for a different nickname matches nothing", "[nicknames]") {
     store_fixture fixture;
 
     fixture.store.record(change_to("worm scientist", noon));
@@ -153,7 +156,7 @@ TEST_CASE("an audit entry for a different nickname matches nothing", "[db]") {
     CHECK_FALSE(fixture.store.unattributed(guild, member, "something else", noon + 1s, 10s).has_value());
 }
 
-TEST_CASE("a row that already names somebody is not offered for attribution", "[db]") {
+TEST_CASE("a row that already names somebody is not offered for attribution", "[nicknames]") {
     store_fixture fixture;
 
     nickname_change known = change_to("worm scientist", noon);
@@ -163,7 +166,7 @@ TEST_CASE("a row that already names somebody is not offered for attribution", "[
     CHECK_FALSE(fixture.store.unattributed(guild, member, "worm scientist", noon + 1s, 10s).has_value());
 }
 
-TEST_CASE("attributing a row fills in the author and where it came from", "[db]") {
+TEST_CASE("attributing a row fills in the author and where it came from", "[nicknames]") {
     store_fixture fixture;
 
     const std::int64_t id = fixture.store.record(change_to("worm scientist"));
@@ -176,7 +179,7 @@ TEST_CASE("attributing a row fills in the author and where it came from", "[db]"
     CHECK(read->source == nickname_source::audit_log);
 }
 
-TEST_CASE("the first audit entry to attribute a row wins", "[db]") {
+TEST_CASE("the first audit entry to attribute a row wins", "[nicknames]") {
     store_fixture fixture;
 
     // Two entries can describe the same change: the gateway one and the
@@ -189,7 +192,7 @@ TEST_CASE("the first audit entry to attribute a row wins", "[db]") {
     CHECK(fixture.store.find(id)->changed_by == moderator);
 }
 
-TEST_CASE("a change that did not go through can be taken back", "[db]") {
+TEST_CASE("a change that did not go through can be taken back", "[nicknames]") {
     store_fixture fixture;
 
     // `/nickname` records first and asks Discord second, so a refusal has to
@@ -202,7 +205,7 @@ TEST_CASE("a change that did not go through can be taken back", "[db]") {
     CHECK_FALSE(fixture.store.remove(id));
 }
 
-TEST_CASE("an imported row keeps the text its timestamp was read from", "[db]") {
+TEST_CASE("an imported row keeps the text its timestamp was read from", "[nicknames]") {
     store_fixture fixture;
 
     nickname_change imported = change_to("worm scientist");

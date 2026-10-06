@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/events/nicknames.hpp"
+#include "nicknames.hpp"
 
 #include <dpp/snowflake.h>
 

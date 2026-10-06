@@ -62,42 +62,6 @@ constexpr std::array<migration, 1> triggers_steps{{
      )sql"},
 }};
 
-constexpr std::array<migration, 1> nicknames_steps{{
-    {.version = 1, .name = "nickname_history", .sql = R"sql(
-        -- Every nickname a member has had here, however the change was made.
-        -- Ids are stored raw and names resolved at display time, so a member
-        -- who has left still has a readable history.
-        CREATE TABLE nickname_history (
-            id           INTEGER PRIMARY KEY,
-            guild_id     INTEGER NOT NULL,
-            user_id      INTEGER NOT NULL,
-
-            -- NULL means the nickname was cleared, which is not the same as "".
-            nickname     TEXT,
-
-            -- Unix seconds. Compared against dates, so it is wall clock.
-            changed_at   INTEGER NOT NULL,
-
-            -- NULL means nobody could be named.
-            changed_by   INTEGER,
-
-            -- command | audit_log | seen | startup | imported: how far the
-            -- attribution above can be trusted.
-            source       TEXT    NOT NULL,
-
-            -- The original timestamp text from nicknames.json, so the timezone
-            -- conversion can be redone.
-            imported_raw TEXT
-        );
-
-        -- Every read is "this member, newest first"; the partial index is for
-        -- the audit log looking for a row it can still attribute.
-        CREATE INDEX nickname_history_by_member ON nickname_history (guild_id, user_id, changed_at DESC);
-        CREATE INDEX nickname_history_unattributed ON nickname_history (guild_id, user_id, changed_at)
-            WHERE changed_by IS NULL;
-     )sql"},
-}};
-
 constexpr std::array<migration, 1> links_steps{{
     {.version = 1, .name = "url rules and replacements", .sql = R"sql(
         -- Where links to a site go instead, in the order to try them. A rule
@@ -430,10 +394,9 @@ constexpr auto schema_of(std::string_view module, std::span<const migration> ste
 }
 
 // Each after the modules it requires: linkstats after links.
-constexpr std::array<module_schema, 7> builtin{{
+constexpr std::array<module_schema, 6> builtin{{
     schema_of("core", core_steps),
     schema_of("triggers", triggers_steps),
-    schema_of("nicknames", nicknames_steps),
     schema_of("links", links_steps),
     schema_of("linkstats", linkstats_steps),
     schema_of("dectalk", dectalk_steps),
@@ -448,20 +411,17 @@ auto core_schema() noexcept -> module_schema {
 auto triggers_schema() noexcept -> module_schema {
     return builtin[1];
 }
-auto nicknames_schema() noexcept -> module_schema {
+auto links_schema() noexcept -> module_schema {
     return builtin[2];
 }
-auto links_schema() noexcept -> module_schema {
+auto linkstats_schema() noexcept -> module_schema {
     return builtin[3];
 }
-auto linkstats_schema() noexcept -> module_schema {
+auto dectalk_schema() noexcept -> module_schema {
     return builtin[4];
 }
-auto dectalk_schema() noexcept -> module_schema {
-    return builtin[5];
-}
 auto llm_schema() noexcept -> module_schema {
-    return builtin[6];
+    return builtin[5];
 }
 
 auto builtin_schemas() noexcept -> std::span<const module_schema> {

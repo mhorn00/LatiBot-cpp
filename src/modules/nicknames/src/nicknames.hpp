@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/db/schema_versions.hpp"
+
 #include <dpp/snowflake.h>
 
 #include <chrono>
@@ -17,6 +19,10 @@ class database;
 }
 
 namespace latibot::events {
+
+/// The module's tables, `nickname_history`, version 1 first
+/// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp.
+[[nodiscard]] auto nicknames_schema() noexcept -> db::module_schema;
 
 /// Where a history row's attribution came from, which is also how far it can
 /// be trusted (docs/features/Nicknames.md §2.1).

@@ -90,9 +90,6 @@ TEST_CASE("every key of every feature section says what it is for", "[config]") 
     for (const auto& each : latibot::config::music_section().keys()) {
         CHECK_FALSE(each.description().empty());
     }
-    for (const auto& each : latibot::config::nicknames_section().keys()) {
-        CHECK_FALSE(each.description().empty());
-    }
     for (const auto& each : latibot::config::linkstats_section().keys()) {
         CHECK_FALSE(each.description().empty());
     }

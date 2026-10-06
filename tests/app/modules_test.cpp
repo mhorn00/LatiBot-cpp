@@ -3,6 +3,7 @@
 // §4.8). What can only be checked with all of them is here: the comparison of
 // every module's schema with the old migrations, and adoption.
 
+#include "core/config/bootstrap.hpp"
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
 #include "core/db/schema_versions.hpp"
@@ -16,8 +17,10 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -229,4 +232,21 @@ TEST_CASE("adoption records every module of migration 15, and only those", "[app
     }
     const std::set<std::string_view> adopted(latibot::db::adopted_modules().begin(), latibot::db::adopted_modules().end());
     CHECK(adopted == every);
+}
+
+TEST_CASE("the example config is exactly what the bot writes, every module's section included", "[app]") {
+    // config.example.json is for reading on GitHub; the bot writes its own
+    // when there is none, with the sections of the modules it was built with.
+    // Line endings aside, since git may check the example out with CRLF.
+    test_host bot;
+    const module_list modules = latibot::modules::enabled_modules(bot);
+    if (!every_module_built(modules)) SKIP("this build leaves out a module the example has a section for");
+
+    const std::ifstream file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json", std::ios::binary);
+    std::ostringstream contents;
+    contents << file.rdbuf();
+    std::string example = contents.str();
+    std::erase(example, '\r');
+
+    CHECK(example == latibot::config::bootstrap::default_json(latibot::modules::enabled_config_defaults()));
 }

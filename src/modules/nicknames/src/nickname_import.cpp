@@ -1,4 +1,4 @@
-#include "core/events/nickname_import.hpp"
+#include "nickname_import.hpp"
 
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"

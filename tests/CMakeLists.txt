@@ -71,8 +71,6 @@ latibot_test_executable(latibot_tests SOURCES
     db/media_posts_test.cpp
     db/migrations_test.cpp
     db/schema_versions_test.cpp
-    db/nickname_import_test.cpp
-    db/nickname_store_test.cpp
     unit/basic_commands_test.cpp
     unit/bootstrap_test.cpp
     unit/config_section_test.cpp
@@ -100,9 +98,6 @@ latibot_test_executable(latibot_tests SOURCES
     unit/music_player_test.cpp
     unit/music_queue_test.cpp
     unit/pot_provider_test.cpp
-    unit/nickname_command_test.cpp
-    unit/nickname_import_test.cpp
-    unit/nicknames_test.cpp
     unit/paginator_test.cpp
     unit/panels_test.cpp
     unit/panel_routes_test.cpp

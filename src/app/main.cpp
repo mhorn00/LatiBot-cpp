@@ -34,7 +34,7 @@ auto main(int argc, char** argv) -> int {
         // logged at the level asked for.
         if (const auto wanted = latibot::config::log_level_from_environment()) latibot::util::log().set_level(*wanted);
 
-        const auto settings = latibot::config::bootstrap::load(command_line.config_path);
+        const auto settings = latibot::config::bootstrap::load(command_line.config_path, latibot::modules::enabled_config_defaults());
 
         // Applied here rather than only in the bot, so that everything below
         // this line is logged at the level the operator asked for.

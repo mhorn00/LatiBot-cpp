@@ -1,4 +1,4 @@
-#include "core/events/nicknames.hpp"
+#include "nicknames.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -37,7 +37,7 @@ auto change_to(std::optional<std::string> nickname) -> nickname_change {
 // Is this a change at all
 // --------------------------------------------------------------------------
 
-TEST_CASE("a first sighting is recorded only when there is a nickname to record", "[events]") {
+TEST_CASE("a first sighting is recorded only when there is a nickname to record", "[nicknames]") {
     CHECK(is_new_nickname(std::nullopt, "worm scientist"));
 
     // Somebody who has never had a nickname has not changed anything, so
@@ -45,14 +45,14 @@ TEST_CASE("a first sighting is recorded only when there is a nickname to record"
     CHECK_FALSE(is_new_nickname(std::nullopt, std::nullopt));
 }
 
-TEST_CASE("the same nickname again is not a change", "[events]") {
+TEST_CASE("the same nickname again is not a change", "[nicknames]") {
     const auto latest = std::optional(change_to("worm scientist"));
 
     CHECK_FALSE(is_new_nickname(latest, "worm scientist"));
     CHECK(is_new_nickname(latest, "something else"));
 }
 
-TEST_CASE("clearing a nickname is a change", "[events]") {
+TEST_CASE("clearing a nickname is a change", "[nicknames]") {
     const auto had_one = std::optional(change_to("worm scientist"));
     const auto had_none = std::optional(change_to(std::nullopt));
 
@@ -67,7 +67,7 @@ TEST_CASE("clearing a nickname is a change", "[events]") {
 // Attribution
 // --------------------------------------------------------------------------
 
-TEST_CASE("an audit entry describes a row by member and resulting nickname", "[events]") {
+TEST_CASE("an audit entry describes a row by member and resulting nickname", "[nicknames]") {
     const nickname_change row = change_to("worm scientist");
 
     CHECK(describes(row, member, "worm scientist"));
@@ -76,14 +76,14 @@ TEST_CASE("an audit entry describes a row by member and resulting nickname", "[e
     CHECK_FALSE(describes(row, member, std::nullopt));
 }
 
-TEST_CASE("an audit entry can describe a cleared nickname", "[events]") {
+TEST_CASE("an audit entry can describe a cleared nickname", "[nicknames]") {
     const nickname_change row = change_to(std::nullopt);
 
     CHECK(describes(row, member, std::nullopt));
     CHECK_FALSE(describes(row, member, "worm scientist"));
 }
 
-TEST_CASE("the bot is never recorded as the one who made a change", "[events]") {
+TEST_CASE("the bot is never recorded as the one who made a change", "[nicknames]") {
     const nickname_change row = change_to("worm scientist");
 
     // Discord's audit log names the bot, because the bot is what called the
@@ -92,18 +92,18 @@ TEST_CASE("the bot is never recorded as the one who made a change", "[events]") 
     CHECK(may_attribute(row, moderator, self));
 }
 
-TEST_CASE("an audit entry with no actor attributes nothing", "[events]") {
+TEST_CASE("an audit entry with no actor attributes nothing", "[nicknames]") {
     CHECK_FALSE(may_attribute(change_to("worm scientist"), dpp::snowflake{}, self));
 }
 
-TEST_CASE("a row that already names somebody is left alone", "[events]") {
+TEST_CASE("a row that already names somebody is left alone", "[nicknames]") {
     nickname_change row = change_to("worm scientist");
     row.changed_by = moderator;
 
     CHECK_FALSE(may_attribute(row, dpp::snowflake{5000}, self));
 }
 
-TEST_CASE("an audit entry's nickname arrives as JSON rather than as text", "[events]") {
+TEST_CASE("an audit entry's nickname arrives as JSON rather than as text", "[nicknames]") {
     // DPP dumps the value back to JSON before handing it over, so a nickname
     // comes quoted and a cleared one comes as the word null.
     CHECK(latibot::events::audit_nickname(R"("worm scientist")") == "worm scientist");
@@ -117,7 +117,7 @@ TEST_CASE("an audit entry's nickname arrives as JSON rather than as text", "[eve
     CHECK(quoted == R"(say "420")");
 }
 
-TEST_CASE("an unreadable audit value is treated as no nickname", "[events]") {
+TEST_CASE("an unreadable audit value is treated as no nickname", "[nicknames]") {
     CHECK_FALSE(latibot::events::audit_nickname("{not json").has_value());
     CHECK_FALSE(latibot::events::audit_nickname("42").has_value());
 }
@@ -126,7 +126,7 @@ TEST_CASE("an unreadable audit value is treated as no nickname", "[events]") {
 // Changes the bot made itself
 // --------------------------------------------------------------------------
 
-TEST_CASE("a change the bot just made is claimed once", "[events]") {
+TEST_CASE("a change the bot just made is claimed once", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, "worm scientist", noon);
@@ -139,7 +139,7 @@ TEST_CASE("a change the bot just made is claimed once", "[events]") {
     CHECK(pending.size() == 0);
 }
 
-TEST_CASE("an expectation only matches the change it was made for", "[events]") {
+TEST_CASE("an expectation only matches the change it was made for", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, "worm scientist", noon);
@@ -150,7 +150,7 @@ TEST_CASE("an expectation only matches the change it was made for", "[events]") 
     CHECK(pending.claim(dpp::snowflake{1}, member, "worm scientist", noon));
 }
 
-TEST_CASE("an expectation stops applying once it has expired", "[events]") {
+TEST_CASE("an expectation stops applying once it has expired", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, "worm scientist", noon);
@@ -160,7 +160,7 @@ TEST_CASE("an expectation stops applying once it has expired", "[events]") {
     CHECK_FALSE(pending.claim(dpp::snowflake{1}, member, "worm scientist", noon + 1h));
 }
 
-TEST_CASE("expired expectations are cleared out as new ones arrive", "[events]") {
+TEST_CASE("expired expectations are cleared out as new ones arrive", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, "one", noon);
@@ -171,7 +171,7 @@ TEST_CASE("expired expectations are cleared out as new ones arrive", "[events]")
     CHECK(pending.size() == 1);
 }
 
-TEST_CASE("a change Discord refused stops being expected", "[events]") {
+TEST_CASE("a change Discord refused stops being expected", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, "worm scientist", noon);
@@ -181,7 +181,7 @@ TEST_CASE("a change Discord refused stops being expected", "[events]") {
     CHECK_FALSE(pending.claim(dpp::snowflake{1}, member, "worm scientist", noon));
 }
 
-TEST_CASE("clearing a nickname is expected and claimed like any other change", "[events]") {
+TEST_CASE("clearing a nickname is expected and claimed like any other change", "[nicknames]") {
     latibot::events::pending_nicknames pending;
 
     pending.expect(dpp::snowflake{1}, member, std::nullopt, noon);
@@ -194,13 +194,13 @@ TEST_CASE("clearing a nickname is expected and claimed like any other change", "
 // Display
 // --------------------------------------------------------------------------
 
-TEST_CASE("a cleared nickname reads as cleared rather than as a blank", "[events]") {
+TEST_CASE("a cleared nickname reads as cleared rather than as a blank", "[nicknames]") {
     CHECK(show_nickname("worm scientist") == "worm scientist");
     CHECK(show_nickname(std::nullopt) == "*(cleared)*");
     CHECK(show_nickname(std::string{}) == "*(cleared)*");
 }
 
-TEST_CASE("who changed it is a mention, unknown, or nothing", "[events]") {
+TEST_CASE("who changed it is a mention, unknown, or nothing", "[nicknames]") {
     nickname_change named = change_to("worm scientist");
     named.changed_by = moderator;
     CHECK(show_author(named) == "<@4000>");
@@ -214,7 +214,7 @@ TEST_CASE("who changed it is a mention, unknown, or nothing", "[events]") {
     CHECK(show_author(imported).empty());
 }
 
-TEST_CASE("a history line carries the nickname, the time and the author", "[events]") {
+TEST_CASE("a history line carries the nickname, the time and the author", "[nicknames]") {
     nickname_change row = change_to("worm scientist");
     row.changed_by = moderator;
 
@@ -226,14 +226,14 @@ TEST_CASE("a history line carries the nickname, the time and the author", "[even
     CHECK(describe_change(row) == "**worm scientist** — <t:1790164800:f> by <@4000>");
 }
 
-TEST_CASE("an imported history line says nothing about who", "[events]") {
+TEST_CASE("an imported history line says nothing about who", "[nicknames]") {
     nickname_change row = change_to("worm scientist");
     row.source = nickname_source::imported;
 
     CHECK(describe_change(row) == "**worm scientist** — <t:1790164800:f>");
 }
 
-TEST_CASE("the attachment spells out times rather than leaving markup in a file", "[events]") {
+TEST_CASE("the attachment spells out times rather than leaving markup in a file", "[nicknames]") {
     nickname_change named = change_to("worm scientist");
     named.changed_by = moderator;
 
@@ -252,7 +252,7 @@ TEST_CASE("the attachment spells out times rather than leaving markup in a file"
     CHECK_FALSE(text.contains("<t:"));
 }
 
-TEST_CASE("one entry is not described as one entries", "[events]") {
+TEST_CASE("one entry is not described as one entries", "[nicknames]") {
     const std::vector<nickname_change> history{change_to("worm scientist")};
 
     CHECK(render_history_text(history, "somebody").contains("1 entry,"));
