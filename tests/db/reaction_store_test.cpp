@@ -2,9 +2,10 @@
 // (docs/features/Link_Stats.md §3, §4).
 
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -62,7 +63,7 @@ struct store_fixture {
     reaction_store reactions{db};
 
     store_fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         replacement(alices_link, alice, day_one);
         replacement(bobs_link, bob, day_one + 24h);
         replacement(unattributed, std::nullopt, day_one + 48h);

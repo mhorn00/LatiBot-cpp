@@ -2,7 +2,8 @@
 
 #include "core/audio/voice_store.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -23,7 +24,7 @@ struct store_fixture {
     database db{std::filesystem::path(database::in_memory)};
     voice_store voices{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 auto voice(std::string name, const std::string& base, const std::string& edits) -> saved_voice {

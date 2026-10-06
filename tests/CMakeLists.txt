@@ -18,6 +18,7 @@ add_executable(latibot_tests
     db/llm_store_test.cpp
     db/media_posts_test.cpp
     db/migrations_test.cpp
+    db/schema_versions_test.cpp
     db/midnight_store_test.cpp
     db/nickname_import_test.cpp
     db/nickname_store_test.cpp

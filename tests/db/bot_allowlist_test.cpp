@@ -1,7 +1,8 @@
 #include "core/events/bot_allowlist.hpp"
 
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -18,7 +19,7 @@ struct allowlist_fixture {
     latibot::db::database db{":memory:"};
     bot_allowlist allowlist{db};
 
-    allowlist_fixture() { latibot::db::migrate(db); }
+    allowlist_fixture() { latibot::testing::create_schema(db); }
 };
 
 } // namespace

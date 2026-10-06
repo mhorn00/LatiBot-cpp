@@ -4,7 +4,6 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/discord/raw_api.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/module/capability_registry.hpp"
@@ -14,6 +13,7 @@
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_http.hpp"
+#include "support/schema.hpp"
 
 #include <dpp/dpp.h>
 
@@ -75,7 +75,7 @@ public:
     std::vector<events::send_message> posted;
     std::vector<detached_task> detached;
 
-    test_host() { db::migrate(data); }
+    test_host() { create_schema(data); }
 
     [[nodiscard]] auto database() -> db::database& override { return data; }
     [[nodiscard]] auto settings() -> config::guild_settings& override { return guild_settings; }

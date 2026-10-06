@@ -4,7 +4,6 @@
 
 #include "core/events/backfill.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/legacy_replacements.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
@@ -12,6 +11,7 @@
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -90,7 +90,7 @@ struct fixture {
     /// Without `with_rules`, no rule has ever named a mirror, as for mirrors
     /// that broke before this database existed.
     explicit fixture(bool with_rules = true) {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         if (!with_rules) return;
         // A rule long since changed: the old mirror is still known.
         rules.set(guild, {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}});

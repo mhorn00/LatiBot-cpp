@@ -6,11 +6,11 @@
 #include "core/commands/speak.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/voice_sessions.hpp"
 
 #include "mocks/mock_tts.hpp"
 #include "mocks/mock_voice.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -34,7 +34,7 @@ struct fixture {
     latibot::audio::speech_queue queue{voice};
     latibot::audio::dectalk_speech speech{tts, queue, sessions, settings};
 
-    fixture() { latibot::db::migrate(db); }
+    fixture() { latibot::testing::create_schema(db); }
 };
 
 } // namespace

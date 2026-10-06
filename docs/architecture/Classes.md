@@ -280,9 +280,11 @@ How it fits together:
 - **Typed binding.** `bind` and `get<T>` convert the types the bot uses:
   `dpp::snowflake`, `std::chrono` times, `std::optional` (as NULL), strings,
   numbers and blobs.
-- **Migrations.** `db::migrate` runs at startup and applies every migration
-  newer than the file's `user_version`. Shipped migrations are never
-  edited; a change is a new one.
+- **Schemas.** Each module has its own steps, recorded in
+  `schema_versions`; `db::apply_schema` runs those above a module's version
+  at startup. `db::prepare_schema_versions` adopts a database from before
+  modules through the old `db::migrate`. Shipped steps are never edited; a
+  change is a new one.
 - **Settings.** `guild_settings` is the key/value table, for features that
   need a single value per server rather than a table of their own.
   `config::bot_wide` (server id 0) is the key for values that apply to the

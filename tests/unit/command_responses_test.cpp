@@ -13,7 +13,6 @@
 #include "core/commands/urlrepl.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/bot_allowlist.hpp"
 #include "core/events/midnight.hpp"
 #include "core/events/nicknames.hpp"
@@ -22,6 +21,7 @@
 #include "core/events/url_rules.hpp"
 
 #include "mocks/mock_clock.hpp"
+#include "support/schema.hpp"
 #include "support/slash_event.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -44,7 +44,7 @@ struct stores {
     latibot::events::reaction_store reactions{db};
     latibot::testing::mock_clock clock;
 
-    stores() { latibot::db::migrate(db); }
+    stores() { latibot::testing::create_schema(db); }
 };
 
 } // namespace

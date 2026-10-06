@@ -1,7 +1,8 @@
 #include "core/commands/basic.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -52,7 +53,7 @@ TEST_CASE("joining follows the target and moves only when it has to", "[commands
 
 TEST_CASE("a status is kept for the next start, and none is kept until one is set", "[commands]") {
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::config::guild_settings settings(db);
 
     CHECK_FALSE(latibot::commands::load_status(settings).has_value());

@@ -1,7 +1,7 @@
 #include "core/db/backup.hpp"
 
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
+#include "support/schema.hpp"
 #include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -23,7 +23,7 @@ constexpr auto stamp(int minutes_past_epoch) -> std::chrono::system_clock::time_
 }
 
 auto seed(database& db, int rows) -> void {
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     for (int i = 0; i < rows; ++i) {
         db.prepare("INSERT INTO guild_settings (guild_id, key, value) VALUES (?, ?, ?)", 1234567890123456789ULL, "key-" + std::to_string(i),
                    std::to_string(i))

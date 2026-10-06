@@ -1,9 +1,9 @@
 #include "core/commands/trigger.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/ui/paginator.hpp"
 
 #include "support/discord_limits.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -203,7 +203,7 @@ TEST_CASE("the trigger modal fits inside Discord's limits", "[commands]") {
 
 TEST_CASE("a long trigger list pages", "[commands]") {
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
     for (int index = 0; index < 20; ++index) {
@@ -245,7 +245,7 @@ TEST_CASE("a trigger says when its replies notify or hide previews", "[commands]
 
 TEST_CASE("the panel offers to change how a trigger's replies are posted", "[commands]") {
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
     const std::int64_t id =
@@ -287,7 +287,7 @@ TEST_CASE("confirming a delete on the first or last page fits, and Cancel keeps 
     // Cancel once encoded the same state as ◀ on the first page and ▶ on
     // the last, and Discord refuses a message with a custom_id twice.
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 
@@ -323,7 +323,7 @@ TEST_CASE("the longest pattern the command takes still fits the panel", "[comman
     // /trigger add takes 200 characters and a menu option's label only 100.
     // One label too long and Discord refuses the whole panel, for everybody.
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 
@@ -346,7 +346,7 @@ TEST_CASE("a full page of the longest patterns still fits the panel and the list
     // Eight lines of 200-character patterns pass 2000 characters, and one
     // message too long and Discord refuses it, for everybody.
     latibot::db::database db{":memory:"};
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::events::trigger_store store(db);
     const dpp::snowflake guild{1000};
 

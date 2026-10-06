@@ -1,7 +1,7 @@
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/url_rules.hpp"
 
+#include "support/schema.hpp"
 #include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -22,7 +22,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     url_rule_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 auto x_rule() -> url_rule {
@@ -155,13 +155,13 @@ TEST_CASE("turning replacement on outlasts a restart", "[db][fs]") {
 
     {
         latibot::db::database db{file};
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         url_rule_store(db).set_enabled(guild, true);
     }
 
     // A fresh connection and a fresh store, as the next start would have.
     latibot::db::database reopened{file};
-    latibot::db::migrate(reopened);
+    latibot::testing::create_schema(reopened);
     CHECK(url_rule_store(reopened).enabled(guild));
     CHECK_FALSE(url_rule_store(reopened).enabled(other_guild));
 }

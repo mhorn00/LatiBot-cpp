@@ -3,7 +3,6 @@
 
 #include "core/commands/linkstats.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
 #include "core/ui/paginator.hpp"
@@ -11,6 +10,7 @@
 
 #include "support/discord_limits.hpp"
 #include "support/panel_harness.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -45,7 +45,7 @@ struct fixture {
     latibot::events::reaction_store reactions{db};
 
     fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         replacements.record({.message_id = dpp::snowflake{501},
                              .guild_id = guild,
                              .channel_id = dpp::snowflake{2},

@@ -1,36 +1,50 @@
-#include "core/db/migrations.hpp"
-
-#include "core/db/database.hpp"
-#include "core/db/error.hpp"
-#include "core/util/log.hpp"
-
-#include <sqlite3.h>
+#include "core/db/schemas.hpp"
 
 #include <array>
-#include <string>
 
 namespace latibot::db {
 namespace {
 
-// Never edited, and never added to: a change is a module's next schema step
-// (core/db/schemas.cpp). Remove after: you say so.
-constexpr std::array<migration, 15> all_migrations{{
-    {.version = 1, .name = "guild_settings", .sql = R"sql(
+// Append only, as the old migrations were: once a version has shipped, its
+// SQL is never edited, and a change becomes the module's next version.
+
+constexpr std::array<migration, 1> core_steps{{
+    {.version = 1, .name = "guild_settings and allowed_bots", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
             key      TEXT    NOT NULL,
             value    TEXT    NOT NULL,
             PRIMARY KEY (guild_id, key)
         ) WITHOUT ROWID;
+
+        -- Which other bots this server lets LatiBot hear. Empty by default:
+        -- every bot is ignored until someone says otherwise, because two bots
+        -- answering each other is a loop nobody asked for.
+        CREATE TABLE allowed_bots (
+            guild_id INTEGER NOT NULL,
+            bot_id   INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, bot_id)
+        ) WITHOUT ROWID;
      )sql"},
-    {.version = 2, .name = "triggers", .sql = R"sql(
+}};
+
+constexpr std::array<migration, 1> triggers_steps{{
+    {.version = 1, .name = "triggers", .sql = R"sql(
         CREATE TABLE triggers (
-            id         INTEGER PRIMARY KEY,
-            guild_id   INTEGER NOT NULL,
-            pattern    TEXT    NOT NULL,
-            match_mode TEXT    NOT NULL,
-            cooldown_s INTEGER NOT NULL,
-            enabled    INTEGER NOT NULL
+            id              INTEGER PRIMARY KEY,
+            guild_id        INTEGER NOT NULL,
+            pattern         TEXT    NOT NULL,
+            match_mode      TEXT    NOT NULL,
+            cooldown_s      INTEGER NOT NULL,
+            enabled         INTEGER NOT NULL,
+
+            -- Hearing a bot is not the same as answering it, so each trigger
+            -- opts in.
+            respond_to_bots INTEGER NOT NULL DEFAULT 0,
+
+            -- How its replies are posted, as Discord's message flags: 4096 is
+            -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS.
+            message_flags   INTEGER NOT NULL DEFAULT 4096
         );
 
         CREATE INDEX triggers_by_guild ON triggers (guild_id);
@@ -46,24 +60,13 @@ constexpr std::array<migration, 15> all_migrations{{
 
         CREATE INDEX trigger_responses_by_trigger ON trigger_responses (trigger_id);
      )sql"},
-    {.version = 3, .name = "bot_allowlist", .sql = R"sql(
-        -- Which other bots this server lets LatiBot hear (plan v4 5.4, 14.4).
-        -- Empty by default: every bot is ignored until someone says otherwise,
-        -- because two bots answering each other is a loop nobody asked for.
-        CREATE TABLE allowed_bots (
-            guild_id INTEGER NOT NULL,
-            bot_id   INTEGER NOT NULL,
-            PRIMARY KEY (guild_id, bot_id)
-        ) WITHOUT ROWID;
+}};
 
-        -- Hearing a bot is not the same as answering it, so each trigger opts
-        -- in separately. Existing triggers keep the old behaviour.
-        ALTER TABLE triggers ADD COLUMN respond_to_bots INTEGER NOT NULL DEFAULT 0;
-     )sql"},
-    {.version = 4, .name = "nickname_history", .sql = R"sql(
-        -- Every nickname a member has had here, however the change was made
-        -- (plan v4 8). Ids are stored raw and names resolved at display time,
-        -- so a member who has left still has a readable history.
+constexpr std::array<migration, 1> nicknames_steps{{
+    {.version = 1, .name = "nickname_history", .sql = R"sql(
+        -- Every nickname a member has had here, however the change was made.
+        -- Ids are stored raw and names resolved at display time, so a member
+        -- who has left still has a readable history.
         CREATE TABLE nickname_history (
             id           INTEGER PRIMARY KEY,
             guild_id     INTEGER NOT NULL,
@@ -75,8 +78,7 @@ constexpr std::array<migration, 15> all_migrations{{
             -- Unix seconds. Compared against dates, so it is wall clock.
             changed_at   INTEGER NOT NULL,
 
-            -- NULL means nobody could be named. The Java bot guessed "they did
-            -- it themselves", which was usually wrong (plan v4 8.1).
+            -- NULL means nobody could be named.
             changed_by   INTEGER,
 
             -- command | audit_log | seen | startup | imported: how far the
@@ -84,7 +86,7 @@ constexpr std::array<migration, 15> all_migrations{{
             source       TEXT    NOT NULL,
 
             -- The original timestamp text from nicknames.json, so the timezone
-            -- conversion can be redone (plan v4 8.3).
+            -- conversion can be redone.
             imported_raw TEXT
         );
 
@@ -94,8 +96,11 @@ constexpr std::array<migration, 15> all_migrations{{
         CREATE INDEX nickname_history_unattributed ON nickname_history (guild_id, user_id, changed_at)
             WHERE changed_by IS NULL;
      )sql"},
-    {.version = 5, .name = "midnight_messages", .sql = R"sql(
-        -- A message posted once per local day, per timezone (plan v4 10).
+}};
+
+constexpr std::array<migration, 1> midnight_steps{{
+    {.version = 1, .name = "midnight_messages", .sql = R"sql(
+        -- A message posted once per local day, per timezone.
         CREATE TABLE midnight_messages (
             id              INTEGER PRIMARY KEY,
             guild_id        INTEGER NOT NULL,
@@ -111,14 +116,21 @@ constexpr std::array<migration, 15> all_migrations{{
             -- The local date this last posted, YYYY-MM-DD, NULL for never.
             -- Saved rather than counted from, so a restart at 00:00:30 does
             -- not post a second time.
-            last_fired_date TEXT
+            last_fired_date TEXT,
+
+            -- How it is posted, as Discord's message flags: 4096 is
+            -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS.
+            message_flags   INTEGER NOT NULL DEFAULT 4096
         );
 
         CREATE INDEX midnight_messages_by_guild ON midnight_messages (guild_id);
      )sql"},
-    {.version = 6, .name = "url_replacement", .sql = R"sql(
-        -- Where links to a site go instead, in the order to try them
-        -- (plan v4 9). A rule is its rows for one domain; position 0 is first.
+}};
+
+constexpr std::array<migration, 1> links_steps{{
+    {.version = 1, .name = "url rules and replacements", .sql = R"sql(
+        -- Where links to a site go instead, in the order to try them. A rule
+        -- is its rows for one domain; position 0 is first.
         CREATE TABLE url_rules (
             guild_id         INTEGER NOT NULL,
 
@@ -133,17 +145,16 @@ constexpr std::array<migration, 15> all_migrations{{
             PRIMARY KEY (guild_id, domain, position)
         ) WITHOUT ROWID;
 
-        -- Members who asked for their links to be left alone. Per guild, and
-        -- kept: the Java /toggle forgot on every restart.
+        -- Members who asked for their links to be left alone, per guild.
         CREATE TABLE url_opt_outs (
             guild_id INTEGER NOT NULL,
             user_id  INTEGER NOT NULL,
             PRIMARY KEY (guild_id, user_id)
         ) WITHOUT ROWID;
 
-        -- Every mirror a rule has ever used, and never pruned: the backfill
+        -- Every mirror a rule has ever used, and never pruned: the recompute
         -- recognises the bot's old messages by these hosts, and they do not
-        -- stop existing when a rule changes (plan v4 9.7).
+        -- stop existing when a rule changes.
         CREATE TABLE known_mirrors (
             guild_id INTEGER NOT NULL,
             host     TEXT    NOT NULL,
@@ -151,9 +162,10 @@ constexpr std::array<migration, 15> all_migrations{{
             PRIMARY KEY (guild_id, host)
         ) WITHOUT ROWID;
 
-        -- One row per message the bot posted in place of somebody's links.
-        -- Reaction statistics hang off it, so rows are kept after the message
-        -- is gone (plan v4 9.6).
+        -- One row per message the bot posted in place of somebody's links,
+        -- or, with kind 'image', a person's own image or video whose
+        -- reactions linkstats counts. Reaction statistics hang off it, so
+        -- rows are kept after the message is gone.
         CREATE TABLE replacement_messages (
             message_id          INTEGER PRIMARY KEY,
             guild_id            INTEGER NOT NULL,
@@ -168,10 +180,14 @@ constexpr std::array<migration, 15> all_migrations{{
 
             -- Unix seconds.
             created_at          INTEGER NOT NULL,
-            retried_at          INTEGER
+            retried_at          INTEGER,
+
+            -- link | image
+            kind                TEXT    NOT NULL DEFAULT 'link'
         );
 
         CREATE INDEX replacement_messages_by_author ON replacement_messages (guild_id, original_author_id);
+        CREATE INDEX replacement_messages_by_kind ON replacement_messages (guild_id, kind);
 
         -- The links in one replacement, so Retry still knows what to try after
         -- a restart. Mirrors are not stored: Retry uses the rule as it is now.
@@ -184,10 +200,13 @@ constexpr std::array<migration, 15> all_migrations{{
             PRIMARY KEY (message_id, position)
         ) WITHOUT ROWID;
      )sql"},
-    {.version = 7, .name = "reaction_stats", .sql = R"sql(
-        -- Who reacted with what on a replacement message (plan v4 9.6). The
-        -- poster comes from replacement_messages, so one row answers both
-        -- "who received" and "who gave". Kept forever.
+}};
+
+constexpr std::array<migration, 1> linkstats_steps{{
+    {.version = 1, .name = "reaction statistics", .sql = R"sql(
+        -- Who reacted with what on a replacement message. The poster comes
+        -- from replacement_messages, so one row answers both "who received"
+        -- and "who gave". Kept forever.
         CREATE TABLE reactions (
             message_id INTEGER NOT NULL REFERENCES replacement_messages (message_id),
             user_id    INTEGER NOT NULL,
@@ -195,8 +214,8 @@ constexpr std::array<migration, 15> all_migrations{{
             -- u:<unicode> or c:<custom emoji id>
             emoji_key  TEXT    NOT NULL,
 
-            -- Unix seconds, NULL when backfilled: Discord says who reacted,
-            -- never when (plan v4 9.7).
+            -- Unix seconds, NULL when recomputed: Discord says who reacted,
+            -- never when.
             reacted_at INTEGER,
 
             PRIMARY KEY (message_id, user_id, emoji_key)
@@ -231,12 +250,11 @@ constexpr std::array<migration, 15> all_migrations{{
             canonical_key TEXT    NOT NULL,
             PRIMARY KEY (guild_id, emoji_key)
         ) WITHOUT ROWID;
-     )sql"},
-    {.version = 8, .name = "backfill_progress", .sql = R"sql(
+
         -- How far a /linkstats recompute got in each channel, so one that was
         -- cancelled or cut short by a restart carries on rather than starting
-        -- over (plan v4 9.7). A row belongs to one date range; a run over a
-        -- different range starts that channel again.
+        -- over. A row belongs to one date range; a run over a different range
+        -- starts that channel again.
         CREATE TABLE backfill_progress (
             guild_id          INTEGER NOT NULL,
             channel_id        INTEGER NOT NULL,
@@ -252,131 +270,9 @@ constexpr std::array<migration, 15> all_migrations{{
 
             PRIMARY KEY (guild_id, channel_id)
         ) WITHOUT ROWID;
-     )sql"},
-    {.version = 9, .name = "message_flags", .sql = R"sql(
-        -- Whether a trigger's replies and a midnight message post silently, and
-        -- whether with link previews, as Discord's message flags: 4096 is
-        -- SUPPRESS_NOTIFICATIONS, 4 is SUPPRESS_EMBEDS. Both were always
-        -- silent until now, so that is where existing rows start.
-        ALTER TABLE triggers ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
-        ALTER TABLE midnight_messages ADD COLUMN message_flags INTEGER NOT NULL DEFAULT 4096;
-     )sql"},
-    {.version = 10, .name = "tts_voices", .sql = R"sql(
-        -- Custom voices, per guild (plan 12.6): a built-in voice and the
-        -- [:dv] edits made to it, as "ap 200 pr 150". Names are stored in
-        -- lowercase and never match a built-in voice's.
-        CREATE TABLE tts_voices (
-            guild_id   INTEGER NOT NULL,
-            name       TEXT    NOT NULL,
-            base_voice TEXT    NOT NULL,
-            params     TEXT    NOT NULL,
-            created_by INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            PRIMARY KEY (guild_id, name)
-        ) WITHOUT ROWID;
-     )sql"},
-    {.version = 11, .name = "llm", .sql = R"sql(
-        -- Every call to a model and what it cost (plan 14.6). The spend caps
-        -- are sums over this, so a restart does not reset them. The price is
-        -- stored with each row rather than worked out when read, so a price
-        -- change applies from then on.
-        CREATE TABLE llm_usage (
-            id                 INTEGER PRIMARY KEY,
-            guild_id           INTEGER NOT NULL,
-            model              TEXT    NOT NULL,
-            input_tokens       INTEGER NOT NULL,
-            output_tokens      INTEGER NOT NULL,
-            cache_write_tokens INTEGER NOT NULL,
-            cache_read_tokens  INTEGER NOT NULL,
-            cost_usd           REAL    NOT NULL,
-            at                 INTEGER NOT NULL      -- Unix seconds
-        );
 
-        CREATE INDEX llm_usage_by_time ON llm_usage (at);
-
-        -- personality | system | trigger_style, one row per version (plan
-        -- 14.5). Nothing is ever overwritten: a revert is a new version with
-        -- the old text, so it can itself be reverted.
-        CREATE TABLE llm_documents (
-            guild_id  INTEGER NOT NULL,
-            kind      TEXT    NOT NULL,
-            version   INTEGER NOT NULL,
-            content   TEXT    NOT NULL,
-            edited_by INTEGER NOT NULL,
-            edited_at INTEGER NOT NULL,
-            note      TEXT,
-            PRIMARY KEY (guild_id, kind, version)
-        ) WITHOUT ROWID;
-
-        -- What the model chose to remember (plan 14.5). subject_user_id is
-        -- who it is about, NULL for the server in general; created_by is
-        -- whom the model was answering when it wrote it.
-        CREATE TABLE llm_memory (
-            id              INTEGER PRIMARY KEY,
-            guild_id        INTEGER NOT NULL,
-            subject_user_id INTEGER,
-            content         TEXT    NOT NULL,
-            created_by      INTEGER,
-            created_at      INTEGER NOT NULL
-        );
-
-        CREATE INDEX llm_memory_by_subject ON llm_memory (guild_id, subject_user_id);
-
-        -- Full-text search over it, kept in step by the triggers below.
-        CREATE VIRTUAL TABLE llm_memory_search USING fts5 (content, content = 'llm_memory', content_rowid = 'id');
-
-        CREATE TRIGGER llm_memory_added AFTER INSERT ON llm_memory BEGIN
-            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
-        END;
-        CREATE TRIGGER llm_memory_removed AFTER DELETE ON llm_memory BEGIN
-            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
-        END;
-        CREATE TRIGGER llm_memory_changed AFTER UPDATE ON llm_memory BEGIN
-            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
-            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
-        END;
-
-        -- Who the model does not answer here: kind is user | role (plan 14.6).
-        CREATE TABLE llm_blacklist (
-            guild_id  INTEGER NOT NULL,
-            kind      TEXT    NOT NULL,
-            target_id INTEGER NOT NULL,
-            PRIMARY KEY (guild_id, kind, target_id)
-        ) WITHOUT ROWID;
-
-        -- Advanced triggers (plan 14.3): a pattern, as the simple triggers
-        -- match them, and a line telling the model what to say about it.
-        -- probability is 0 to 1; the cooldown is per channel.
-        CREATE TABLE llm_triggers (
-            id             INTEGER PRIMARY KEY,
-            guild_id       INTEGER NOT NULL,
-            pattern        TEXT    NOT NULL,
-            match_mode     TEXT    NOT NULL,
-            context_prompt TEXT    NOT NULL,
-            probability    REAL    NOT NULL,
-            cooldown_s     INTEGER NOT NULL,
-            enabled        INTEGER NOT NULL DEFAULT 1,
-            created_by     INTEGER NOT NULL
-        );
-
-        CREATE INDEX llm_triggers_by_guild ON llm_triggers (guild_id);
-     )sql"},
-    {.version = 12, .name = "media_posts", .sql = R"sql(
-        -- What a row is: one of the bot's link replacements, or an image or
-        -- video a person posted, whose reactions are counted too once a
-        -- server turns that on (docs/features/Link_Stats.md 9). An image
-        -- row is the person's own message: original_message_id is itself,
-        -- original_author_id the poster, and it has no replacement_links.
-        ALTER TABLE replacement_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'link';   -- link | image
-
-        CREATE INDEX replacement_messages_by_kind ON replacement_messages (guild_id, kind);
-     )sql"},
-    {.version = 13, .name = "emoji_copies", .sql = R"sql(
-        -- The bot's own copies of the custom emojis it has seen, as
-        -- application emojis, so a statistic still shows an emote after its
-        -- server deletes it (docs/features/Link_Stats.md 10).
-
-        -- What became of each custom emoji's image.
+        -- What became of each custom emoji's image, for the bot's own copies
+        -- of them (docs/features/Link_Stats.md 10).
         CREATE TABLE emoji_images (
             emoji_key    TEXT    PRIMARY KEY,   -- c:<id>
 
@@ -403,13 +299,10 @@ constexpr std::array<migration, 15> all_migrations{{
             animated     INTEGER NOT NULL,
             created_at   INTEGER NOT NULL
         ) WITHOUT ROWID;
-     )sql"},
-    {.version = 14, .name = "emote_reactions", .sql = R"sql(
+
         -- Emojis somebody sent as a message of their own just after a post,
         -- or as a reply to it, which count as reactions to it
-        -- (docs/features/Link_Stats.md 12). Apart from reactions, which a
-        -- recompute reads back from Discord's reaction lists; these only the
-        -- messages say.
+        -- (docs/features/Link_Stats.md 12).
         CREATE TABLE emote_reactions (
             message_id INTEGER NOT NULL REFERENCES replacement_messages (message_id),
             user_id    INTEGER NOT NULL,
@@ -435,18 +328,123 @@ constexpr std::array<migration, 15> all_migrations{{
             WHERE NOT EXISTS (SELECT 1 FROM reactions r
                               WHERE r.message_id = e.message_id AND r.user_id = e.user_id AND r.emoji_key = e.emoji_key);
      )sql"},
-    {.version = 15, .name = "llm_aliases", .sql = R"sql(
+}};
+
+constexpr std::array<migration, 1> dectalk_steps{{
+    {.version = 1, .name = "tts_voices", .sql = R"sql(
+        -- Custom voices, per guild: a built-in voice and the [:dv] edits made
+        -- to it, as "ap 200 pr 150". Names are stored in lowercase and never
+        -- match a built-in voice's.
+        CREATE TABLE tts_voices (
+            guild_id   INTEGER NOT NULL,
+            name       TEXT    NOT NULL,
+            base_voice TEXT    NOT NULL,
+            params     TEXT    NOT NULL,
+            created_by INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, name)
+        ) WITHOUT ROWID;
+     )sql"},
+}};
+
+constexpr std::array<migration, 1> llm_steps{{
+    {.version = 1, .name = "the language model", .sql = R"sql(
+        -- Every call to a model and what it cost. The spend caps are sums
+        -- over this, so a restart does not reset them. The price is stored
+        -- with each row rather than worked out when read, so a price change
+        -- applies from then on.
+        CREATE TABLE llm_usage (
+            id                 INTEGER PRIMARY KEY,
+            guild_id           INTEGER NOT NULL,
+            model              TEXT    NOT NULL,
+            input_tokens       INTEGER NOT NULL,
+            output_tokens      INTEGER NOT NULL,
+            cache_write_tokens INTEGER NOT NULL,
+            cache_read_tokens  INTEGER NOT NULL,
+            cost_usd           REAL    NOT NULL,
+            at                 INTEGER NOT NULL      -- Unix seconds
+        );
+
+        CREATE INDEX llm_usage_by_time ON llm_usage (at);
+
+        -- personality | system | trigger_style, one row per version. Nothing
+        -- is ever overwritten: a revert is a new version with the old text,
+        -- so it can itself be reverted.
+        CREATE TABLE llm_documents (
+            guild_id  INTEGER NOT NULL,
+            kind      TEXT    NOT NULL,
+            version   INTEGER NOT NULL,
+            content   TEXT    NOT NULL,
+            edited_by INTEGER NOT NULL,
+            edited_at INTEGER NOT NULL,
+            note      TEXT,
+            PRIMARY KEY (guild_id, kind, version)
+        ) WITHOUT ROWID;
+
+        -- What the model chose to remember. subject_user_id is who it is
+        -- about, NULL for the server in general; created_by is whom the model
+        -- was answering when it wrote it.
+        CREATE TABLE llm_memory (
+            id              INTEGER PRIMARY KEY,
+            guild_id        INTEGER NOT NULL,
+            subject_user_id INTEGER,
+            content         TEXT    NOT NULL,
+            created_by      INTEGER,
+            created_at      INTEGER NOT NULL
+        );
+
+        CREATE INDEX llm_memory_by_subject ON llm_memory (guild_id, subject_user_id);
+
+        -- Full-text search over it, kept in step by the triggers below.
+        CREATE VIRTUAL TABLE llm_memory_search USING fts5 (content, content = 'llm_memory', content_rowid = 'id');
+
+        CREATE TRIGGER llm_memory_added AFTER INSERT ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
+        END;
+        CREATE TRIGGER llm_memory_removed AFTER DELETE ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
+        END;
+        CREATE TRIGGER llm_memory_changed AFTER UPDATE ON llm_memory BEGIN
+            INSERT INTO llm_memory_search (llm_memory_search, rowid, content) VALUES ('delete', old.id, old.content);
+            INSERT INTO llm_memory_search (rowid, content) VALUES (new.id, new.content);
+        END;
+
+        -- Who the model does not answer here: kind is user | role.
+        CREATE TABLE llm_blacklist (
+            guild_id  INTEGER NOT NULL,
+            kind      TEXT    NOT NULL,
+            target_id INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, kind, target_id)
+        ) WITHOUT ROWID;
+
+        -- Advanced triggers: a pattern, as the simple triggers match them,
+        -- and a line telling the model what to say about it. probability is
+        -- 0 to 1; the cooldown is per channel.
+        CREATE TABLE llm_triggers (
+            id             INTEGER PRIMARY KEY,
+            guild_id       INTEGER NOT NULL,
+            pattern        TEXT    NOT NULL,
+            match_mode     TEXT    NOT NULL,
+            context_prompt TEXT    NOT NULL,
+            probability    REAL    NOT NULL,
+            cooldown_s     INTEGER NOT NULL,
+            enabled        INTEGER NOT NULL DEFAULT 1,
+            created_by     INTEGER NOT NULL
+        );
+
+        CREATE INDEX llm_triggers_by_guild ON llm_triggers (guild_id);
+
         -- What the language model calls each person, in place of their
         -- Discord id and their name (docs/features/Language_Model.md 3.8).
-        -- Random, one per person per server, and kept, so memories that
-        -- name someone by alias still mean them later.
+        -- Random, one per person per server, and kept, so memories that name
+        -- someone by alias still mean them later.
         CREATE TABLE llm_aliases (
             guild_id INTEGER NOT NULL,
             user_id  INTEGER NOT NULL,
             alias    TEXT    NOT NULL,
 
-            -- What they were last seen called here, to put back into a
-            -- reply when the bot's cache does not know them.
+            -- What they were last seen called here, to put back into a reply
+            -- when the bot's cache does not know them.
             name     TEXT    NOT NULL DEFAULT '',
             username TEXT    NOT NULL DEFAULT '',
 
@@ -456,41 +454,51 @@ constexpr std::array<migration, 15> all_migrations{{
      )sql"},
 }};
 
+constexpr auto schema_of(std::string_view module, std::span<const migration> steps) noexcept -> module_schema {
+    return {.module = module, .steps = steps};
+}
+
+// Each after the modules it requires: linkstats after links.
+constexpr std::array<module_schema, 8> builtin{{
+    schema_of("core", core_steps),
+    schema_of("triggers", triggers_steps),
+    schema_of("nicknames", nicknames_steps),
+    schema_of("midnight", midnight_steps),
+    schema_of("links", links_steps),
+    schema_of("linkstats", linkstats_steps),
+    schema_of("dectalk", dectalk_steps),
+    schema_of("llm", llm_steps),
+}};
+
 } // namespace
 
-auto schema() noexcept -> std::span<const migration> {
-    return all_migrations;
+auto core_schema() noexcept -> module_schema {
+    return builtin[0];
+}
+auto triggers_schema() noexcept -> module_schema {
+    return builtin[1];
+}
+auto nicknames_schema() noexcept -> module_schema {
+    return builtin[2];
+}
+auto midnight_schema() noexcept -> module_schema {
+    return builtin[3];
+}
+auto links_schema() noexcept -> module_schema {
+    return builtin[4];
+}
+auto linkstats_schema() noexcept -> module_schema {
+    return builtin[5];
+}
+auto dectalk_schema() noexcept -> module_schema {
+    return builtin[6];
+}
+auto llm_schema() noexcept -> module_schema {
+    return builtin[7];
 }
 
-auto migrate(database& db, std::span<const migration> migrations) -> int {
-    // One lock for the whole run, so a second thread cannot interleave.
-    const auto guard = db.lock();
-
-    int version = db.user_version();
-
-    for (const migration& step : migrations) {
-        if (step.version <= version) continue;
-        if (step.version != version + 1) {
-            throw db_error(SQLITE_ERROR, "migration " + std::to_string(step.version) + " (" + std::string(step.name) +
-                                             ") does not follow version " + std::to_string(version));
-        }
-
-        transaction tx(db);
-        db.execute(step.sql);
-        db.set_user_version(step.version);
-        tx.commit();
-
-        // Info, not debug: a schema change is the one startup event worth
-        // seeing in a log that was not turned up beforehand.
-        util::log().info("applied migration {} ({})", step.version, step.name);
-        version = step.version;
-    }
-
-    return version;
-}
-
-auto migrate(database& db) -> int {
-    return migrate(db, schema());
+auto builtin_schemas() noexcept -> std::span<const module_schema> {
+    return builtin;
 }
 
 } // namespace latibot::db

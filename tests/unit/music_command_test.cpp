@@ -5,10 +5,10 @@
 #include "core/commands/registry.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/util/text.hpp"
 
 #include "support/discord_limits.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -201,7 +201,7 @@ TEST_CASE("an empty queue says so, with no buttons", "[music]") {
 
 TEST_CASE("volume and track limit have defaults, and stored values are kept in range", "[music]") {
     latibot::db::database db(":memory:");
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::config::guild_settings settings(db);
 
     CHECK(music_volume_for(settings, guild) == 50);

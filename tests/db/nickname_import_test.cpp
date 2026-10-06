@@ -1,7 +1,7 @@
 #include "core/events/nickname_import.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 
+#include "support/schema.hpp"
 #include "support/temp_directory.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -25,7 +25,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     nickname_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 constexpr std::string_view two_entries = R"json({

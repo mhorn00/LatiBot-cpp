@@ -7,10 +7,10 @@
 #include "core/commands/voice_lab.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/voice_sessions.hpp"
 
 #include "mocks/mock_clock.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -36,7 +36,7 @@ struct settings_fixture {
     latibot::db::database db{std::filesystem::path(latibot::db::database::in_memory)};
     latibot::config::guild_settings settings{db};
 
-    settings_fixture() { latibot::db::migrate(db); }
+    settings_fixture() { latibot::testing::create_schema(db); }
 };
 
 } // namespace

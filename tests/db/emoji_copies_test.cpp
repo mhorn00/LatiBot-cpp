@@ -5,13 +5,13 @@
 #include "core/events/emoji_copies.hpp"
 #include "core/commands/linkstats.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_http.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -52,7 +52,7 @@ struct fixture {
     latibot::testing::mock_clock clock{day_one};
 
     fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         replacements.record({.message_id = post,
                              .guild_id = guild,
                              .channel_id = dpp::snowflake{2},

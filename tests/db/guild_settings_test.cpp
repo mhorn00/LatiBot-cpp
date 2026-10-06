@@ -1,8 +1,9 @@
 #include "core/config/guild_settings.hpp"
 
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/goodbye.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -17,7 +18,7 @@ struct settings_fixture {
     database db{std::filesystem::path(database::in_memory)};
     guild_settings settings{db};
 
-    settings_fixture() { latibot::db::migrate(db); }
+    settings_fixture() { latibot::testing::create_schema(db); }
 };
 
 constexpr dpp::snowflake guild_a{111111111111111111ULL};

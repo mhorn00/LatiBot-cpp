@@ -109,7 +109,7 @@ flowchart TB
     subgraph body["Constructor body"]
         direction TB
         b1["log: LatiBot 0.1.0 starting"]
-        b2["db::migrate(database_)<br/>applies any migration newer than the file"]
+        b2["db::prepare_schema_versions, then db::apply_schema<br/>for the core and each feature still in it"]
         b3["llm::add_memory_tools()<br/>remember, recall, forget"]
         b4{"a log channel<br/>saved by /logs?"}
         b5["log_channel_.start()<br/>taps the logger from here on"]

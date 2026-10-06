@@ -14,7 +14,6 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/llm/advanced_triggers.hpp"
 #include "core/llm/documents.hpp"
 #include "core/llm/guards.hpp"
@@ -27,6 +26,7 @@
 #include "mocks/mock_tts.hpp"
 #include "mocks/mock_voice.hpp"
 #include "support/panel_harness.hpp"
+#include "support/schema.hpp"
 
 #include <dpp/cache.h>
 
@@ -48,7 +48,7 @@ constexpr dpp::snowflake guild{1000};
 struct database_fixture {
     latibot::db::database db{":memory:"};
 
-    database_fixture() { latibot::db::migrate(db); }
+    database_fixture() { latibot::testing::create_schema(db); }
 };
 
 /// The option in the panel's menus whose value is `value`, if any. A copy,

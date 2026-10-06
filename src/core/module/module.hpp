@@ -1,7 +1,10 @@
 #pragma once
 
+#include "core/db/migrations.hpp"
+
 #include <functional>
 #include <memory>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -17,8 +20,9 @@ class host;
 /// reaches the rest of the bot through the `host`, and other modules through
 /// the capabilities they offer, so leaving it out of the build changes
 /// nothing else. Each has one factory, `make_module(host&)`, which reads what
-/// it needs and builds its stores; `offer` and `start` follow, every module's
-/// `offer` before any `start` (§4.3).
+/// it needs and builds its stores, without reading its tables yet: its
+/// schema is applied next. `offer` and `start` follow, every module's `offer`
+/// before any `start` (§4.3).
 class module {
 public:
     virtual ~module() = default;
@@ -30,6 +34,10 @@ public:
     /// Its name in the log, and later in `schema_versions` and config.json:
     /// "midnight", "llm".
     [[nodiscard]] virtual auto name() const -> std::string_view = 0;
+
+    /// Its tables, as schema steps, version 1 first, recorded under its name
+    /// (§7). Steps that have shipped are never edited.
+    [[nodiscard]] virtual auto schema() const -> std::span<const db::migration> { return {}; }
 
     /// Offers what other modules may use. Every module exists by now, and
     /// none has started.
@@ -46,9 +54,10 @@ using module_list = std::vector<std::unique_ptr<module>>;
 /// generated `enabled_modules` in the executable (§4.8), or a test's own.
 using module_factory = std::function<module_list(host&)>;
 
-/// Builds the modules with `make`, has every one offer its capabilities into
-/// `offered`, then has every one start (docs/modules/Module_Plan_Final.md
-/// §4.3). Whatever a module throws stops startup, so it is left to escape.
+/// Builds the modules with `make`, applies each one's schema, has every one
+/// offer its capabilities into `offered`, then has every one start
+/// (docs/modules/Module_Plan_Final.md §4.3). The database must have been
+/// through `db::prepare_schema_versions`. Whatever a module throws stops startup, so it is left to escape.
 /// Returns the modules, which must then outlive everything they registered.
 auto start_modules(const module_factory& make, host& bot, capability_registry& offered) -> module_list;
 

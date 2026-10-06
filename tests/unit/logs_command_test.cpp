@@ -2,10 +2,10 @@
 #include "core/commands/registry.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -71,7 +71,7 @@ TEST_CASE("the log channel's state says where, from which level, and how it is g
 
 TEST_CASE("the logs command registers, with a level for every choice but off", "[commands]") {
     latibot::db::database db(":memory:");
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::config::guild_settings settings(db);
     latibot::events::log_destination_store store(settings);
     latibot::testing::mock_discord discord;

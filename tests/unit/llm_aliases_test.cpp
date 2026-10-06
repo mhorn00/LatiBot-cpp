@@ -4,10 +4,10 @@
 // Every id and name here is made up.
 
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/llm/aliases.hpp"
 
 #include "mocks/mock_discord.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -35,7 +35,7 @@ struct fixture {
     latibot::testing::mock_discord discord;
     people cast{aliases, discord, guild, bot_id, "LatiBot"};
 
-    fixture() { latibot::db::migrate(db); }
+    fixture() { latibot::testing::create_schema(db); }
 };
 
 } // namespace

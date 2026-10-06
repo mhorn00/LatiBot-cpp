@@ -14,7 +14,8 @@
 #include "core/commands/urlrepl.hpp"
 #include "core/commands/voice.hpp"
 #include "core/db/backup.hpp"
-#include "core/db/migrations.hpp"
+#include "core/db/schema_versions.hpp"
+#include "core/db/schemas.hpp"
 #include "core/discord/dpp_log.hpp"
 #include "core/discord/message_flags.hpp"
 #include "core/discord/voice_state.hpp"
@@ -319,8 +320,12 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
 
     // After the line above, so that any migration it applies is logged under a
     // heading rather than before the bot has said it is starting.
-    const int version = db::migrate(database_);
-    util::log().info("database {} at schema version {}", settings_.database_path.generic_string(), version);
+    // The core's tables and those of the features not yet in modules; each
+    // module's follow when the modules are built (start_modules).
+    db::prepare_schema_versions(database_);
+    for (const db::module_schema& schema : db::builtin_schemas()) {
+        db::apply_schema(database_, schema);
+    }
 
     // The model's memory, as tools it can call
     // (docs/features/Language_Model.md §3.4).
@@ -1239,6 +1244,13 @@ auto bot::start_modules(const module::module_factory& make_modules) -> void {
         names += each->name();
     }
     util::log().info("{} module(s){}{}", modules_.size(), names.empty() ? "" : ": ", names);
+
+    std::string versions;
+    for (const auto& [name, version] : db::recorded_versions(database_)) {
+        if (!versions.empty()) versions += ", ";
+        versions += std::format("{} {}", name, version);
+    }
+    util::log().info("database {}: {}", settings_.database_path.generic_string(), versions);
     for (const std::string& listener : listeners_) {
         util::log().debug("  listening: {}", listener);
     }

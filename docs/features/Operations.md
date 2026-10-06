@@ -17,8 +17,8 @@ classes.
 | | |
 |---|---|
 | **Code** | `src/main.cpp`, `src/core/config/{bootstrap,command_line,guild_settings}.*`, `src/core/util/{env,ca_certificates,log}.*`, `src/core/db/*`, `src/core/commands/preflight.*`; intents and timers in `src/core/bot.cpp` |
-| **Tests** | `tests/unit/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `tests/db/{database,migrations,backup,guild_settings}_test.cpp` |
-| **Tables** | `guild_settings` (migration 1), and `PRAGMA user_version` for the schema's version |
+| **Tests** | `tests/unit/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `tests/db/{database,schema_versions,migrations,backup,guild_settings}_test.cpp` |
+| **Tables** | `guild_settings` and `allowed_bots` (the core's schema), and `schema_versions`, each module's version |
 | **Plan** | Replaces plan §5.1, §5.2, §7, §21.1–§21.3 and §21.7 |
 | **Status** | Built in phase 0 and 1; `config.json` written when missing since 2026-09-27; the command line since 2026-09-30 |
 
@@ -183,12 +183,28 @@ SQLite through our own thin wrapper (`db::database`, `statement`,
   UTC, bound and read directly by `statement`;
 - FTS5 compiled in, for the model's memory.
 
-**Migrations** run at startup, each inside a transaction, numbered by
-`PRAGMA user_version`. A failing one rolls back and keeps the previous
-version. They are **append-only**: a shipped migration is never edited,
-since every install has already applied it. A migration that alters a
-populated table has a test that migrates to the version before, inserts
-rows, upgrades, and checks the rows survived.
+**Each module has its own schema**, numbered from 1 and recorded in
+`schema_versions (module, version)`; the core's is `core`
+(`src/core/db/schemas.cpp`, `schema_versions.cpp`;
+docs/modules/Module_Plan_Final.md §7). At startup each built module applies
+its steps above its recorded version, each inside a transaction with the
+new version. A module with no row creates its tables. A failing step rolls
+back and keeps the previous version. Steps are **append-only**: a shipped
+one is never edited, since every install has already applied it. A step
+that alters a populated table has a test that applies the version before,
+inserts rows, upgrades, and checks the rows survived.
+
+Each module's version 1 is its tables exactly as the old single list of
+migrations left them at 15, which `tests/db/schema_versions_test.cpp`
+compares column by column.
+
+**A database from before modules** (`PRAGMA user_version` 1 to 15, no
+`schema_versions`) is adopted once: the old migrations below, unedited,
+bring it to 15, then every module of the time is recorded at version 1. A
+database with tables but neither is refused. The old migrations and
+adoption go once every install has been adopted.
+
+The old migrations, kept only for adoption:
 
 | # | Name | Adds | Spec |
 |---|---|---|---|
@@ -258,6 +274,7 @@ shows no preview, which looks exactly like a broken mirror.
 | plan v4 | Ids as strings in JSON | A JSON number cannot hold a snowflake exactly |
 | plan v4 | Our own SQLite wrapper; one connection behind a mutex; WAL | Thread safety is a real difference from Java, where shared maps got away with it |
 | plan v4 | Append-only migrations in a transaction, by `user_version` | Every install has applied what shipped |
+| Module plan §7 | A schema per module, in `schema_versions`; the old list flattened into each module's version 1 | A module left out of the build creates nothing, and one built in later creates only its own tables |
 | plan v4 | An unparseable per-server value falls back to its default | One hand-edited row should not take a feature down |
 | plan v4 | Online backups on a timer, rotated | A copy can be taken while the bot runs |
 | plan v4 | Permission warnings per server, never fatal; Administrator short-circuits | The Java bot exited over one server's missing permission |

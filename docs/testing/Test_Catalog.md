@@ -5,11 +5,11 @@ re-run the script after adding or retagging tests.
 
 See [README.md](README.md) for the strategy, conventions and tag meanings.
 
-962 test cases across 13 components, including 202 sections.
+972 test cases across 13 components, including 204 sections.
 
 | Component | Test cases | Sections |
 |---|---:|---:|
-| [db](#db) | 155 | 21 |
+| [db](#db) | 165 | 23 |
 | [config](#config) | 37 | 21 |
 | [commands](#commands) | 197 | 55 |
 | [events](#events) | 200 | 40 |
@@ -36,11 +36,11 @@ Database (`src/core/db`)
 | rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:124](../../tests/db/backup_test.cpp#L124) |
 | rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:146](../../tests/db/backup_test.cpp#L146) |
 | backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:168](../../tests/db/backup_test.cpp#L168) |
-| nothing is allowed until somebody says so |  |  | [tests/db/bot_allowlist_test.cpp:26](../../tests/db/bot_allowlist_test.cpp#L26) |
-| an allowed bot is remembered and can be taken back |  |  | [tests/db/bot_allowlist_test.cpp:35](../../tests/db/bot_allowlist_test.cpp#L35) |
-| allowing and denying report whether anything changed |  |  | [tests/db/bot_allowlist_test.cpp:45](../../tests/db/bot_allowlist_test.cpp#L45) |
-| guilds keep their own allowlists |  |  | [tests/db/bot_allowlist_test.cpp:57](../../tests/db/bot_allowlist_test.cpp#L57) |
-| for_guild lists everything allowed there |  |  | [tests/db/bot_allowlist_test.cpp:68](../../tests/db/bot_allowlist_test.cpp#L68) |
+| nothing is allowed until somebody says so |  |  | [tests/db/bot_allowlist_test.cpp:27](../../tests/db/bot_allowlist_test.cpp#L27) |
+| an allowed bot is remembered and can be taken back |  |  | [tests/db/bot_allowlist_test.cpp:36](../../tests/db/bot_allowlist_test.cpp#L36) |
+| allowing and denying report whether anything changed |  |  | [tests/db/bot_allowlist_test.cpp:46](../../tests/db/bot_allowlist_test.cpp#L46) |
+| guilds keep their own allowlists |  |  | [tests/db/bot_allowlist_test.cpp:58](../../tests/db/bot_allowlist_test.cpp#L58) |
+| for_guild lists everything allowed there |  |  | [tests/db/bot_allowlist_test.cpp:69](../../tests/db/bot_allowlist_test.cpp#L69) |
 | opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
 | values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:51](../../tests/db/database_test.cpp#L51) |
 | optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:78](../../tests/db/database_test.cpp#L78) |
@@ -63,27 +63,27 @@ Database (`src/core/db`)
 | raising the threshold deletes the copies that no longer qualify | `coro` |  | [tests/db/emoji_copies_test.cpp:307](../../tests/db/emoji_copies_test.cpp#L307) |
 | with copying off, a round does nothing at all | `coro` |  | [tests/db/emoji_copies_test.cpp:325](../../tests/db/emoji_copies_test.cpp#L325) |
 | the duplicates menus show each emote's picture once the bot has a copy |  |  | [tests/db/emoji_copies_test.cpp:334](../../tests/db/emoji_copies_test.cpp#L334) |
-| an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [tests/db/emote_reactions_test.cpp:190](../../tests/db/emote_reactions_test.cpp#L190) |
-| an emote is dated by the message it was sent in |  |  | [tests/db/emote_reactions_test.cpp:221](../../tests/db/emote_reactions_test.cpp#L221) |
-| a recompute's emotes replace what was there, but not what it did not read |  |  | [tests/db/emote_reactions_test.cpp:231](../../tests/db/emote_reactions_test.cpp#L231) |
-| emotes after a post are counted as they arrive |  |  | [tests/db/emote_reactions_test.cpp:257](../../tests/db/emote_reactions_test.cpp#L257) |
-| the next post, or 25 messages, ends a post's window |  | 2 | [tests/db/emote_reactions_test.cpp:277](../../tests/db/emote_reactions_test.cpp#L277) |
-| a reply to a post is counted however late it comes |  |  | [tests/db/emote_reactions_test.cpp:302](../../tests/db/emote_reactions_test.cpp#L302) |
-| a link shown to be an image later counts the emotes sent before that |  |  | [tests/db/emote_reactions_test.cpp:316](../../tests/db/emote_reactions_test.cpp#L316) |
-| a deleted message is no longer counted as a reaction |  |  | [tests/db/emote_reactions_test.cpp:327](../../tests/db/emote_reactions_test.cpp#L327) |
-| a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:51](../../tests/db/llm_store_test.cpp#L51) |
-| reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:70](../../tests/db/llm_store_test.cpp#L70) |
-| a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:94](../../tests/db/llm_store_test.cpp#L94) |
-| a document nobody edited reads as its default |  |  | [tests/db/llm_store_test.cpp:106](../../tests/db/llm_store_test.cpp#L106) |
-| every edit is a new version, per guild and per kind |  |  | [tests/db/llm_store_test.cpp:116](../../tests/db/llm_store_test.cpp#L116) |
-| a revert saves the old text as a new version, and can itself be reverted |  |  | [tests/db/llm_store_test.cpp:134](../../tests/db/llm_store_test.cpp#L134) |
-| memories are found by the words in them, only in their own guild |  |  | [tests/db/llm_store_test.cpp:156](../../tests/db/llm_store_test.cpp#L156) |
-| a removed memory leaves the search index too |  |  | [tests/db/llm_store_test.cpp:172](../../tests/db/llm_store_test.cpp#L172) |
-| memories list newest first, and clear by person or all at once |  |  | [tests/db/llm_store_test.cpp:184](../../tests/db/llm_store_test.cpp#L184) |
-| the memories shown up front are about the author, then what matches |  |  | [tests/db/llm_store_test.cpp:205](../../tests/db/llm_store_test.cpp#L205) |
-| the blacklist blocks a user or anyone with a role |  |  | [tests/db/llm_store_test.cpp:222](../../tests/db/llm_store_test.cpp#L222) |
-| advanced triggers are stored per guild and edited in place |  |  | [tests/db/llm_store_test.cpp:243](../../tests/db/llm_store_test.cpp#L243) |
-| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [tests/db/llm_store_test.cpp:275](../../tests/db/llm_store_test.cpp#L275) |
+| an emote sent as a reaction counts as one, and not twice beside the same reaction |  |  | [tests/db/emote_reactions_test.cpp:191](../../tests/db/emote_reactions_test.cpp#L191) |
+| an emote is dated by the message it was sent in |  |  | [tests/db/emote_reactions_test.cpp:222](../../tests/db/emote_reactions_test.cpp#L222) |
+| a recompute's emotes replace what was there, but not what it did not read |  |  | [tests/db/emote_reactions_test.cpp:232](../../tests/db/emote_reactions_test.cpp#L232) |
+| emotes after a post are counted as they arrive |  |  | [tests/db/emote_reactions_test.cpp:258](../../tests/db/emote_reactions_test.cpp#L258) |
+| the next post, or 25 messages, ends a post's window |  | 2 | [tests/db/emote_reactions_test.cpp:278](../../tests/db/emote_reactions_test.cpp#L278) |
+| a reply to a post is counted however late it comes |  |  | [tests/db/emote_reactions_test.cpp:303](../../tests/db/emote_reactions_test.cpp#L303) |
+| a link shown to be an image later counts the emotes sent before that |  |  | [tests/db/emote_reactions_test.cpp:317](../../tests/db/emote_reactions_test.cpp#L317) |
+| a deleted message is no longer counted as a reaction |  |  | [tests/db/emote_reactions_test.cpp:328](../../tests/db/emote_reactions_test.cpp#L328) |
+| a recorded call is priced, and counted in its day and month |  |  | [tests/db/llm_store_test.cpp:52](../../tests/db/llm_store_test.cpp#L52) |
+| reaching a cap says which one, and the month outranks the day |  |  | [tests/db/llm_store_test.cpp:71](../../tests/db/llm_store_test.cpp#L71) |
+| a cap notice is due once per guild and period |  |  | [tests/db/llm_store_test.cpp:95](../../tests/db/llm_store_test.cpp#L95) |
+| a document nobody edited reads as its default |  |  | [tests/db/llm_store_test.cpp:107](../../tests/db/llm_store_test.cpp#L107) |
+| every edit is a new version, per guild and per kind |  |  | [tests/db/llm_store_test.cpp:117](../../tests/db/llm_store_test.cpp#L117) |
+| a revert saves the old text as a new version, and can itself be reverted |  |  | [tests/db/llm_store_test.cpp:135](../../tests/db/llm_store_test.cpp#L135) |
+| memories are found by the words in them, only in their own guild |  |  | [tests/db/llm_store_test.cpp:157](../../tests/db/llm_store_test.cpp#L157) |
+| a removed memory leaves the search index too |  |  | [tests/db/llm_store_test.cpp:173](../../tests/db/llm_store_test.cpp#L173) |
+| memories list newest first, and clear by person or all at once |  |  | [tests/db/llm_store_test.cpp:185](../../tests/db/llm_store_test.cpp#L185) |
+| the memories shown up front are about the author, then what matches |  |  | [tests/db/llm_store_test.cpp:206](../../tests/db/llm_store_test.cpp#L206) |
+| the blacklist blocks a user or anyone with a role |  |  | [tests/db/llm_store_test.cpp:223](../../tests/db/llm_store_test.cpp#L223) |
+| advanced triggers are stored per guild and edited in place |  |  | [tests/db/llm_store_test.cpp:244](../../tests/db/llm_store_test.cpp#L244) |
+| a guild's model settings are read clamped, with the model falling back to the config's |  |  | [tests/db/llm_store_test.cpp:276](../../tests/db/llm_store_test.cpp#L276) |
 | an upload is counted from the moment it is posted |  |  | [tests/db/media_posts_test.cpp:134](../../tests/db/media_posts_test.cpp#L134) |
 | a link waits for its preview to show whether it was an image |  | 4 | [tests/db/media_posts_test.cpp:157](../../tests/db/media_posts_test.cpp#L157) |
 | nothing is counted where images are off, or from bots |  |  | [tests/db/media_posts_test.cpp:188](../../tests/db/media_posts_test.cpp#L188) |
@@ -101,73 +101,83 @@ Database (`src/core/db`)
 | each timezone posts at its own midnight |  |  | [tests/db/midnight_store_test.cpp:231](../../tests/db/midnight_store_test.cpp#L231) |
 | a midnight message's flags survive a round trip and default to silent |  |  | [tests/db/midnight_store_test.cpp:250](../../tests/db/midnight_store_test.cpp#L250) |
 | a midnight post carries its entry's flags |  |  | [tests/db/midnight_store_test.cpp:267](../../tests/db/midnight_store_test.cpp#L267) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:37](../../tests/db/migrations_test.cpp#L37) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:50](../../tests/db/migrations_test.cpp#L50) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:61](../../tests/db/migrations_test.cpp#L61) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:75](../../tests/db/migrations_test.cpp#L75) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:92](../../tests/db/migrations_test.cpp#L92) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:105](../../tests/db/migrations_test.cpp#L105) |
-| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:118](../../tests/db/migrations_test.cpp#L118) |
+| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:42](../../tests/db/migrations_test.cpp#L42) |
+| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:55](../../tests/db/migrations_test.cpp#L55) |
+| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:66](../../tests/db/migrations_test.cpp#L66) |
+| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:80](../../tests/db/migrations_test.cpp#L80) |
+| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:97](../../tests/db/migrations_test.cpp#L97) |
+| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:110](../../tests/db/migrations_test.cpp#L110) |
+| an existing database gains the allowlist without losing its triggers |  |  | [tests/db/migrations_test.cpp:123](../../tests/db/migrations_test.cpp#L123) |
 | an import writes the history it read |  |  | [tests/db/nickname_import_test.cpp:43](../../tests/db/nickname_import_test.cpp#L43) |
 | importing the same file twice adds nothing the second time |  |  | [tests/db/nickname_import_test.cpp:57](../../tests/db/nickname_import_test.cpp#L57) |
 | an import does not disturb history the bot recorded itself |  |  | [tests/db/nickname_import_test.cpp:70](../../tests/db/nickname_import_test.cpp#L70) |
 | a cleared nickname is imported once, not once per run |  |  | [tests/db/nickname_import_test.cpp:91](../../tests/db/nickname_import_test.cpp#L91) |
 | no file to import is not a problem | `fs` |  | [tests/db/nickname_import_test.cpp:108](../../tests/db/nickname_import_test.cpp#L108) |
 | a file beside the database is read and imported | `fs` |  | [tests/db/nickname_import_test.cpp:115](../../tests/db/nickname_import_test.cpp#L115) |
-| a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:39](../../tests/db/nickname_store_test.cpp#L39) |
-| a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:60](../../tests/db/nickname_store_test.cpp#L60) |
-| history reads newest first |  |  | [tests/db/nickname_store_test.cpp:73](../../tests/db/nickname_store_test.cpp#L73) |
-| two changes in the same second keep the order they were recorded |  |  | [tests/db/nickname_store_test.cpp:87](../../tests/db/nickname_store_test.cpp#L87) |
-| history is per guild |  |  | [tests/db/nickname_store_test.cpp:100](../../tests/db/nickname_store_test.cpp#L100) |
-| the latest row is what a new sighting is compared against |  |  | [tests/db/nickname_store_test.cpp:114](../../tests/db/nickname_store_test.cpp#L114) |
-| an audit entry finds the row it describes |  |  | [tests/db/nickname_store_test.cpp:127](../../tests/db/nickname_store_test.cpp#L127) |
-| an audit entry does not attach itself to an older identical change |  |  | [tests/db/nickname_store_test.cpp:137](../../tests/db/nickname_store_test.cpp#L137) |
-| an audit entry for a different nickname matches nothing |  |  | [tests/db/nickname_store_test.cpp:147](../../tests/db/nickname_store_test.cpp#L147) |
-| a row that already names somebody is not offered for attribution |  |  | [tests/db/nickname_store_test.cpp:155](../../tests/db/nickname_store_test.cpp#L155) |
-| attributing a row fills in the author and where it came from |  |  | [tests/db/nickname_store_test.cpp:165](../../tests/db/nickname_store_test.cpp#L165) |
-| the first audit entry to attribute a row wins |  |  | [tests/db/nickname_store_test.cpp:178](../../tests/db/nickname_store_test.cpp#L178) |
-| a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:191](../../tests/db/nickname_store_test.cpp#L191) |
-| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:204](../../tests/db/nickname_store_test.cpp#L204) |
-| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:95](../../tests/db/reaction_store_test.cpp#L95) |
-| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:107](../../tests/db/reaction_store_test.cpp#L107) |
-| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:116](../../tests/db/reaction_store_test.cpp#L116) |
-| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:133](../../tests/db/reaction_store_test.cpp#L133) |
-| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:173](../../tests/db/reaction_store_test.cpp#L173) |
-| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:186](../../tests/db/reaction_store_test.cpp#L186) |
-| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:198](../../tests/db/reaction_store_test.cpp#L198) |
-| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:224](../../tests/db/reaction_store_test.cpp#L224) |
-| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:245](../../tests/db/reaction_store_test.cpp#L245) |
-| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:264](../../tests/db/reaction_store_test.cpp#L264) |
-| an emoji already merged into another is not quietly moved |  |  | [tests/db/reaction_store_test.cpp:272](../../tests/db/reaction_store_test.cpp#L272) |
-| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:286](../../tests/db/reaction_store_test.cpp#L286) |
-| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:296](../../tests/db/reaction_store_test.cpp#L296) |
-| emojis are listed apart, merged, or only the aliases |  |  | [tests/db/reaction_store_test.cpp:314](../../tests/db/reaction_store_test.cpp#L314) |
-| names alike are the same ignoring case, or a letter or two apart |  |  | [tests/db/reaction_store_test.cpp:342](../../tests/db/reaction_store_test.cpp#L342) |
-| emojis with names alike are grouped, and merged ones count as their keeper |  |  | [tests/db/reaction_store_test.cpp:363](../../tests/db/reaction_store_test.cpp#L363) |
-| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:41](../../tests/db/replacement_store_test.cpp#L41) |
-| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:61](../../tests/db/replacement_store_test.cpp#L61) |
-| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:74](../../tests/db/replacement_store_test.cpp#L74) |
-| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:89](../../tests/db/replacement_store_test.cpp#L89) |
-| unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:102](../../tests/db/replacement_store_test.cpp#L102) |
-| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:123](../../tests/db/replacement_store_test.cpp#L123) |
-| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:62](../../tests/db/trigger_store_test.cpp#L62) |
-| each trigger in a guild gets its own responses, in order |  |  | [tests/db/trigger_store_test.cpp:81](../../tests/db/trigger_store_test.cpp#L81) |
-| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:108](../../tests/db/trigger_store_test.cpp#L108) |
-| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:125](../../tests/db/trigger_store_test.cpp#L125) |
-| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:141](../../tests/db/trigger_store_test.cpp#L141) |
-| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:153](../../tests/db/trigger_store_test.cpp#L153) |
-| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:175](../../tests/db/trigger_store_test.cpp#L175) |
-| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:192](../../tests/db/trigger_store_test.cpp#L192) |
-| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:205](../../tests/db/trigger_store_test.cpp#L205) |
-| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:244](../../tests/db/trigger_store_test.cpp#L244) |
-| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:256](../../tests/db/trigger_store_test.cpp#L256) |
-| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:271](../../tests/db/trigger_store_test.cpp#L271) |
-| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:290](../../tests/db/trigger_store_test.cpp#L290) |
-| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:309](../../tests/db/trigger_store_test.cpp#L309) |
-| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:322](../../tests/db/trigger_store_test.cpp#L322) |
-| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:345](../../tests/db/trigger_store_test.cpp#L345) |
-| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:362](../../tests/db/trigger_store_test.cpp#L362) |
-| a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:376](../../tests/db/trigger_store_test.cpp#L376) |
+| a recorded change comes back as it went in |  |  | [tests/db/nickname_store_test.cpp:40](../../tests/db/nickname_store_test.cpp#L40) |
+| a cleared nickname is stored as nothing, not as an empty string |  |  | [tests/db/nickname_store_test.cpp:61](../../tests/db/nickname_store_test.cpp#L61) |
+| history reads newest first |  |  | [tests/db/nickname_store_test.cpp:74](../../tests/db/nickname_store_test.cpp#L74) |
+| two changes in the same second keep the order they were recorded |  |  | [tests/db/nickname_store_test.cpp:88](../../tests/db/nickname_store_test.cpp#L88) |
+| history is per guild |  |  | [tests/db/nickname_store_test.cpp:101](../../tests/db/nickname_store_test.cpp#L101) |
+| the latest row is what a new sighting is compared against |  |  | [tests/db/nickname_store_test.cpp:115](../../tests/db/nickname_store_test.cpp#L115) |
+| an audit entry finds the row it describes |  |  | [tests/db/nickname_store_test.cpp:128](../../tests/db/nickname_store_test.cpp#L128) |
+| an audit entry does not attach itself to an older identical change |  |  | [tests/db/nickname_store_test.cpp:138](../../tests/db/nickname_store_test.cpp#L138) |
+| an audit entry for a different nickname matches nothing |  |  | [tests/db/nickname_store_test.cpp:148](../../tests/db/nickname_store_test.cpp#L148) |
+| a row that already names somebody is not offered for attribution |  |  | [tests/db/nickname_store_test.cpp:156](../../tests/db/nickname_store_test.cpp#L156) |
+| attributing a row fills in the author and where it came from |  |  | [tests/db/nickname_store_test.cpp:166](../../tests/db/nickname_store_test.cpp#L166) |
+| the first audit entry to attribute a row wins |  |  | [tests/db/nickname_store_test.cpp:179](../../tests/db/nickname_store_test.cpp#L179) |
+| a change that did not go through can be taken back |  |  | [tests/db/nickname_store_test.cpp:192](../../tests/db/nickname_store_test.cpp#L192) |
+| an imported row keeps the text its timestamp was read from |  |  | [tests/db/nickname_store_test.cpp:205](../../tests/db/nickname_store_test.cpp#L205) |
+| only reactions on our replacements are counted |  |  | [tests/db/reaction_store_test.cpp:96](../../tests/db/reaction_store_test.cpp#L96) |
+| taking a reaction back removes it |  |  | [tests/db/reaction_store_test.cpp:108](../../tests/db/reaction_store_test.cpp#L108) |
+| a moderator clearing reactions clears the counts |  |  | [tests/db/reaction_store_test.cpp:117](../../tests/db/reaction_store_test.cpp#L117) |
+| received, given and self-reactions are counted apart |  | 5 | [tests/db/reaction_store_test.cpp:134](../../tests/db/reaction_store_test.cpp#L134) |
+| a backfilled reaction is dated by its message |  |  | [tests/db/reaction_store_test.cpp:174](../../tests/db/reaction_store_test.cpp#L174) |
+| a live reaction is dated when it was added |  |  | [tests/db/reaction_store_test.cpp:187](../../tests/db/reaction_store_test.cpp#L187) |
+| rebuilding a message's reactions is safe to repeat |  | 1 | [tests/db/reaction_store_test.cpp:199](../../tests/db/reaction_store_test.cpp#L199) |
+| an alias merges one emoji into another across all history, and can be undone |  |  | [tests/db/reaction_store_test.cpp:225](../../tests/db/reaction_store_test.cpp#L225) |
+| alias chains are flattened as they are written |  | 1 | [tests/db/reaction_store_test.cpp:246](../../tests/db/reaction_store_test.cpp#L246) |
+| an alias that would loop is refused |  |  | [tests/db/reaction_store_test.cpp:265](../../tests/db/reaction_store_test.cpp#L265) |
+| an emoji already merged into another is not quietly moved |  |  | [tests/db/reaction_store_test.cpp:273](../../tests/db/reaction_store_test.cpp#L273) |
+| aliases belong to one guild |  |  | [tests/db/reaction_store_test.cpp:287](../../tests/db/reaction_store_test.cpp#L287) |
+| emojis are known by name once somebody has used them |  |  | [tests/db/reaction_store_test.cpp:297](../../tests/db/reaction_store_test.cpp#L297) |
+| emojis are listed apart, merged, or only the aliases |  |  | [tests/db/reaction_store_test.cpp:315](../../tests/db/reaction_store_test.cpp#L315) |
+| names alike are the same ignoring case, or a letter or two apart |  |  | [tests/db/reaction_store_test.cpp:343](../../tests/db/reaction_store_test.cpp#L343) |
+| emojis with names alike are grouped, and merged ones count as their keeper |  |  | [tests/db/reaction_store_test.cpp:364](../../tests/db/reaction_store_test.cpp#L364) |
+| a replacement round-trips with its links in order |  |  | [tests/db/replacement_store_test.cpp:42](../../tests/db/replacement_store_test.cpp#L42) |
+| an unattributed replacement stores no author |  |  | [tests/db/replacement_store_test.cpp:62](../../tests/db/replacement_store_test.cpp#L62) |
+| state changes and retries are recorded |  |  | [tests/db/replacement_store_test.cpp:75](../../tests/db/replacement_store_test.cpp#L75) |
+| recording a replacement again replaces its links |  |  | [tests/db/replacement_store_test.cpp:90](../../tests/db/replacement_store_test.cpp#L90) |
+| unsettled replacements are the pending and retrying ones, with their links |  |  | [tests/db/replacement_store_test.cpp:103](../../tests/db/replacement_store_test.cpp#L103) |
+| replacement states have stable names |  |  | [tests/db/replacement_store_test.cpp:124](../../tests/db/replacement_store_test.cpp#L124) |
+| a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:150](../../tests/db/schema_versions_test.cpp#L150) |
+| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:167](../../tests/db/schema_versions_test.cpp#L167) |
+| an old database is brought to migration 15, then adopted with its data |  |  | [tests/db/schema_versions_test.cpp:180](../../tests/db/schema_versions_test.cpp#L180) |
+| adoption records every module of migration 15, and only those |  |  | [tests/db/schema_versions_test.cpp:205](../../tests/db/schema_versions_test.cpp#L205) |
+| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:216](../../tests/db/schema_versions_test.cpp#L216) |
+| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:232](../../tests/db/schema_versions_test.cpp#L232) |
+| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:248](../../tests/db/schema_versions_test.cpp#L248) |
+| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:264](../../tests/db/schema_versions_test.cpp#L264) |
+| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:276](../../tests/db/schema_versions_test.cpp#L276) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/db/schema_versions_test.cpp:290](../../tests/db/schema_versions_test.cpp#L290) |
+| a trigger survives a round trip with its responses |  |  | [tests/db/trigger_store_test.cpp:63](../../tests/db/trigger_store_test.cpp#L63) |
+| each trigger in a guild gets its own responses, in order |  |  | [tests/db/trigger_store_test.cpp:82](../../tests/db/trigger_store_test.cpp#L82) |
+| guilds cannot see or change each other's triggers |  |  | [tests/db/trigger_store_test.cpp:109](../../tests/db/trigger_store_test.cpp#L109) |
+| updating a trigger replaces its responses rather than adding to them |  |  | [tests/db/trigger_store_test.cpp:126](../../tests/db/trigger_store_test.cpp#L126) |
+| removing a trigger takes its responses with it |  |  | [tests/db/trigger_store_test.cpp:142](../../tests/db/trigger_store_test.cpp#L142) |
+| a matching message gets one of the trigger's responses |  | 1 | [tests/db/trigger_store_test.cpp:154](../../tests/db/trigger_store_test.cpp#L154) |
+| a trigger is quiet until its cooldown has passed |  |  | [tests/db/trigger_store_test.cpp:176](../../tests/db/trigger_store_test.cpp#L176) |
+| cooldowns are per channel |  |  | [tests/db/trigger_store_test.cpp:193](../../tests/db/trigger_store_test.cpp#L193) |
+| messages arriving at once still get one reply per cooldown | `threads` |  | [tests/db/trigger_store_test.cpp:206](../../tests/db/trigger_store_test.cpp#L206) |
+| a disabled trigger says nothing |  |  | [tests/db/trigger_store_test.cpp:245](../../tests/db/trigger_store_test.cpp#L245) |
+| two triggers on one message both answer |  |  | [tests/db/trigger_store_test.cpp:257](../../tests/db/trigger_store_test.cpp#L257) |
+| respond_to_bots survives a round trip and defaults to off |  |  | [tests/db/trigger_store_test.cpp:272](../../tests/db/trigger_store_test.cpp#L272) |
+| a trigger only answers an allowed bot when it opts in |  |  | [tests/db/trigger_store_test.cpp:291](../../tests/db/trigger_store_test.cpp#L291) |
+| a trigger that answers bots still answers humans |  |  | [tests/db/trigger_store_test.cpp:310](../../tests/db/trigger_store_test.cpp#L310) |
+| a trigger's reply flags survive a round trip and default to silent |  |  | [tests/db/trigger_store_test.cpp:323](../../tests/db/trigger_store_test.cpp#L323) |
+| triggers from before reply flags existed stay silent |  |  | [tests/db/trigger_store_test.cpp:348](../../tests/db/trigger_store_test.cpp#L348) |
+| a trigger's reply carries its flags |  |  | [tests/db/trigger_store_test.cpp:365](../../tests/db/trigger_store_test.cpp#L365) |
+| a trigger's reply says which trigger it is from |  |  | [tests/db/trigger_store_test.cpp:379](../../tests/db/trigger_store_test.cpp#L379) |
 | a rule comes back with its mirrors in order |  |  | [tests/db/url_rule_store_test.cpp:35](../../tests/db/url_rule_store_test.cpp#L35) |
 | setting a rule replaces its mirrors, which is how reordering works |  |  | [tests/db/url_rule_store_test.cpp:48](../../tests/db/url_rule_store_test.cpp#L48) |
 | renaming a rule moves it to the new site |  |  | [tests/db/url_rule_store_test.cpp:59](../../tests/db/url_rule_store_test.cpp#L59) |
@@ -180,10 +190,10 @@ Database (`src/core/db`)
 | turning replacement on outlasts a restart | `fs` |  | [tests/db/url_rule_store_test.cpp:152](../../tests/db/url_rule_store_test.cpp#L152) |
 | the Java rule file imports once, and never over an existing rule | `fs` |  | [tests/db/url_rule_store_test.cpp:169](../../tests/db/url_rule_store_test.cpp#L169) |
 | a missing rule file is not an error | `fs` |  | [tests/db/url_rule_store_test.cpp:188](../../tests/db/url_rule_store_test.cpp#L188) |
-| a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:38](../../tests/db/voice_store_test.cpp#L38) |
-| voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:50](../../tests/db/voice_store_test.cpp#L50) |
-| saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:61](../../tests/db/voice_store_test.cpp#L61) |
-| voices are listed by name and removed one at a time |  |  | [tests/db/voice_store_test.cpp:77](../../tests/db/voice_store_test.cpp#L77) |
+| a saved voice reads back as it was saved |  |  | [tests/db/voice_store_test.cpp:39](../../tests/db/voice_store_test.cpp#L39) |
+| voice names are found in any case, and per guild |  |  | [tests/db/voice_store_test.cpp:51](../../tests/db/voice_store_test.cpp#L51) |
+| saving under a name that exists replaces the voice but keeps its maker |  |  | [tests/db/voice_store_test.cpp:62](../../tests/db/voice_store_test.cpp#L62) |
+| voices are listed by name and removed one at a time |  |  | [tests/db/voice_store_test.cpp:78](../../tests/db/voice_store_test.cpp#L78) |
 
 ## config
 
@@ -191,16 +201,16 @@ Configuration (`src/core/config`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| an unset key falls back to the caller's default |  |  | [tests/db/guild_settings_test.cpp:28](../../tests/db/guild_settings_test.cpp#L28) |
-| values survive a set and get round trip |  |  | [tests/db/guild_settings_test.cpp:38](../../tests/db/guild_settings_test.cpp#L38) |
-| setting a key again replaces the value |  |  | [tests/db/guild_settings_test.cpp:52](../../tests/db/guild_settings_test.cpp#L52) |
-| guilds do not see each other's settings |  |  | [tests/db/guild_settings_test.cpp:62](../../tests/db/guild_settings_test.cpp#L62) |
-| erase removes a key and reports whether it existed |  |  | [tests/db/guild_settings_test.cpp:71](../../tests/db/guild_settings_test.cpp#L71) |
-| a value that cannot be parsed falls back instead of throwing |  |  | [tests/db/guild_settings_test.cpp:81](../../tests/db/guild_settings_test.cpp#L81) |
-| booleans accept the usual spellings |  |  | [tests/db/guild_settings_test.cpp:94](../../tests/db/guild_settings_test.cpp#L94) |
-| partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:107](../../tests/db/guild_settings_test.cpp#L107) |
-| all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:117](../../tests/db/guild_settings_test.cpp#L117) |
-| the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:130](../../tests/db/guild_settings_test.cpp#L130) |
+| an unset key falls back to the caller's default |  |  | [tests/db/guild_settings_test.cpp:29](../../tests/db/guild_settings_test.cpp#L29) |
+| values survive a set and get round trip |  |  | [tests/db/guild_settings_test.cpp:39](../../tests/db/guild_settings_test.cpp#L39) |
+| setting a key again replaces the value |  |  | [tests/db/guild_settings_test.cpp:53](../../tests/db/guild_settings_test.cpp#L53) |
+| guilds do not see each other's settings |  |  | [tests/db/guild_settings_test.cpp:63](../../tests/db/guild_settings_test.cpp#L63) |
+| erase removes a key and reports whether it existed |  |  | [tests/db/guild_settings_test.cpp:72](../../tests/db/guild_settings_test.cpp#L72) |
+| a value that cannot be parsed falls back instead of throwing |  |  | [tests/db/guild_settings_test.cpp:82](../../tests/db/guild_settings_test.cpp#L82) |
+| booleans accept the usual spellings |  |  | [tests/db/guild_settings_test.cpp:95](../../tests/db/guild_settings_test.cpp#L95) |
+| partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:108](../../tests/db/guild_settings_test.cpp#L108) |
+| all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:118](../../tests/db/guild_settings_test.cpp#L118) |
+| the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:131](../../tests/db/guild_settings_test.cpp#L131) |
 | an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:55](../../tests/unit/bootstrap_test.cpp#L55) |
 | a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:67](../../tests/unit/bootstrap_test.cpp#L67) |
 | values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:79](../../tests/unit/bootstrap_test.cpp#L79) |
@@ -235,14 +245,14 @@ Command framework (`src/core/commands`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:28](../../tests/unit/basic_commands_test.cpp#L28) |
-| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:53](../../tests/unit/basic_commands_test.cpp#L53) |
-| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:75](../../tests/unit/basic_commands_test.cpp#L75) |
-| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:81](../../tests/unit/basic_commands_test.cpp#L81) |
-| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:89](../../tests/unit/basic_commands_test.cpp#L89) |
-| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:96](../../tests/unit/basic_commands_test.cpp#L96) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:131](../../tests/unit/basic_commands_test.cpp#L131) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:147](../../tests/unit/basic_commands_test.cpp#L147) |
+| joining follows the target and moves only when it has to |  | 4 | [tests/unit/basic_commands_test.cpp:29](../../tests/unit/basic_commands_test.cpp#L29) |
+| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:54](../../tests/unit/basic_commands_test.cpp#L54) |
+| joining says whom it followed, as the Java bot did |  |  | [tests/unit/basic_commands_test.cpp:76](../../tests/unit/basic_commands_test.cpp#L76) |
+| a target who left voice is not followed to their old channel |  |  | [tests/unit/basic_commands_test.cpp:82](../../tests/unit/basic_commands_test.cpp#L82) |
+| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:90](../../tests/unit/basic_commands_test.cpp#L90) |
+| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:97](../../tests/unit/basic_commands_test.cpp#L97) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:132](../../tests/unit/basic_commands_test.cpp#L132) |
+| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:148](../../tests/unit/basic_commands_test.cpp#L148) |
 | an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
 | allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
 | a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
@@ -462,12 +472,12 @@ Messages, replacements, reactions, nicknames and midnight (`src/core/events`)
 | a GIF moves when it has more than one frame |  |  | [tests/db/emoji_copies_test.cpp:91](../../tests/db/emoji_copies_test.cpp#L91) |
 | images are told apart by their SHA-256 |  |  | [tests/db/emoji_copies_test.cpp:97](../../tests/db/emoji_copies_test.cpp#L97) |
 | a copy's name is one Discord accepts |  |  | [tests/db/emoji_copies_test.cpp:102](../../tests/db/emoji_copies_test.cpp#L102) |
-| a message of nothing but emojis is read as its emojis |  |  | [tests/db/emote_reactions_test.cpp:96](../../tests/db/emote_reactions_test.cpp#L96) |
-| joined emojis, skin tones, flags and keycaps are one emoji each |  |  | [tests/db/emote_reactions_test.cpp:112](../../tests/db/emote_reactions_test.cpp#L112) |
-| anything else in a message makes it not a reaction |  |  | [tests/db/emote_reactions_test.cpp:129](../../tests/db/emote_reactions_test.cpp#L129) |
-| each person's first message after a post counts, when it is all emotes |  |  | [tests/db/emote_reactions_test.cpp:141](../../tests/db/emote_reactions_test.cpp#L141) |
-| only the first 25 messages after a post are looked at |  |  | [tests/db/emote_reactions_test.cpp:154](../../tests/db/emote_reactions_test.cpp#L154) |
-| a reply to the post counts wherever it is, and a reply to anything else does not |  |  | [tests/db/emote_reactions_test.cpp:169](../../tests/db/emote_reactions_test.cpp#L169) |
+| a message of nothing but emojis is read as its emojis |  |  | [tests/db/emote_reactions_test.cpp:97](../../tests/db/emote_reactions_test.cpp#L97) |
+| joined emojis, skin tones, flags and keycaps are one emoji each |  |  | [tests/db/emote_reactions_test.cpp:113](../../tests/db/emote_reactions_test.cpp#L113) |
+| anything else in a message makes it not a reaction |  |  | [tests/db/emote_reactions_test.cpp:130](../../tests/db/emote_reactions_test.cpp#L130) |
+| each person's first message after a post counts, when it is all emotes |  |  | [tests/db/emote_reactions_test.cpp:142](../../tests/db/emote_reactions_test.cpp#L142) |
+| only the first 25 messages after a post are looked at |  |  | [tests/db/emote_reactions_test.cpp:155](../../tests/db/emote_reactions_test.cpp#L155) |
+| a reply to the post counts wherever it is, and a reply to anything else does not |  |  | [tests/db/emote_reactions_test.cpp:170](../../tests/db/emote_reactions_test.cpp#L170) |
 | an image or a video counts, whatever its kind |  |  | [tests/db/media_posts_test.cpp:89](../../tests/db/media_posts_test.cpp#L89) |
 | only a link's own picture or video counts, not a site's preview |  |  | [tests/db/media_posts_test.cpp:102](../../tests/db/media_posts_test.cpp#L102) |
 | a message has media when something attached or embedded is |  |  | [tests/db/media_posts_test.cpp:114](../../tests/db/media_posts_test.cpp#L114) |

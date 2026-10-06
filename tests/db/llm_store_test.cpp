@@ -1,7 +1,6 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/llm/advanced_triggers.hpp"
 #include "core/llm/documents.hpp"
 #include "core/llm/guards.hpp"
@@ -9,6 +8,8 @@
 #include "core/llm/models.hpp"
 #include "core/llm/settings.hpp"
 #include "core/llm/spend.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -34,7 +35,7 @@ constexpr std::chrono::sys_seconds noon{std::chrono::sys_days{std::chrono::year{
 struct fixture {
     latibot::db::database db{":memory:"};
 
-    fixture() { latibot::db::migrate(db); }
+    fixture() { latibot::testing::create_schema(db); }
 };
 
 auto remembered(std::string content, std::optional<dpp::snowflake> about = std::nullopt, dpp::snowflake in = guild,

@@ -7,18 +7,23 @@ namespace latibot::db {
 
 class database;
 
-/// One schema step.
+/// One schema step: one of the old single list, or of a module's own
+/// (core/db/schema_versions.hpp).
 ///
-/// Migrations are append-only: once a version has shipped, its SQL is never
-/// edited, and a change becomes a new migration
-/// (docs/features/Operations.md §5).
+/// Steps are append-only: once a version has shipped, its SQL is never
+/// edited, and a change becomes a new step (docs/features/Operations.md §5).
 struct migration {
     int version;
     std::string_view name;
     std::string_view sql;
 };
 
-/// The schema, in ascending version order.
+// The old single list, 1 to 15, which only adoption still runs, on a
+// database from before modules. Remove after: you say so
+// (docs/modules/Module_Plan_Final.md §7.2), with `schema`, both `migrate`s
+// and the adoption step.
+
+/// The old schema, in ascending version order.
 [[nodiscard]] auto schema() noexcept -> std::span<const migration>;
 
 /// Applies every migration newer than the database's `user_version`, each in

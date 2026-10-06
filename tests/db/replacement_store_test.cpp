@@ -1,6 +1,7 @@
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/replacements.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -20,7 +21,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     replacement_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 auto sample() -> replacement_record {

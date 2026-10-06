@@ -1,6 +1,7 @@
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/nicknames.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -24,7 +25,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     nickname_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 /// A fixed instant, so "recorded a minute ago" is exact rather than racy.

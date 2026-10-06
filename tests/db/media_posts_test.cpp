@@ -5,12 +5,12 @@
 #include "core/events/media_posts.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/legacy_replacements.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
 
 #include "mocks/mock_clock.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -65,7 +65,7 @@ struct fixture {
     media_tracker tracker{posts, settings, clock};
 
     fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         latibot::events::set_images_enabled(settings, guild, true);
     }
 

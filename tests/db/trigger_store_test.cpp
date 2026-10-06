@@ -4,6 +4,7 @@
 #include "core/ports/clock.hpp"
 
 #include "mocks/mock_clock.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -32,7 +33,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     trigger_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 auto nice_trigger(dpp::snowflake in = guild) -> trigger {
@@ -342,6 +343,8 @@ TEST_CASE("a trigger's reply flags survive a round trip and default to silent", 
     CHECK(fixture.store.find(id, guild)->message_flags == 0);
 }
 
+// Through the old migrations, so remove after: you say so, with them
+// (docs/modules/Module_Plan_Final.md §7.2).
 TEST_CASE("triggers from before reply flags existed stay silent", "[db]") {
     latibot::db::database db{":memory:"};
 

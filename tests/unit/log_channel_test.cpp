@@ -1,11 +1,11 @@
 #include "core/events/log_channel.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/util/text.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "mocks/mock_discord.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -155,7 +155,7 @@ TEST_CASE("a flood keeps its start and says how much was dropped", "[events]") {
 
 TEST_CASE("the log channel is kept bot-wide and can be cleared", "[events]") {
     latibot::db::database db(":memory:");
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::config::guild_settings settings(db);
     latibot::events::log_destination_store store(settings);
 
@@ -172,7 +172,7 @@ TEST_CASE("the log channel is kept bot-wide and can be cleared", "[events]") {
 
 TEST_CASE("a stored level that cannot be read is info, and the channel is kept", "[events]") {
     latibot::db::database db(":memory:");
-    latibot::db::migrate(db);
+    latibot::testing::create_schema(db);
     latibot::config::guild_settings settings(db);
     latibot::events::log_destination_store store(settings);
 

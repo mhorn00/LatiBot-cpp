@@ -4,10 +4,11 @@
 
 #include "core/events/emote_reactions.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/legacy_replacements.hpp"
 #include "core/events/reactions.hpp"
 #include "core/events/replacements.hpp"
+
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -74,7 +75,7 @@ struct fixture {
     latibot::events::reaction_store reactions{db};
     latibot::events::emote_tracker tracker{posts, reactions};
 
-    fixture() { latibot::db::migrate(db); }
+    fixture() { latibot::testing::create_schema(db); }
 
     /// Alice's image, posted `later` after day one.
     auto post(std::chrono::seconds later) -> dpp::snowflake {

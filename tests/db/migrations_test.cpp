@@ -1,3 +1,8 @@
+// The old, single-list migrations, which adoption still runs on a database
+// from before modules. Remove after: you say so, with them
+// (docs/modules/Module_Plan_Final.md §7.2); schema_versions_test.cpp covers
+// what replaces them.
+
 #include "core/db/migrations.hpp"
 
 #include "core/db/database.hpp"

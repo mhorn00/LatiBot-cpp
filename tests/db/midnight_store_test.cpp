@@ -1,10 +1,10 @@
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/midnight.hpp"
 #include "core/ports/clock.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/capture_log.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -28,7 +28,7 @@ struct store_fixture {
     latibot::db::database db{":memory:"};
     midnight_store store{db};
 
-    store_fixture() { latibot::db::migrate(db); }
+    store_fixture() { latibot::testing::create_schema(db); }
 };
 
 auto utc(int year, unsigned month, unsigned day, int hour, int minute = 0, int second = 0) -> std::chrono::system_clock::time_point {

@@ -701,7 +701,7 @@ Nothing is pushed.
 | | 2d The precompiled header, measured (I8) | done, `6f70bd6`: a clean Debug build of our code, 124 s → 72 s |
 | | 2e CI: the cached DPP, ASan (I9); the README, `DevEnvSetup.ps1`, tasks, testing docs | done: an AddressSanitizer job, which first checks the image has the runtime; not yet run on GitHub |
 | **3. The module interface** | 3a `module`, `host`, `capabilities`, `stage_order`; `bot` becomes the host | done: also `ui::panel_routes`, and `tests/support/test_host.hpp` for modules' tests |
-| | 3b `schema_versions`, the flattened schemas, adoption, the comparison test (§7) | |
+| | 3b `schema_versions`, the flattened schemas, adoption, the comparison test (§7) | done: the schemas are in `core/db/schemas.cpp` until each module takes its own; tests build databases from them |
 | | 3c Config sections and key tables (§8) | |
 | | 3d midnight as the first module | |
 | **4. Folders and targets** | `src/core/{include,src,tests}`, `src/app`, `latibot_module()`, the generated list, per-module test executables; midnight moved | |

@@ -17,6 +17,8 @@ add_library(latibot_core STATIC
     core/db/database.cpp
     core/db/error.cpp
     core/db/migrations.cpp
+    core/db/schema_versions.cpp
+    core/db/schemas.cpp
     core/db/statement.cpp
     core/commands/basic.cpp
     core/commands/linkstats.cpp

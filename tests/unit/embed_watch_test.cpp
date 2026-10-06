@@ -3,7 +3,6 @@
 
 #include "core/events/embed_watch.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/events/replacements.hpp"
 #include "core/events/stage_order.hpp"
 #include "core/events/triggers.hpp"
@@ -15,6 +14,7 @@
 #include "mocks/mock_discord.hpp"
 #include "support/capture_log.hpp"
 #include "support/discord_limits.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -77,7 +77,7 @@ struct fixture {
     // On, since nearly every test here is about what happens once it is; the
     // tests for off turn it back off.
     fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         rules.set_enabled(guild, true);
     }
 

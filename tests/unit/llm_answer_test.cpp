@@ -1,7 +1,6 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/db/migrations.hpp"
 #include "core/llm/advanced_triggers.hpp"
 #include "core/llm/aliases.hpp"
 #include "core/llm/documents.hpp"
@@ -19,6 +18,7 @@
 #include "mocks/mock_discord.hpp"
 #include "mocks/mock_llm.hpp"
 #include "mocks/mock_speech.hpp"
+#include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -92,7 +92,7 @@ struct fixture {
                                       [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }};
 
     fixture() {
-        latibot::db::migrate(db);
+        latibot::testing::create_schema(db);
         settings.set_bool(guild, latibot::llm::enabled_key, true);
         latibot::llm::add_memory_tools(tools, memories);
     }
