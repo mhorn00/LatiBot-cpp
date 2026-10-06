@@ -14,8 +14,8 @@ draws its classes.
 
 | | |
 |---|---|
-| **Code** | `src/core/events/log_channel.*`, `src/core/commands/logs.*`, the tap in `src/core/util/log.*` |
-| **Tests** | `tests/unit/log_channel_test.cpp`, `tests/unit/logs_command_test.cpp`, `tests/unit/log_test.cpp` |
+| **Code** | `src/core/src/events/log_channel.*`, `src/core/src/commands/logs.*`, the tap in `src/core/{include/core,src}/util/log.*` |
+| **Tests** | `src/core/tests/log_channel_test.cpp`, `src/core/tests/logs_command_test.cpp`, `src/core/tests/log_test.cpp` |
 | **Tables** | `guild_settings`, under the bot-wide server id 0 |
 | **Config** | `trusted_users` in `config.json` |
 | **Plan** | Replaces the log channel paragraph of plan §5.1 |

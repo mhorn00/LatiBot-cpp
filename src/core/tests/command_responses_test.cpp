@@ -2,13 +2,13 @@
 // checked against the real commands rather than a stand-in, so a misspelt
 // subcommand or a view that should be public cannot slip through.
 
-#include "core/commands/basic.hpp"
-#include "core/commands/bots.hpp"
+#include "commands/basic.hpp"
+#include "commands/bots.hpp"
 #include "core/commands/message_options.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/events/bot_allowlist.hpp"
+#include "events/bot_allowlist.hpp"
 
 #include "mocks/mock_clock.hpp"
 #include "support/schema.hpp"

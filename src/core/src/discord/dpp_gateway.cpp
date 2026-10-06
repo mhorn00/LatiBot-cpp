@@ -1,4 +1,4 @@
-#include "core/discord/dpp_gateway.hpp"
+#include "discord/dpp_gateway.hpp"
 
 #include <dpp/cache.h>
 #include <dpp/cluster.h>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
-#include "core/events/bot_allowlist.hpp"
+#include "events/bot_allowlist.hpp"
 
 #include <dpp/appcommand.h>
 

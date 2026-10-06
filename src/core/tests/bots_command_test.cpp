@@ -1,4 +1,4 @@
-#include "core/commands/bots.hpp"
+#include "commands/bots.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

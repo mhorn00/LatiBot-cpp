@@ -6,7 +6,7 @@ The header is always the whole truth, and the path under each heading says
 where to find it. [README.md](README.md) explains the notation.
 
 Class names are drawn without their namespace. The namespace is the folder:
-`trigger_store` is `latibot::events::trigger_store` in `src/core/events/`.
+`trigger_store` is `latibot::events::trigger_store` in `src/core/{include/core,src}/events/`.
 
 - [1. What `bot` owns](#1-what-bot-owns)
 - [2. Ports and what implements them](#2-ports-and-what-implements-them)
@@ -24,7 +24,7 @@ Class names are drawn without their namespace. The namespace is the folder:
 
 ## 1. What `bot` owns
 
-`src/core/bot.hpp`
+`src/core/src/bot.hpp`
 
 `latibot::bot` holds one of everything as a member, by value. Nothing of
 ours is global except the logger, and the one DECtalk utterance being made
@@ -71,7 +71,7 @@ Three consequences of the order are worth knowing:
 
 ## 2. Ports and what implements them
 
-`src/core/ports/`, `src/core/discord/`, `tests/mocks/`
+`src/core/{include/core,src}/ports/`, `src/core/{include/core,src}/discord/`, `tests/mocks/`
 
 A *port* is an interface for talking to something outside the bot. The bot
 gets an implementation that uses DPP, and a test gets a mock that records
@@ -182,7 +182,7 @@ function for, and only `/chat` uses it, to send a voice message.
 
 ## 3. The database and the stores
 
-`src/core/db/`, `src/core/config/guild_settings.hpp`, and each feature's store
+`src/core/{include/core,src}/db/`, `src/core/include/core/config/guild_settings.hpp`, and each feature's store
 
 Every table belongs to one *store*. A store holds a pointer to the
 `database`, and turns rows into structs and structs into rows. Nothing
@@ -292,7 +292,7 @@ How it fits together:
 
 ## 4. Slash commands
 
-`src/core/commands/registry.hpp` and one header per command
+`src/core/include/core/commands/registry.hpp` and one header per command
 
 Every slash command is a class derived from `command`. The `registry` owns
 them, builds their Discord definitions when the bot connects, and sends each
@@ -408,7 +408,7 @@ and a test can fill in only the fields it uses.
 
 ## 5. Panels: buttons, menus and forms
 
-`src/core/ui/`, `src/core/commands/{trigger,urlrepl,voice_lab,llm}.hpp`
+`src/core/{include/core,src}/ui/`, `src/core/commands/{trigger,urlrepl,voice_lab,llm}.hpp`
 
 A panel is a message with buttons and menus that edits itself when used.
 Nothing about an open panel is kept in memory. Everything a button needs is
@@ -517,7 +517,7 @@ edited has too many numbers to fit in a 100-character `custom_id`, so
 
 ## 6. The message pipeline
 
-`src/core/events/message_pipeline.hpp`, and the stages in `goodbye.hpp`,
+`src/core/include/core/events/message_pipeline.hpp`, and the stages in `goodbye.hpp`,
 `url_replacer.hpp`, `triggers.hpp` and `llm/stage.hpp`
 
 Every message goes through the same list of *stages*. A stage looks at an
@@ -1467,8 +1467,8 @@ classDiagram
 
 ## 13. Configuration and logging
 
-`src/core/config/bootstrap.hpp`, `src/core/util/log.hpp`,
-`src/core/events/log_channel.hpp`
+`src/core/include/core/config/bootstrap.hpp`, `src/core/include/core/util/log.hpp`,
+`src/core/src/events/log_channel.hpp`
 
 ```mermaid
 classDiagram

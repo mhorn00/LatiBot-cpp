@@ -1,4 +1,4 @@
-#include "core/commands/logs.hpp"
+#include "commands/logs.hpp"
 
 #include "core/commands/options.hpp"
 #include "core/util/log.hpp"

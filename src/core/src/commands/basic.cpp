@@ -1,11 +1,11 @@
-#include "core/commands/basic.hpp"
+#include "commands/basic.hpp"
 
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/events/goodbye.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "events/goodbye.hpp"
 
 #include <dpp/cache.h>
 #include <dpp/cluster.h>

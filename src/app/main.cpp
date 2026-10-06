@@ -1,11 +1,11 @@
-#include "core/bot.hpp"
+#include "bot.hpp"
+#include "config/command_line.hpp"
 #include "core/config/bootstrap.hpp"
-#include "core/config/command_line.hpp"
-#include "core/discord/unregister_commands.hpp"
 #include "core/modules/module.hpp"
 #include "core/util/ca_certificates.hpp"
 #include "core/util/env.hpp"
 #include "core/util/log.hpp"
+#include "discord/unregister_commands.hpp"
 
 #include <exception>
 #include <string_view>

@@ -17,7 +17,7 @@
       // rebuilt and the other is not. Release and ASan go through their ctest
       // presets; widen this pattern if you would rather have them here.
       //
-      // Every test executable: the core's (latibot_tests), each module's
+      // Every test executable: the core's (latibot_core_tests), each module's
       // (latibot_<name>_tests) and the app's (latibot_app_tests), each a
       // node of its own.
       "pattern": "build/build/bin/Debug/latibot*_tests.exe",

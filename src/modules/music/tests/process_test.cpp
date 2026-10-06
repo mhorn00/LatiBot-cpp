@@ -129,7 +129,7 @@ TEST_CASE("a program runs in the folder it is given, or the bot's own", "[music]
 TEST_CASE("the bot's own folder is the test program's", "[music]") {
     const auto directory = latibot::util::executable_directory();
     REQUIRE(directory.has_value());
-    CHECK(std::filesystem::exists(*directory / "latibot_tests.exe"));
+    CHECK(std::filesystem::exists(*directory / "latibot_music_tests.exe"));
 }
 
 TEST_CASE("a program that cannot be found is refused", "[music]") {

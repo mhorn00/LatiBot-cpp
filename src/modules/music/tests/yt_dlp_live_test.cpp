@@ -1,5 +1,5 @@
 // The real yt-dlp and ffmpeg (docs/features/Music.md §7). Hidden ([.]) and
-// [live]: run with `latibot_tests.exe "[live]"`. Skipped when either
+// [live]: run with `latibot_music_tests.exe "[live]"`. Skipped when either
 // program is not installed.
 //
 // The file is Wikimedia Commons' Example.ogg: freely licensed, small, and

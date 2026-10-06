@@ -16,8 +16,8 @@ classes.
 
 | | |
 |---|---|
-| **Code** | `src/app/main.cpp`, `src/core/config/{bootstrap,command_line,guild_settings}.*`, `src/core/util/{env,ca_certificates,log}.*`, `src/core/db/*`, `src/core/commands/preflight.*`; intents and timers in `src/core/bot.cpp` |
-| **Tests** | `tests/unit/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `tests/db/{database,schema_versions,migrations,backup,guild_settings}_test.cpp` |
+| **Code** | `src/app/main.cpp`, `src/core/{include/core,src}/config/bootstrap.*`, `src/core/src/config/command_line.*`, `src/core/{include/core,src}/config/guild_settings.*`, `src/core/{include/core,src}/util/env.*`, `src/core/{include/core,src}/util/ca_certificates.*`, `src/core/{include/core,src}/util/log.*`, `src/core/{include/core,src}/db/*`, `src/core/src/commands/preflight.*`; intents and timers in `src/core/src/bot.cpp` |
+| **Tests** | `src/core/tests/{bootstrap,command_line,env,ca_certificates,preflight,log}_test.cpp`, `src/core/tests/{database,schema_versions,migrations,backup,guild_settings}_test.cpp` |
 | **Tables** | `guild_settings` and `allowed_bots` (the core's schema), and `schema_versions`, each module's version |
 | **Plan** | Replaces plan §5.1, §5.2, §7, §21.1–§21.3 and §21.7 |
 | **Status** | Built in phase 0 and 1; `config.json` written when missing since 2026-09-27; the command line since 2026-09-30 |
@@ -193,7 +193,7 @@ SQLite through our own thin wrapper (`db::database`, `statement`,
 
 **Each module has its own schema**, numbered from 1 and recorded in
 `schema_versions (module, version)`; the core's is `core`
-(`src/core/db/schemas.cpp`, `schema_versions.cpp`;
+(`src/core/src/db/schemas.cpp`, `schema_versions.cpp`;
 docs/modules/Module_Plan_Final.md §7). At startup each built module applies
 its steps above its recorded version, each inside a transaction with the
 new version. A module with no row creates its tables. A failing step rolls
@@ -203,7 +203,7 @@ that alters a populated table has a test that applies the version before,
 inserts rows, upgrades, and checks the rows survived.
 
 Each module's version 1 is its tables exactly as the old single list of
-migrations left them at 15, which `tests/db/schema_versions_test.cpp`
+migrations left them at 15, which `src/core/tests/schema_versions_test.cpp`
 compares column by column.
 
 **A database from before modules** (`PRAGMA user_version` 1 to 15, no

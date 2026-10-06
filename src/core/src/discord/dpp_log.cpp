@@ -1,4 +1,4 @@
-#include "core/discord/dpp_log.hpp"
+#include "discord/dpp_log.hpp"
 
 namespace latibot::discord {
 

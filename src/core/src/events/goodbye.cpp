@@ -1,4 +1,4 @@
-#include "core/events/goodbye.hpp"
+#include "events/goodbye.hpp"
 
 #include "core/config/guild_settings.hpp"
 #include "core/util/log.hpp"

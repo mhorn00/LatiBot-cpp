@@ -1,4 +1,4 @@
-#include "core/discord/dpp_http_client.hpp"
+#include "discord/dpp_http_client.hpp"
 
 #include <dpp/cluster.h>
 

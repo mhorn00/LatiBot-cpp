@@ -1,4 +1,4 @@
-#include "core/events/goodbye.hpp"
+#include "events/goodbye.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

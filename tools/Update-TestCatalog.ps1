@@ -3,8 +3,8 @@
     Regenerates docs/testing/Test_Catalog.md from the test sources.
 
 .DESCRIPTION
-    Parses every TEST_CASE in tests/ and in each module's tests/
-    (src/modules/<name>/tests) and groups them by their component tag,
+    Parses every TEST_CASE in tests/, the core's src/core/tests and each
+    module's src/modules/<name>/tests, and groups them by their component tag,
     so the catalog cannot drift from the code. Run it after adding or
     retagging tests:
 
@@ -17,7 +17,7 @@
 param(
     [string[]] $TestRoots = @(
         (Join-Path $PSScriptRoot '..' 'tests'),
-        (Join-Path $PSScriptRoot '..' 'src' 'modules')
+        (Join-Path $PSScriptRoot '..' 'src')
     ),
     [string] $OutputPath = (Join-Path $PSScriptRoot '..' 'docs' 'testing' 'Test_Catalog.md')
 )
@@ -62,12 +62,12 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $tests = [System.Collections.Generic.List[object]]::new()
 $problems = [System.Collections.Generic.List[string]]::new()
 
-# Only the tests/ folders under src/modules: a module's own sources are not
-# tests.
+# Only the tests/ folders under src: the core's and each module's. Their
+# sources are not tests.
 $testFiles = foreach ($root in $TestRoots) {
     if (-not (Test-Path $root)) { continue }
     Get-ChildItem -Path $root -Recurse -Filter '*.cpp' |
-        Where-Object { $root -notmatch 'modules$' -or $_.FullName -match '[\\/]tests[\\/]' }
+        Where-Object { $root -notmatch 'src$' -or $_.FullName -match '[\\/]tests[\\/]' }
 }
 
 foreach ($file in $testFiles | Sort-Object FullName) {

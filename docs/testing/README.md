@@ -21,10 +21,10 @@ ctest --preset asan        # everything, under AddressSanitizer
 Or run the binary directly to use Catch2's own filtering:
 
 ```powershell
-.\build\bin\Debug\latibot_tests.exe                 # all
-.\build\bin\Debug\latibot_tests.exe "[db]"          # one component
-.\build\bin\Debug\latibot_tests.exe "[config]~[fs]" # config, skipping file I/O
-.\build\bin\Debug\latibot_tests.exe --list-tests    # names and tags
+.\build\build\bin\Debug\latibot_core_tests.exe                 # the core's
+.\build\build\bin\Debug\latibot_core_tests.exe "[db]"          # one component
+.\build\build\bin\Debug\latibot_core_tests.exe "[config]~[fs]" # config, skipping file I/O
+.\build\build\bin\Debug\latibot_llm_tests.exe --list-tests     # one module's, by name and tag
 ```
 
 In VS Code, the **Testing** sidebar groups tests by component, then by source
@@ -35,14 +35,21 @@ file (see [VS Code setup](#vs-code-setup)).
 ## How the suite is organised
 
 ```
+src/core/tests/             the core's tests: latibot_core_tests
+src/modules/<name>/tests/   each module's: latibot_<name>_tests
 tests/
-  unit/        pure logic: no database, no network, no files
-  db/          anything that opens a database
+  app/         the bot as this build makes it: latibot_app_tests
   mocks/       hand-written stand-ins for the ports
-  support/     test helpers (temp directories, log capture, Discord's limits)
+  support/     test helpers shared by every executable (temp directories,
+               log capture, Discord's limits, the stand-in host, panels)
+  golden/      stored references, such as DECtalk's audio
   fuzz/        libFuzzer targets, built only by the fuzz preset; corpus/ holds
                their seed inputs
 ```
+
+A test's file says by its name what it covers; one that opens a database
+says so in its fixture, `testing::create_schema`, and a module's adds its
+own schema to it.
 
 Two more are planned and do not exist yet: `live/`, for tests that need a real
 Discord connection, and `fixtures/`, for synthetic data files.
@@ -53,7 +60,7 @@ executable per library (docs/modules/Module_Plan_Final.md §10):
 
 | Executable | Tests | From |
 |---|---|---|
-| `latibot_tests` | the core, and the features not yet moved into modules | `tests/` |
+| `latibot_core_tests` | the core, whose private headers it sees | `src/core/tests/` |
 | `latibot_<name>_tests` | one module, which sees that module's private headers and nothing of a module it does not require | `src/modules/<name>/tests/` |
 | `latibot_app_tests` | the bot as this build makes it, through the generated module list: every module starting on a stand-in host, and the schema comparison | `tests/app/` |
 
@@ -171,7 +178,7 @@ to rather than guessed at. After a deliberate change, such as a DECtalk
 update, rewrite the file and listen to the `.wav` files before committing it:
 
 ```powershell
-$env:LATIBOT_UPDATE_GOLDEN = '1'; .\build\bin\Debug\latibot_tests.exe "[golden]"; Remove-Item Env:LATIBOT_UPDATE_GOLDEN
+$env:LATIBOT_UPDATE_GOLDEN = '1'; .\build\build\bin\Debug\latibot_dectalk_tests.exe "[golden]"; Remove-Item Env:LATIBOT_UPDATE_GOLDEN
 ```
 
 **DECtalk itself runs in the suite.** The `[dectalk]` engine tests start the
@@ -207,15 +214,15 @@ New-Item -ItemType Directory -Force build\build-fuzz\corpus\fuzz_url_scan
 CTest nor a plain run of the binary includes them. Run one by name or tag:
 
 ```powershell
-.\build\bin\Release\latibot_tests.exe "[!benchmark]"
+.\build\build\bin\Release\latibot_core_tests.exe "[!benchmark]"
 ```
 
 **Live tests** are tagged `[live]` **and** `[.]`. The presets filter by test
 *name*, and ctest's names do not include tags, so `[live]` alone would not
 keep them out; Catch2 never runs or lists a test tagged `[.]` unless asked
-by name or tag. Run them with `latibot_tests.exe "[live]"`.
+by name or tag. Run them with `latibot_music_tests.exe "[live]"`.
 
-The first are music's (`tests/unit/yt_dlp_live_test.cpp`): real yt-dlp and
+The first are music's (`src/modules/music/tests/yt_dlp_live_test.cpp`): real yt-dlp and
 ffmpeg on a stable, freely licensed file, skipped when either program is
 not installed. Discord ones will need `LATIBOT_TEST_TOKEN` plus a test
 server, and cover only what real Discord can answer: modal behaviour,
@@ -274,18 +281,22 @@ reason logic lives behind ports rather than inside event handlers.
 
 `.vscode/settings.json` points the
 [TestMate C++](https://marketplace.visualstudio.com/items?itemName=matepek.vscode-catch2-test-adapter)
-extension at `build/build/bin/Debug/latibot_tests.exe` and groups it the way the
+extension at `build/build/bin/Debug/latibot*_tests.exe`, one node per executable, and groups them the way the
 catalog is grouped:
 
 ```
-LatiBot tests           build/build/bin/Debug/
+latibot_core_tests.exe      build/build/bin/Debug/
   [db]
-    tests/db/backup_test.cpp
+    src/core/tests/backup_test.cpp
       a backup is a complete, valid copy
       ...
+latibot_llm_tests.exe
+  [llm]
+    ...
 ```
 
-One top-level node, so a single run button covers the whole suite.
+One node per executable; the Testing sidebar's own run button covers them
+all.
 
 Three things are worth knowing before editing that file:
 
@@ -311,7 +322,7 @@ to be built last, and edited code appears to have no effect.
 pick a configuration. Listing both would put two copies of every test in the
 tree, whose tags and results drift apart as soon as one config is rebuilt and
 the other is not. Release and ASan go through `ctest --preset release` and
-`ctest --preset asan`. Widen `pattern` to `build/build/bin/*/latibot_tests.exe` if
+`ctest --preset asan`. Widen `pattern` to `build/build/bin/*/latibot*_tests.exe` if
 you would rather have them in the sidebar.
 
 **A run looks instantaneous because it is.** The whole suite takes well under
@@ -335,8 +346,8 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
   - `on_component` and `on_form` hand a panel's buttons, select menus and
     modal submissions to the panel whose view name it is. The panels route
     their own, from their modules (`trigger_panel`, `url_panel`,
-    `voice_lab`, `llm_panels`), and `tests/unit/panels_test.cpp` uses each
-    one end to end through `support/panel_harness.hpp`: every press, choice
+    `voice_lab`, `llm_panels`), and each module's panel tests use them end
+    to end through `support/panel_harness.hpp`: every press, choice
     and form is the JSON Discord sends, read by DPP's own interaction
     handler, and answered through DPP's own `reply` and `dialog`, which on
     DPP's webhook path hand the answer back instead of sending it. No
@@ -403,7 +414,9 @@ Worth being explicit about, so the catalog is not mistaken for coverage:
 
 ## Adding a test
 
-1. Put it in `tests/unit/` unless it needs a database (`tests/db/`).
+1. Put it with the code it tests: `src/core/tests/` for the core, a
+   module's `tests/` for a module, and list it in that `CMakeLists.txt`.
+   `tests/app/` is for what needs every module at once.
 2. Give it one component tag and any traits that apply.
 3. Name it after the behaviour.
 4. Run `pwsh tools/Update-TestCatalog.ps1` and commit the regenerated catalog.

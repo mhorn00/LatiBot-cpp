@@ -1,4 +1,4 @@
-#include "core/commands/unregister.hpp"
+#include "commands/unregister.hpp"
 
 #include "mocks/mock_command_host.hpp"
 

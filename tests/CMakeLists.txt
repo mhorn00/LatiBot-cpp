@@ -53,43 +53,44 @@ function(latibot_test_executable target)
     endif()
 endfunction()
 
-# The core, and the features not yet moved into modules.
-latibot_test_executable(latibot_tests SOURCES
-    db/backup_test.cpp
-    db/bot_allowlist_test.cpp
-    db/database_test.cpp
-    db/guild_settings_test.cpp
-    db/migrations_test.cpp
-    db/schema_versions_test.cpp
-    unit/basic_commands_test.cpp
-    unit/bootstrap_test.cpp
-    unit/config_section_test.cpp
-    unit/bots_command_test.cpp
-    unit/ca_certificates_test.cpp
-    unit/command_line_test.cpp
-    unit/command_log_test.cpp
-    unit/command_options_test.cpp
-    unit/command_responses_test.cpp
-    unit/env_test.cpp
-    unit/goodbye_test.cpp
-    unit/message_pipeline_test.cpp
-    unit/module_test.cpp
-    unit/paginator_test.cpp
-    unit/panels_test.cpp
-    unit/panel_routes_test.cpp
-    unit/logs_command_test.cpp
-    unit/log_channel_test.cpp
-    unit/log_color_test.cpp
-    unit/log_test.cpp
-    unit/message_flags_test.cpp
-    unit/ports_test.cpp
-    unit/preflight_test.cpp
-    unit/raw_api_test.cpp
-    unit/registry_test.cpp
-    unit/unregister_test.cpp
-    unit/version_test.cpp
-    unit/text_test.cpp
-    unit/url_scan_test.cpp
+# The core's own (src/core/tests), which see its private headers.
+set(core_tests_dir "${PROJECT_SOURCE_DIR}/src/core/tests")
+latibot_test_executable(latibot_core_tests PRIVATE_INCLUDES "${PROJECT_SOURCE_DIR}/src/core/src" SOURCES
+    ${core_tests_dir}/backup_test.cpp
+    ${core_tests_dir}/basic_commands_test.cpp
+    ${core_tests_dir}/bootstrap_test.cpp
+    ${core_tests_dir}/bot_allowlist_test.cpp
+    ${core_tests_dir}/bots_command_test.cpp
+    ${core_tests_dir}/ca_certificates_test.cpp
+    ${core_tests_dir}/command_line_test.cpp
+    ${core_tests_dir}/command_log_test.cpp
+    ${core_tests_dir}/command_options_test.cpp
+    ${core_tests_dir}/command_responses_test.cpp
+    ${core_tests_dir}/config_section_test.cpp
+    ${core_tests_dir}/database_test.cpp
+    ${core_tests_dir}/env_test.cpp
+    ${core_tests_dir}/goodbye_test.cpp
+    ${core_tests_dir}/guild_settings_test.cpp
+    ${core_tests_dir}/log_channel_test.cpp
+    ${core_tests_dir}/log_color_test.cpp
+    ${core_tests_dir}/log_test.cpp
+    ${core_tests_dir}/logs_command_test.cpp
+    ${core_tests_dir}/message_flags_test.cpp
+    ${core_tests_dir}/message_pipeline_test.cpp
+    ${core_tests_dir}/migrations_test.cpp
+    ${core_tests_dir}/module_test.cpp
+    ${core_tests_dir}/paginator_test.cpp
+    ${core_tests_dir}/panel_routes_test.cpp
+    ${core_tests_dir}/panels_test.cpp
+    ${core_tests_dir}/ports_test.cpp
+    ${core_tests_dir}/preflight_test.cpp
+    ${core_tests_dir}/raw_api_test.cpp
+    ${core_tests_dir}/registry_test.cpp
+    ${core_tests_dir}/schema_versions_test.cpp
+    ${core_tests_dir}/text_test.cpp
+    ${core_tests_dir}/unregister_test.cpp
+    ${core_tests_dir}/url_scan_test.cpp
+    ${core_tests_dir}/version_test.cpp
 )
 
 # Each module's own, latibot_<name>_tests, which sees the module's private

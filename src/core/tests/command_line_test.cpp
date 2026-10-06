@@ -1,4 +1,4 @@
-#include "core/config/command_line.hpp"
+#include "config/command_line.hpp"
 #include "core/config/bootstrap.hpp"
 
 #include <catch2/catch_test_macros.hpp>

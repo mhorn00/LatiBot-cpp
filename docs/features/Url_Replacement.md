@@ -17,8 +17,8 @@ the posting and watching. The reactions on replacements are counted by
 | | |
 |---|---|
 | **Module** | `links`: [its README](../../src/modules/links/README.md) lists what it owns |
-| **Code** | `src/core/util/url_scan.*` (the core's, which linkstats shares); `src/modules/links/`: `include/links/{url_rules,replacements}.hpp`, `src/{url_replacer,embed_watch,links_command,module}.*` |
-| **Tests** | `tests/unit/url_scan_test.cpp`, `src/modules/links/tests/` (`latibot_links_tests`), `tests/fuzz/fuzz_url_scan.cpp`; a link beside a trigger in `tests/app` |
+| **Code** | `src/core/{include/core,src}/util/url_scan.*` (the core's, which linkstats shares); `src/modules/links/`: `include/links/{url_rules,replacements}.hpp`, `src/{url_replacer,embed_watch,links_command,module}.*` |
+| **Tests** | `src/core/tests/url_scan_test.cpp`, `src/modules/links/tests/` (`latibot_links_tests`), `tests/fuzz/fuzz_url_scan.cpp`; a link beside a trigger in `tests/app` |
 | **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links`, the module's schema version 1 (was migrations 6 and 12) |
 | **Settings** | `url_replacement_enabled` and `url_rules_imported` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.1–§9.5, §21.11 and §21.13 |

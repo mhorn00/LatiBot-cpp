@@ -1,15 +1,12 @@
-#include "core/bot.hpp"
+#include "bot.hpp"
 
-#include "core/commands/basic.hpp"
-#include "core/commands/bots.hpp"
-#include "core/commands/logs.hpp"
-#include "core/commands/preflight.hpp"
-#include "core/db/backup.hpp"
+#include "commands/basic.hpp"
+#include "commands/bots.hpp"
+#include "commands/logs.hpp"
+#include "commands/preflight.hpp"
 #include "core/db/schema_versions.hpp"
 #include "core/db/schemas.hpp"
-#include "core/discord/dpp_log.hpp"
 #include "core/discord/message_flags.hpp"
-#include "core/events/goodbye.hpp"
 #include "core/events/stage_order.hpp"
 #include "core/modules/host.hpp"
 #include "core/modules/module.hpp"
@@ -18,6 +15,9 @@
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 #include "core/version.hpp"
+#include "db/backup.hpp"
+#include "discord/dpp_log.hpp"
+#include "events/goodbye.hpp"
 
 #include <algorithm>
 #include <chrono>

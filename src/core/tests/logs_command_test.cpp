@@ -1,4 +1,4 @@
-#include "core/commands/logs.hpp"
+#include "commands/logs.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"

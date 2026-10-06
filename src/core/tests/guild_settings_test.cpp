@@ -1,7 +1,7 @@
 #include "core/config/guild_settings.hpp"
 
 #include "core/db/database.hpp"
-#include "core/events/goodbye.hpp"
+#include "events/goodbye.hpp"
 
 #include "support/schema.hpp"
 

@@ -4,11 +4,7 @@
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
-#include "core/discord/dpp_gateway.hpp"
-#include "core/discord/dpp_http_client.hpp"
 #include "core/discord/raw_api.hpp"
-#include "core/events/bot_allowlist.hpp"
-#include "core/events/log_channel.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
@@ -16,6 +12,10 @@
 #include "core/ports/clock.hpp"
 #include "core/ui/paginator.hpp"
 #include "core/ui/panel_routes.hpp"
+#include "discord/dpp_gateway.hpp"
+#include "discord/dpp_http_client.hpp"
+#include "events/bot_allowlist.hpp"
+#include "events/log_channel.hpp"
 
 #include <dpp/dpp.h>
 

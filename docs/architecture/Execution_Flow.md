@@ -82,7 +82,7 @@ the bot never connects to the gateway or comes online.
 
 ## 2. Building the bot
 
-`bot::bot()` in `src/core/bot.cpp`
+`bot::bot()` in `src/core/src/bot.cpp`
 
 The constructor has two halves. First the member initialisers build every
 object, in the order drawn in [Classes.md §1](Classes.md#1-what-bot-owns).

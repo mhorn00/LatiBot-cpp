@@ -2,8 +2,8 @@
 
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
-#include "core/events/log_channel.hpp"
 #include "core/ports/discord_gateway.hpp"
+#include "events/log_channel.hpp"
 
 #include <dpp/appcommand.h>
 

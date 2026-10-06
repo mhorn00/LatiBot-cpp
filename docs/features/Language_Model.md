@@ -18,7 +18,7 @@ follows an answer.
 | | |
 |---|---|
 | **Module** | `llm`: [its README](../../src/modules/llm/README.md) lists what it owns |
-| **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/discord/dpp_http_client.*` |
+| **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/src/discord/dpp_http_client.*` |
 | **Tests** | `src/modules/llm/tests/` (`latibot_llm_tests`, with `mock_llm.hpp`); `tests/mocks/{mock_http,mock_speech}.hpp` |
 | **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); settings as `llm_*` rows in `guild_settings` |
 | **Config** | the `llm` section of `config.json`: `provider`, `model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
@@ -146,7 +146,7 @@ posted**, in Paul's voice.
   queued under whoever asked, so they can `/tts stop` it.
 
 All of that is DECtalk's, reached through the `speech` capability
-(`src/core/capabilities/speech.hpp`), which `audio::dectalk_speech`
+(`src/core/include/core/capabilities/speech.hpp`), which `audio::dectalk_speech`
 implements: whether a channel is spoken in, preparing the text, saying it,
 and the speaking section. The language model's code knows none of it, and
 without the capability a reply is only posted

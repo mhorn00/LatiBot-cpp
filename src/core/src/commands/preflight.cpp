@@ -1,4 +1,4 @@
-#include "core/commands/preflight.hpp"
+#include "commands/preflight.hpp"
 
 #include <dpp/permissions.h>
 

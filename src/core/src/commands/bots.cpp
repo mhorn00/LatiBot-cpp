@@ -1,4 +1,4 @@
-#include "core/commands/bots.hpp"
+#include "commands/bots.hpp"
 
 #include "core/commands/options.hpp"
 #include "core/util/log.hpp"

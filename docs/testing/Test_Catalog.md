@@ -36,42 +36,42 @@ Database (`src/core/db`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a backup is a complete, valid copy | `fs` |  | [tests/db/backup_test.cpp:48](../../tests/db/backup_test.cpp#L48) |
-| backing up an in-memory database writes it to disk | `fs` |  | [tests/db/backup_test.cpp:62](../../tests/db/backup_test.cpp#L62) |
-| an existing backup file is replaced | `fs` |  | [tests/db/backup_test.cpp:74](../../tests/db/backup_test.cpp#L74) |
-| a backup taken while other threads write is consistent | `fs`, `threads` |  | [tests/db/backup_test.cpp:92](../../tests/db/backup_test.cpp#L92) |
-| rotation keeps the newest backups | `fs` |  | [tests/db/backup_test.cpp:124](../../tests/db/backup_test.cpp#L124) |
-| rotation ignores unrelated files | `fs` |  | [tests/db/backup_test.cpp:146](../../tests/db/backup_test.cpp#L146) |
-| backup file names carry a sortable UTC timestamp | `fs` |  | [tests/db/backup_test.cpp:168](../../tests/db/backup_test.cpp#L168) |
-| nothing is allowed until somebody says so |  |  | [tests/db/bot_allowlist_test.cpp:27](../../tests/db/bot_allowlist_test.cpp#L27) |
-| an allowed bot is remembered and can be taken back |  |  | [tests/db/bot_allowlist_test.cpp:36](../../tests/db/bot_allowlist_test.cpp#L36) |
-| allowing and denying report whether anything changed |  |  | [tests/db/bot_allowlist_test.cpp:46](../../tests/db/bot_allowlist_test.cpp#L46) |
-| guilds keep their own allowlists |  |  | [tests/db/bot_allowlist_test.cpp:58](../../tests/db/bot_allowlist_test.cpp#L58) |
-| for_guild lists everything allowed there |  |  | [tests/db/bot_allowlist_test.cpp:69](../../tests/db/bot_allowlist_test.cpp#L69) |
-| opening an unwritable path reports the SQLite error |  |  | [tests/db/database_test.cpp:46](../../tests/db/database_test.cpp#L46) |
-| values survive a bind and get round trip |  |  | [tests/db/database_test.cpp:51](../../tests/db/database_test.cpp#L51) |
-| optional values bind as NULL or as the value |  |  | [tests/db/database_test.cpp:78](../../tests/db/database_test.cpp#L78) |
-| a constraint violation throws with the SQLite code |  |  | [tests/db/database_test.cpp:91](../../tests/db/database_test.cpp#L91) |
-| malformed SQL is reported, not executed |  |  | [tests/db/database_test.cpp:107](../../tests/db/database_test.cpp#L107) |
-| a transaction commits or rolls back |  | 3 | [tests/db/database_test.cpp:114](../../tests/db/database_test.cpp#L114) |
-| snowflakes and times are stored as the integers they always were |  | 1 | [tests/db/database_test.cpp:151](../../tests/db/database_test.cpp#L151) |
-| a rollback that fails is logged rather than thrown |  |  | [tests/db/database_test.cpp:180](../../tests/db/database_test.cpp#L180) |
-| last_insert_rowid and changes report the previous statement |  |  | [tests/db/database_test.cpp:193](../../tests/db/database_test.cpp#L193) |
-| concurrent writers are serialized by the connection lock | `threads` |  | [tests/db/database_test.cpp:207](../../tests/db/database_test.cpp#L207) |
-| a fresh database migrates to the current schema |  |  | [tests/db/migrations_test.cpp:41](../../tests/db/migrations_test.cpp#L41) |
-| migrating twice is a no-op |  |  | [tests/db/migrations_test.cpp:54](../../tests/db/migrations_test.cpp#L54) |
-| only migrations newer than user_version are applied |  |  | [tests/db/migrations_test.cpp:65](../../tests/db/migrations_test.cpp#L65) |
-| a failing migration rolls back and keeps the previous version |  |  | [tests/db/migrations_test.cpp:79](../../tests/db/migrations_test.cpp#L79) |
-| a gap in the migration versions is rejected |  |  | [tests/db/migrations_test.cpp:96](../../tests/db/migrations_test.cpp#L96) |
-| the shipped schema is append-only and correctly numbered |  |  | [tests/db/migrations_test.cpp:109](../../tests/db/migrations_test.cpp#L109) |
-| a new database gets schema_versions, and every module its version 1 |  |  | [tests/db/schema_versions_test.cpp:65](../../tests/db/schema_versions_test.cpp#L65) |
-| starting again changes nothing |  |  | [tests/db/schema_versions_test.cpp:80](../../tests/db/schema_versions_test.cpp#L80) |
-| an old database is brought to migration 15, then adopted |  |  | [tests/db/schema_versions_test.cpp:93](../../tests/db/schema_versions_test.cpp#L93) |
-| a database the bot did not write is refused |  | 2 | [tests/db/schema_versions_test.cpp:117](../../tests/db/schema_versions_test.cpp#L117) |
-| a module's later steps apply above its recorded version |  |  | [tests/db/schema_versions_test.cpp:133](../../tests/db/schema_versions_test.cpp#L133) |
-| a failing schema step rolls back, and its module keeps the version before |  |  | [tests/db/schema_versions_test.cpp:149](../../tests/db/schema_versions_test.cpp#L149) |
-| a gap in a module's steps is refused |  |  | [tests/db/schema_versions_test.cpp:165](../../tests/db/schema_versions_test.cpp#L165) |
-| every module's steps run 1, 2, 3 with no gaps |  |  | [tests/db/schema_versions_test.cpp:177](../../tests/db/schema_versions_test.cpp#L177) |
+| a backup is a complete, valid copy | `fs` |  | [src/core/tests/backup_test.cpp:48](../../src/core/tests/backup_test.cpp#L48) |
+| backing up an in-memory database writes it to disk | `fs` |  | [src/core/tests/backup_test.cpp:62](../../src/core/tests/backup_test.cpp#L62) |
+| an existing backup file is replaced | `fs` |  | [src/core/tests/backup_test.cpp:74](../../src/core/tests/backup_test.cpp#L74) |
+| a backup taken while other threads write is consistent | `fs`, `threads` |  | [src/core/tests/backup_test.cpp:92](../../src/core/tests/backup_test.cpp#L92) |
+| rotation keeps the newest backups | `fs` |  | [src/core/tests/backup_test.cpp:124](../../src/core/tests/backup_test.cpp#L124) |
+| rotation ignores unrelated files | `fs` |  | [src/core/tests/backup_test.cpp:146](../../src/core/tests/backup_test.cpp#L146) |
+| backup file names carry a sortable UTC timestamp | `fs` |  | [src/core/tests/backup_test.cpp:168](../../src/core/tests/backup_test.cpp#L168) |
+| nothing is allowed until somebody says so |  |  | [src/core/tests/bot_allowlist_test.cpp:27](../../src/core/tests/bot_allowlist_test.cpp#L27) |
+| an allowed bot is remembered and can be taken back |  |  | [src/core/tests/bot_allowlist_test.cpp:36](../../src/core/tests/bot_allowlist_test.cpp#L36) |
+| allowing and denying report whether anything changed |  |  | [src/core/tests/bot_allowlist_test.cpp:46](../../src/core/tests/bot_allowlist_test.cpp#L46) |
+| guilds keep their own allowlists |  |  | [src/core/tests/bot_allowlist_test.cpp:58](../../src/core/tests/bot_allowlist_test.cpp#L58) |
+| for_guild lists everything allowed there |  |  | [src/core/tests/bot_allowlist_test.cpp:69](../../src/core/tests/bot_allowlist_test.cpp#L69) |
+| opening an unwritable path reports the SQLite error |  |  | [src/core/tests/database_test.cpp:46](../../src/core/tests/database_test.cpp#L46) |
+| values survive a bind and get round trip |  |  | [src/core/tests/database_test.cpp:51](../../src/core/tests/database_test.cpp#L51) |
+| optional values bind as NULL or as the value |  |  | [src/core/tests/database_test.cpp:78](../../src/core/tests/database_test.cpp#L78) |
+| a constraint violation throws with the SQLite code |  |  | [src/core/tests/database_test.cpp:91](../../src/core/tests/database_test.cpp#L91) |
+| malformed SQL is reported, not executed |  |  | [src/core/tests/database_test.cpp:107](../../src/core/tests/database_test.cpp#L107) |
+| a transaction commits or rolls back |  | 3 | [src/core/tests/database_test.cpp:114](../../src/core/tests/database_test.cpp#L114) |
+| snowflakes and times are stored as the integers they always were |  | 1 | [src/core/tests/database_test.cpp:151](../../src/core/tests/database_test.cpp#L151) |
+| a rollback that fails is logged rather than thrown |  |  | [src/core/tests/database_test.cpp:180](../../src/core/tests/database_test.cpp#L180) |
+| last_insert_rowid and changes report the previous statement |  |  | [src/core/tests/database_test.cpp:193](../../src/core/tests/database_test.cpp#L193) |
+| concurrent writers are serialized by the connection lock | `threads` |  | [src/core/tests/database_test.cpp:207](../../src/core/tests/database_test.cpp#L207) |
+| a fresh database migrates to the current schema |  |  | [src/core/tests/migrations_test.cpp:41](../../src/core/tests/migrations_test.cpp#L41) |
+| migrating twice is a no-op |  |  | [src/core/tests/migrations_test.cpp:54](../../src/core/tests/migrations_test.cpp#L54) |
+| only migrations newer than user_version are applied |  |  | [src/core/tests/migrations_test.cpp:65](../../src/core/tests/migrations_test.cpp#L65) |
+| a failing migration rolls back and keeps the previous version |  |  | [src/core/tests/migrations_test.cpp:79](../../src/core/tests/migrations_test.cpp#L79) |
+| a gap in the migration versions is rejected |  |  | [src/core/tests/migrations_test.cpp:96](../../src/core/tests/migrations_test.cpp#L96) |
+| the shipped schema is append-only and correctly numbered |  |  | [src/core/tests/migrations_test.cpp:109](../../src/core/tests/migrations_test.cpp#L109) |
+| a new database gets schema_versions, and every module its version 1 |  |  | [src/core/tests/schema_versions_test.cpp:65](../../src/core/tests/schema_versions_test.cpp#L65) |
+| starting again changes nothing |  |  | [src/core/tests/schema_versions_test.cpp:80](../../src/core/tests/schema_versions_test.cpp#L80) |
+| an old database is brought to migration 15, then adopted |  |  | [src/core/tests/schema_versions_test.cpp:93](../../src/core/tests/schema_versions_test.cpp#L93) |
+| a database the bot did not write is refused |  | 2 | [src/core/tests/schema_versions_test.cpp:117](../../src/core/tests/schema_versions_test.cpp#L117) |
+| a module's later steps apply above its recorded version |  |  | [src/core/tests/schema_versions_test.cpp:133](../../src/core/tests/schema_versions_test.cpp#L133) |
+| a failing schema step rolls back, and its module keeps the version before |  |  | [src/core/tests/schema_versions_test.cpp:149](../../src/core/tests/schema_versions_test.cpp#L149) |
+| a gap in a module's steps is refused |  |  | [src/core/tests/schema_versions_test.cpp:165](../../src/core/tests/schema_versions_test.cpp#L165) |
+| every module's steps run 1, 2, 3 with no gaps |  |  | [src/core/tests/schema_versions_test.cpp:177](../../src/core/tests/schema_versions_test.cpp#L177) |
 
 ## config
 
@@ -79,44 +79,44 @@ Configuration (`src/core/config`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| an unset key falls back to the caller's default |  |  | [tests/db/guild_settings_test.cpp:29](../../tests/db/guild_settings_test.cpp#L29) |
-| values survive a set and get round trip |  |  | [tests/db/guild_settings_test.cpp:39](../../tests/db/guild_settings_test.cpp#L39) |
-| setting a key again replaces the value |  |  | [tests/db/guild_settings_test.cpp:53](../../tests/db/guild_settings_test.cpp#L53) |
-| guilds do not see each other's settings |  |  | [tests/db/guild_settings_test.cpp:63](../../tests/db/guild_settings_test.cpp#L63) |
-| erase removes a key and reports whether it existed |  |  | [tests/db/guild_settings_test.cpp:72](../../tests/db/guild_settings_test.cpp#L72) |
-| a value that cannot be parsed falls back instead of throwing |  |  | [tests/db/guild_settings_test.cpp:82](../../tests/db/guild_settings_test.cpp#L82) |
-| booleans accept the usual spellings |  |  | [tests/db/guild_settings_test.cpp:95](../../tests/db/guild_settings_test.cpp#L95) |
-| partly numeric text is not accepted as a number |  |  | [tests/db/guild_settings_test.cpp:108](../../tests/db/guild_settings_test.cpp#L108) |
-| all() lists everything set for one guild |  |  | [tests/db/guild_settings_test.cpp:118](../../tests/db/guild_settings_test.cpp#L118) |
-| the goodbye phrase can be set, read back and turned off |  | 1 | [tests/db/guild_settings_test.cpp:131](../../tests/db/guild_settings_test.cpp#L131) |
-| an empty config object gives the documented defaults |  |  | [tests/unit/bootstrap_test.cpp:38](../../tests/unit/bootstrap_test.cpp#L38) |
-| a missing config file is written with the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:47](../../tests/unit/bootstrap_test.cpp#L47) |
-| values in the file replace the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:59](../../tests/unit/bootstrap_test.cpp#L59) |
-| IDs written as JSON numbers are rejected |  |  | [tests/unit/bootstrap_test.cpp:86](../../tests/unit/bootstrap_test.cpp#L86) |
-| a trusted ID that is not exactly an ID stops startup |  |  | [tests/unit/bootstrap_test.cpp:94](../../tests/unit/bootstrap_test.cpp#L94) |
-| bad config is reported with the key that caused it |  | 7 | [tests/unit/bootstrap_test.cpp:109](../../tests/unit/bootstrap_test.cpp#L109) |
-| a key from before sections still works, and the log says where it went |  |  | [tests/unit/bootstrap_test.cpp:144](../../tests/unit/bootstrap_test.cpp#L144) |
-| an old key and its new place both set is refused |  |  | [tests/unit/bootstrap_test.cpp:164](../../tests/unit/bootstrap_test.cpp#L164) |
-| any other object is a module's section, kept for it to read |  |  | [tests/unit/bootstrap_test.cpp:170](../../tests/unit/bootstrap_test.cpp#L170) |
-| the log level is read from the config |  |  | [tests/unit/bootstrap_test.cpp:180](../../tests/unit/bootstrap_test.cpp#L180) |
-| the build's default log level matches the build |  |  | [tests/unit/bootstrap_test.cpp:188](../../tests/unit/bootstrap_test.cpp#L188) |
-| trust needs a listed user, or an admin in a listed server |  | 5 | [tests/unit/bootstrap_test.cpp:196](../../tests/unit/bootstrap_test.cpp#L196) |
-| secrets come from the environment |  | 2 | [tests/unit/bootstrap_test.cpp:230](../../tests/unit/bootstrap_test.cpp#L230) |
-| the recompute bot override is read by debug builds only |  | 4 | [tests/unit/bootstrap_test.cpp:246](../../tests/unit/bootstrap_test.cpp#L246) |
-| the written defaults load as the defaults |  |  | [tests/unit/bootstrap_test.cpp:273](../../tests/unit/bootstrap_test.cpp#L273) |
-| a module's section in the written defaults comes after the core's |  |  | [tests/unit/bootstrap_test.cpp:289](../../tests/unit/bootstrap_test.cpp#L289) |
-| a config file in a folder that does not exist yet is written there | `fs` |  | [tests/unit/bootstrap_test.cpp:302](../../tests/unit/bootstrap_test.cpp#L302) |
-| an existing config file is never written over | `fs` |  | [tests/unit/bootstrap_test.cpp:311](../../tests/unit/bootstrap_test.cpp#L311) |
-| a config file that cannot be written leaves the defaults | `fs` |  | [tests/unit/bootstrap_test.cpp:323](../../tests/unit/bootstrap_test.cpp#L323) |
-| something at the config path that cannot be read stops startup | `fs` |  | [tests/unit/bootstrap_test.cpp:336](../../tests/unit/bootstrap_test.cpp#L336) |
-| no arguments run the bot with config.json |  |  | [tests/unit/command_line_test.cpp:24](../../tests/unit/command_line_test.cpp#L24) |
-| a lone argument is the config file |  |  | [tests/unit/command_line_test.cpp:31](../../tests/unit/command_line_test.cpp#L31) |
-| the unregister flag goes before or after the config file |  |  | [tests/unit/command_line_test.cpp:38](../../tests/unit/command_line_test.cpp#L38) |
-| an unknown option is refused rather than read as a config file |  |  | [tests/unit/command_line_test.cpp:52](../../tests/unit/command_line_test.cpp#L52) |
-| two config files are refused |  |  | [tests/unit/command_line_test.cpp:57](../../tests/unit/command_line_test.cpp#L57) |
-| a section reads each key as its member's type, and keeps defaults for the rest |  |  | [tests/unit/config_section_test.cpp:49](../../tests/unit/config_section_test.cpp#L49) |
-| a section refuses what its table does not say, naming the key in full |  |  | [tests/unit/config_section_test.cpp:61](../../tests/unit/config_section_test.cpp#L61) |
-| a section's defaults are every key, in the table's order |  |  | [tests/unit/config_section_test.cpp:74](../../tests/unit/config_section_test.cpp#L74) |
+| an empty config object gives the documented defaults |  |  | [src/core/tests/bootstrap_test.cpp:38](../../src/core/tests/bootstrap_test.cpp#L38) |
+| a missing config file is written with the defaults | `fs` |  | [src/core/tests/bootstrap_test.cpp:47](../../src/core/tests/bootstrap_test.cpp#L47) |
+| values in the file replace the defaults | `fs` |  | [src/core/tests/bootstrap_test.cpp:59](../../src/core/tests/bootstrap_test.cpp#L59) |
+| IDs written as JSON numbers are rejected |  |  | [src/core/tests/bootstrap_test.cpp:86](../../src/core/tests/bootstrap_test.cpp#L86) |
+| a trusted ID that is not exactly an ID stops startup |  |  | [src/core/tests/bootstrap_test.cpp:94](../../src/core/tests/bootstrap_test.cpp#L94) |
+| bad config is reported with the key that caused it |  | 7 | [src/core/tests/bootstrap_test.cpp:109](../../src/core/tests/bootstrap_test.cpp#L109) |
+| a key from before sections still works, and the log says where it went |  |  | [src/core/tests/bootstrap_test.cpp:144](../../src/core/tests/bootstrap_test.cpp#L144) |
+| an old key and its new place both set is refused |  |  | [src/core/tests/bootstrap_test.cpp:164](../../src/core/tests/bootstrap_test.cpp#L164) |
+| any other object is a module's section, kept for it to read |  |  | [src/core/tests/bootstrap_test.cpp:170](../../src/core/tests/bootstrap_test.cpp#L170) |
+| the log level is read from the config |  |  | [src/core/tests/bootstrap_test.cpp:180](../../src/core/tests/bootstrap_test.cpp#L180) |
+| the build's default log level matches the build |  |  | [src/core/tests/bootstrap_test.cpp:188](../../src/core/tests/bootstrap_test.cpp#L188) |
+| trust needs a listed user, or an admin in a listed server |  | 5 | [src/core/tests/bootstrap_test.cpp:196](../../src/core/tests/bootstrap_test.cpp#L196) |
+| secrets come from the environment |  | 2 | [src/core/tests/bootstrap_test.cpp:230](../../src/core/tests/bootstrap_test.cpp#L230) |
+| the recompute bot override is read by debug builds only |  | 4 | [src/core/tests/bootstrap_test.cpp:246](../../src/core/tests/bootstrap_test.cpp#L246) |
+| the written defaults load as the defaults |  |  | [src/core/tests/bootstrap_test.cpp:273](../../src/core/tests/bootstrap_test.cpp#L273) |
+| a module's section in the written defaults comes after the core's |  |  | [src/core/tests/bootstrap_test.cpp:289](../../src/core/tests/bootstrap_test.cpp#L289) |
+| a config file in a folder that does not exist yet is written there | `fs` |  | [src/core/tests/bootstrap_test.cpp:302](../../src/core/tests/bootstrap_test.cpp#L302) |
+| an existing config file is never written over | `fs` |  | [src/core/tests/bootstrap_test.cpp:311](../../src/core/tests/bootstrap_test.cpp#L311) |
+| a config file that cannot be written leaves the defaults | `fs` |  | [src/core/tests/bootstrap_test.cpp:323](../../src/core/tests/bootstrap_test.cpp#L323) |
+| something at the config path that cannot be read stops startup | `fs` |  | [src/core/tests/bootstrap_test.cpp:336](../../src/core/tests/bootstrap_test.cpp#L336) |
+| no arguments run the bot with config.json |  |  | [src/core/tests/command_line_test.cpp:24](../../src/core/tests/command_line_test.cpp#L24) |
+| a lone argument is the config file |  |  | [src/core/tests/command_line_test.cpp:31](../../src/core/tests/command_line_test.cpp#L31) |
+| the unregister flag goes before or after the config file |  |  | [src/core/tests/command_line_test.cpp:38](../../src/core/tests/command_line_test.cpp#L38) |
+| an unknown option is refused rather than read as a config file |  |  | [src/core/tests/command_line_test.cpp:52](../../src/core/tests/command_line_test.cpp#L52) |
+| two config files are refused |  |  | [src/core/tests/command_line_test.cpp:57](../../src/core/tests/command_line_test.cpp#L57) |
+| a section reads each key as its member's type, and keeps defaults for the rest |  |  | [src/core/tests/config_section_test.cpp:49](../../src/core/tests/config_section_test.cpp#L49) |
+| a section refuses what its table does not say, naming the key in full |  |  | [src/core/tests/config_section_test.cpp:61](../../src/core/tests/config_section_test.cpp#L61) |
+| a section's defaults are every key, in the table's order |  |  | [src/core/tests/config_section_test.cpp:74](../../src/core/tests/config_section_test.cpp#L74) |
+| an unset key falls back to the caller's default |  |  | [src/core/tests/guild_settings_test.cpp:29](../../src/core/tests/guild_settings_test.cpp#L29) |
+| values survive a set and get round trip |  |  | [src/core/tests/guild_settings_test.cpp:39](../../src/core/tests/guild_settings_test.cpp#L39) |
+| setting a key again replaces the value |  |  | [src/core/tests/guild_settings_test.cpp:53](../../src/core/tests/guild_settings_test.cpp#L53) |
+| guilds do not see each other's settings |  |  | [src/core/tests/guild_settings_test.cpp:63](../../src/core/tests/guild_settings_test.cpp#L63) |
+| erase removes a key and reports whether it existed |  |  | [src/core/tests/guild_settings_test.cpp:72](../../src/core/tests/guild_settings_test.cpp#L72) |
+| a value that cannot be parsed falls back instead of throwing |  |  | [src/core/tests/guild_settings_test.cpp:82](../../src/core/tests/guild_settings_test.cpp#L82) |
+| booleans accept the usual spellings |  |  | [src/core/tests/guild_settings_test.cpp:95](../../src/core/tests/guild_settings_test.cpp#L95) |
+| partly numeric text is not accepted as a number |  |  | [src/core/tests/guild_settings_test.cpp:108](../../src/core/tests/guild_settings_test.cpp#L108) |
+| all() lists everything set for one guild |  |  | [src/core/tests/guild_settings_test.cpp:118](../../src/core/tests/guild_settings_test.cpp#L118) |
+| the goodbye phrase can be set, read back and turned off |  | 1 | [src/core/tests/guild_settings_test.cpp:131](../../src/core/tests/guild_settings_test.cpp#L131) |
 
 ## commands
 
@@ -124,64 +124,64 @@ Command framework and the core commands (`src/core/commands`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a status is kept for the next start, and none is kept until one is set |  |  | [tests/unit/basic_commands_test.cpp:21](../../tests/unit/basic_commands_test.cpp#L21) |
-| say refuses a message that is only whitespace |  |  | [tests/unit/basic_commands_test.cpp:43](../../tests/unit/basic_commands_test.cpp#L43) |
-| say replies only when given a message id |  | 6 | [tests/unit/basic_commands_test.cpp:50](../../tests/unit/basic_commands_test.cpp#L50) |
-| status types are matched case-insensitively and fall back to playing |  | 1 | [tests/unit/basic_commands_test.cpp:85](../../tests/unit/basic_commands_test.cpp#L85) |
-| a custom status carries its text in state, not name |  |  | [tests/unit/basic_commands_test.cpp:101](../../tests/unit/basic_commands_test.cpp#L101) |
-| an empty allowlist explains itself |  |  | [tests/unit/bots_command_test.cpp:17](../../tests/unit/bots_command_test.cpp#L17) |
-| allowed bots are listed by name where one is known |  |  | [tests/unit/bots_command_test.cpp:26](../../tests/unit/bots_command_test.cpp#L26) |
-| a bot that has left is still listed, and says so |  |  | [tests/unit/bots_command_test.cpp:36](../../tests/unit/bots_command_test.cpp#L36) |
-| the list says that hearing is not answering |  |  | [tests/unit/bots_command_test.cpp:46](../../tests/unit/bots_command_test.cpp#L46) |
-| a command with no options logs as its name |  |  | [tests/unit/command_log_test.cpp:31](../../tests/unit/command_log_test.cpp#L31) |
-| options are logged as name=value |  |  | [tests/unit/command_log_test.cpp:35](../../tests/unit/command_log_test.cpp#L35) |
-| a subcommand reads as part of the command name |  |  | [tests/unit/command_log_test.cpp:42](../../tests/unit/command_log_test.cpp#L42) |
-| every option type has a readable form |  |  | [tests/unit/command_log_test.cpp:54](../../tests/unit/command_log_test.cpp#L54) |
-| an unfilled option says so rather than logging nothing |  |  | [tests/unit/command_log_test.cpp:69](../../tests/unit/command_log_test.cpp#L69) |
-| newlines in a value never break the line |  |  | [tests/unit/command_log_test.cpp:76](../../tests/unit/command_log_test.cpp#L76) |
-| a quote in a value is escaped |  |  | [tests/unit/command_log_test.cpp:89](../../tests/unit/command_log_test.cpp#L89) |
-| a long value is cut, and says how long it really was |  |  | [tests/unit/command_log_test.cpp:96](../../tests/unit/command_log_test.cpp#L96) |
-| a value that just fits is not cut |  |  | [tests/unit/command_log_test.cpp:108](../../tests/unit/command_log_test.cpp#L108) |
-| a user is logged by name and id |  |  | [tests/unit/command_log_test.cpp:115](../../tests/unit/command_log_test.cpp#L115) |
-| the option being typed into is found at the top level |  |  | [tests/unit/command_log_test.cpp:140](../../tests/unit/command_log_test.cpp#L140) |
-| the option being typed into is found inside a subcommand |  |  | [tests/unit/command_log_test.cpp:148](../../tests/unit/command_log_test.cpp#L148) |
-| nothing focused is nothing to complete |  |  | [tests/unit/command_log_test.cpp:164](../../tests/unit/command_log_test.cpp#L164) |
-| a user's id keeps its colour inside name (id) |  |  | [tests/unit/command_log_test.cpp:171](../../tests/unit/command_log_test.cpp#L171) |
-| each option is read as the type it was declared with |  |  | [tests/unit/command_options_test.cpp:15](../../tests/unit/command_options_test.cpp#L15) |
-| an option left out reads as nothing, not as false or zero |  |  | [tests/unit/command_options_test.cpp:26](../../tests/unit/command_options_test.cpp#L26) |
-| an option of another type reads as nothing |  |  | [tests/unit/command_options_test.cpp:37](../../tests/unit/command_options_test.cpp#L37) |
-| an invoker Discord sent no permissions for has none |  |  | [tests/unit/command_options_test.cpp:42](../../tests/unit/command_options_test.cpp#L42) |
-| every command's response flags pass registration |  |  | [tests/unit/command_responses_test.cpp:35](../../tests/unit/command_responses_test.cpp#L35) |
-| the views meant for the room are public and the rest are private |  |  | [tests/unit/command_responses_test.cpp:49](../../tests/unit/command_responses_test.cpp#L49) |
-| the silent and previews options change only what they are given |  |  | [tests/unit/command_responses_test.cpp:61](../../tests/unit/command_responses_test.cpp#L61) |
-| only a difference from silent with previews is worth describing |  |  | [tests/unit/command_responses_test.cpp:82](../../tests/unit/command_responses_test.cpp#L82) |
-| only the trusted users can choose where the log goes |  |  | [tests/unit/logs_command_test.cpp:36](../../tests/unit/logs_command_test.cpp#L36) |
-| the log channel's state says where, from which level, and how it is going |  |  | [tests/unit/logs_command_test.cpp:50](../../tests/unit/logs_command_test.cpp#L50) |
-| the logs command registers, with a level for every choice but off |  |  | [tests/unit/logs_command_test.cpp:72](../../tests/unit/logs_command_test.cpp#L72) |
-| a form's fields are read however DPP lays them out |  | 2 | [tests/unit/panels_test.cpp:20](../../tests/unit/panels_test.cpp#L20) |
-| only the missing bits of a requirement are reported |  |  | [tests/unit/preflight_test.cpp:24](../../tests/unit/preflight_test.cpp#L24) |
-| a satisfied requirement is not reported |  |  | [tests/unit/preflight_test.cpp:36](../../tests/unit/preflight_test.cpp#L36) |
-| administrator satisfies everything |  |  | [tests/unit/preflight_test.cpp:43](../../tests/unit/preflight_test.cpp#L43) |
-| a requirement of nothing is always met |  |  | [tests/unit/preflight_test.cpp:49](../../tests/unit/preflight_test.cpp#L49) |
-| permissions are described by name |  | 1 | [tests/unit/preflight_test.cpp:54](../../tests/unit/preflight_test.cpp#L54) |
-| commands are found by name and by alias |  |  | [tests/unit/registry_test.cpp:54](../../tests/unit/registry_test.cpp#L54) |
-| a duplicate name or alias is refused |  | 4 | [tests/unit/registry_test.cpp:65](../../tests/unit/registry_test.cpp#L65) |
-| an empty name is refused |  |  | [tests/unit/registry_test.cpp:89](../../tests/unit/registry_test.cpp#L89) |
-| every name and alias gets its own registration payload |  |  | [tests/unit/registry_test.cpp:94](../../tests/unit/registry_test.cpp#L94) |
-| required permissions are the union of every command's |  |  | [tests/unit/registry_test.cpp:108](../../tests/unit/registry_test.cpp#L108) |
-| dispatch runs the command registered under the name | `coro` |  | [tests/unit/registry_test.cpp:120](../../tests/unit/registry_test.cpp#L120) |
-| an unknown command name is logged, not thrown | `coro` |  | [tests/unit/registry_test.cpp:136](../../tests/unit/registry_test.cpp#L136) |
-| an exception from a handler is caught and logged | `coro` |  | [tests/unit/registry_test.cpp:147](../../tests/unit/registry_test.cpp#L147) |
-| a subcommand's response flags override only what they name |  |  | [tests/unit/registry_test.cpp:202](../../tests/unit/registry_test.cpp#L202) |
-| the subcommand an interaction ran is read as a path |  |  | [tests/unit/registry_test.cpp:214](../../tests/unit/registry_test.cpp#L214) |
-| every subcommand a payload offers is listed by path |  |  | [tests/unit/registry_test.cpp:227](../../tests/unit/registry_test.cpp#L227) |
-| replies carry the flags configured for the subcommand that ran |  |  | [tests/unit/registry_test.cpp:232](../../tests/unit/registry_test.cpp#L232) |
-| response flags that could not work are refused at registration |  | 4 | [tests/unit/registry_test.cpp:247](../../tests/unit/registry_test.cpp#L247) |
-| unregistering deletes the global commands and every server's own | `coro` |  | [tests/unit/unregister_test.cpp:29](../../tests/unit/unregister_test.cpp#L29) |
-| a set with no commands in it is not deleted | `coro` |  | [tests/unit/unregister_test.cpp:46](../../tests/unit/unregister_test.cpp#L46) |
-| a refused deletion is reported and the other servers still cleared | `coro` |  | [tests/unit/unregister_test.cpp:60](../../tests/unit/unregister_test.cpp#L60) |
-| the servers not being listable still leaves the global commands deleted | `coro` |  | [tests/unit/unregister_test.cpp:79](../../tests/unit/unregister_test.cpp#L79) |
-| the global commands not being listable is reported and nothing global deleted | `coro` |  | [tests/unit/unregister_test.cpp:93](../../tests/unit/unregister_test.cpp#L93) |
+| a status is kept for the next start, and none is kept until one is set |  |  | [src/core/tests/basic_commands_test.cpp:21](../../src/core/tests/basic_commands_test.cpp#L21) |
+| say refuses a message that is only whitespace |  |  | [src/core/tests/basic_commands_test.cpp:43](../../src/core/tests/basic_commands_test.cpp#L43) |
+| say replies only when given a message id |  | 6 | [src/core/tests/basic_commands_test.cpp:50](../../src/core/tests/basic_commands_test.cpp#L50) |
+| status types are matched case-insensitively and fall back to playing |  | 1 | [src/core/tests/basic_commands_test.cpp:85](../../src/core/tests/basic_commands_test.cpp#L85) |
+| a custom status carries its text in state, not name |  |  | [src/core/tests/basic_commands_test.cpp:101](../../src/core/tests/basic_commands_test.cpp#L101) |
+| an empty allowlist explains itself |  |  | [src/core/tests/bots_command_test.cpp:17](../../src/core/tests/bots_command_test.cpp#L17) |
+| allowed bots are listed by name where one is known |  |  | [src/core/tests/bots_command_test.cpp:26](../../src/core/tests/bots_command_test.cpp#L26) |
+| a bot that has left is still listed, and says so |  |  | [src/core/tests/bots_command_test.cpp:36](../../src/core/tests/bots_command_test.cpp#L36) |
+| the list says that hearing is not answering |  |  | [src/core/tests/bots_command_test.cpp:46](../../src/core/tests/bots_command_test.cpp#L46) |
+| a command with no options logs as its name |  |  | [src/core/tests/command_log_test.cpp:31](../../src/core/tests/command_log_test.cpp#L31) |
+| options are logged as name=value |  |  | [src/core/tests/command_log_test.cpp:35](../../src/core/tests/command_log_test.cpp#L35) |
+| a subcommand reads as part of the command name |  |  | [src/core/tests/command_log_test.cpp:42](../../src/core/tests/command_log_test.cpp#L42) |
+| every option type has a readable form |  |  | [src/core/tests/command_log_test.cpp:54](../../src/core/tests/command_log_test.cpp#L54) |
+| an unfilled option says so rather than logging nothing |  |  | [src/core/tests/command_log_test.cpp:69](../../src/core/tests/command_log_test.cpp#L69) |
+| newlines in a value never break the line |  |  | [src/core/tests/command_log_test.cpp:76](../../src/core/tests/command_log_test.cpp#L76) |
+| a quote in a value is escaped |  |  | [src/core/tests/command_log_test.cpp:89](../../src/core/tests/command_log_test.cpp#L89) |
+| a long value is cut, and says how long it really was |  |  | [src/core/tests/command_log_test.cpp:96](../../src/core/tests/command_log_test.cpp#L96) |
+| a value that just fits is not cut |  |  | [src/core/tests/command_log_test.cpp:108](../../src/core/tests/command_log_test.cpp#L108) |
+| a user is logged by name and id |  |  | [src/core/tests/command_log_test.cpp:115](../../src/core/tests/command_log_test.cpp#L115) |
+| the option being typed into is found at the top level |  |  | [src/core/tests/command_log_test.cpp:140](../../src/core/tests/command_log_test.cpp#L140) |
+| the option being typed into is found inside a subcommand |  |  | [src/core/tests/command_log_test.cpp:148](../../src/core/tests/command_log_test.cpp#L148) |
+| nothing focused is nothing to complete |  |  | [src/core/tests/command_log_test.cpp:164](../../src/core/tests/command_log_test.cpp#L164) |
+| a user's id keeps its colour inside name (id) |  |  | [src/core/tests/command_log_test.cpp:171](../../src/core/tests/command_log_test.cpp#L171) |
+| each option is read as the type it was declared with |  |  | [src/core/tests/command_options_test.cpp:15](../../src/core/tests/command_options_test.cpp#L15) |
+| an option left out reads as nothing, not as false or zero |  |  | [src/core/tests/command_options_test.cpp:26](../../src/core/tests/command_options_test.cpp#L26) |
+| an option of another type reads as nothing |  |  | [src/core/tests/command_options_test.cpp:37](../../src/core/tests/command_options_test.cpp#L37) |
+| an invoker Discord sent no permissions for has none |  |  | [src/core/tests/command_options_test.cpp:42](../../src/core/tests/command_options_test.cpp#L42) |
+| every command's response flags pass registration |  |  | [src/core/tests/command_responses_test.cpp:35](../../src/core/tests/command_responses_test.cpp#L35) |
+| the views meant for the room are public and the rest are private |  |  | [src/core/tests/command_responses_test.cpp:49](../../src/core/tests/command_responses_test.cpp#L49) |
+| the silent and previews options change only what they are given |  |  | [src/core/tests/command_responses_test.cpp:61](../../src/core/tests/command_responses_test.cpp#L61) |
+| only a difference from silent with previews is worth describing |  |  | [src/core/tests/command_responses_test.cpp:82](../../src/core/tests/command_responses_test.cpp#L82) |
+| only the trusted users can choose where the log goes |  |  | [src/core/tests/logs_command_test.cpp:36](../../src/core/tests/logs_command_test.cpp#L36) |
+| the log channel's state says where, from which level, and how it is going |  |  | [src/core/tests/logs_command_test.cpp:50](../../src/core/tests/logs_command_test.cpp#L50) |
+| the logs command registers, with a level for every choice but off |  |  | [src/core/tests/logs_command_test.cpp:72](../../src/core/tests/logs_command_test.cpp#L72) |
+| a form's fields are read however DPP lays them out |  | 2 | [src/core/tests/panels_test.cpp:20](../../src/core/tests/panels_test.cpp#L20) |
+| only the missing bits of a requirement are reported |  |  | [src/core/tests/preflight_test.cpp:24](../../src/core/tests/preflight_test.cpp#L24) |
+| a satisfied requirement is not reported |  |  | [src/core/tests/preflight_test.cpp:36](../../src/core/tests/preflight_test.cpp#L36) |
+| administrator satisfies everything |  |  | [src/core/tests/preflight_test.cpp:43](../../src/core/tests/preflight_test.cpp#L43) |
+| a requirement of nothing is always met |  |  | [src/core/tests/preflight_test.cpp:49](../../src/core/tests/preflight_test.cpp#L49) |
+| permissions are described by name |  | 1 | [src/core/tests/preflight_test.cpp:54](../../src/core/tests/preflight_test.cpp#L54) |
+| commands are found by name and by alias |  |  | [src/core/tests/registry_test.cpp:54](../../src/core/tests/registry_test.cpp#L54) |
+| a duplicate name or alias is refused |  | 4 | [src/core/tests/registry_test.cpp:65](../../src/core/tests/registry_test.cpp#L65) |
+| an empty name is refused |  |  | [src/core/tests/registry_test.cpp:89](../../src/core/tests/registry_test.cpp#L89) |
+| every name and alias gets its own registration payload |  |  | [src/core/tests/registry_test.cpp:94](../../src/core/tests/registry_test.cpp#L94) |
+| required permissions are the union of every command's |  |  | [src/core/tests/registry_test.cpp:108](../../src/core/tests/registry_test.cpp#L108) |
+| dispatch runs the command registered under the name | `coro` |  | [src/core/tests/registry_test.cpp:120](../../src/core/tests/registry_test.cpp#L120) |
+| an unknown command name is logged, not thrown | `coro` |  | [src/core/tests/registry_test.cpp:136](../../src/core/tests/registry_test.cpp#L136) |
+| an exception from a handler is caught and logged | `coro` |  | [src/core/tests/registry_test.cpp:147](../../src/core/tests/registry_test.cpp#L147) |
+| a subcommand's response flags override only what they name |  |  | [src/core/tests/registry_test.cpp:202](../../src/core/tests/registry_test.cpp#L202) |
+| the subcommand an interaction ran is read as a path |  |  | [src/core/tests/registry_test.cpp:214](../../src/core/tests/registry_test.cpp#L214) |
+| every subcommand a payload offers is listed by path |  |  | [src/core/tests/registry_test.cpp:227](../../src/core/tests/registry_test.cpp#L227) |
+| replies carry the flags configured for the subcommand that ran |  |  | [src/core/tests/registry_test.cpp:232](../../src/core/tests/registry_test.cpp#L232) |
+| response flags that could not work are refused at registration |  | 4 | [src/core/tests/registry_test.cpp:247](../../src/core/tests/registry_test.cpp#L247) |
+| unregistering deletes the global commands and every server's own | `coro` |  | [src/core/tests/unregister_test.cpp:29](../../src/core/tests/unregister_test.cpp#L29) |
+| a set with no commands in it is not deleted | `coro` |  | [src/core/tests/unregister_test.cpp:46](../../src/core/tests/unregister_test.cpp#L46) |
+| a refused deletion is reported and the other servers still cleared | `coro` |  | [src/core/tests/unregister_test.cpp:60](../../src/core/tests/unregister_test.cpp#L60) |
+| the servers not being listable still leaves the global commands deleted | `coro` |  | [src/core/tests/unregister_test.cpp:79](../../src/core/tests/unregister_test.cpp#L79) |
+| the global commands not being listable is reported and nothing global deleted | `coro` |  | [src/core/tests/unregister_test.cpp:93](../../src/core/tests/unregister_test.cpp#L93) |
 
 ## events
 
@@ -189,37 +189,37 @@ The message pipeline, goodbye, the bot allowlist and the log channel (`src/core/
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| the goodbye phrase is recognised however it is typed |  | 1 | [tests/unit/goodbye_test.cpp:10](../../tests/unit/goodbye_test.cpp#L10) |
-| the phrase has to be the whole message |  | 1 | [tests/unit/goodbye_test.cpp:21](../../tests/unit/goodbye_test.cpp#L21) |
-| a cleared phrase turns the feature off |  |  | [tests/unit/goodbye_test.cpp:33](../../tests/unit/goodbye_test.cpp#L33) |
-| a custom phrase replaces the default |  |  | [tests/unit/goodbye_test.cpp:42](../../tests/unit/goodbye_test.cpp#L42) |
-| an empty message never matches a real phrase |  |  | [tests/unit/goodbye_test.cpp:47](../../tests/unit/goodbye_test.cpp#L47) |
-| a waiting line has its time and level, in a code block |  |  | [tests/unit/log_channel_test.cpp:51](../../tests/unit/log_channel_test.cpp#L51) |
-| lines are packed into as few messages as fit, in order |  |  | [tests/unit/log_channel_test.cpp:59](../../tests/unit/log_channel_test.cpp#L59) |
-| what does not fit this time keeps waiting |  |  | [tests/unit/log_channel_test.cpp:77](../../tests/unit/log_channel_test.cpp#L77) |
-| secrets are masked wherever they appear, and short ones left alone |  |  | [tests/unit/log_channel_test.cpp:88](../../tests/unit/log_channel_test.cpp#L88) |
-| a secret added later is masked from then on, and a short one still is not |  |  | [tests/unit/log_channel_test.cpp:99](../../tests/unit/log_channel_test.cpp#L99) |
-| nothing a line holds can close its code block |  |  | [tests/unit/log_channel_test.cpp:113](../../tests/unit/log_channel_test.cpp#L113) |
-| a very long line is cut to fit one message |  |  | [tests/unit/log_channel_test.cpp:126](../../tests/unit/log_channel_test.cpp#L126) |
-| a flood keeps its start and says how much was dropped |  |  | [tests/unit/log_channel_test.cpp:137](../../tests/unit/log_channel_test.cpp#L137) |
-| the log channel is kept bot-wide and can be cleared |  |  | [tests/unit/log_channel_test.cpp:156](../../tests/unit/log_channel_test.cpp#L156) |
-| a stored level that cannot be read is info, and the channel is kept |  |  | [tests/unit/log_channel_test.cpp:173](../../tests/unit/log_channel_test.cpp#L173) |
-| the log is posted to its channel, silently, from its level up | `coro` |  | [tests/unit/log_channel_test.cpp:191](../../tests/unit/log_channel_test.cpp#L191) |
-| the level can change without moving the channel | `coro` |  | [tests/unit/log_channel_test.cpp:214](../../tests/unit/log_channel_test.cpp#L214) |
-| a failed post waits before trying again, longer each time | `coro` |  | [tests/unit/log_channel_test.cpp:228](../../tests/unit/log_channel_test.cpp#L228) |
-| the first failure is logged, and the lines it lost are counted | `coro` |  | [tests/unit/log_channel_test.cpp:267](../../tests/unit/log_channel_test.cpp#L267) |
-| the backoff stops growing at its longest | `coro` |  | [tests/unit/log_channel_test.cpp:284](../../tests/unit/log_channel_test.cpp#L284) |
-| stopping throws away what was waiting and stops taking lines | `coro` |  | [tests/unit/log_channel_test.cpp:302](../../tests/unit/log_channel_test.cpp#L302) |
-| a log channel unhooks itself from the logger when it goes |  |  | [tests/unit/log_channel_test.cpp:318](../../tests/unit/log_channel_test.cpp#L318) |
-| the first message says what the channel will get |  |  | [tests/unit/log_channel_test.cpp:331](../../tests/unit/log_channel_test.cpp#L331) |
-| stages run by position, whatever order they were added in |  |  | [tests/unit/message_pipeline_test.cpp:56](../../tests/unit/message_pipeline_test.cpp#L56) |
-| two stages at one position stop startup |  |  | [tests/unit/message_pipeline_test.cpp:73](../../tests/unit/message_pipeline_test.cpp#L73) |
-| a stage that consumes the message stops the ones after it |  |  | [tests/unit/message_pipeline_test.cpp:83](../../tests/unit/message_pipeline_test.cpp#L83) |
-| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [tests/unit/message_pipeline_test.cpp:98](../../tests/unit/message_pipeline_test.cpp#L98) |
-| an allowed bot reaches the stages |  |  | [tests/unit/message_pipeline_test.cpp:131](../../tests/unit/message_pipeline_test.cpp#L131) |
-| a stage that throws is logged and the rest still run |  |  | [tests/unit/message_pipeline_test.cpp:146](../../tests/unit/message_pipeline_test.cpp#L146) |
-| an empty pipeline decides nothing |  |  | [tests/unit/message_pipeline_test.cpp:163](../../tests/unit/message_pipeline_test.cpp#L163) |
-| a stage's own actions become background tasks, and the rest pass through | `coro` |  | [tests/unit/message_pipeline_test.cpp:178](../../tests/unit/message_pipeline_test.cpp#L178) |
+| the goodbye phrase is recognised however it is typed |  | 1 | [src/core/tests/goodbye_test.cpp:10](../../src/core/tests/goodbye_test.cpp#L10) |
+| the phrase has to be the whole message |  | 1 | [src/core/tests/goodbye_test.cpp:21](../../src/core/tests/goodbye_test.cpp#L21) |
+| a cleared phrase turns the feature off |  |  | [src/core/tests/goodbye_test.cpp:33](../../src/core/tests/goodbye_test.cpp#L33) |
+| a custom phrase replaces the default |  |  | [src/core/tests/goodbye_test.cpp:42](../../src/core/tests/goodbye_test.cpp#L42) |
+| an empty message never matches a real phrase |  |  | [src/core/tests/goodbye_test.cpp:47](../../src/core/tests/goodbye_test.cpp#L47) |
+| a waiting line has its time and level, in a code block |  |  | [src/core/tests/log_channel_test.cpp:51](../../src/core/tests/log_channel_test.cpp#L51) |
+| lines are packed into as few messages as fit, in order |  |  | [src/core/tests/log_channel_test.cpp:59](../../src/core/tests/log_channel_test.cpp#L59) |
+| what does not fit this time keeps waiting |  |  | [src/core/tests/log_channel_test.cpp:77](../../src/core/tests/log_channel_test.cpp#L77) |
+| secrets are masked wherever they appear, and short ones left alone |  |  | [src/core/tests/log_channel_test.cpp:88](../../src/core/tests/log_channel_test.cpp#L88) |
+| a secret added later is masked from then on, and a short one still is not |  |  | [src/core/tests/log_channel_test.cpp:99](../../src/core/tests/log_channel_test.cpp#L99) |
+| nothing a line holds can close its code block |  |  | [src/core/tests/log_channel_test.cpp:113](../../src/core/tests/log_channel_test.cpp#L113) |
+| a very long line is cut to fit one message |  |  | [src/core/tests/log_channel_test.cpp:126](../../src/core/tests/log_channel_test.cpp#L126) |
+| a flood keeps its start and says how much was dropped |  |  | [src/core/tests/log_channel_test.cpp:137](../../src/core/tests/log_channel_test.cpp#L137) |
+| the log channel is kept bot-wide and can be cleared |  |  | [src/core/tests/log_channel_test.cpp:156](../../src/core/tests/log_channel_test.cpp#L156) |
+| a stored level that cannot be read is info, and the channel is kept |  |  | [src/core/tests/log_channel_test.cpp:173](../../src/core/tests/log_channel_test.cpp#L173) |
+| the log is posted to its channel, silently, from its level up | `coro` |  | [src/core/tests/log_channel_test.cpp:191](../../src/core/tests/log_channel_test.cpp#L191) |
+| the level can change without moving the channel | `coro` |  | [src/core/tests/log_channel_test.cpp:214](../../src/core/tests/log_channel_test.cpp#L214) |
+| a failed post waits before trying again, longer each time | `coro` |  | [src/core/tests/log_channel_test.cpp:228](../../src/core/tests/log_channel_test.cpp#L228) |
+| the first failure is logged, and the lines it lost are counted | `coro` |  | [src/core/tests/log_channel_test.cpp:267](../../src/core/tests/log_channel_test.cpp#L267) |
+| the backoff stops growing at its longest | `coro` |  | [src/core/tests/log_channel_test.cpp:284](../../src/core/tests/log_channel_test.cpp#L284) |
+| stopping throws away what was waiting and stops taking lines | `coro` |  | [src/core/tests/log_channel_test.cpp:302](../../src/core/tests/log_channel_test.cpp#L302) |
+| a log channel unhooks itself from the logger when it goes |  |  | [src/core/tests/log_channel_test.cpp:318](../../src/core/tests/log_channel_test.cpp#L318) |
+| the first message says what the channel will get |  |  | [src/core/tests/log_channel_test.cpp:331](../../src/core/tests/log_channel_test.cpp#L331) |
+| stages run by position, whatever order they were added in |  |  | [src/core/tests/message_pipeline_test.cpp:56](../../src/core/tests/message_pipeline_test.cpp#L56) |
+| two stages at one position stop startup |  |  | [src/core/tests/message_pipeline_test.cpp:73](../../src/core/tests/message_pipeline_test.cpp#L73) |
+| a stage that consumes the message stops the ones after it |  |  | [src/core/tests/message_pipeline_test.cpp:83](../../src/core/tests/message_pipeline_test.cpp#L83) |
+| the bot never answers itself, or a bot this guild has not allowed |  | 3 | [src/core/tests/message_pipeline_test.cpp:98](../../src/core/tests/message_pipeline_test.cpp#L98) |
+| an allowed bot reaches the stages |  |  | [src/core/tests/message_pipeline_test.cpp:131](../../src/core/tests/message_pipeline_test.cpp#L131) |
+| a stage that throws is logged and the rest still run |  |  | [src/core/tests/message_pipeline_test.cpp:146](../../src/core/tests/message_pipeline_test.cpp#L146) |
+| an empty pipeline decides nothing |  |  | [src/core/tests/message_pipeline_test.cpp:163](../../src/core/tests/message_pipeline_test.cpp#L163) |
+| a stage's own actions become background tasks, and the rest pass through | `coro` |  | [src/core/tests/message_pipeline_test.cpp:178](../../src/core/tests/message_pipeline_test.cpp#L178) |
 
 ## ui
 
@@ -227,21 +227,21 @@ Panels and paging (`src/core/ui`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| page state survives a round trip through a custom_id |  |  | [tests/unit/paginator_test.cpp:17](../../tests/unit/paginator_test.cpp#L17) |
-| an argument containing the separator still round trips |  |  | [tests/unit/paginator_test.cpp:30](../../tests/unit/paginator_test.cpp#L30) |
-| an id that would exceed Discord's limit is refused |  |  | [tests/unit/paginator_test.cpp:43](../../tests/unit/paginator_test.cpp#L43) |
-| text that is not ours decodes to nothing |  |  | [tests/unit/paginator_test.cpp:50](../../tests/unit/paginator_test.cpp#L50) |
-| an empty list is one page, not zero |  |  | [tests/unit/paginator_test.cpp:59](../../tests/unit/paginator_test.cpp#L59) |
-| pages are counted by rounding up |  |  | [tests/unit/paginator_test.cpp:67](../../tests/unit/paginator_test.cpp#L67) |
-| a stale page number is clamped rather than rejected |  |  | [tests/unit/paginator_test.cpp:75](../../tests/unit/paginator_test.cpp#L75) |
-| the last page holds the remainder |  |  | [tests/unit/paginator_test.cpp:86](../../tests/unit/paginator_test.cpp#L86) |
-| there is no paging row for a single page |  |  | [tests/unit/paginator_test.cpp:92](../../tests/unit/paginator_test.cpp#L92) |
-| the paging row disables the direction it cannot go |  |  | [tests/unit/paginator_test.cpp:98](../../tests/unit/paginator_test.cpp#L98) |
-| the paging buttons carry the neighbouring pages |  |  | [tests/unit/paginator_test.cpp:111](../../tests/unit/paginator_test.cpp#L111) |
-| a component goes to the panel that claimed its view |  |  | [tests/unit/panel_routes_test.cpp:52](../../tests/unit/panel_routes_test.cpp#L52) |
-| a view nobody claimed, or one its panel declines, is not handled |  |  | [tests/unit/panel_routes_test.cpp:68](../../tests/unit/panel_routes_test.cpp#L68) |
-| a form goes to its panel, and a panel without forms handles none |  |  | [tests/unit/panel_routes_test.cpp:84](../../tests/unit/panel_routes_test.cpp#L84) |
-| a view claimed twice stops startup, naming both, and the second panel claims nothing |  |  | [tests/unit/panel_routes_test.cpp:101](../../tests/unit/panel_routes_test.cpp#L101) |
+| page state survives a round trip through a custom_id |  |  | [src/core/tests/paginator_test.cpp:17](../../src/core/tests/paginator_test.cpp#L17) |
+| an argument containing the separator still round trips |  |  | [src/core/tests/paginator_test.cpp:30](../../src/core/tests/paginator_test.cpp#L30) |
+| an id that would exceed Discord's limit is refused |  |  | [src/core/tests/paginator_test.cpp:43](../../src/core/tests/paginator_test.cpp#L43) |
+| text that is not ours decodes to nothing |  |  | [src/core/tests/paginator_test.cpp:50](../../src/core/tests/paginator_test.cpp#L50) |
+| an empty list is one page, not zero |  |  | [src/core/tests/paginator_test.cpp:59](../../src/core/tests/paginator_test.cpp#L59) |
+| pages are counted by rounding up |  |  | [src/core/tests/paginator_test.cpp:67](../../src/core/tests/paginator_test.cpp#L67) |
+| a stale page number is clamped rather than rejected |  |  | [src/core/tests/paginator_test.cpp:75](../../src/core/tests/paginator_test.cpp#L75) |
+| the last page holds the remainder |  |  | [src/core/tests/paginator_test.cpp:86](../../src/core/tests/paginator_test.cpp#L86) |
+| there is no paging row for a single page |  |  | [src/core/tests/paginator_test.cpp:92](../../src/core/tests/paginator_test.cpp#L92) |
+| the paging row disables the direction it cannot go |  |  | [src/core/tests/paginator_test.cpp:98](../../src/core/tests/paginator_test.cpp#L98) |
+| the paging buttons carry the neighbouring pages |  |  | [src/core/tests/paginator_test.cpp:111](../../src/core/tests/paginator_test.cpp#L111) |
+| a component goes to the panel that claimed its view |  |  | [src/core/tests/panel_routes_test.cpp:52](../../src/core/tests/panel_routes_test.cpp#L52) |
+| a view nobody claimed, or one its panel declines, is not handled |  |  | [src/core/tests/panel_routes_test.cpp:68](../../src/core/tests/panel_routes_test.cpp#L68) |
+| a form goes to its panel, and a panel without forms handles none |  |  | [src/core/tests/panel_routes_test.cpp:84](../../src/core/tests/panel_routes_test.cpp#L84) |
+| a view claimed twice stops startup, naming both, and the second panel claims nothing |  |  | [src/core/tests/panel_routes_test.cpp:101](../../src/core/tests/panel_routes_test.cpp#L101) |
 
 ## module
 
@@ -249,13 +249,13 @@ The module interface and the host (`src/core/modules`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| a capability is found once offered, and null when nobody offers it |  |  | [tests/unit/module_test.cpp:94](../../tests/unit/module_test.cpp#L94) |
-| one capability offered twice stops startup, naming both modules |  |  | [tests/unit/module_test.cpp:110](../../tests/unit/module_test.cpp#L110) |
-| every module offers before any starts, so the list's order does not matter |  |  | [tests/unit/module_test.cpp:123](../../tests/unit/module_test.cpp#L123) |
-| without the module that offers it, a capability is null and the user copes |  |  | [tests/unit/module_test.cpp:142](../../tests/unit/module_test.cpp#L142) |
-| a module that throws while starting stops startup |  |  | [tests/unit/module_test.cpp:157](../../tests/unit/module_test.cpp#L157) |
-| a listener that throws is logged under its name, and DPP never sees it |  |  | [tests/unit/module_test.cpp:170](../../tests/unit/module_test.cpp#L170) |
-| the test host fires a repeating timer each time, and a one-shot once |  |  | [tests/unit/module_test.cpp:188](../../tests/unit/module_test.cpp#L188) |
+| a capability is found once offered, and null when nobody offers it |  |  | [src/core/tests/module_test.cpp:94](../../src/core/tests/module_test.cpp#L94) |
+| one capability offered twice stops startup, naming both modules |  |  | [src/core/tests/module_test.cpp:110](../../src/core/tests/module_test.cpp#L110) |
+| every module offers before any starts, so the list's order does not matter |  |  | [src/core/tests/module_test.cpp:123](../../src/core/tests/module_test.cpp#L123) |
+| without the module that offers it, a capability is null and the user copes |  |  | [src/core/tests/module_test.cpp:142](../../src/core/tests/module_test.cpp#L142) |
+| a module that throws while starting stops startup |  |  | [src/core/tests/module_test.cpp:157](../../src/core/tests/module_test.cpp#L157) |
+| a listener that throws is logged under its name, and DPP never sees it |  |  | [src/core/tests/module_test.cpp:170](../../src/core/tests/module_test.cpp#L170) |
+| the test host fires a repeating timer each time, and a one-shot once |  |  | [src/core/tests/module_test.cpp:188](../../src/core/tests/module_test.cpp#L188) |
 
 ## discord
 
@@ -263,14 +263,14 @@ Discord plumbing (`src/core/discord`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| applying flags replaces the choosable ones and leaves the rest |  |  | [tests/unit/message_flags_test.cpp:12](../../tests/unit/message_flags_test.cpp#L12) |
-| stored message flags are narrowed to what a channel message may carry |  |  | [tests/unit/message_flags_test.cpp:24](../../tests/unit/message_flags_test.cpp#L24) |
-| flags are named for the log |  |  | [tests/unit/message_flags_test.cpp:32](../../tests/unit/message_flags_test.cpp#L32) |
-| a bare path gets the API version prefix |  |  | [tests/unit/raw_api_test.cpp:9](../../tests/unit/raw_api_test.cpp#L9) |
-| a missing leading slash is added |  |  | [tests/unit/raw_api_test.cpp:13](../../tests/unit/raw_api_test.cpp#L13) |
-| a path that already names the API version is left alone |  |  | [tests/unit/raw_api_test.cpp:17](../../tests/unit/raw_api_test.cpp#L17) |
-| trailing slashes are trimmed |  |  | [tests/unit/raw_api_test.cpp:21](../../tests/unit/raw_api_test.cpp#L21) |
-| an empty path becomes the API root |  |  | [tests/unit/raw_api_test.cpp:28](../../tests/unit/raw_api_test.cpp#L28) |
+| applying flags replaces the choosable ones and leaves the rest |  |  | [src/core/tests/message_flags_test.cpp:12](../../src/core/tests/message_flags_test.cpp#L12) |
+| stored message flags are narrowed to what a channel message may carry |  |  | [src/core/tests/message_flags_test.cpp:24](../../src/core/tests/message_flags_test.cpp#L24) |
+| flags are named for the log |  |  | [src/core/tests/message_flags_test.cpp:32](../../src/core/tests/message_flags_test.cpp#L32) |
+| a bare path gets the API version prefix |  |  | [src/core/tests/raw_api_test.cpp:9](../../src/core/tests/raw_api_test.cpp#L9) |
+| a missing leading slash is added |  |  | [src/core/tests/raw_api_test.cpp:13](../../src/core/tests/raw_api_test.cpp#L13) |
+| a path that already names the API version is left alone |  |  | [src/core/tests/raw_api_test.cpp:17](../../src/core/tests/raw_api_test.cpp#L17) |
+| trailing slashes are trimmed |  |  | [src/core/tests/raw_api_test.cpp:21](../../src/core/tests/raw_api_test.cpp#L21) |
+| an empty path becomes the API root |  |  | [src/core/tests/raw_api_test.cpp:28](../../src/core/tests/raw_api_test.cpp#L28) |
 
 ## ports
 
@@ -278,11 +278,11 @@ Ports and mocks (`src/core/ports`, `tests/mocks`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| mock_clock moves both clocks together |  |  | [tests/unit/ports_test.cpp:35](../../tests/unit/ports_test.cpp#L35) |
-| a coroutine feature runs against the Discord mock | `coro` |  | [tests/unit/ports_test.cpp:47](../../tests/unit/ports_test.cpp#L47) |
-| the Discord mock can script a failure | `coro` |  | [tests/unit/ports_test.cpp:63](../../tests/unit/ports_test.cpp#L63) |
-| the Discord mock hands out scripted history pages | `coro` |  | [tests/unit/ports_test.cpp:74](../../tests/unit/ports_test.cpp#L74) |
-| the HTTP mock replays responses in order and records requests | `coro` |  | [tests/unit/ports_test.cpp:97](../../tests/unit/ports_test.cpp#L97) |
+| mock_clock moves both clocks together |  |  | [src/core/tests/ports_test.cpp:35](../../src/core/tests/ports_test.cpp#L35) |
+| a coroutine feature runs against the Discord mock | `coro` |  | [src/core/tests/ports_test.cpp:47](../../src/core/tests/ports_test.cpp#L47) |
+| the Discord mock can script a failure | `coro` |  | [src/core/tests/ports_test.cpp:63](../../src/core/tests/ports_test.cpp#L63) |
+| the Discord mock hands out scripted history pages | `coro` |  | [src/core/tests/ports_test.cpp:74](../../src/core/tests/ports_test.cpp#L74) |
+| the HTTP mock replays responses in order and records requests | `coro` |  | [src/core/tests/ports_test.cpp:97](../../src/core/tests/ports_test.cpp#L97) |
 
 ## log
 
@@ -290,38 +290,38 @@ Logging (`src/core/util/log`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| uncoloured output is exactly what std::format would give |  |  | [tests/unit/log_color_test.cpp:48](../../tests/unit/log_color_test.cpp#L48) |
-| text in the format string stays the terminal's own colour |  |  | [tests/unit/log_color_test.cpp:56](../../tests/unit/log_color_test.cpp#L56) |
-| a number is coloured as a number |  |  | [tests/unit/log_color_test.cpp:60](../../tests/unit/log_color_test.cpp#L60) |
-| true and false are coloured differently |  |  | [tests/unit/log_color_test.cpp:67](../../tests/unit/log_color_test.cpp#L67) |
-| a Discord id is coloured as an id |  |  | [tests/unit/log_color_test.cpp:73](../../tests/unit/log_color_test.cpp#L73) |
-| an id already turned into a string is only a string |  |  | [tests/unit/log_color_test.cpp:79](../../tests/unit/log_color_test.cpp#L79) |
-| strings and characters stay plain |  |  | [tests/unit/log_color_test.cpp:87](../../tests/unit/log_color_test.cpp#L87) |
-| a duration has a colour of its own |  |  | [tests/unit/log_color_test.cpp:94](../../tests/unit/log_color_test.cpp#L94) |
-| format specs still apply inside the colour |  |  | [tests/unit/log_color_test.cpp:98](../../tests/unit/log_color_test.cpp#L98) |
-| a format colour cannot pass through falls back to a plain line |  |  | [tests/unit/log_color_test.cpp:106](../../tests/unit/log_color_test.cpp#L106) |
-| a forwarded line's source tag is the coloured part |  |  | [tests/unit/log_color_test.cpp:113](../../tests/unit/log_color_test.cpp#L113) |
-| the default palette is the one that was asked for |  |  | [tests/unit/log_color_test.cpp:122](../../tests/unit/log_color_test.cpp#L122) |
-| paint_to colours only while a coloured line is being formatted |  |  | [tests/unit/log_color_test.cpp:137](../../tests/unit/log_color_test.cpp#L137) |
-| an uncoloured line is the format the log has always had |  |  | [tests/unit/log_color_test.cpp:160](../../tests/unit/log_color_test.cpp#L160) |
-| a coloured line colours the timestamp and the level |  |  | [tests/unit/log_color_test.cpp:166](../../tests/unit/log_color_test.cpp#L166) |
-| each level has its own colour |  |  | [tests/unit/log_color_test.cpp:172](../../tests/unit/log_color_test.cpp#L172) |
-| the colour setting accepts the obvious spellings |  |  | [tests/unit/log_color_test.cpp:185](../../tests/unit/log_color_test.cpp#L185) |
-| colour follows the terminal unless told otherwise |  |  | [tests/unit/log_color_test.cpp:201](../../tests/unit/log_color_test.cpp#L201) |
-| NO_COLOR turns colour off, and an explicit always overrides it |  |  | [tests/unit/log_color_test.cpp:207](../../tests/unit/log_color_test.cpp#L207) |
-| never and always mean exactly that |  |  | [tests/unit/log_color_test.cpp:213](../../tests/unit/log_color_test.cpp#L213) |
-| a replacement sink gets plain text even with colours on |  |  | [tests/unit/log_color_test.cpp:222](../../tests/unit/log_color_test.cpp#L222) |
-| colours are off until something turns them on |  |  | [tests/unit/log_color_test.cpp:235](../../tests/unit/log_color_test.cpp#L235) |
-| level names round trip |  |  | [tests/unit/log_test.cpp:19](../../tests/unit/log_test.cpp#L19) |
-| level names are case-insensitive and unknown names are reported |  |  | [tests/unit/log_test.cpp:27](../../tests/unit/log_test.cpp#L27) |
-| messages below the level are dropped |  |  | [tests/unit/log_test.cpp:34](../../tests/unit/log_test.cpp#L34) |
-| off silences everything |  |  | [tests/unit/log_test.cpp:47](../../tests/unit/log_test.cpp#L47) |
-| arguments are formatted into the message |  |  | [tests/unit/log_test.cpp:55](../../tests/unit/log_test.cpp#L55) |
-| a message is never split between threads | `threads` |  | [tests/unit/log_test.cpp:63](../../tests/unit/log_test.cpp#L63) |
-| a tap gets lines below the logger's own level when it asks for them |  |  | [tests/unit/log_test.cpp:114](../../tests/unit/log_test.cpp#L114) |
-| a tap above the logger's level leaves out what it did not ask for |  |  | [tests/unit/log_test.cpp:131](../../tests/unit/log_test.cpp#L131) |
-| a removed tap gets nothing more |  |  | [tests/unit/log_test.cpp:143](../../tests/unit/log_test.cpp#L143) |
-| colour is stripped and the text kept |  |  | [tests/unit/log_test.cpp:155](../../tests/unit/log_test.cpp#L155) |
+| uncoloured output is exactly what std::format would give |  |  | [src/core/tests/log_color_test.cpp:48](../../src/core/tests/log_color_test.cpp#L48) |
+| text in the format string stays the terminal's own colour |  |  | [src/core/tests/log_color_test.cpp:56](../../src/core/tests/log_color_test.cpp#L56) |
+| a number is coloured as a number |  |  | [src/core/tests/log_color_test.cpp:60](../../src/core/tests/log_color_test.cpp#L60) |
+| true and false are coloured differently |  |  | [src/core/tests/log_color_test.cpp:67](../../src/core/tests/log_color_test.cpp#L67) |
+| a Discord id is coloured as an id |  |  | [src/core/tests/log_color_test.cpp:73](../../src/core/tests/log_color_test.cpp#L73) |
+| an id already turned into a string is only a string |  |  | [src/core/tests/log_color_test.cpp:79](../../src/core/tests/log_color_test.cpp#L79) |
+| strings and characters stay plain |  |  | [src/core/tests/log_color_test.cpp:87](../../src/core/tests/log_color_test.cpp#L87) |
+| a duration has a colour of its own |  |  | [src/core/tests/log_color_test.cpp:94](../../src/core/tests/log_color_test.cpp#L94) |
+| format specs still apply inside the colour |  |  | [src/core/tests/log_color_test.cpp:98](../../src/core/tests/log_color_test.cpp#L98) |
+| a format colour cannot pass through falls back to a plain line |  |  | [src/core/tests/log_color_test.cpp:106](../../src/core/tests/log_color_test.cpp#L106) |
+| a forwarded line's source tag is the coloured part |  |  | [src/core/tests/log_color_test.cpp:113](../../src/core/tests/log_color_test.cpp#L113) |
+| the default palette is the one that was asked for |  |  | [src/core/tests/log_color_test.cpp:122](../../src/core/tests/log_color_test.cpp#L122) |
+| paint_to colours only while a coloured line is being formatted |  |  | [src/core/tests/log_color_test.cpp:137](../../src/core/tests/log_color_test.cpp#L137) |
+| an uncoloured line is the format the log has always had |  |  | [src/core/tests/log_color_test.cpp:160](../../src/core/tests/log_color_test.cpp#L160) |
+| a coloured line colours the timestamp and the level |  |  | [src/core/tests/log_color_test.cpp:166](../../src/core/tests/log_color_test.cpp#L166) |
+| each level has its own colour |  |  | [src/core/tests/log_color_test.cpp:172](../../src/core/tests/log_color_test.cpp#L172) |
+| the colour setting accepts the obvious spellings |  |  | [src/core/tests/log_color_test.cpp:185](../../src/core/tests/log_color_test.cpp#L185) |
+| colour follows the terminal unless told otherwise |  |  | [src/core/tests/log_color_test.cpp:201](../../src/core/tests/log_color_test.cpp#L201) |
+| NO_COLOR turns colour off, and an explicit always overrides it |  |  | [src/core/tests/log_color_test.cpp:207](../../src/core/tests/log_color_test.cpp#L207) |
+| never and always mean exactly that |  |  | [src/core/tests/log_color_test.cpp:213](../../src/core/tests/log_color_test.cpp#L213) |
+| a replacement sink gets plain text even with colours on |  |  | [src/core/tests/log_color_test.cpp:222](../../src/core/tests/log_color_test.cpp#L222) |
+| colours are off until something turns them on |  |  | [src/core/tests/log_color_test.cpp:235](../../src/core/tests/log_color_test.cpp#L235) |
+| level names round trip |  |  | [src/core/tests/log_test.cpp:19](../../src/core/tests/log_test.cpp#L19) |
+| level names are case-insensitive and unknown names are reported |  |  | [src/core/tests/log_test.cpp:27](../../src/core/tests/log_test.cpp#L27) |
+| messages below the level are dropped |  |  | [src/core/tests/log_test.cpp:34](../../src/core/tests/log_test.cpp#L34) |
+| off silences everything |  |  | [src/core/tests/log_test.cpp:47](../../src/core/tests/log_test.cpp#L47) |
+| arguments are formatted into the message |  |  | [src/core/tests/log_test.cpp:55](../../src/core/tests/log_test.cpp#L55) |
+| a message is never split between threads | `threads` |  | [src/core/tests/log_test.cpp:63](../../src/core/tests/log_test.cpp#L63) |
+| a tap gets lines below the logger's own level when it asks for them |  |  | [src/core/tests/log_test.cpp:114](../../src/core/tests/log_test.cpp#L114) |
+| a tap above the logger's level leaves out what it did not ask for |  |  | [src/core/tests/log_test.cpp:131](../../src/core/tests/log_test.cpp#L131) |
+| a removed tap gets nothing more |  |  | [src/core/tests/log_test.cpp:143](../../src/core/tests/log_test.cpp#L143) |
+| colour is stripped and the text kept |  |  | [src/core/tests/log_test.cpp:155](../../src/core/tests/log_test.cpp#L155) |
 
 ## util
 
@@ -329,46 +329,46 @@ Utilities (`src/core/util`, `src/core/version`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| the system root certificates export as a readable PEM bundle | `fs` |  | [tests/unit/ca_certificates_test.cpp:34](../../tests/unit/ca_certificates_test.cpp#L34) |
-| exporting creates the directory it was given | `fs` |  | [tests/unit/ca_certificates_test.cpp:50](../../tests/unit/ca_certificates_test.cpp#L50) |
-| parse_dotenv reads simple key-value lines |  |  | [tests/unit/env_test.cpp:7](../../tests/unit/env_test.cpp#L7) |
-| parse_dotenv skips blank lines and comments |  |  | [tests/unit/env_test.cpp:15](../../tests/unit/env_test.cpp#L15) |
-| parse_dotenv trims whitespace around key and value |  |  | [tests/unit/env_test.cpp:22](../../tests/unit/env_test.cpp#L22) |
-| parse_dotenv strips a leading export |  |  | [tests/unit/env_test.cpp:30](../../tests/unit/env_test.cpp#L30) |
-| parse_dotenv strips matching surrounding quotes |  |  | [tests/unit/env_test.cpp:37](../../tests/unit/env_test.cpp#L37) |
-| parse_dotenv skips a line with no '=' |  |  | [tests/unit/env_test.cpp:46](../../tests/unit/env_test.cpp#L46) |
-| parse_dotenv allows an empty value |  |  | [tests/unit/env_test.cpp:53](../../tests/unit/env_test.cpp#L53) |
-| parse_dotenv handles a final line with no trailing newline |  |  | [tests/unit/env_test.cpp:60](../../tests/unit/env_test.cpp#L60) |
-| parse_dotenv copes with CRLF line endings |  |  | [tests/unit/env_test.cpp:67](../../tests/unit/env_test.cpp#L67) |
-| count_occurrences counts non-overlapping matches |  |  | [tests/unit/text_test.cpp:11](../../tests/unit/text_test.cpp#L11) |
-| trim removes surrounding whitespace only |  | 1 | [tests/unit/text_test.cpp:20](../../tests/unit/text_test.cpp#L20) |
-| is_blank treats whitespace as empty |  |  | [tests/unit/text_test.cpp:31](../../tests/unit/text_test.cpp#L31) |
-| character_count counts characters, not bytes |  |  | [tests/unit/text_test.cpp:38](../../tests/unit/text_test.cpp#L38) |
-| truncate cuts to a character limit and marks the cut |  | 4 | [tests/unit/text_test.cpp:47](../../tests/unit/text_test.cpp#L47) |
-| lines that fit are kept whole, and lines that do not are cut evenly |  |  | [tests/unit/text_test.cpp:72](../../tests/unit/text_test.cpp#L72) |
-| a Discord ID is read as digits and nothing else |  |  | [tests/unit/text_test.cpp:85](../../tests/unit/text_test.cpp#L85) |
-| to_lower lowercases ASCII letters and leaves everything else |  |  | [tests/unit/text_test.cpp:102](../../tests/unit/text_test.cpp#L102) |
-| equals_ignoring_case compares ASCII case-insensitively |  |  | [tests/unit/text_test.cpp:110](../../tests/unit/text_test.cpp#L110) |
-| lines splits on newlines, CRLF included, and keeps the last line |  |  | [tests/unit/text_test.cpp:118](../../tests/unit/text_test.cpp#L118) |
-| every link in a message is found, not just the first |  |  | [tests/unit/url_scan_test.cpp:43](../../tests/unit/url_scan_test.cpp#L43) |
-| a spoiler is an odd number of || before the link |  | 6 | [tests/unit/url_scan_test.cpp:53](../../tests/unit/url_scan_test.cpp#L53) |
-| trailing punctuation is not part of a link |  |  | [tests/unit/url_scan_test.cpp:101](../../tests/unit/url_scan_test.cpp#L101) |
-| a closing bracket stays only when the link opened one |  |  | [tests/unit/url_scan_test.cpp:108](../../tests/unit/url_scan_test.cpp#L108) |
-| an underscore at the end of a link is kept |  |  | [tests/unit/url_scan_test.cpp:115](../../tests/unit/url_scan_test.cpp#L115) |
-| a link in angle brackets is marked as having its preview turned off |  | 2 | [tests/unit/url_scan_test.cpp:120](../../tests/unit/url_scan_test.cpp#L120) |
-| links in code are marked as code |  | 3 | [tests/unit/url_scan_test.cpp:142](../../tests/unit/url_scan_test.cpp#L142) |
-| a code span runs to the next run of backticks as long as its own |  |  | [tests/unit/url_scan_test.cpp:164](../../tests/unit/url_scan_test.cpp#L164) |
-| a scheme glued to a word is not a link |  |  | [tests/unit/url_scan_test.cpp:174](../../tests/unit/url_scan_test.cpp#L174) |
-| the scheme may be in any case |  |  | [tests/unit/url_scan_test.cpp:179](../../tests/unit/url_scan_test.cpp#L179) |
-| offsets point back into the scanned text |  |  | [tests/unit/url_scan_test.cpp:183](../../tests/unit/url_scan_test.cpp#L183) |
-| split_url separates every part |  |  | [tests/unit/url_scan_test.cpp:194](../../tests/unit/url_scan_test.cpp#L194) |
-| rule_host reduces a host to what a rule is keyed by |  |  | [tests/unit/url_scan_test.cpp:208](../../tests/unit/url_scan_test.cpp#L208) |
-| rehost keeps the path, query and fragment |  |  | [tests/unit/url_scan_test.cpp:216](../../tests/unit/url_scan_test.cpp#L216) |
-| a translation suffix goes on the path, before the query |  | 3 | [tests/unit/url_scan_test.cpp:222](../../tests/unit/url_scan_test.cpp#L222) |
-| 100 KB of link-shaped junk is scanned quickly |  |  | [tests/unit/url_scan_test.cpp:244](../../tests/unit/url_scan_test.cpp#L244) |
-| one link followed by thousands of brackets is still linear |  |  | [tests/unit/url_scan_test.cpp:262](../../tests/unit/url_scan_test.cpp#L262) |
-| scanning a typical message |  |  | [tests/unit/url_scan_test.cpp:274](../../tests/unit/url_scan_test.cpp#L274) |
-| version string matches the version constants |  |  | [tests/unit/version_test.cpp:7](../../tests/unit/version_test.cpp#L7) |
+| the system root certificates export as a readable PEM bundle | `fs` |  | [src/core/tests/ca_certificates_test.cpp:34](../../src/core/tests/ca_certificates_test.cpp#L34) |
+| exporting creates the directory it was given | `fs` |  | [src/core/tests/ca_certificates_test.cpp:50](../../src/core/tests/ca_certificates_test.cpp#L50) |
+| parse_dotenv reads simple key-value lines |  |  | [src/core/tests/env_test.cpp:7](../../src/core/tests/env_test.cpp#L7) |
+| parse_dotenv skips blank lines and comments |  |  | [src/core/tests/env_test.cpp:15](../../src/core/tests/env_test.cpp#L15) |
+| parse_dotenv trims whitespace around key and value |  |  | [src/core/tests/env_test.cpp:22](../../src/core/tests/env_test.cpp#L22) |
+| parse_dotenv strips a leading export |  |  | [src/core/tests/env_test.cpp:30](../../src/core/tests/env_test.cpp#L30) |
+| parse_dotenv strips matching surrounding quotes |  |  | [src/core/tests/env_test.cpp:37](../../src/core/tests/env_test.cpp#L37) |
+| parse_dotenv skips a line with no '=' |  |  | [src/core/tests/env_test.cpp:46](../../src/core/tests/env_test.cpp#L46) |
+| parse_dotenv allows an empty value |  |  | [src/core/tests/env_test.cpp:53](../../src/core/tests/env_test.cpp#L53) |
+| parse_dotenv handles a final line with no trailing newline |  |  | [src/core/tests/env_test.cpp:60](../../src/core/tests/env_test.cpp#L60) |
+| parse_dotenv copes with CRLF line endings |  |  | [src/core/tests/env_test.cpp:67](../../src/core/tests/env_test.cpp#L67) |
+| count_occurrences counts non-overlapping matches |  |  | [src/core/tests/text_test.cpp:11](../../src/core/tests/text_test.cpp#L11) |
+| trim removes surrounding whitespace only |  | 1 | [src/core/tests/text_test.cpp:20](../../src/core/tests/text_test.cpp#L20) |
+| is_blank treats whitespace as empty |  |  | [src/core/tests/text_test.cpp:31](../../src/core/tests/text_test.cpp#L31) |
+| character_count counts characters, not bytes |  |  | [src/core/tests/text_test.cpp:38](../../src/core/tests/text_test.cpp#L38) |
+| truncate cuts to a character limit and marks the cut |  | 4 | [src/core/tests/text_test.cpp:47](../../src/core/tests/text_test.cpp#L47) |
+| lines that fit are kept whole, and lines that do not are cut evenly |  |  | [src/core/tests/text_test.cpp:72](../../src/core/tests/text_test.cpp#L72) |
+| a Discord ID is read as digits and nothing else |  |  | [src/core/tests/text_test.cpp:85](../../src/core/tests/text_test.cpp#L85) |
+| to_lower lowercases ASCII letters and leaves everything else |  |  | [src/core/tests/text_test.cpp:102](../../src/core/tests/text_test.cpp#L102) |
+| equals_ignoring_case compares ASCII case-insensitively |  |  | [src/core/tests/text_test.cpp:110](../../src/core/tests/text_test.cpp#L110) |
+| lines splits on newlines, CRLF included, and keeps the last line |  |  | [src/core/tests/text_test.cpp:118](../../src/core/tests/text_test.cpp#L118) |
+| every link in a message is found, not just the first |  |  | [src/core/tests/url_scan_test.cpp:43](../../src/core/tests/url_scan_test.cpp#L43) |
+| a spoiler is an odd number of || before the link |  | 6 | [src/core/tests/url_scan_test.cpp:53](../../src/core/tests/url_scan_test.cpp#L53) |
+| trailing punctuation is not part of a link |  |  | [src/core/tests/url_scan_test.cpp:101](../../src/core/tests/url_scan_test.cpp#L101) |
+| a closing bracket stays only when the link opened one |  |  | [src/core/tests/url_scan_test.cpp:108](../../src/core/tests/url_scan_test.cpp#L108) |
+| an underscore at the end of a link is kept |  |  | [src/core/tests/url_scan_test.cpp:115](../../src/core/tests/url_scan_test.cpp#L115) |
+| a link in angle brackets is marked as having its preview turned off |  | 2 | [src/core/tests/url_scan_test.cpp:120](../../src/core/tests/url_scan_test.cpp#L120) |
+| links in code are marked as code |  | 3 | [src/core/tests/url_scan_test.cpp:142](../../src/core/tests/url_scan_test.cpp#L142) |
+| a code span runs to the next run of backticks as long as its own |  |  | [src/core/tests/url_scan_test.cpp:164](../../src/core/tests/url_scan_test.cpp#L164) |
+| a scheme glued to a word is not a link |  |  | [src/core/tests/url_scan_test.cpp:174](../../src/core/tests/url_scan_test.cpp#L174) |
+| the scheme may be in any case |  |  | [src/core/tests/url_scan_test.cpp:179](../../src/core/tests/url_scan_test.cpp#L179) |
+| offsets point back into the scanned text |  |  | [src/core/tests/url_scan_test.cpp:183](../../src/core/tests/url_scan_test.cpp#L183) |
+| split_url separates every part |  |  | [src/core/tests/url_scan_test.cpp:194](../../src/core/tests/url_scan_test.cpp#L194) |
+| rule_host reduces a host to what a rule is keyed by |  |  | [src/core/tests/url_scan_test.cpp:208](../../src/core/tests/url_scan_test.cpp#L208) |
+| rehost keeps the path, query and fragment |  |  | [src/core/tests/url_scan_test.cpp:216](../../src/core/tests/url_scan_test.cpp#L216) |
+| a translation suffix goes on the path, before the query |  | 3 | [src/core/tests/url_scan_test.cpp:222](../../src/core/tests/url_scan_test.cpp#L222) |
+| 100 KB of link-shaped junk is scanned quickly |  |  | [src/core/tests/url_scan_test.cpp:244](../../src/core/tests/url_scan_test.cpp#L244) |
+| one link followed by thousands of brackets is still linear |  |  | [src/core/tests/url_scan_test.cpp:262](../../src/core/tests/url_scan_test.cpp#L262) |
+| scanning a typical message |  |  | [src/core/tests/url_scan_test.cpp:274](../../src/core/tests/url_scan_test.cpp#L274) |
+| version string matches the version constants |  |  | [src/core/tests/version_test.cpp:7](../../src/core/tests/version_test.cpp#L7) |
 
 ## app
 

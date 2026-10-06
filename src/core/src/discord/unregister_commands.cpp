@@ -1,9 +1,9 @@
-#include "core/discord/unregister_commands.hpp"
+#include "discord/unregister_commands.hpp"
 
-#include "core/commands/unregister.hpp"
-#include "core/discord/dpp_log.hpp"
+#include "commands/unregister.hpp"
 #include "core/ports/command_host.hpp"
 #include "core/util/log.hpp"
+#include "discord/dpp_log.hpp"
 
 #include <dpp/dpp.h>
 

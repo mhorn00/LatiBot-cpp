@@ -1,66 +1,5 @@
-add_library(latibot_core STATIC
-    core/version.cpp
-    core/bot.cpp
-    core/config/bootstrap.cpp
-    core/config/command_line.cpp
-    core/config/guild_settings.cpp
-    core/config/section.cpp
-    core/db/backup.cpp
-    core/db/database.cpp
-    core/db/error.cpp
-    core/db/migrations.cpp
-    core/db/schema_versions.cpp
-    core/db/schemas.cpp
-    core/db/statement.cpp
-    core/commands/basic.cpp
-    core/commands/logs.cpp
-    core/commands/message_options.cpp
-    core/commands/options.cpp
-    core/commands/bots.cpp
-    core/commands/preflight.cpp
-    core/commands/registry.cpp
-    core/commands/unregister.cpp
-    core/discord/dpp_gateway.cpp
-    core/discord/dpp_http_client.cpp
-    core/discord/dpp_log.cpp
-    core/discord/message_flags.cpp
-    core/discord/raw_api.cpp
-    core/discord/unregister_commands.cpp
-    core/events/bot_allowlist.cpp
-    core/events/goodbye.cpp
-    core/events/log_channel.cpp
-    core/events/message_pipeline.cpp
-    core/modules/capability_registry.cpp
-    core/modules/host.cpp
-    core/modules/module.cpp
-    core/ports/clock.cpp
-    core/ui/interaction.cpp
-    core/ui/paginator.cpp
-    core/ui/panel_routes.cpp
-    core/util/ca_certificates.cpp
-    core/util/env.cpp
-    core/util/log.cpp
-    core/util/match.cpp
-    core/util/text.cpp
-    core/util/url_scan.cpp
-)
-
-# Headers are included as "core/<area>/<file>.hpp".
-target_include_directories(latibot_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(latibot_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
-# crypt32 is the Windows certificate store, read at startup to give OpenSSL
-# the roots it does not ship with (core/util/ca_certificates.cpp).
-if(WIN32)
-    target_link_libraries(latibot_core PRIVATE crypt32)
-endif()
-
-# DPP's headers, compiled once rather than in every file: a clean build of
-# our code takes 72 s rather than 124 (docs/modules/Module_Plan_Final.md §9.1,
-# I8). clang-tidy leaves it out, so every file still has to include what it
-# uses (tools/Invoke-ClangTidy.ps1).
-target_precompile_headers(latibot_core PRIVATE <dpp/dpp.h>)
-latibot_target_warnings(latibot_core)
-latibot_target_sanitizers(latibot_core)
+# The core: latibot_core (core/CMakeLists.txt).
+add_subdirectory(core)
 
 # The feature modules, each its own library (modules/CMakeLists.txt).
 add_subdirectory(modules)
@@ -79,6 +18,9 @@ target_link_libraries(latibot_enabled_modules INTERFACE latibot_core)
 
 add_executable(LatiBot app/main.cpp)
 target_link_libraries(LatiBot PRIVATE latibot_enabled_modules)
+# The host itself, the command line and unregistering are the core's private
+# headers, which the executable alone may use.
+target_include_directories(LatiBot PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/core/src")
 
 latibot_target_warnings(LatiBot)
 latibot_target_sanitizers(LatiBot)

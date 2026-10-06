@@ -1,4 +1,4 @@
-#include "core/events/bot_allowlist.hpp"
+#include "events/bot_allowlist.hpp"
 
 #include "core/db/database.hpp"
 

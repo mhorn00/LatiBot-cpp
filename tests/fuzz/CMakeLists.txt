@@ -13,7 +13,7 @@
 # built with the instrumentation. It is a short list rather than all of
 # latibot_core because MSVC 14.51 crashes instrumenting bot.cpp, and nothing
 # here reaches it.
-set(core "${PROJECT_SOURCE_DIR}/src/core")
+set(core "${PROJECT_SOURCE_DIR}/src/core/src")
 set(modules "${PROJECT_SOURCE_DIR}/src/modules")
 add_library(latibot_fuzz_core STATIC
     # Fuzzed.
@@ -34,7 +34,7 @@ add_library(latibot_fuzz_core STATIC
     ${core}/util/log.cpp
 )
 # The modules' headers too: each fuzzer is about one module's code.
-target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src" "${modules}/links/include" "${modules}/linkstats/src"
+target_include_directories(latibot_fuzz_core PUBLIC "${PROJECT_SOURCE_DIR}/src/core/include" "${modules}/links/include" "${modules}/linkstats/src"
                                                     "${modules}/dectalk/src")
 target_link_libraries(latibot_fuzz_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
 latibot_target_warnings(latibot_fuzz_core)

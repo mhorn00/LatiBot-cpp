@@ -1,4 +1,4 @@
-#include "core/events/log_channel.hpp"
+#include "events/log_channel.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/util/text.hpp"
