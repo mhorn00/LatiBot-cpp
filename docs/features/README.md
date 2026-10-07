@@ -17,39 +17,39 @@ stays as the record of how the port was designed.
 
 ## At a glance
 
-| | Feature | What it is for | Spec |
-|---|---|---|---|
-| 💬 | [`/ping`](#ping) | Is the bot alive, and how far away is it | [Basic commands](Basic_Commands.md) |
-| 💬 | [`/say`](#say) | Post as the bot, optionally as a reply | [Basic commands](Basic_Commands.md) |
-| 💬 | [`/status`](#status) | Set the bot's presence | [Basic commands](Basic_Commands.md) |
-| 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel | [Voice channels](Voice_Channels.md) |
-| 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice | [Speech](Speech.md) |
-| 🔊 | [`/tts`](#tts) | Stop or skip speech, set its limits, and keep custom voices from the [voice lab](#voice-lab) | [Speech](Speech.md), [Speech §3](Speech.md#3-custom-voices-and-the-voice-lab) |
-| 🔊 | [`/voice`](#voice) | Voice sessions, and how long the bot stays once alone | [Voice channels](Voice_Channels.md) |
-| 🔊 | [`/chat`](#chat) | Say something as a voice message | [Speech](Speech.md) |
-| 🎵 | [`/music`, `/m`](#music) | Play music from a link, with a queue | [Music](Music.md) |
-| 🛑 | [`/shutdown`](#shutdown) | Stop the bot | [Basic commands](Basic_Commands.md) |
-| 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | [Basic commands](Basic_Commands.md) |
-| 📋 | [`/logs`](#logs) | Post the bot's log in one channel | [Log channel](Log_Channel.md) |
-| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases | [Triggers](Triggers.md) |
-| 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear | [Message pipeline](Message_Pipeline.md) |
-| 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [Nicknames](Nicknames.md) |
-| 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here | [Nicknames](Nicknames.md) |
-| 🌙 | [`/midnight`](#midnight) | Post a message at midnight | [Midnight](Midnight.md) |
-| 🔗 | [`/links`](#links) | Turn link replacement on, and choose which links get posted again with a working preview | [URL replacement](Url_Replacement.md) |
-| 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [URL replacement](Url_Replacement.md) |
-| 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [Link stats](Link_Stats.md) |
-| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers | [Language model](Language_Model.md) |
-| 🧠 | [`/memory`](#memory) | What the language model remembers | [Language model](Language_Model.md) |
-| 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command | [Basic commands](Basic_Commands.md#3-the-goodbye-phrase) |
-| 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised | [Triggers](Triggers.md) |
-| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on | [URL replacement](Url_Replacement.md) |
-| 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways | [Link stats](Link_Stats.md) |
-| 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it | [Nicknames](Nicknames.md) |
-| 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone | [Midnight](Midnight.md) |
-| 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel | [Voice channels](Voice_Channels.md#23-leaving-an-empty-channel) |
-| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session | [Language model](Language_Model.md) |
-| 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup | [Running the bot](Operations.md#6-permission-warnings) |
+| | Feature | What it is for | Module | Spec |
+|---|---|---|---|---|
+| 💬 | [`/ping`](#ping) | Is the bot alive, and how far away is it | the core | [Basic commands](Basic_Commands.md) |
+| 💬 | [`/say`](#say) | Post as the bot, optionally as a reply | the core | [Basic commands](Basic_Commands.md) |
+| 💬 | [`/status`](#status) | Set the bot's presence | the core | [Basic commands](Basic_Commands.md) |
+| 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel | [voice](../../src/modules/voice/README.md) | [Voice channels](Voice_Channels.md) |
+| 🔊 | [`/speak`](#speak) | Say something in the voice channel, in DECtalk's voice | [dectalk](../../src/modules/dectalk/README.md) | [Speech](Speech.md) |
+| 🔊 | [`/tts`](#tts) | Stop or skip speech, set its limits, and keep custom voices from the [voice lab](#voice-lab) | [dectalk](../../src/modules/dectalk/README.md) | [Speech](Speech.md), [Speech §3](Speech.md#3-custom-voices-and-the-voice-lab) |
+| 🔊 | [`/voice`](#voice) | Voice sessions, and how long the bot stays once alone | [voice](../../src/modules/voice/README.md) | [Voice channels](Voice_Channels.md) |
+| 🔊 | [`/chat`](#chat) | Say something as a voice message | [dectalk](../../src/modules/dectalk/README.md) | [Speech](Speech.md) |
+| 🎵 | [`/music`, `/m`](#music) | Play music from a link, with a queue | [music](../../src/modules/music/README.md) | [Music](Music.md) |
+| 🛑 | [`/shutdown`](#shutdown) | Stop the bot | the core | [Basic commands](Basic_Commands.md) |
+| 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | the core | [Basic commands](Basic_Commands.md) |
+| 📋 | [`/logs`](#logs) | Post the bot's log in one channel | the core | [Log channel](Log_Channel.md) |
+| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases | [triggers](../../src/modules/triggers/README.md) | [Triggers](Triggers.md) |
+| 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear | the core | [Message pipeline](Message_Pipeline.md) |
+| 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [nicknames](../../src/modules/nicknames/README.md) | [Nicknames](Nicknames.md) |
+| 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here | [nicknames](../../src/modules/nicknames/README.md) | [Nicknames](Nicknames.md) |
+| 🌙 | [`/midnight`](#midnight) | Post a message at midnight | [midnight](../../src/modules/midnight/README.md) | [Midnight](Midnight.md) |
+| 🔗 | [`/links`](#links) | Turn link replacement on, and choose which links get posted again with a working preview | [links](../../src/modules/links/README.md) | [URL replacement](Url_Replacement.md) |
+| 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [links](../../src/modules/links/README.md) | [URL replacement](Url_Replacement.md) |
+| 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [linkstats](../../src/modules/linkstats/README.md) | [Link stats](Link_Stats.md) |
+| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers | [llm](../../src/modules/llm/README.md) | [Language model](Language_Model.md) |
+| 🧠 | [`/memory`](#memory) | What the language model remembers | [llm](../../src/modules/llm/README.md) | [Language model](Language_Model.md) |
+| 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command | — | [Basic commands](Basic_Commands.md#3-the-goodbye-phrase) |
+| 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised | — | [Triggers](Triggers.md) |
+| 🔗 | [URL replacement](#url-replacement) | Posts poor-preview links again on a mirror that previews properly, once a server turns it on | — | [URL replacement](Url_Replacement.md) |
+| 📊 | [Reaction statistics](#reaction-statistics) | Counts reactions on those, three ways | — | [Link stats](Link_Stats.md) |
+| 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it | — | [Nicknames](Nicknames.md) |
+| 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone | — | [Midnight](Midnight.md) |
+| 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel | — | [Voice channels](Voice_Channels.md#23-leaving-an-empty-channel) |
+| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session | — | [Language model](Language_Model.md) |
+| 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup | — | [Running the bot](Operations.md#6-permission-warnings) |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
 answer. The exceptions are called out below: `/say` posts a separate public
@@ -119,6 +119,7 @@ Round-trip and gateway latency.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | none |
 | **Who** | everyone |
 | **Where** | servers and DMs |
@@ -140,6 +141,7 @@ Posts a message as the bot.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | `message` (required, 1–2000 characters) · `reply` (optional, a message id) |
 | **Who** | Manage Messages, by default (the Java bot asked for Manage Roles) |
 | **Where** | servers only |
@@ -166,6 +168,7 @@ Sets the bot's presence.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | `status` (required, 1–128 characters) · `type` (optional: Playing, Watching, Listening to, Competing in, Custom) |
 | **Who** | Manage Nicknames, by default |
 | **Where** | servers and DMs |
@@ -187,6 +190,7 @@ Moves the bot in and out of a voice channel.
 
 | | |
 |---|---|
+| **Module** | [voice](../../src/modules/voice/README.md) |
 | **Options** | `/join`: `user` (optional — whose channel to join) |
 | **Who** | Speak, by default |
 | **Where** | servers only |
@@ -219,6 +223,7 @@ Says something in the voice channel, in DECtalk's voice.
 
 | | |
 |---|---|
+| **Module** | [dectalk](../../src/modules/dectalk/README.md) |
 | **Options** | `text` (required) · `voice` · `rate` (75–600 words a minute, 200 by default) · `volume` (0–200 %, 100 by default) |
 | **Who** | Speak, by default |
 | **Where** | servers only |
@@ -278,6 +283,7 @@ voices.
 
 | | |
 |---|---|
+| **Module** | [dectalk](../../src/modules/dectalk/README.md) |
 | **Subcommands** | `stop` · `skip` · `limits` (`characters`, `seconds`) · `voices lab` (`voice`) · `voices list` · `voices delete` (`voice`) |
 | **Who** | Speak, by default; changing the limits needs Manage Server |
 | **Where** | servers only |
@@ -357,6 +363,7 @@ Voice sessions, and how long the bot stays once alone. Custom voices are
 
 | | |
 |---|---|
+| **Module** | [voice](../../src/modules/voice/README.md) |
 | **Subcommands** | `start` · `stop` · `grace` (`seconds`) |
 | **Who** | Speak, by default; changing `grace` needs Manage Server |
 | **Where** | servers only |
@@ -387,6 +394,7 @@ a waveform. No voice channel is involved.
 
 | | |
 |---|---|
+| **Module** | [dectalk](../../src/modules/dectalk/README.md) |
 | **Options** | `text` (required) · `voice` · `rate` |
 | **Who** | Speak, by default |
 | **Where** | servers only |
@@ -410,6 +418,7 @@ Plays music in the voice channel, from a link. `/m` is the same command, so
 
 | | |
 |---|---|
+| **Module** | [music](../../src/modules/music/README.md) |
 | **Subcommands** | `play` · `queue` · `nowplaying` · `pause` · `skip` · `repeat` · `shuffle` · `clear` · `stop` · `remove` · `volume` · `limit` |
 | **Who** | Speak, by default, from anywhere in the server; changing `volume` or `limit` needs Manage Server |
 | **Where** | servers only |
@@ -477,6 +486,7 @@ Stops the bot.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | none |
 | **Who** | Administrator, by default |
 | **Where** | servers only |
@@ -493,6 +503,7 @@ Shows or changes [the goodbye phrase](#the-goodbye-phrase) for this server.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | `phrase` (optional, 1–200 characters) · `off` (optional, true/false) |
 | **Who** | Administrator, by default |
 | **Where** | servers only |
@@ -516,6 +527,7 @@ Posts the bot's own log in one Discord channel, as well as to its console.
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Options** | see below |
 | **Who** | only users in `trusted_users` in `config.json`; shown to Administrators, by default |
 | **Where** | servers only |
@@ -570,6 +582,7 @@ Manages this server's automatic replies. See
 
 | | |
 |---|---|
+| **Module** | [triggers](../../src/modules/triggers/README.md) |
 | **Who** | Manage Messages, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages |
@@ -653,6 +666,7 @@ Chooses which other bots LatiBot may hear. See
 
 | | |
 |---|---|
+| **Module** | the core |
 | **Who** | Manage Server, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages |
@@ -678,6 +692,7 @@ Changes somebody's nickname, and records **who ran the command**.
 
 | | |
 |---|---|
+| **Module** | [nicknames](../../src/modules/nicknames/README.md) |
 | **Options** | `user` (required) · `nickname` (optional, up to 32 characters — leave it out to clear theirs) |
 | **Who** | Manage Nicknames, by default |
 | **Where** | servers only |
@@ -706,6 +721,7 @@ Every nickname somebody has had in this server.
 
 | | |
 |---|---|
+| **Module** | [nicknames](../../src/modules/nicknames/README.md) |
 | **Options** | `user` (required) |
 | **Who** | everyone |
 | **Where** | servers only |
@@ -753,6 +769,7 @@ channel and text.
 
 | | |
 |---|---|
+| **Module** | [midnight](../../src/modules/midnight/README.md) |
 | **Who** | Manage Server, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages |
@@ -789,6 +806,7 @@ what happens to a link. Before 2026-10 it was `/urlrepl`.
 
 | | |
 |---|---|
+| **Module** | [links](../../src/modules/links/README.md) |
 | **Who** | Manage Server, by default |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, Embed Links, Manage Messages |
@@ -874,6 +892,7 @@ Stops the bot replacing your links in this server, or starts it again.
 
 | | |
 |---|---|
+| **Module** | [links](../../src/modules/links/README.md) |
 | **Options** | `user` (optional — somebody else, which needs Manage Server) |
 | **Who** | everyone, for themselves |
 | **Where** | servers only |
@@ -900,6 +919,7 @@ people post in a server that counts them. See
 
 | | |
 |---|---|
+| **Module** | [linkstats](../../src/modules/linkstats/README.md) |
 | **Who** | everyone for the views; Manage Server for aliases, `recompute` and `images` |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, and Read Message History for `recompute` |
@@ -1062,6 +1082,7 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 
 | | |
 |---|---|
+| **Module** | [llm](../../src/modules/llm/README.md) |
 | **Who** | everyone may run it; `status` and the personality are open to everyone by default, and everything else needs Manage Server, checked by the bot itself |
 | **Where** | servers only |
 | **Bot needs** | Send Messages, Read Message History |
@@ -1217,6 +1238,7 @@ What the model remembers in this server.
 
 | | |
 |---|---|
+| **Module** | [llm](../../src/modules/llm/README.md) |
 | **Subcommands** | `list` (`user`) · `forget` (`id`) · `clear` (`user`, `everything`) |
 | **Who** | everyone, for what is about them; Manage Server for anyone else's |
 | **Where** | servers only |
@@ -1252,6 +1274,8 @@ Things the bot does without being asked.
 
 ### The goodbye phrase
 
+*Module: the core.*
+
 An **administrator** saying the phrase — `say goodbye latibot` by default —
 stops the bot. It replies `ok bye bye!`, waits about a second and a half so the
 message actually goes out, and shuts down.
@@ -1270,6 +1294,8 @@ Three deliberate restrictions:
 Configure it with [`/goodbye`](#goodbye).
 
 ### Trigger responses
+
+*Module: [triggers](../../src/modules/triggers/README.md).*
 
 When a message matches one of this server's triggers, the bot replies with one
 of that trigger's responses, chosen by weight.
@@ -1308,6 +1334,8 @@ should not turn every existing trigger loose on it.
 The bot never answers itself, and no setting changes that.
 
 ### URL replacement
+
+*Module: [links](../../src/modules/links/README.md).*
 
 When somebody posts a link to a site with a [rule](#links) — x.com,
 tiktok.com, reddit.com, instagram.com — the bot posts it again on a mirror that
@@ -1384,6 +1412,8 @@ until the server runs `/links enable`; importing does not turn it on.
 
 ### Reaction statistics
 
+*Module: [linkstats](../../src/modules/linkstats/README.md).*
+
 Reactions on the bot's replacement messages are counted three ways:
 
 - **Received** — credited to whoever **posted the original link**. "Who gets
@@ -1459,6 +1489,8 @@ when, so date filters use the message's own date for them.
 
 ### Nickname tracking
 
+*Module: [nicknames](../../src/modules/nicknames/README.md).*
+
 Every nickname change in the server is recorded, however it was made: through
 [`/nickname`](#nickname), through Discord's own UI by a moderator, or by the
 person themselves. [`/nicknames`](#nicknames) shows the result.
@@ -1517,6 +1549,8 @@ lose the rest.
 
 ### The midnight message
 
+*Module: [midnight](../../src/modules/midnight/README.md).*
+
 Each entry posts **once per local day**, shortly after midnight in its own
 timezone, in the channel it was given. Configure them with
 [`/midnight`](#midnight). Like trigger replies, it posts silently and with
@@ -1542,6 +1576,8 @@ case of the bot being bounced a moment after midnight.
 
 ### Leaving empty voice channels
 
+*Module: [voice](../../src/modules/voice/README.md).*
+
 When everyone else has left the bot's voice channel, it waits, then leaves. The
 wait is 30 seconds by default: long enough that someone dropping out and
 rejoining does not lose a voice session. It applies however the bot got
@@ -1553,6 +1589,8 @@ Leaving by any route, a moderator disconnecting the bot included, ends the
 server's voice session and drops whatever it was about to say.
 
 ### Talking to the bot
+
+*Module: [llm](../../src/modules/llm/README.md).*
 
 Once a server has turned it on with [`/llm on`](#llm), the language model
 answers anyone who **addresses** the bot:
@@ -1639,6 +1677,8 @@ marked for the provider's prompt cache, so a conversation in full swing pays
 far less for them.
 
 ### Permission warnings
+
+*Module: the core.*
 
 When the bot joins a server — and for every server it is already in, each time
 it starts — it checks what it can do there against what its features need, and

@@ -10,6 +10,7 @@
 
 #include "core/util/env.hpp"
 #include "dectalk_engine.hpp"
+#include "support/finished_within.hpp"
 #include "wav.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -26,6 +27,7 @@
 
 using namespace std::chrono_literals;
 using latibot::ports::speech_request;
+using latibot::testing::finished_within;
 
 namespace {
 
@@ -97,7 +99,7 @@ TEST_CASE("DECtalk's audio matches the golden fingerprints", "[dectalk][golden][
     std::string rewritten = "# name samples fnv1a64 (tests/unit/dectalk_golden_test.cpp)\n";
 
     for (const phrase& each : phrases()) {
-        const auto outcome = engine.synthesize(each.request).sync_wait_for(20s);
+        const auto outcome = finished_within(engine.synthesize(each.request), 20s);
         REQUIRE(outcome.has_value());
         REQUIRE(outcome->has_value());
         const auto& audio = outcome->value();

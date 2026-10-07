@@ -13,6 +13,7 @@
 #include "support/test_host.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -238,17 +239,23 @@ TEST_CASE("the example config is exactly what the bot writes, every module's sec
     // config.example.json is for reading on GitHub; the bot writes its own
     // when there is none, with the sections of the modules it was built with.
     // Line endings aside, since git may check the example out with CRLF.
-    test_host bot;
-    const module_list modules = latibot::modules::enabled_modules(bot);
-    if (!every_module_built(modules)) SKIP("this build leaves out a module the example has a section for");
-
     const std::ifstream file(std::filesystem::path(LATIBOT_TESTS_DIR).parent_path() / "config.example.json", std::ios::binary);
     std::ostringstream contents;
     contents << file.rdbuf();
     std::string example = contents.str();
     std::erase(example, '\r');
 
-    CHECK(example == latibot::config::bootstrap::default_json(latibot::modules::enabled_config_defaults()));
+    // A section is an object; the core's own keys are not. Asked of the
+    // sections rather than the schemas, since a module with no tables, such
+    // as music, has a section all the same.
+    const nlohmann::ordered_json sections = latibot::modules::enabled_config_defaults();
+    for (const auto& [name, value] : nlohmann::ordered_json::parse(example).items()) {
+        if (value.is_object() && !sections.contains(name)) {
+            SKIP("this build leaves out " << name << ", which the example has a section for");
+        }
+    }
+
+    CHECK(example == latibot::config::bootstrap::default_json(sections));
 }
 
 // Links' rules are set through its public header, which is only there when

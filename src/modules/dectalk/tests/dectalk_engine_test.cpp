@@ -6,6 +6,7 @@
 // they run in CI as well.
 
 #include "dectalk_engine.hpp"
+#include "support/finished_within.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -19,11 +20,12 @@ using namespace std::chrono_literals;
 using latibot::audio::dectalk_engine;
 using latibot::ports::pcm_audio;
 using latibot::ports::speech_request;
+using latibot::testing::finished_within;
 
 namespace {
 
 auto say(dectalk_engine& engine, speech_request request) -> pcm_audio {
-    const auto outcome = engine.synthesize(std::move(request)).sync_wait_for(20s);
+    const auto outcome = finished_within(engine.synthesize(std::move(request)), 20s);
     REQUIRE(outcome.has_value());
     if (!outcome->has_value()) FAIL("DECtalk failed: " << outcome->error().message);
     return outcome->value();
@@ -136,7 +138,7 @@ TEST_CASE("an utterance that takes too long is abandoned", "[dectalk][coro][thre
     dectalk_engine engine(dectalk_engine::default_dictionary(), 300ms);
 
     const auto started = std::chrono::steady_clock::now();
-    const auto outcome = engine.synthesize({.text = "[:pause 60000]hello"}).sync_wait_for(20s);
+    const auto outcome = finished_within(engine.synthesize({.text = "[:pause 60000]hello"}), 20s);
     const auto took = std::chrono::steady_clock::now() - started;
 
     REQUIRE(outcome.has_value());
@@ -157,8 +159,8 @@ TEST_CASE("stop abandons the utterance being spoken and the queue", "[dectalk][c
     std::this_thread::sleep_for(100ms);
     engine.stop();
 
-    const auto slow_outcome = slow.sync_wait_for(5s);
-    const auto queued_outcome = queued.sync_wait_for(5s);
+    const auto slow_outcome = finished_within(std::move(slow), 5s);
+    const auto queued_outcome = finished_within(std::move(queued), 5s);
     REQUIRE(slow_outcome.has_value());
     REQUIRE(queued_outcome.has_value());
     CHECK(slow_outcome->error().message == "stopped");
@@ -172,7 +174,7 @@ TEST_CASE("a missing dictionary fails the request instead of the process", "[dec
     {
         dectalk_engine engine("no/such/dictionary.dic");
 
-        const auto outcome = engine.synthesize({.text = "Hello there."}).sync_wait_for(20s);
+        const auto outcome = finished_within(engine.synthesize({.text = "Hello there."}), 20s);
 
         REQUIRE(outcome.has_value());
         REQUIRE_FALSE(outcome->has_value());

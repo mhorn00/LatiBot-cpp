@@ -376,12 +376,12 @@ The bot as built, with every module this build includes (`tests/app`)
 
 | Test | Traits | Sections | Source |
 |---|---|---:|---|
-| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:135](../../tests/app/modules_test.cpp#L135) |
-| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:150](../../tests/app/modules_test.cpp#L150) |
-| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:182](../../tests/app/modules_test.cpp#L182) |
-| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:219](../../tests/app/modules_test.cpp#L219) |
-| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:237](../../tests/app/modules_test.cpp#L237) |
-| a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:259](../../tests/app/modules_test.cpp#L259) |
+| every module this build includes starts on the host, each with its own name |  |  | [tests/app/modules_test.cpp:136](../../tests/app/modules_test.cpp#L136) |
+| every module's version 1 is exactly what migrations 1 to 15 built |  |  | [tests/app/modules_test.cpp:151](../../tests/app/modules_test.cpp#L151) |
+| an old database is brought to migration 15, then adopted with its data, and no module creates anything |  |  | [tests/app/modules_test.cpp:183](../../tests/app/modules_test.cpp#L183) |
+| adoption records every module of migration 15, and only those |  |  | [tests/app/modules_test.cpp:220](../../tests/app/modules_test.cpp#L220) |
+| the example config is exactly what the bot writes, every module's section included |  |  | [tests/app/modules_test.cpp:238](../../tests/app/modules_test.cpp#L238) |
+| a message with a joke and a link gets both |  |  | [tests/app/modules_test.cpp:266](../../tests/app/modules_test.cpp#L266) |
 
 ## voice
 
@@ -439,17 +439,17 @@ The dectalk module (`src/modules/dectalk`)
 | what cannot be read is reported and skipped |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:68](../../src/modules/dectalk/tests/custom_voice_test.cpp#L68) |
 | a custom voice's preamble is rebuilt, not pasted |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:84](../../src/modules/dectalk/tests/custom_voice_test.cpp#L84) |
 | custom voice names are short, plain and never a built-in's |  |  | [src/modules/dectalk/tests/custom_voice_test.cpp:91](../../src/modules/dectalk/tests/custom_voice_test.cpp#L91) |
-| DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:46](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L46) |
-| the same request gives the same audio every time | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:59](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L59) |
-| one request's inline settings do not reach the next | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:70](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L70) |
-| the voice and rate settings change the audio | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:83](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L83) |
-| a custom voice's edits change the voice it is built on | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:94](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L94) |
-| volume scales the samples | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:109](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L109) |
-| an utterance stops at its maximum duration | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:119](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L119) |
-| an utterance that takes too long is abandoned | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:132](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L132) |
-| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:150](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L150) |
-| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:171](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L171) |
-| DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_golden_test.cpp:91](../../src/modules/dectalk/tests/dectalk_golden_test.cpp#L91) |
+| DECtalk speaks a phrase at 11025 Hz mono | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:48](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L48) |
+| the same request gives the same audio every time | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:61](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L61) |
+| one request's inline settings do not reach the next | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:72](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L72) |
+| the voice and rate settings change the audio | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:85](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L85) |
+| a custom voice's edits change the voice it is built on | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:96](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L96) |
+| volume scales the samples | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:111](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L111) |
+| an utterance stops at its maximum duration | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:121](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L121) |
+| an utterance that takes too long is abandoned | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:134](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L134) |
+| stop abandons the utterance being spoken and the queue | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:152](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L152) |
+| a missing dictionary fails the request instead of the process | `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_engine_test.cpp:173](../../src/modules/dectalk/tests/dectalk_engine_test.cpp#L173) |
+| DECtalk's audio matches the golden fingerprints | `golden`, `fs`, `coro`, `threads` |  | [src/modules/dectalk/tests/dectalk_golden_test.cpp:93](../../src/modules/dectalk/tests/dectalk_golden_test.cpp#L93) |
 | dectalk offers the speech the language model speaks through |  |  | [src/modules/dectalk/tests/dectalk_module_test.cpp:46](../../src/modules/dectalk/tests/dectalk_module_test.cpp#L46) |
 | the dectalk README lists what the module registers |  |  | [src/modules/dectalk/tests/dectalk_module_test.cpp:56](../../src/modules/dectalk/tests/dectalk_module_test.cpp#L56) |
 | plain text passes through untouched |  |  | [src/modules/dectalk/tests/dectalk_sanitizer_test.cpp:29](../../src/modules/dectalk/tests/dectalk_sanitizer_test.cpp#L29) |

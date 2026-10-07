@@ -49,13 +49,31 @@
         "LATIBOT_ENABLE_ASAN": "ON",
         "LATIBOT_BUILD_FUZZERS": "ON"
       }
+    },
+    {
+      "name": "core-only",
+      "inherits": "base",
+      "displayName": "The core alone",
+      "description": "Every module off, as CI builds it: the core must build and pass on its own (docs/modules/Module_Plan_Final.md D10).",
+      "binaryDir": "${sourceDir}/build/build-core",
+      "cacheVariables": {
+        "LATIBOT_WITH_DECTALK": "OFF",
+        "LATIBOT_WITH_MUSIC": "OFF",
+        "LATIBOT_WITH_LLM": "OFF",
+        "LATIBOT_WITH_TRIGGERS": "OFF",
+        "LATIBOT_WITH_NICKNAMES": "OFF",
+        "LATIBOT_WITH_MIDNIGHT": "OFF",
+        "LATIBOT_WITH_LINKS": "OFF",
+        "LATIBOT_WITH_LINKSTATS": "OFF"
+      }
     }
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "default", "configuration": "Debug" },
     { "name": "release", "configurePreset": "default", "configuration": "Release" },
     { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
-    { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" }
+    { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" },
+    { "name": "core-only", "configurePreset": "core-only", "configuration": "Debug" }
   ],
   "testPresets": [
     {
@@ -77,6 +95,13 @@
       "configurePreset": "asan",
       "configuration": "Debug",
       "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "core-only",
+      "configurePreset": "core-only",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
     }
   ],
   "workflowPresets": [
@@ -105,6 +130,15 @@
         { "type": "configure", "name": "asan" },
         { "type": "build", "name": "asan" },
         { "type": "test", "name": "asan" }
+      ]
+    },
+    {
+      "name": "core-only",
+      "displayName": "The core alone: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "core-only" },
+        { "type": "build", "name": "core-only" },
+        { "type": "test", "name": "core-only" }
       ]
     }
   ]

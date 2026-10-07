@@ -193,6 +193,23 @@ beside `LatiBot.exe`, so it runs without extra `PATH` setup.
 
 Every test should pass.
 
+### Leaving modules out
+
+Each feature module can be left out of the build, with
+`-DLATIBOT_WITH_<NAME>=OFF` when configuring: `DECTALK`, `MUSIC`, `LLM`,
+`TRIGGERS`, `NICKNAMES`, `MIDNIGHT`, `LINKS` and `LINKSTATS`. A module left
+out takes its commands, tables and config section with it, and the modules
+that require it: no links, no linkstats. Voice has no switch: it is built
+when dectalk or music is. A database keeps a left-out module's tables, so
+switching it back on finds its data where it was.
+
+```powershell
+cmake --preset default -DLATIBOT_WITH_MUSIC=OFF -DLATIBOT_WITH_LLM=OFF
+```
+
+What each module owns is in its README, under `src/modules/<name>/`, and the
+design in [docs/modules/Module_Plan_Final.md](docs/modules/Module_Plan_Final.md).
+
 ## 6. In VS Code
 
 Install the recommended extensions when prompted (`.vscode/extensions.json`),
@@ -591,6 +608,7 @@ command.
 | `default` | `build\build` | the normal Debug/Release build, and the `compile_commands.json` clang-tidy reads | `debug`, `release` |
 | `asan` | `build\build-asan` | our targets with `/fsanitize=address` (needs the ASan component) | `asan` |
 | `fuzz` | `build\build-fuzz` | libFuzzer targets in `tests/fuzz` (needs the ASan component) | none: build, then run by hand |
+| `core-only` | `build\build-core` | every module off: the core must build and pass on its own, as CI checks | `core-only` |
 
 ```powershell
 # AddressSanitizer
@@ -602,6 +620,11 @@ cmake --workflow --preset asan
 cmake --preset fuzz; cmake --build --preset fuzz
 New-Item -ItemType Directory -Force build\build-fuzz\corpus\fuzz_url_scan
 .\build\build-fuzz\bin\Debug\fuzz_url_scan.exe build\build-fuzz\corpus\fuzz_url_scan tests\fuzz\corpus\fuzz_url_scan -max_total_time=60
+
+# Every module, none, and each one left out in turn, in build\build-matrix.
+# Run it before changing the core's public headers or a capability.
+pwsh tools/Test-ModuleMatrix.ps1
+pwsh tools/Test-ModuleMatrix.ps1 -Only llm      # just "everything but llm"
 
 # clang-tidy and clang-format, through the scripts in tools/
 pwsh tools/Invoke-ClangTidy.ps1                  # src/
@@ -626,15 +649,15 @@ nothing is exclusive to the editor.
 
 ```
 CMakeLists.txt      top-level build definition
-CMakePresets.json   default / asan / fuzz presets, and their workflows
+CMakePresets.json   default / asan / fuzz / core-only presets, and their workflows
 conanfile.py        Conan recipe: dpp, openssl, sqlite3, ctre, catch2
 conan/dpp/          the recipe that builds DPP from the third_party/DPP submodule
 config.example.json what the bot writes as config.json on its first run
 .env.example        the environment variables, to copy to .env
 cmake/              warnings, sanitizers, shared helpers, and DECtalk's build
-tools/              dev environment setup, catalog generator, clang-tidy and clang-format wrappers
+tools/              dev environment setup, catalog generator, the module matrix, clang-tidy and clang-format wrappers
 deploy/             Install-Dependencies.ps1, which sets a server up, and its readme; built beside LatiBot.exe
-.github/workflows/  CI: build and test Debug and Release, and a secret scan
+.github/workflows/  CI: build and test Debug, Release, AddressSanitizer and the core alone, and a secret scan
 .vscode/            tasks, launch configurations, IntelliSense and the grouped test tree
 src/app/main.cpp    entry point; LatiBot.exe also links the module list CMake writes
 src/core/           the core, built as the latibot_core static library

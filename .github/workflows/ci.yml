@@ -17,7 +17,10 @@ jobs:
 
     # Release as well as Debug, since NDEBUG changes what is built: the
     # default log level, and anything under #ifdef NDEBUG. AddressSanitizer is
-    # a Debug build of its own, against the same Debug dependencies.
+    # a Debug build of its own, against the same Debug dependencies, and so
+    # is the core alone, every module off, which must build and pass on its
+    # own (docs/modules/Module_Plan_Final.md D10; tools/Test-ModuleMatrix.ps1
+    # tries each module off, locally).
     # clang-tidy and fuzzing stay local (docs/testing/README.md, Tooling).
     # `configuration` is the Conan build type; `test_preset` the workflow.
     strategy:
@@ -33,6 +36,9 @@ jobs:
           - name: AddressSanitizer
             configuration: Debug
             test_preset: asan
+          - name: core only
+            configuration: Debug
+            test_preset: core-only
 
     steps:
       - name: Checkout (with submodules)
