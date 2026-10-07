@@ -9,8 +9,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <exception>
 #include <future>
+#include <memory>
 #include <mutex>
+#include <utility>
 
 namespace latibot::discord {
 namespace {
@@ -99,6 +102,25 @@ auto log_outcome(const commands::unregister_report& report) -> void {
         report.global_deleted, report.guild_deleted, report.guilds_with_commands, report.guilds_checked);
 }
 
+/// The task's result, once DPP's threads have finished it.
+///
+/// Not `dpp::task::sync_wait`: its waiter reads the result unlocked while
+/// the DPP thread finishing the task writes it, and can throw
+/// `bad_variant_access` if it looks halfway through. A future waits properly.
+auto finished(dpp::task<commands::unregister_report> task) -> commands::unregister_report {
+    // Shared, so the job can still be inside `set_value` as this returns.
+    auto done = std::make_shared<std::promise<commands::unregister_report>>();
+    std::future<commands::unregister_report> result = done->get_future();
+    [](dpp::task<commands::unregister_report> awaited, std::shared_ptr<std::promise<commands::unregister_report>> into) -> dpp::job {
+        try {
+            into->set_value(co_await std::move(awaited));
+        } catch (...) {
+            into->set_exception(std::current_exception());
+        }
+    }(std::move(task), done);
+    return result.get();
+}
+
 } // namespace
 
 auto unregister_commands(const std::string& token) -> bool {
@@ -128,7 +150,7 @@ auto unregister_commands(const std::string& token) -> bool {
     util::log().info("signed in as {} ({}); deleting its commands", cluster.me.username, cluster.me.id);
 
     dpp_command_host host(cluster);
-    const commands::unregister_report report = commands::unregister_all(host).sync_wait();
+    const commands::unregister_report report = finished(commands::unregister_all(host));
     log_outcome(report);
 
     cluster.shutdown();
