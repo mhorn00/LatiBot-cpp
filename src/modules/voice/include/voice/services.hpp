@@ -34,7 +34,7 @@ public:
     auto operator=(const services&) -> services& = delete;
 
     /// The only writer to a voice connection: speech and music both go
-    /// through it (docs/features/Music.md §4.2).
+    /// through it (src/modules/music/docs/Music.md §4.2).
     [[nodiscard]] virtual auto mixer() -> audio::voice_mixer& = 0;
 
     /// Which servers have a voice session, and in which channels.

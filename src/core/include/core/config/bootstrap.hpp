@@ -17,7 +17,7 @@
 
 namespace latibot::config {
 
-/// Global settings from `config.json` (docs/features/Operations.md §4).
+/// Global settings from `config.json` (src/core/docs/Operations.md §4).
 ///
 /// Everything guild-specific lives in the database instead, because it is
 /// edited at runtime through commands and panels.
@@ -33,7 +33,7 @@ struct bootstrap {
 
     /// Servers whose administrators may use the DECtalk commands that touch
     /// the host filesystem, and users who may regardless of server
-    /// (docs/features/Speech.md §2.2).
+    /// (src/modules/dectalk/docs/Speech.md §2.2).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 
@@ -100,7 +100,7 @@ inline constexpr bool reads_debug_overrides =
 [[nodiscard]] auto recompute_bot_id_from_environment(bool debug_build = reads_debug_overrides) -> std::optional<dpp::snowflake>;
 
 /// Credentials. These only ever come from the environment, never from a file
-/// that could be committed (docs/features/Operations.md §4).
+/// that could be committed (src/core/docs/Operations.md §4).
 struct secrets {
     std::string discord_token;
 

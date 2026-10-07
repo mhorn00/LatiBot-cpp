@@ -23,7 +23,7 @@ namespace latibot::ui {
 ///
 /// A panel is anything with the panels' shape, `on_component` and
 /// optionally `on_form`, each returning whether it handled the view
-/// (docs/features/Commands_and_Panels.md §4). There is no base class to
+/// (src/core/docs/Commands_and_Panels.md §4). There is no base class to
 /// derive from. Filled while the bot starts, read-only afterwards.
 class panel_routes {
 public:

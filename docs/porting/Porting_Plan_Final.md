@@ -18,11 +18,11 @@ Two conventions worth knowing before reading:
   described as it is intended to behave.
 
 For the user-facing side of what exists today — commands, options, replies —
-see [docs/features/](../features/README.md). This document is the design and
+see [docs/User_Guide.md](../User_Guide.md). This document is the design and
 the order of work behind it.
 
 > **The feature specs take over from here.** Since 2026-09-30, each feature
-> has a spec in [docs/features/](../features/README.md#feature-specs): what it
+> has a spec in [docs/User_Guide.md](../User_Guide.md#feature-specs): what it
 > is for, how it behaves and is built, and the decisions behind it, kept
 > current as the feature changes. This plan stays as the record of how the
 > port was designed, and its numbering is unchanged, since the SQL comments in
@@ -30,20 +30,20 @@ the order of work behind it.
 >
 > | Plan | Spec |
 > |---|---|
-> | §2.2, §2.4, §12, §21.16, §21.17 | [Speech](../features/Speech.md) |
-> | §5.1, §5.2, §7, §21.1–§21.3, §21.7 | [Running the bot](../features/Operations.md) |
-> | §5.3, §21.4, §21.5, §21.13, §21.15, §21.21 | [Commands and panels](../features/Commands_and_Panels.md) |
-> | §5.4, §11.1 | [Message pipeline](../features/Message_Pipeline.md) |
-> | §6 | [Basic commands](../features/Basic_Commands.md), and [Voice channels](../features/Voice_Channels.md) for `/join` and `/leave` |
-> | §8, §21.8, §21.9 | [Nicknames](../features/Nicknames.md) |
-> | §9.1–§9.5, §21.11 | [URL replacement](../features/Url_Replacement.md) |
-> | §9.6, §9.7, §21.12 | [Link stats](../features/Link_Stats.md) |
-> | §10, §21.10 | [Midnight](../features/Midnight.md) |
-> | §11 | [Triggers](../features/Triggers.md) |
-> | §13 | [Voice channels](../features/Voice_Channels.md) |
-> | §14, §21.18–§21.20 | [Language model](../features/Language_Model.md) |
-> | §15, and the mixer half of §13 | [Music](../features/Music.md) (a draft until it is built) |
-> | §8.5, §16 | [Planned.md](../features/Planned.md), until they are built |
+> | §2.2, §2.4, §12, §21.16, §21.17 | [Speech](../../src/modules/dectalk/docs/Speech.md) |
+> | §5.1, §5.2, §7, §21.1–§21.3, §21.7 | [Running the bot](../../src/core/docs/Operations.md) |
+> | §5.3, §21.4, §21.5, §21.13, §21.15, §21.21 | [Commands and panels](../../src/core/docs/Commands_and_Panels.md) |
+> | §5.4, §11.1 | [Message pipeline](../../src/core/docs/Message_Pipeline.md) |
+> | §6 | [Basic commands](../../src/core/docs/Basic_Commands.md), and [Voice channels](../../src/modules/voice/docs/Voice_Channels.md) for `/join` and `/leave` |
+> | §8, §21.8, §21.9 | [Nicknames](../../src/modules/nicknames/docs/Nicknames.md) |
+> | §9.1–§9.5, §21.11 | [URL replacement](../../src/modules/links/docs/Url_Replacement.md) |
+> | §9.6, §9.7, §21.12 | [Link stats](../../src/modules/linkstats/docs/Link_Stats.md) |
+> | §10, §21.10 | [Midnight](../../src/modules/midnight/docs/Midnight.md) |
+> | §11 | [Triggers](../../src/modules/triggers/docs/Triggers.md) |
+> | §13 | [Voice channels](../../src/modules/voice/docs/Voice_Channels.md) |
+> | §14, §21.18–§21.20 | [Language model](../../src/modules/llm/docs/Language_Model.md) |
+> | §15, and the mixer half of §13 | [Music](../../src/modules/music/docs/Music.md) (a draft until it is built) |
+> | §8.5, §16 | [Planned.md](../Planned.md), until they are built |
 > | §17, §21.6 | [docs/testing/](../testing/README.md) |
 >
 > §2.1, §2.3 and §2.5 are findings the specs draw on where they apply. §0,
@@ -602,7 +602,7 @@ and `llm::provider` is an interface of the same kind one level up, with
 
 `/ping`, `/say`, `/status`, `/join`, `/leave`, `/shutdown`, plus `/goodbye` to
 configure the phrase. Exact options and replies are in
-[docs/features/](../features/README.md).
+[docs/User_Guide.md](../User_Guide.md).
 
 **Where they differ from the Java bot, on purpose** (decided in the cleanup
 analysis, after the port had drifted without a record):
@@ -1262,7 +1262,7 @@ with one user (§21.5).
 Designed fresh. The Java `ApiDriver` is ignored: it was fully written but never
 wired up, and its prompt configuration does not survive contact with current
 models. What is built is below; the user-facing side is `/llm`, `/memory` and
-*Talking to the bot* in [docs/features/](../features/README.md). It has been
+*Talking to the bot* in [docs/User_Guide.md](../User_Guide.md). It has been
 tested against recorded provider replies, not yet against a real key (§17.9).
 
 ### 14.1 Providers and models ✅
@@ -1412,7 +1412,7 @@ where each call's cost is written as it arrives, so a reply that fails halfway
 still counts what it spent. Checked before a call, so one call can go past a
 cap and the next is refused. At the cap the model goes quiet on its own, says
 so once per guild per day or month where it was asked, and warns in the log,
-which [`/logs`](../features/README.md#logs) can put in front of the admins.
+which [`/logs`](../User_Guide.md#logs) can put in front of the admins.
 
 ### 14.7 HTTP ✅
 

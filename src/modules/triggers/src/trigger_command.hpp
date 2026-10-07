@@ -46,13 +46,13 @@ inline constexpr std::string_view trigger_list_view = "triggers";
 [[nodiscard]] auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page) -> dpp::message;
 
 // --------------------------------------------------------------------------
-// The panel (docs/features/Triggers.md §2.5)
+// The panel (src/modules/triggers/docs/Triggers.md §2.5)
 //
 // The interactions are distinguished by the view name in the custom_id, which
 // the paginator already encodes and decodes. There is no generic "panel" base:
 // what the panels turned out to share is a shape, a class with `on_component`
 // and `on_form` that routes its own views
-// (docs/features/Commands_and_Panels.md §4).
+// (src/core/docs/Commands_and_Panels.md §4).
 // --------------------------------------------------------------------------
 
 inline constexpr std::string_view trigger_panel_view = "trigpanel";
@@ -136,7 +136,7 @@ private:
 };
 
 /// `/trigger add | edit | remove | list | panel`
-/// (docs/features/Triggers.md §2.4).
+/// (src/modules/triggers/docs/Triggers.md §2.4).
 class trigger_command final : public command {
 public:
     explicit trigger_command(events::trigger_store& store);

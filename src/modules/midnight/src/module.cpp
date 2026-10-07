@@ -60,7 +60,7 @@ public:
         // Polling the wall clock is the fix for the Java bot's random-fire
         // bug: it computed a delay from the wall clock and then waited on a
         // monotonic timer, so a machine that slept woke up and posted at
-        // whatever time it happened to be (docs/features/Midnight.md §1).
+        // whatever time it happened to be (src/modules/midnight/docs/Midnight.md §1).
         bot.every(midnight_tick, "the midnight tick", [this, &bot] {
             for (action& wanted : scheduler_.tick()) {
                 // The scheduler only ever posts.

@@ -19,7 +19,7 @@ namespace latibot::config {
 inline constexpr dpp::snowflake bot_wide{};
 
 /// Per-guild settings, stored in the `guild_settings` table
-/// (docs/features/Operations.md §4).
+/// (src/core/docs/Operations.md §4).
 ///
 /// Values are edited at runtime through commands and panels, so they are read
 /// on every use rather than cached: a change takes effect on the next
@@ -32,7 +32,7 @@ inline constexpr dpp::snowflake bot_wide{};
 ///
 /// The bot uses the text and boolean accessors today. The numeric ones,
 /// `erase` and `all` are tested but wait for `/llm settings`
-/// (docs/features/Language_Model.md §3.7), the panel of numbers they were
+/// (src/modules/llm/docs/Language_Model.md §3.7), the panel of numbers they were
 /// written for.
 class guild_settings {
 public:

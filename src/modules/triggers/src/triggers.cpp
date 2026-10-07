@@ -178,7 +178,7 @@ auto trigger_responder::operator()(const incoming_message& message) -> stage_res
 
         // The allowlist decided this bot may be heard; this decides whether
         // this particular trigger answers it
-        // (docs/features/Message_Pipeline.md §2.1).
+        // (src/core/docs/Message_Pipeline.md §2.1).
         if (message.from_bot && !entry.respond_to_bots) {
             util::log().debug("trigger {} matched a bot's message but does not answer bots", entry.id);
             continue;

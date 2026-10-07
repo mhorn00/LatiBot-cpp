@@ -1,5 +1,5 @@
 // Voice sessions and leaving an empty channel
-// (docs/features/Voice_Channels.md §2.2, §2.3).
+// (src/modules/voice/docs/Voice_Channels.md §2.2, §2.3).
 
 #include "voice/voice_sessions.hpp"
 #include "voice/voice_state.hpp"

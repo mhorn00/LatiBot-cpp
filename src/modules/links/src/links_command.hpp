@@ -29,7 +29,7 @@ inline constexpr std::size_t max_mirrors_per_rule = 8;
 
 inline constexpr std::string_view url_list_view = "urllist";
 
-// The panel (docs/features/Url_Replacement.md §3.5). As with the trigger
+// The panel (src/modules/links/docs/Url_Replacement.md §3.5). As with the trigger
 // panel, the view name in the custom_id says what a button does and the
 // argument carries the domain, so the panel keeps no state and survives a
 // restart.
@@ -73,7 +73,7 @@ auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 
 /// The dry run behind `/links test`: what would be posted for `content`,
 /// and what happened to every link in it
-/// (docs/features/Url_Replacement.md §2.6). It works while replacement is
+/// (src/modules/links/docs/Url_Replacement.md §2.6). It works while replacement is
 /// off, so rules can be tried before anyone sees them, and says so when it
 /// is.
 [[nodiscard]] auto render_test(std::string_view content, std::span<const events::url_rule> rules, bool opted_out, bool enabled)
@@ -118,7 +118,7 @@ private:
 };
 
 /// `/links enable | disable | list | set | remove | test | panel`
-/// (docs/features/Url_Replacement.md §2.6).
+/// (src/modules/links/docs/Url_Replacement.md §2.6).
 class links_command final : public command {
 public:
     explicit links_command(events::url_rule_store& store);
@@ -148,7 +148,7 @@ private:
 /// the permission that manages the rules, which the Java `/toggle` did not
 /// ask for at all. Discord cannot check this for us: everyone may run
 /// `/urltoggle`, and the difference is in an option
-/// (docs/features/Commands_and_Panels.md §2.1).
+/// (src/core/docs/Commands_and_Panels.md §2.1).
 [[nodiscard]] auto urltoggle_refusal(dpp::snowflake invoker, dpp::snowflake target, dpp::permission permissions)
     -> std::optional<std::string>;
 

@@ -5,15 +5,15 @@ from Moonbase Alpha, inline commands and all. `/speak` says something in a
 voice channel, `/chat` answers with a Discord voice message, `/tts` stops
 or skips speech and sets its limits, and a server can build and save
 **custom voices** in the voice lab. How the bot gets into and out of a
-voice channel is [Voice_Channels.md](Voice_Channels.md).
+voice channel is [Voice_Channels.md](../../voice/docs/Voice_Channels.md).
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#speak) has the
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#speak) has the
 commands and replies.
 
 | | |
 |---|---|
-| **Module** | `dectalk`, which requires voice: [its README](../../src/modules/dectalk/README.md) lists what it owns |
+| **Module** | `dectalk`, which requires voice: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/dectalk/src/`: `{dectalk_engine,dectalk_sanitizer,dectalk_speech,speech_queue,voice_params,voice_store,wav}.*`, `{speak_command,chat_command,voice_lab}.*`, `module.cpp`; `cmake/dectalk.cmake`, `cmake/dectalk_zeroed_heap.h`; PCM is voice's |
 | **Tests** | `src/modules/dectalk/tests/` (`latibot_dectalk_tests`), `tests/golden/dectalk.txt`, `tests/fuzz/fuzz_dectalk_sanitizer.cpp` |
 | **Tables** | `tts_voices`, the module's schema version 1 (was migration 10); `tts_max_characters` and `tts_max_seconds` per server in `guild_settings` |
@@ -52,7 +52,7 @@ would let a stranger's server play any `.wav` on the host.
 Speak, by default. It speaks where the bot already is: a voice session's
 channel, or wherever `/join` put it. So it works from any text channel in
 the server. If the bot is not in voice, it joins **your** channel first, as
-the Java bot did. [Music](Music.md) playing there stops for the speech and
+the Java bot did. [Music](../../music/docs/Music.md) playing there stops for the speech and
 carries on afterwards from where it was.
 
 - `voice`: the ten built-in voices (Paul, Betty, Harry, Frank, Dennis, Kit,
@@ -117,7 +117,7 @@ duration cannot: commands that wait instead of making audio, and a
 
 | Subcommand | Who | Does |
 |---|---|---|
-| `stop` | whoever asked for what is playing, an administrator, or a trusted user | Silences the bot and drops everything waiting, **including speech still being made**. Music is not touched: it carries on once speech is over ([Music.md §3.3](Music.md#33-speech-and-music-together)) |
+| `stop` | whoever asked for what is playing, an administrator, or a trusted user | Silences the bot and drops everything waiting, **including speech still being made**. Music is not touched: it carries on once speech is over ([Music.md §3.3](../../music/docs/Music.md#33-speech-and-music-together)) |
 | `skip` | the same | Drops only what is being said now |
 | `limits [characters] [seconds]` | Speak to see; Manage Server to change | Shows or changes §2.3's limits |
 | `voices lab [voice]`, `voices list`, `voices delete voice` | Speak; replacing or deleting a voice is for whoever made it, or an administrator | The custom voices (§3) |

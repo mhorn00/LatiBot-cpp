@@ -26,7 +26,7 @@ struct interaction_create_t;
 
 namespace latibot::commands {
 
-// `/music`, alias `/m` (docs/features/Music.md §3).
+// `/music`, alias `/m` (src/modules/music/docs/Music.md §3).
 
 inline constexpr std::string_view music_volume_key = "music_volume";
 inline constexpr std::string_view music_limit_key = "music_track_limit_minutes";
@@ -98,9 +98,9 @@ struct music_services {
 /// | stop | remove | volume | limit`, and `/m` for short.
 ///
 /// Anyone with Speak may use them, from anywhere in the server
-/// (docs/features/Music.md §3.1). Changing the volume or the track limit,
+/// (src/modules/music/docs/Music.md §3.1). Changing the volume or the track limit,
 /// which stay, needs Manage Server, checked here since default permissions
-/// are per command (docs/features/Commands_and_Panels.md §2.1).
+/// are per command (src/core/docs/Commands_and_Panels.md §2.1).
 class music_command final : public command {
 public:
     explicit music_command(music_services services);

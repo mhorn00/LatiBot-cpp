@@ -17,7 +17,7 @@ class database;
 namespace latibot::llm {
 
 // Who the model is told about, without being told who they are
-// (docs/features/Language_Model.md §3.8). Every person is an alias, like
+// (src/modules/llm/docs/Language_Model.md §3.8). Every person is an alias, like
 // u7kx3q, random and kept per server; their Discord id and their name are
 // never sent. Where the model wants a name it writes a marker, <u7kx3q:name>,
 // which the bot replaces in what it posts.

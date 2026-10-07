@@ -2,8 +2,8 @@
 
 Keeps every nickname a member has had in each server, who changed it when
 that can be known, and lets moderators set one with the bot. How it behaves,
-and why, is [docs/features/Nicknames.md](../../../docs/features/Nicknames.md);
-the commands' replies are in [the user guide](../../../docs/features/README.md#nicknames).
+and why, is [docs/Nicknames.md](docs/Nicknames.md);
+the commands' replies are in [the user guide](../../../docs/User_Guide.md#nicknames).
 
 Built unless `LATIBOT_WITH_NICKNAMES` is off. Leaving it out leaves its table
 and its rows where they are, for when it is built again. The language model's

@@ -1,5 +1,5 @@
 // The bot's own copies of the emojis it has seen
-// (docs/features/Link_Stats.md §10): what to copy, downloading and uploading
+// (src/modules/linkstats/docs/Link_Stats.md §10): what to copy, downloading and uploading
 // them, and pruning.
 
 #include "emoji_copies.hpp"

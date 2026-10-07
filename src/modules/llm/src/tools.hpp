@@ -24,7 +24,7 @@ struct tool_context {
 
     /// The people in this request, by alias: a tool reads aliases the model
     /// passes through it, and shows people to the model as aliases
-    /// (docs/features/Language_Model.md §3.8). Null in a tool's own tests,
+    /// (src/modules/llm/docs/Language_Model.md §3.8). Null in a tool's own tests,
     /// where nobody is named.
     people* cast = nullptr;
 };
@@ -38,7 +38,7 @@ struct tool_outcome {
 using tool_handler = std::function<tool_outcome(const nlohmann::json& input, const tool_context& context)>;
 
 /// The tools the model may call: a name, a JSON schema and a handler each
-/// (docs/features/Language_Model.md §3.4).
+/// (src/modules/llm/docs/Language_Model.md §3.4).
 ///
 /// A registry rather than a fixed set, so a later feature adds a tool
 /// without touching the loop that runs them.
@@ -86,7 +86,7 @@ struct loop_outcome {
 
 /// Asks the model, runs the tools it calls, and asks again, until it answers
 /// or `tool_rounds` rounds of tools have run
-/// (docs/features/Language_Model.md §3.1). The request after the last round
+/// (src/modules/llm/docs/Language_Model.md §3.1). The request after the last round
 /// forbids tools, so the model has to answer with what it has.
 ///
 /// `record` is called with each request's usage as it arrives, so what was

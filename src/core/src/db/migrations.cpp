@@ -364,7 +364,7 @@ constexpr std::array<migration, 15> all_migrations{{
     {.version = 12, .name = "media_posts", .sql = R"sql(
         -- What a row is: one of the bot's link replacements, or an image or
         -- video a person posted, whose reactions are counted too once a
-        -- server turns that on (docs/features/Link_Stats.md 9). An image
+        -- server turns that on (src/modules/linkstats/docs/Link_Stats.md 9). An image
         -- row is the person's own message: original_message_id is itself,
         -- original_author_id the poster, and it has no replacement_links.
         ALTER TABLE replacement_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'link';   -- link | image
@@ -374,7 +374,7 @@ constexpr std::array<migration, 15> all_migrations{{
     {.version = 13, .name = "emoji_copies", .sql = R"sql(
         -- The bot's own copies of the custom emojis it has seen, as
         -- application emojis, so a statistic still shows an emote after its
-        -- server deletes it (docs/features/Link_Stats.md 10).
+        -- server deletes it (src/modules/linkstats/docs/Link_Stats.md 10).
 
         -- What became of each custom emoji's image.
         CREATE TABLE emoji_images (
@@ -407,7 +407,7 @@ constexpr std::array<migration, 15> all_migrations{{
     {.version = 14, .name = "emote_reactions", .sql = R"sql(
         -- Emojis somebody sent as a message of their own just after a post,
         -- or as a reply to it, which count as reactions to it
-        -- (docs/features/Link_Stats.md 12). Apart from reactions, which a
+        -- (src/modules/linkstats/docs/Link_Stats.md 12). Apart from reactions, which a
         -- recompute reads back from Discord's reaction lists; these only the
         -- messages say.
         CREATE TABLE emote_reactions (
@@ -437,7 +437,7 @@ constexpr std::array<migration, 15> all_migrations{{
      )sql"},
     {.version = 15, .name = "llm_aliases", .sql = R"sql(
         -- What the language model calls each person, in place of their
-        -- Discord id and their name (docs/features/Language_Model.md 3.8).
+        -- Discord id and their name (src/modules/llm/docs/Language_Model.md 3.8).
         -- Random, one per person per server, and kept, so memories that
         -- name someone by alias still mean them later.
         CREATE TABLE llm_aliases (

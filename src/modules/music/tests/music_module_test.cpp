@@ -1,6 +1,6 @@
 // Music as a module: its config section, the sign-in it reads, and what it
 // brings to the bot when it starts (docs/modules/Module_Plan_Final.md §4,
-// docs/features/Music.md).
+// src/modules/music/docs/Music.md).
 
 #include "music/module.hpp"
 

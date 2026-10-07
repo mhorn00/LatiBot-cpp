@@ -24,8 +24,8 @@ inline constexpr std::int64_t max_voice_grace_seconds = 600;
 /// leaving, with anything out of range clamped.
 [[nodiscard]] auto voice_grace_for(const config::guild_settings& settings, dpp::snowflake guild) -> std::chrono::seconds;
 
-/// Voice sessions (docs/features/Voice_Channels.md §2.2). The guild's
-/// custom voices are `/tts voices` (docs/features/Speech.md §3).
+/// Voice sessions (src/modules/voice/docs/Voice_Channels.md §2.2). The guild's
+/// custom voices are `/tts voices` (src/modules/dectalk/docs/Speech.md §3).
 class voice_command final : public command {
 public:
     voice_command(events::voice_sessions& sessions, config::guild_settings& settings);

@@ -19,7 +19,7 @@ struct found_link {
     std::string_view url;
 
     /// Inside an open `||` spoiler, so anything posted in its place should be
-    /// spoilered too (docs/features/Url_Replacement.md §3.1). Markers inside
+    /// spoilered too (src/modules/links/docs/Url_Replacement.md §3.1). Markers inside
     /// code do not count, since Discord shows them as text there.
     bool spoilered = false;
 
@@ -53,7 +53,7 @@ struct text_span {
 /// Each link is found separately, which is the fix for the Java bot's worst
 /// bug here: its pattern wrapped the URL in greedy `(.*)` groups, so the
 /// first match swallowed the whole message and a second link was never seen
-/// (docs/features/Url_Replacement.md §3.1). Trailing punctuation that Discord
+/// (src/modules/links/docs/Url_Replacement.md §3.1). Trailing punctuation that Discord
 /// leaves out of a link is left out here too, so "look: https://x.com/a."
 /// does not carry the full stop along.
 ///
@@ -91,7 +91,7 @@ struct url_parts {
 ///
 /// The suffix goes on the path, before any query or fragment, which is where
 /// a mirror's translation switch has to be
-/// (docs/features/Url_Replacement.md §2.2). A path ending in '/' does not
+/// (src/modules/links/docs/Url_Replacement.md §2.2). A path ending in '/' does not
 /// become "//en", and a path that already ends in the suffix does not get it
 /// twice. The scheme is always https: every mirror worth using serves it.
 [[nodiscard]] auto rehost(const url_parts& parts, std::string_view host, std::string_view path_suffix = {}) -> std::string;

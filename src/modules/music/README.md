@@ -2,8 +2,8 @@
 
 Plays music in voice channels: a link, or a search, through yt-dlp and
 ffmpeg, queued per server, with a page of what is playing. How it behaves,
-and why, is [docs/features/Music.md](../../../docs/features/Music.md); the
-commands' replies are in [the user guide](../../../docs/features/README.md#music).
+and why, is [docs/Music.md](docs/Music.md); the
+commands' replies are in [the user guide](../../../docs/User_Guide.md#music).
 
 Built unless `LATIBOT_WITH_MUSIC` is off; it requires voice, whose mixer it
 plays through.

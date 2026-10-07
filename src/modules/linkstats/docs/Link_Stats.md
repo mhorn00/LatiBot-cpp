@@ -8,11 +8,11 @@ of channel history back into those counts, and it keeps its own copy of every
 custom emoji it counts.
 
 This is the feature's working document. It records how the feature works,
-what was decided and why, and what has been asked for. [The user guide](README.md#linkstats) says how to use it.
+what was decided and why, and what has been asked for. [The user guide](../../../../docs/User_Guide.md#linkstats) says how to use it.
 
 | | |
 |---|---|
-| **Module** | `linkstats`, which requires `links`: [its README](../../src/modules/linkstats/README.md) lists what it owns |
+| **Module** | `linkstats`, which requires `links`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/linkstats/src/`: `linkstats_command.*`, `{reactions,backfill,legacy_replacements,media_posts,emoji_copies,emote_reactions}.*`, `module.cpp` |
 | **Tests** | `src/modules/linkstats/tests/` (`latibot_linkstats_tests`), `tests/fuzz/fuzz_legacy_parser.cpp` |
 | **Tables** | its own: `reactions`, `emote_reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `backfill_progress`, `emoji_images`, `emoji_copies`, the view `counted_reactions`; links': `replacement_messages`, `replacement_links`, `known_mirrors` |

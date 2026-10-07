@@ -92,12 +92,12 @@ private:
     auto on_ready(const dpp::ready_t& event) -> void;
 
     /// Starts the core's timers: the log channel's and the database backups
-    /// (docs/features/Operations.md §2). Modules start their own.
+    /// (src/core/docs/Operations.md §2). Modules start their own.
     auto register_timers() -> void;
 
     /// Warns about anything the bot cannot do in this guild. Never fatal: a
     /// missing permission disables one feature, not the bot
-    /// (docs/features/Operations.md §6).
+    /// (src/core/docs/Operations.md §6).
     auto check_permissions(const dpp::guild& guild) const -> void;
 
     /// Turns a DPP message into the plain struct the stages work on, which is

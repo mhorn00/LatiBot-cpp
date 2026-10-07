@@ -2,7 +2,7 @@
 
 **Status:** parked. Not part of the port. Written down so it isn't forgotten.
 **Date:** 2026-09-20
-**Related:** [../features/Url_Replacement.md](../features/Url_Replacement.md) (URL replacement)
+**Related:** [Url_Replacement.md](../../src/modules/links/docs/Url_Replacement.md) (URL replacement)
 
 ---
 

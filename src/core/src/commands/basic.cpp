@@ -213,7 +213,7 @@ auto status_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void
     const saved_status status{.text = string_option(event, "status"), .type = string_option(event, "type")};
 
     // Kept as well as set, so the next start puts it back
-    // (docs/features/Basic_Commands.md §2).
+    // (src/core/docs/Basic_Commands.md §2).
     cluster_->set_presence(presence_for(status));
     save_status(*settings_, status);
     util::log().info("status set to {} \"{}\" by {}", status.type.empty() ? "playing" : status.type, status.text,
@@ -233,7 +233,7 @@ shutdown_command::shutdown_command(std::function<void()> request_shutdown)
             .default_member_permissions = dpp::permission(dpp::p_administrator),
             .guild_only = true,
             // Everyone is about to lose the bot; they hear it go
-            // (docs/features/Basic_Commands.md §2).
+            // (src/core/docs/Basic_Commands.md §2).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       request_shutdown_(std::move(request_shutdown)) {}

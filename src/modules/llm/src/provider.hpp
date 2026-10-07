@@ -13,7 +13,7 @@
 namespace latibot::llm {
 
 // The conversation as the bot sees it, whichever provider answers
-// (docs/features/Language_Model.md §3.2). Each provider translates this into
+// (src/modules/llm/docs/Language_Model.md §3.2). Each provider translates this into
 // its own request and its reply back into this, so everything above the
 // providers is written once.
 
@@ -67,7 +67,7 @@ struct request {
     /// The part of the instructions that is the same from one message to the
     /// next: the fixed rules and the guild's documents. Marked for prompt
     /// caching, since it is sent with every request
-    /// (docs/features/Language_Model.md §3.3).
+    /// (src/modules/llm/docs/Language_Model.md §3.3).
     std::string stable_system;
 
     /// The part that changes with every message, such as the memories that
@@ -83,7 +83,7 @@ struct request {
     bool allow_tools = true;
 
     /// Thinking included, on the models that think
-    /// (docs/features/Language_Model.md §3.2).
+    /// (src/modules/llm/docs/Language_Model.md §3.2).
     int max_output_tokens = 1024;
 };
 
@@ -128,7 +128,7 @@ struct response {
     usage used;
 };
 
-/// A company's model API (docs/features/Language_Model.md §3.2).
+/// A company's model API (src/modules/llm/docs/Language_Model.md §3.2).
 ///
 /// A reply the provider refused, a rate limit or an overloaded model comes
 /// back as an `api_error` carrying the HTTP status and the provider's own

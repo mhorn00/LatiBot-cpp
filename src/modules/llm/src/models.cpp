@@ -10,7 +10,7 @@ namespace {
 
 // Checked against the providers' pricing pages in September 2026. None of
 // these take `temperature`: every current Claude model answers a non-default
-// one with a 400 (docs/features/Language_Model.md §3.2), so no request sends
+// one with a 400 (src/modules/llm/docs/Language_Model.md §3.2), so no request sends
 // it. OpenAI's models take a reasoning effort instead of Claude's, set by the
 // OpenAI provider.
 constexpr std::array<model_info, 8> models{{

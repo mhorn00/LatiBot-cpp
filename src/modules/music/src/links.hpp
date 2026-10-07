@@ -7,7 +7,7 @@
 
 namespace latibot::music {
 
-// What `/music play` accepts (docs/features/Music.md §6): an http(s) link,
+// What `/music play` accepts (src/modules/music/docs/Music.md §6): an http(s) link,
 // and never one into the host's own network, since yt-dlp would fetch it
 // from there.
 

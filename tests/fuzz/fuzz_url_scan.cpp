@@ -1,5 +1,5 @@
 // Fuzzes the link scanner and replacement planning, which see every message
-// (docs/features/Url_Replacement.md §3.1).
+// (src/modules/links/docs/Url_Replacement.md §3.1).
 
 #include "core/util/url_scan.hpp"
 #include "links/url_rules.hpp"

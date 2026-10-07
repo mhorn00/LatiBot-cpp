@@ -1,5 +1,5 @@
 // Linkstats as a module: its config section, and what it brings to the bot
-// when it starts (docs/modules/Module_Plan_Final.md §4, docs/features/Link_Stats.md).
+// when it starts (docs/modules/Module_Plan_Final.md §4, src/modules/linkstats/docs/Link_Stats.md).
 
 #include "linkstats/module.hpp"
 

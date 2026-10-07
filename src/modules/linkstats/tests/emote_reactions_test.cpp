@@ -1,5 +1,5 @@
 // Emotes sent as reactions: a message of nothing but emojis just after a
-// post, or a reply to it (docs/features/Link_Stats.md §12). What counts as
+// post, or a reply to it (src/modules/linkstats/docs/Link_Stats.md §12). What counts as
 // one, which messages count, storing them, and counting them as they arrive.
 
 #include "emote_reactions.hpp"

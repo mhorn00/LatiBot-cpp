@@ -8,7 +8,7 @@ release.
 
 The build copies this file and the script beside `LatiBot.exe`, so a build
 output folder copied to a server has them already. How music uses all of
-this is in `docs/features/Music.md` in the repository: §4.9 for signing in,
+this is in `src/modules/music/docs/Music.md` in the repository: §4.9 for signing in,
 §4.10 for PO tokens, §5 for the programs.
 
 ## What it installs
@@ -134,7 +134,7 @@ else is fetched signed out, as it would be with no account at all.
   account, so keep `data\` to yourself.
 
 The bot can also sign in with a `cookies.txt` exported from a browser,
-named by `LATIBOT_YTDLP_COOKIES`, as `docs/features/Music.md` §4.9 describes.
+named by `LATIBOT_YTDLP_COOKIES`, as `src/modules/music/docs/Music.md` §4.9 describes.
 It has to be exported again whenever YouTube ends that sign-in; the profile
 does not. When both are set, the profile is used.
 

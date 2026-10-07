@@ -1,5 +1,5 @@
 // Nicknames as a module: its config section, and what it brings to the bot
-// when it starts (docs/modules/Module_Plan_Final.md §4, docs/features/Nicknames.md).
+// when it starts (docs/modules/Module_Plan_Final.md §4, src/modules/nicknames/docs/Nicknames.md).
 
 #include "nicknames/module.hpp"
 
@@ -50,7 +50,7 @@ auto readme() -> std::filesystem::path {
 TEST_CASE("nickname tracking is on unless the config turns it off", "[nicknames]") {
     // This is the one setting that decides which gateway intents are asked
     // for, so a wrong value is the difference between connecting and being
-    // turned away (docs/features/Operations.md §3).
+    // turned away (src/core/docs/Operations.md §3).
     const auto& section = latibot::nicknames::nicknames_section();
     CHECK(section.read(nlohmann::json::object()).track_changes);
     CHECK_FALSE(section.read(nlohmann::json::parse(R"({"track_changes": false})")).track_changes);

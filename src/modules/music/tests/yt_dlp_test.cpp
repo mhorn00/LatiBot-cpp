@@ -1,5 +1,5 @@
 // Reading links with yt-dlp and decoding them with ffmpeg
-// (docs/features/Music.md §4.4, §4.5). The argument lists and the JSON are
+// (src/modules/music/docs/Music.md §4.4, §4.5). The argument lists and the JSON are
 // checked directly; running them uses a stand-in program
 // (tests/support/test_child.cpp), and the real programs are [live].
 

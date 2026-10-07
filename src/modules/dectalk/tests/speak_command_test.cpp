@@ -1,4 +1,4 @@
-// What /speak and /tts decide (docs/features/Speech.md §2.1, §2.4).
+// What /speak and /tts decide (src/modules/dectalk/docs/Speech.md §2.1, §2.4).
 
 #include "speak_command.hpp"
 #include "core/commands/registry.hpp"

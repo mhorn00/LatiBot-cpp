@@ -25,7 +25,7 @@ class clock;
 namespace latibot::llm {
 
 /// A trigger that asks the model to say something, rather than picking a
-/// fixed reply (docs/features/Language_Model.md §2.6).
+/// fixed reply (src/modules/llm/docs/Language_Model.md §2.6).
 struct advanced_trigger {
     std::int64_t id = 0;
     dpp::snowflake guild_id;

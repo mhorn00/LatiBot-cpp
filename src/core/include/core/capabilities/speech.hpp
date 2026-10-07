@@ -13,7 +13,7 @@ namespace latibot::capabilities {
 // an implementation; the one that wants it asks, and copes with nothing.
 
 /// Saying text aloud in a server's voice channel, for the language model's
-/// replies (docs/features/Language_Model.md §2.5). Offered by DECtalk's
+/// replies (src/modules/llm/docs/Language_Model.md §2.5). Offered by DECtalk's
 /// speech; without it, the model never speaks.
 class speech {
 public:

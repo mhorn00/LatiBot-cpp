@@ -1,5 +1,5 @@
 // Links as a module: what it brings to the bot when it starts
-// (docs/modules/Module_Plan_Final.md §4, docs/features/Url_Replacement.md).
+// (docs/modules/Module_Plan_Final.md §4, src/modules/links/docs/Url_Replacement.md).
 
 #include "links/module.hpp"
 
@@ -43,7 +43,7 @@ auto readme() -> std::filesystem::path {
 TEST_CASE("links asks for Embed Links and Manage Messages in every server", "[links]") {
     // Without Embed Links a replacement posts with no preview, which looks
     // like a broken mirror; without Manage Messages the original's preview
-    // stays (docs/features/Operations.md §6).
+    // stays (src/core/docs/Operations.md §6).
     test_host bot;
     const module_list modules = start_links(bot);
 

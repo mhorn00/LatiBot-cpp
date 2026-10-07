@@ -15,7 +15,7 @@
 namespace latibot::music {
 
 // A server's queue, as plain data with the rules as functions
-// (docs/features/Music.md §3.1, §3.2). Each of the Java bot's queue bugs
+// (src/modules/music/docs/Music.md §3.1, §3.2). Each of the Java bot's queue bugs
 // (§2) has a test against these.
 
 /// The most tracks a server's queue holds, the one playing included.

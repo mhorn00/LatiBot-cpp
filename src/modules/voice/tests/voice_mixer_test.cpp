@@ -1,5 +1,5 @@
 // The mixer: speech and music on one voice connection
-// (docs/features/Music.md §4.2). Music is a ramp of numbered samples, so
+// (src/modules/music/docs/Music.md §4.2). Music is a ramp of numbered samples, so
 // "music resumed exactly where it stopped" is a check on the numbers heard.
 
 #include "voice/voice_mixer.hpp"

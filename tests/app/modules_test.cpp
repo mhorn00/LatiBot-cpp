@@ -266,7 +266,7 @@ TEST_CASE("the example config is exactly what the bot writes, every module's sec
 TEST_CASE("a message with a joke and a link gets both", "[app]") {
     // The Java bot's early returns answered "nice" and skipped the link. The
     // replacement is the links module's stage and the reply the triggers
-    // module's (docs/features/Message_Pipeline.md §2.2).
+    // module's (src/core/docs/Message_Pipeline.md §2.2).
     test_host bot;
     const module_list modules = latibot::modules::start_modules(latibot::modules::enabled_modules, bot, bot.offered);
     if (bot.registry.find("trigger") == nullptr) SKIP("this build leaves out the triggers module");

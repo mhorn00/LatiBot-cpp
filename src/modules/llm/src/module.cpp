@@ -138,7 +138,7 @@ constexpr std::array<db::migration, 1> llm_steps{{
         CREATE INDEX llm_triggers_by_guild ON llm_triggers (guild_id);
 
         -- What the language model calls each person, in place of their
-        -- Discord id and their name (docs/features/Language_Model.md 3.8).
+        -- Discord id and their name (src/modules/llm/docs/Language_Model.md 3.8).
         -- Random, one per person per server, and kept, so memories that name
         -- someone by alias still mean them later.
         CREATE TABLE llm_aliases (
@@ -185,7 +185,7 @@ public:
         if (keys_.openai) bot.secret(*keys_.openai);
 
         // The model's memory, as tools it can call
-        // (docs/features/Language_Model.md §3.4).
+        // (src/modules/llm/docs/Language_Model.md §3.4).
         add_memory_tools(tools_, memories_);
 
         // Info: a missing key is the whole reason the model would never
@@ -238,7 +238,7 @@ public:
 
         // Last: it consumes what it answers, and a simple trigger's reply
         // before it keeps an advanced trigger quiet
-        // (docs/features/Message_Pipeline.md §2.2).
+        // (src/core/docs/Message_Pipeline.md §2.2).
         bot.add_stage(
             events::stage_order::model, "language model",
             events::carried_out_by<ask_llm>([this](const events::incoming_message& message) { return (*stage_)(message); },
@@ -276,9 +276,9 @@ private:
     }
 
     /// Waits out any pacing, then has the model answer
-    /// (docs/features/Language_Model.md).
+    /// (src/modules/llm/docs/Language_Model.md).
     auto answer(ask_llm ask) -> dpp::task<void> {
-        // Bot-to-bot pacing (docs/features/Language_Model.md §2.7). The turn
+        // Bot-to-bot pacing (src/modules/llm/docs/Language_Model.md §2.7). The turn
         // was claimed when the stage decided, so the wait only spaces it out.
         if (ask.wait > std::chrono::seconds::zero()) co_await bot_->cluster().co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
         co_await responder_->answer(std::move(ask));

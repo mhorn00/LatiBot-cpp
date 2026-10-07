@@ -6,13 +6,13 @@ Java bot's `420` → "nice", generalised: any pattern, any number of
 responses, a cooldown, and a panel to manage them.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#trigger) says how to
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#trigger) says how to
 use it, with every reply. The triggers that ask the language model to answer
-instead are [advanced triggers](Language_Model.md#26-advanced-triggers).
+instead are [advanced triggers](../../llm/docs/Language_Model.md#26-advanced-triggers).
 
 | | |
 |---|---|
-| **Module** | `triggers`: [its README](../../src/modules/triggers/README.md) lists what it owns |
+| **Module** | `triggers`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/triggers/src/`: `triggers.*`, `trigger_command.*` (the command and `trigger_panel`), `module.cpp` |
 | **Tests** | `src/modules/triggers/tests/`, built as `latibot_triggers_tests`; a trigger beside a link in `tests/app` |
 | **Tables** | `triggers`, `trigger_responses`, the module's schema version 1 (was migrations 2, 3 and 9) |
@@ -62,11 +62,11 @@ text, and the only choice is whether it must stand alone as a word.
   and 0 turns it off. Two channels do not share one. Cooldowns are forgotten
   on restart, which costs at most one extra reply.
 - A trigger **does not consume** the message: one with `420` and a link gets
-  the reply and the [link replacement](Url_Replacement.md). A reply marks the
-  message **answered**, so no [advanced trigger](Language_Model.md#26-advanced-triggers)
+  the reply and the [link replacement](../../links/docs/Url_Replacement.md). A reply marks the
+  message **answered**, so no [advanced trigger](../../llm/docs/Language_Model.md#26-advanced-triggers)
   also answers it.
 - **Bots** reach triggers only where a server allowed them
-  ([Message_Pipeline.md §2.1](Message_Pipeline.md#21-who-is-heard)), and
+  ([Message_Pipeline.md §2.1](../../../core/docs/Message_Pipeline.md#21-who-is-heard)), and
   even then a trigger answers one only with `bots:true`, off by default.
 
 ### 2.3 No defaults

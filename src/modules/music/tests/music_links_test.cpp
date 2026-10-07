@@ -1,5 +1,5 @@
 // What /music play accepts, and the addresses it will never fetch from
-// (docs/features/Music.md §6).
+// (src/modules/music/docs/Music.md §6).
 
 #include "links.hpp"
 

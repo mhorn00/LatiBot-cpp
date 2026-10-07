@@ -6,9 +6,9 @@ level. There is one for the whole bot, and only the people in
 `trusted_users` can set it.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#logs) has the
+and what was decided and why. [The user guide](../../../docs/User_Guide.md#logs) has the
 subcommands and replies, and the root README's
-[Logging](../../README.md#logging) covers the console log and its levels.
+[Logging](../../../README.md#logging) covers the console log and its levels.
 
 | | |
 |---|---|

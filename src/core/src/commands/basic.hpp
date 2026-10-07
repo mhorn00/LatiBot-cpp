@@ -67,7 +67,7 @@ struct say_decision {
 [[nodiscard]] auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::activity;
 
 /// The last `/status`, kept so a restart does not clear it
-/// (docs/features/Basic_Commands.md §2).
+/// (src/core/docs/Basic_Commands.md §2).
 struct saved_status {
     std::string text;
 
@@ -146,7 +146,7 @@ private:
 };
 
 /// Shows or changes the phrase that stops the bot
-/// (docs/features/Basic_Commands.md §3).
+/// (src/core/docs/Basic_Commands.md §3).
 ///
 /// Separate from `/shutdown` because it edits a setting rather than acting on
 /// it, and because the phrase is per guild while `/shutdown` is not.

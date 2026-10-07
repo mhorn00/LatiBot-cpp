@@ -37,7 +37,7 @@ auto require_int(const json& object, std::string_view key) -> int {
 
 /// Snowflakes are 64-bit and JSON numbers are doubles, which silently lose
 /// precision past 2^53, so IDs are written as strings everywhere they cross a
-/// JSON boundary (docs/features/Operations.md §4).
+/// JSON boundary (src/core/docs/Operations.md §4).
 auto require_snowflakes(const json& object, std::string_view key) -> std::vector<dpp::snowflake> {
     const auto& value = object.at(std::string(key));
     if (!value.is_array()) wrong_type(key, "an array of ID strings");
@@ -260,7 +260,7 @@ auto recompute_bot_id_from_environment(bool debug_build) -> std::optional<dpp::s
 auto bootstrap::is_trusted(dpp::snowflake guild_id, dpp::snowflake user_id, bool administrator) const -> bool {
     if (std::ranges::find(trusted_users, user_id) != trusted_users.end()) return true;
     // Administrator is per server, so it only counts in a server we trust
-    // (docs/features/Speech.md §2.2).
+    // (src/modules/dectalk/docs/Speech.md §2.2).
     return administrator && std::ranges::find(trusted_guilds, guild_id) != trusted_guilds.end();
 }
 

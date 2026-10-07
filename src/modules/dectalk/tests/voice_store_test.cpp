@@ -1,4 +1,4 @@
-// Custom voices, kept per guild (docs/features/Speech.md §3).
+// Custom voices, kept per guild (src/modules/dectalk/docs/Speech.md §3).
 
 #include "voice_store.hpp"
 #include "core/db/database.hpp"

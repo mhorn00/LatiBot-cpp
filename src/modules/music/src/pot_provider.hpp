@@ -12,7 +12,7 @@
 
 namespace latibot::music {
 
-// bgutil's PO token provider (docs/features/Music.md §4.10): a small server
+// bgutil's PO token provider (src/modules/music/docs/Music.md §4.10): a small server
 // on the bot's own machine that yt-dlp's bgutil plugin asks for the proof
 // of origin tokens YouTube wants from its clients, so yt-dlp's requests look
 // like the clients they claim to be. Install-Dependencies.ps1 puts it beside

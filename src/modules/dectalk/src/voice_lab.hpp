@@ -30,7 +30,7 @@ struct saved_voice;
 
 namespace latibot::commands {
 
-// The voice lab's views (docs/features/Speech.md §3). All of them act on the
+// The voice lab's views (src/modules/dectalk/docs/Speech.md §3). All of them act on the
 // draft of whoever pressed them, so none needs an argument but the forms,
 // which say which group they edit.
 inline constexpr std::string_view lab_edit_view = "vlabedit";

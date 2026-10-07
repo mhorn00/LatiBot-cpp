@@ -46,7 +46,7 @@ struct music_status {
     bool paused = false;
 };
 
-/// Plays each server's queue through the mixer (docs/features/Music.md §4.3).
+/// Plays each server's queue through the mixer (src/modules/music/docs/Music.md §4.3).
 ///
 /// The queue's rules are `music_queue`'s; this adds the streams, the
 /// markers, and moving on. A track ends when its end marker has been heard,

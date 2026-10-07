@@ -5,15 +5,15 @@ How the bot gets into a voice channel, what plays there, and how it leaves.
 ties it to a text channel, so `/speak` from anywhere in the server and the
 language model's replies in that channel are heard there. The bot also
 **leaves on its own** once it has been alone for a while. What it says is
-[Speech.md](Speech.md).
+[Speech.md](../../dectalk/docs/Speech.md).
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#join--leave) has
-`/join`, `/leave` and [`/voice`](README.md#voice), with every reply.
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#join--leave) has
+`/join`, `/leave` and [`/voice`](../../../../docs/User_Guide.md#voice), with every reply.
 
 | | |
 |---|---|
-| **Module** | `voice`, built when dectalk or music is: [its README](../../src/modules/voice/README.md) lists what it owns |
+| **Module** | `voice`, built when dectalk or music is: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/voice/`: `include/voice/{services,voice_mixer,voice_output,pcm,voice_sessions,voice_state}.hpp`, `src/{join_command,voice_command,dpp_voice_output,module}.*`; speech's queue is dectalk's (`src/modules/dectalk/src/speech_queue.*`) |
 | **Tests** | `src/modules/voice/tests/` (`latibot_voice_tests`), `tests/mocks/mock_voice.hpp` |
 | **Tables** | `voice_grace_seconds` per server in `guild_settings` |
@@ -32,7 +32,7 @@ and what was decided and why. [The user guide](README.md#join--leave) has
 
 In the Java bot, speech was a `.wav` queued as a music track on LavaPlayer,
 and the bot stayed in a channel until told to leave. The port keeps speech
-and [music](Music.md) apart: both go through a **mixer**, which is the only
+and [music](../../music/docs/Music.md) apart: both go through a **mixer**, which is the only
 thing that writes to the connection, and speech always comes first. A voice session exists so that a conversation with
 the bot can happen in text and be heard in voice, without anyone having to
 be in the right text channel to use `/speak`. Auto-leave exists because a
@@ -64,7 +64,7 @@ While a session lasts:
 
 - `/speak` from **any** channel in the server speaks in the session's voice
   channel;
-- the [language model](Language_Model.md#25-replies-in-a-voice-session)'s
+- the [language model](../../llm/docs/Language_Model.md#25-replies-in-a-voice-session)'s
   replies in the session's **text** channel are spoken as well as posted.
 
 One session per server. It ends on `/voice stop`, `/leave`, a disconnect, or
@@ -95,7 +95,7 @@ DPP's connection. Music is fed to it a few seconds at a time; when speech
 arrives, the music not yet heard is taken back and the speech plays at once,
 and the music resumes afterwards from exactly where it stopped. DPP keeps one
 queue per connection, so it only ever holds one of the two.
-[Music.md §4.2](Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this)
+[Music.md §4.2](../../music/docs/Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this)
 has the detail. Towards speech, the mixer is a `voice_output`, so the speech
 queue below did not change when music arrived.
 

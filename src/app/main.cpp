@@ -22,7 +22,7 @@ auto main(int argc, char** argv) -> int {
 
         // .env is a local-run convenience only, gitignored, and never
         // overrides a variable the real environment already set
-        // (docs/features/Operations.md §4: secrets still come from the
+        // (src/core/docs/Operations.md §4: secrets still come from the
         // environment, just optionally populated from this file first).
         latibot::util::load_dotenv(".env");
 

@@ -3,8 +3,8 @@
 Counts the reactions on the bot's link replacements, and on people's image
 and video posts where a server asks, with emotes sent as messages counted as
 reactions; ranks them; and keeps the bot's own copies of the emojis it has
-seen. How it behaves, and why, is [docs/features/Link_Stats.md](../../../docs/features/Link_Stats.md);
-the commands' replies are in [the user guide](../../../docs/features/README.md#linkstats).
+seen. How it behaves, and why, is [docs/Link_Stats.md](docs/Link_Stats.md);
+the commands' replies are in [the user guide](../../../docs/User_Guide.md#linkstats).
 
 Built unless `LATIBOT_WITH_LINKSTATS` is off. It requires links: its tables
 refer to links' `replacement_messages`, and it finds the bot's old

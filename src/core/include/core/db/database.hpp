@@ -14,7 +14,7 @@ namespace latibot::db {
 /// An open SQLite database.
 ///
 /// One connection, guarded by a recursive mutex
-/// (docs/features/Operations.md §5). The bot's load is tiny, so a single
+/// (src/core/docs/Operations.md §5). The bot's load is tiny, so a single
 /// serialized connection is simpler than a pool and removes every question
 /// about which thread owns what. `prepare()` and `transaction` hold the lock
 /// for as long as they live.
@@ -62,7 +62,7 @@ public:
     [[nodiscard]] auto changes() -> int;
 
     /// Schema version, held in `PRAGMA user_version`
-    /// (docs/features/Operations.md §5).
+    /// (src/core/docs/Operations.md §5).
     [[nodiscard]] auto user_version() -> int;
     auto set_user_version(int version) -> void;
 

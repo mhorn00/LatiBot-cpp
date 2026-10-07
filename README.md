@@ -261,7 +261,7 @@ go and find when that happens.
 
 ### Starting it
 
-Secrets come from the environment only ([why](docs/features/Operations.md#4-configuration)): `DISCORD_BOT_TOKEN`,
+Secrets come from the environment only ([why](src/core/docs/Operations.md#4-configuration)): `DISCORD_BOT_TOKEN`,
 and optionally `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` for the language model.
 Without either key the model never answers, and the log says so at startup.
 Either set them in the shell:
@@ -354,7 +354,7 @@ Each feature's keys are in an object of their own, its **section**:
 `llm` section. A file from before sections, with `llm_model` and the like at
 the top, still works: each old key is read where it now belongs, and the log
 says where to move it. Setting a key both ways stops startup. A section for a
-module this build leaves out is ignored, with a warning. To use the trusted commands, including [`/logs`](docs/features/README.md#logs),
+module this build leaves out is ignored, with a warning. To use the trusted commands, including [`/logs`](docs/User_Guide.md#logs),
 put your own user ID in `trusted_users`:
 
 ```json
@@ -371,16 +371,16 @@ put your own user ID in `trusted_users`:
 | `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands: `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` |
 | `trusted_users` | list of IDs, as text | none | users who may use those commands in any server, and the only ones who may choose the log channel (`/logs`) |
 | `nicknames.track_changes` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above); was `track_nicknames` |
-| `linkstats.emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](docs/features/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
+| `linkstats.emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](src/modules/linkstats/docs/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 | `llm.provider` | text | `anthropic` | `anthropic` or `openai`: whose model `llm.model` is; was `llm_provider` |
-| `llm.model` | text | `claude-haiku-4-5` | the model a server uses until `/llm model` picks another; must be one the bot [knows the price of](docs/features/README.md#llm); was `llm_model` |
+| `llm.model` | text | `claude-haiku-4-5` | the model a server uses until `/llm model` picks another; must be one the bot [knows the price of](docs/User_Guide.md#llm); was `llm_model` |
 | `llm.spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
 | `llm.spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
 | `llm.tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1; was `llm_tool_rounds` |
-| `music.ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](docs/features/Music.md); empty looks beside the bot, then on `PATH` |
+| `music.ytdlp_path` | text | empty | where `yt-dlp.exe` is, for [music](src/modules/music/docs/Music.md); empty looks beside the bot, then on `PATH` |
 | `music.ffmpeg_path` | text | empty | where `ffmpeg.exe` is, likewise |
 | `music.deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
-| `music.pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](docs/features/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
+| `music.pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](src/modules/music/docs/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
 | `music.pot_provider_port` | number | `4416` | the port the provider listens on, on this machine only; 1 to 65535 |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
@@ -459,7 +459,7 @@ from a level of its own: a console at `info` and a channel at `debug` each get
 their share. There is one for the whole bot, kept across restarts, and only
 `trusted_users` can set it, since it covers every server. The token and API
 keys are masked in anything posted.
-[docs/features/](docs/features/README.md#logs) has the details.
+[The user guide](docs/User_Guide.md#logs) has the details.
 
 **Colour.** In a terminal, arguments are coloured by their type — numbers,
 `true` and `false`, Discord ids, durations — along with the timestamp, the
@@ -487,9 +487,9 @@ type is one specialisation of `log_style`.
 Phases 1 to 5 are done: the framework, the features that keep records, URL
 replacement with its reaction statistics, DECtalk speech, and the language
 model. Music followed, through yt-dlp and ffmpeg.
-[docs/features/](docs/features/README.md) documents all of this properly —
+[The user guide](docs/User_Guide.md) documents all of this properly —
 options, replies and edge cases — and each feature has a
-[spec](docs/features/README.md#feature-specs) of its own: what it is for, how
+[spec](docs/User_Guide.md#feature-specs) of its own: what it is for, how
 it is built, and what was decided and why.
 
 | Command | What it does |
@@ -557,7 +557,7 @@ is a document anyone can edit, with every version kept. It switches itself off
 at $2 in a day or $20 in a month, worked out from the tokens it actually used.
 
 **Still to come**, unscheduled — [the plan](docs/porting/Porting_Plan_Final.md), and
-[what each feature should do](docs/features/Planned.md): emote statistics
+[what each feature should do](docs/Planned.md): emote statistics
 and appearance tracking.
 
 ## Testing
@@ -655,10 +655,11 @@ deploy/             Install-Dependencies.ps1, which sets a server up, and its re
 .github/workflows/  CI: build and test Debug, Release, AddressSanitizer and the core alone, and a secret scan
 .vscode/            tasks, launch configurations, IntelliSense and the grouped test tree
 src/app/main.cpp    entry point; LatiBot.exe also links the module list CMake writes
-src/core/           the core, built as the latibot_core static library
-src/modules/        the feature modules, each a library of its own with its README and tests
+src/core/           the core, built as the latibot_core static library, with its specs in docs/
+src/modules/        the feature modules, each a library of its own with its README, tests and spec
 tests/              Catch2 tests, mocks, support, golden files and fuzz targets
-docs/features/      what the bot does and will do, and a spec per feature
+docs/User_Guide.md  what the bot does, command by command; docs/Planned.md, what it will do
+docs/modules/       the module plan (Module_Plan_Final.md) and its drafts
 docs/porting/       the porting plan (Porting_Plan_Final.md) and its drafts, kept as the record
 docs/ideas/         parked ideas
 third_party/DPP     submodule: DPP v10.1.6, built from source
@@ -667,8 +668,8 @@ build/              build output (git-ignored)
 data/               runtime database, backups and import files (git-ignored)
 ```
 
-Comments in the code cite a feature's [spec](docs/features/README.md#feature-specs)
-by file and section, as "docs/features/Url_Replacement.md §2.4". The comments
+Comments in the code cite a feature's [spec](docs/User_Guide.md#feature-specs)
+by file and section, as "Url_Replacement.md §2.4". The comments
 inside the migrations' SQL still say "plan v4 9.7": shipped migrations are
 never edited, and those mean
 [Porting_Plan_Final.md](docs/porting/Porting_Plan_Final.md), whose drafts are

@@ -1,5 +1,5 @@
 // Custom voices: the [:dv] parameters, reading and writing them, and names
-// (docs/features/Speech.md §3).
+// (src/modules/dectalk/docs/Speech.md §3).
 
 #include "voice_params.hpp"
 #include "voice_store.hpp"

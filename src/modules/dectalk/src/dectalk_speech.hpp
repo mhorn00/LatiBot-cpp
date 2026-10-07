@@ -19,10 +19,10 @@ namespace latibot::audio {
 class speech_queue;
 
 /// The `speech` capability, said by DECtalk: what the language model needs
-/// to speak its replies (docs/features/Language_Model.md §2.5).
+/// to speak its replies (src/modules/llm/docs/Language_Model.md §2.5).
 ///
 /// The model's replies follow the rules `/speak` does: the sanitizer at the
-/// model's trust level (docs/features/Speech.md §2.2), the server's limits
+/// model's trust level (src/modules/dectalk/docs/Speech.md §2.2), the server's limits
 /// (§2.3), and the speech queue, under whoever asked, so they can
 /// `/tts stop` it (§2.4).
 class dectalk_speech final : public capabilities::speech {

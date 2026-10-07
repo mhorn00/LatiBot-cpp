@@ -53,7 +53,7 @@ struct buffer {
 ///
 /// DECtalk hands buffers back in the order they were queued, and the pointer
 /// it passes to the callback is cut to 32 bits
-/// (docs/features/Speech.md §4.1). So the buffers in flight are kept in queue
+/// (src/modules/dectalk/docs/Speech.md §4.1). So the buffers in flight are kept in queue
 /// order, and each buffer message takes the front one; the 32 bits are only
 /// compared, as a check.
 struct session {
@@ -72,7 +72,7 @@ struct session {
 
 /// The message id DECtalk sends a filled buffer with. On Windows it is a
 /// registered window message rather than a constant
-/// (docs/features/Speech.md §4.1).
+/// (src/modules/dectalk/docs/Speech.md §4.1).
 auto buffer_message() -> UINT {
     static const UINT id = RegisterWindowMessageA("DECtalkBufferMessage");
     return id;

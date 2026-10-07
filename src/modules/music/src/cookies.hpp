@@ -13,7 +13,7 @@
 
 namespace latibot::music {
 
-// Signing yt-dlp in to an account (docs/features/Music.md §4.9), so
+// Signing yt-dlp in to an account (src/modules/music/docs/Music.md §4.9), so
 // age-restricted videos play: a Firefox profile kept signed in for the bot,
 // named by `LATIBOT_YTDLP_FIREFOX_PROFILE`, which yt-dlp reads itself on
 // each run, or a cookies file exported from a browser, named by

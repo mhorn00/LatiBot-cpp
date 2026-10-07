@@ -1,4 +1,4 @@
-// /voice (docs/features/Voice_Channels.md §2.2).
+// /voice (src/modules/voice/docs/Voice_Channels.md §2.2).
 
 #include "voice_command.hpp"
 

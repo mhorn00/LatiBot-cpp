@@ -171,7 +171,7 @@ TEST_CASE("a matching message gets one of the trigger's responses", "[triggers]"
 
     SECTION("and the message does not stop here") {
         // A message with both "420" and a link should get the reply and the
-        // URL replacement (docs/features/Message_Pipeline.md §2.2).
+        // URL replacement (src/core/docs/Message_Pipeline.md §2.2).
         CHECK_FALSE(result.consumed);
     }
 }
@@ -293,7 +293,7 @@ TEST_CASE("respond_to_bots survives a round trip and defaults to off", "[trigger
 
 TEST_CASE("a trigger only answers an allowed bot when it opts in", "[triggers]") {
     // The allowlist got the message this far
-    // (docs/features/Message_Pipeline.md §2.1); this is the second,
+    // (src/core/docs/Message_Pipeline.md §2.1); this is the second,
     // per-trigger decision.
     store_fixture fixture;
     fixture.store.add(nice_trigger());

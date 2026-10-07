@@ -11,7 +11,7 @@ class database;
 namespace latibot::events {
 
 /// The bots a guild lets LatiBot hear
-/// (docs/features/Message_Pipeline.md §2.1).
+/// (src/core/docs/Message_Pipeline.md §2.1).
 ///
 /// The pipeline drops every message from a bot that is not listed here, which
 /// is what stops two bots triggering each other forever. Being heard is not

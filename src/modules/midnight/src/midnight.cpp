@@ -57,7 +57,7 @@ auto verdict_for(const midnight_entry& entry, std::chrono::system_clock::time_po
 
     // Comparing the local date against the one saved is what survives a
     // suspend, a clock jump and a restart alike
-    // (docs/features/Midnight.md §3).
+    // (src/modules/midnight/docs/Midnight.md §3).
     if (local->date == entry.last_fired_date || local->since_midnight < midnight_grace) return midnight_verdict::wait;
 
     // A new day, but how new? Far enough past midnight and the bot cannot have

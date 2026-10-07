@@ -4,10 +4,10 @@ The small commands the Java bot had: `/ping`, `/say`, `/status` and
 `/shutdown`. Also the **goodbye phrase**: an administrator saying
 "say goodbye latibot" stops the bot, and `/goodbye` changes the phrase.
 `/join` and `/leave` live in the same file, but are part of
-[voice channels](Voice_Channels.md).
+[voice channels](../../modules/voice/docs/Voice_Channels.md).
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#ping) has every
+and what was decided and why. [The user guide](../../../docs/User_Guide.md#ping) has every
 option and reply.
 
 | | |

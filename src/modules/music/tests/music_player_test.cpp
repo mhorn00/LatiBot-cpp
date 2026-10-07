@@ -1,4 +1,4 @@
-// Playing a server's queue through the mixer (docs/features/Music.md §4.3),
+// Playing a server's queue through the mixer (src/modules/music/docs/Music.md §4.3),
 // against scripted tracks and a mock connection.
 
 #include "music_player.hpp"

@@ -128,7 +128,7 @@ public:
 
         // Years of history from the Java bot, if its file was left beside the
         // database. Importing is idempotent, so this needs no marker file and
-        // no "have I done this already" flag (docs/features/Nicknames.md §4).
+        // no "have I done this already" flag (src/modules/nicknames/docs/Nicknames.md §4).
         const std::filesystem::path legacy = bot.bootstrap().database_path.parent_path() / "nicknames.json";
         if (const auto imported = import_nicknames_file(store_, legacy); imported.value_or(0) > 0) {
             util::log().info("imported {} nickname entries from {}", *imported, legacy.generic_string());
@@ -144,7 +144,7 @@ public:
         util::log().info("nickname tracking is on; this needs the Server Members intent enabled in the Discord developer portal");
 
         // The only way nickname changes and a complete member list arrive at
-        // all (docs/features/Operations.md §3). Privileged: asked for only
+        // all (src/core/docs/Operations.md §3). Privileged: asked for only
         // while tracking is on, because a bot that asks for an intent it was
         // not granted is refused the gateway outright.
         bot.intents(dpp::i_guild_members);
@@ -153,7 +153,7 @@ public:
         // Recording and attributing are separate events on purpose: the
         // change is written down the moment it is seen, and the audit log
         // fills in who did it if and when it arrives
-        // (docs/features/Nicknames.md §3). Attached only while tracking is
+        // (src/modules/nicknames/docs/Nicknames.md §3). Attached only while tracking is
         // on, because DPP warns about a handler attached without the intent
         // that feeds it.
         bot.listen(bot.cluster().on_guild_member_update, "nicknames: member updates",
@@ -166,7 +166,7 @@ public:
         // 4014 is the gateway refusing a privileged intent, and DPP reports
         // it as a websocket number in a reconnect loop. The cause is always
         // the same toggle, so say which one rather than leaving somebody to
-        // look the code up (docs/features/Operations.md §3).
+        // look the code up (src/core/docs/Operations.md §3).
         bot.listen(bot.cluster().on_log, "nicknames: the Server Members intent refused", [](const dpp::log_t& event) {
             if (!event.message.contains("4014")) return;
             util::log().error(
@@ -180,7 +180,7 @@ private:
     ///
     /// Shared by the gateway event and the startup sweep, because "is this
     /// different from what we last saw" is the same question either way
-    /// (docs/features/Nicknames.md §3).
+    /// (src/modules/nicknames/docs/Nicknames.md §3).
     auto record(dpp::snowflake guild_id, dpp::snowflake user_id, const std::optional<std::string>& nickname, nickname_source source)
         -> std::optional<std::int64_t> {
         const auto latest = store_.latest(guild_id, user_id);
@@ -210,7 +210,7 @@ private:
 
         // A change the bot just made is already in the history with the
         // invoker against it, and recording it again would lose that
-        // (docs/features/Nicknames.md §3).
+        // (src/modules/nicknames/docs/Nicknames.md §3).
         if (pending_.claim(member.guild_id, member.user_id, nickname, bot_->clock().now())) {
             util::log().debug("member update for {} in guild {} is the change /nickname just made", member.user_id, member.guild_id);
             return;
@@ -226,7 +226,7 @@ private:
 
         // Recording never waits on attribution, so this is the only thing
         // that notices the audit entry never turning up
-        // (docs/features/Nicknames.md §3).
+        // (src/modules/nicknames/docs/Nicknames.md §3).
         attribute_later(member.guild_id, member.user_id, *row);
     }
 
@@ -234,7 +234,7 @@ private:
     /// hoping to attribute.
     ///
     /// The safety net for a gateway entry that never arrived — a reconnect, a
-    /// dropped event (docs/features/Nicknames.md §3). Costs one API call per
+    /// dropped event (src/modules/nicknames/docs/Nicknames.md §3). Costs one API call per
     /// change that is still unattributed when it runs, which is normally none
     /// of them.
     auto attribute_later(dpp::snowflake guild_id, dpp::snowflake user_id, std::int64_t row) -> void {
@@ -299,7 +299,7 @@ private:
     ///
     /// Changes made while the bot was not running have nobody to attribute
     /// them to, which is why they are marked as their own source rather than
-    /// guessed at (docs/features/Nicknames.md §3).
+    /// guessed at (src/modules/nicknames/docs/Nicknames.md §3).
     auto reconcile(const dpp::guild& guild) -> void {
         int recorded = 0;
         for (const auto& [user_id, member] : guild.members) {

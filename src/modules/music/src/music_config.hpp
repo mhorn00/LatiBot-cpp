@@ -8,7 +8,7 @@
 namespace latibot::music {
 
 /// The "music" section of config.json: where its programs are
-/// (docs/features/Music.md §5, §4.10).
+/// (src/modules/music/docs/Music.md §5, §4.10).
 struct music_config {
     /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
     std::filesystem::path ytdlp_path;
@@ -41,7 +41,7 @@ struct music_config {
 }
 
 /// The account yt-dlp signs in as when it must, so music can play
-/// age-restricted videos (docs/features/Music.md §4.9): a Firefox profile's
+/// age-restricted videos (src/modules/music/docs/Music.md §4.9): a Firefox profile's
 /// folder, from LATIBOT_YTDLP_FIREFOX_PROFILE, or a cookies file, from
 /// LATIBOT_YTDLP_COOKIES. Each is a sign-in, so it stays out of config.json.
 struct sign_in {

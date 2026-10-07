@@ -39,7 +39,7 @@ namespace {
 /// i_message_content is privileged and must also be enabled in the Discord
 /// developer portal. Without it every guild message arrives with an empty
 /// `content`, which silently disables the whole pipeline: the goodbye phrase
-/// and the triggers both read it (docs/features/Operations.md §3).
+/// and the triggers both read it (src/core/docs/Operations.md §3).
 constexpr std::uint32_t core_intents = dpp::i_default_intents | dpp::i_message_content;
 
 /// Who wrote the message a reply replies to, or 0.
@@ -142,7 +142,7 @@ auto bot::register_commands() -> void {
 
 auto bot::register_stages() -> void {
     // Each at its position, which decides where it runs, whatever order the
-    // lines are in (events/stage_order.hpp, docs/features/Message_Pipeline.md
+    // lines are in (events/stage_order.hpp, src/core/docs/Message_Pipeline.md
     // §2.2). Modules add theirs: links' replacement at `rewrite`, triggers'
     // replies at `reply`, the language model at `model`.
     pipeline_.add(events::stage_order::stop, "goodbye", events::goodbye_stage(guild_settings_));
@@ -168,7 +168,7 @@ auto bot::register_events() -> void {
     // Guilds arrive as guild_create after the gateway connects, including the
     // ones the bot was already in, so this covers startup and later joins
     // alike without a separate sweep on ready
-    // (docs/features/Operations.md §6).
+    // (src/core/docs/Operations.md §6).
     cluster_.on_guild_create([this](const dpp::guild_create_t& event) {
         const dpp::guild& guild = event.created;
         util::log().info("in guild {} ({})", guild.name, guild.id);
@@ -200,7 +200,7 @@ auto bot::on_ready(const dpp::ready_t& event) -> void {
     util::log().info("connected to Discord as {} ({})", cluster_.me.username, cluster_.me.id);
 
     // A presence lasts one session, so every connect, a reconnect included,
-    // puts the last /status back (docs/features/Basic_Commands.md §2).
+    // puts the last /status back (src/core/docs/Basic_Commands.md §2).
     if (const auto status = commands::load_status(guild_settings_)) {
         cluster_.set_presence(commands::presence_for(*status));
         util::log().info("status restored: {} \"{}\"", status->type.empty() ? "playing" : status->type, status->text);

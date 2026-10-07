@@ -1,4 +1,4 @@
-// What may reach DECtalk from whom (docs/features/Speech.md §2.2).
+// What may reach DECtalk from whom (src/modules/dectalk/docs/Speech.md §2.2).
 
 #include "dectalk_sanitizer.hpp"
 

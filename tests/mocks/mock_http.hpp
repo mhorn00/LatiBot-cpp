@@ -11,7 +11,7 @@ namespace latibot::testing {
 /// Replays canned HTTP responses and records what was sent.
 ///
 /// LLM tests run against recorded provider replies
-/// (docs/features/Language_Model.md §3.2), so they need no network and no API
+/// (src/modules/llm/docs/Language_Model.md §3.2), so they need no network and no API
 /// key.
 class mock_http final : public ports::http_client {
 public:

@@ -15,7 +15,7 @@
 
 namespace latibot::ports {
 
-// Where music comes from (docs/features/Music.md §4.4, §4.5): reading what a
+// Where music comes from (src/modules/music/docs/Music.md §4.4, §4.5): reading what a
 // link is, and turning a track into audio. yt-dlp and ffmpeg behind these in
 // the bot, mocks in the tests.
 

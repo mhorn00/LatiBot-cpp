@@ -7,12 +7,12 @@
 
 namespace latibot::audio {
 
-/// Whose text is about to be spoken (docs/features/Speech.md §2.2).
+/// Whose text is about to be spoken (src/modules/dectalk/docs/Speech.md §2.2).
 enum class speech_trust : std::uint8_t {
     /// Anyone.
     user,
     /// A user in `trusted_users`, or an Administrator in a `trusted_guilds`
-    /// server (docs/features/Speech.md §2.2).
+    /// server (src/modules/dectalk/docs/Speech.md §2.2).
     trusted,
     /// A language model. Never trusted, whoever asked it.
     llm,
@@ -28,7 +28,7 @@ struct sanitized_speech {
 };
 
 /// Removes the inline commands `trust` may not use, and keeps the rest
-/// (docs/features/Speech.md §2.2):
+/// (src/modules/dectalk/docs/Speech.md §2.2):
 ///
 /// | command                          | user | trusted | llm |
 /// |----------------------------------|------|---------|-----|
@@ -39,7 +39,7 @@ struct sanitized_speech {
 ///
 /// `[:pause]` and `[:resume]` pause the audio device, which a memory engine
 /// does not have: all they do is hold the engine up
-/// (docs/features/Speech.md §2.2).
+/// (src/modules/dectalk/docs/Speech.md §2.2).
 ///
 /// Command names are matched as DECtalk matches them: case-insensitively,
 /// as soon as a prefix is unique, so `[:PLA "x"]` is `[:play "x"]`, and

@@ -13,7 +13,7 @@
 namespace latibot::llm {
 namespace {
 
-/// The rate limits are per minute (docs/features/Language_Model.md §2.2).
+/// The rate limits are per minute (src/modules/llm/docs/Language_Model.md §2.2).
 constexpr std::chrono::seconds rate_window{60};
 
 auto is_word_character(char letter) -> bool {
@@ -54,7 +54,7 @@ auto llm_stage::over_spend_cap(const events::incoming_message& message, bool add
 
     // Said once per guild per period, where it was asked, and warned about in
     // the log, which is where the admins look
-    // (docs/features/Language_Model.md §2.2).
+    // (src/modules/llm/docs/Language_Model.md §2.2).
     if (notices_.first(message.guild_id, spend.period)) {
         util::log().warn("the language model is off in guild {} until the spend cap resets: ${:.2f} today, ${:.2f} this month",
                          message.guild_id, spend.today, spend.this_month);
@@ -96,7 +96,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     stage_result result;
 
     // Every person speaking resets the bot-to-bot count, whether or not the
-    // model answers them (docs/features/Language_Model.md §2.7).
+    // model answers them (src/modules/llm/docs/Language_Model.md §2.7).
     if (!message.from_bot) pacing_.human_spoke(message.channel_id);
     if (message.guild_id.empty()) return result;
 

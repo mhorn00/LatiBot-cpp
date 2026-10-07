@@ -1,4 +1,4 @@
-// The voice lab's panel and forms (docs/features/Speech.md §3).
+// The voice lab's panel and forms (src/modules/dectalk/docs/Speech.md §3).
 
 #include "voice_lab.hpp"
 

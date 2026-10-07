@@ -11,7 +11,7 @@ namespace latibot::llm {
 namespace {
 
 // The rules in code, first in every request, and the one part of the prompt
-// nobody in Discord can edit (docs/features/Language_Model.md §3.3).
+// nobody in Discord can edit (src/modules/llm/docs/Language_Model.md §3.3).
 constexpr std::string_view fixed_rules = R"rules(You are LatiBot, a bot in a Discord server, talking with the people in it.
 
 How this works:

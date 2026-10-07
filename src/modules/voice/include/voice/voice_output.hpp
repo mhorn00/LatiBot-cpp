@@ -10,7 +10,7 @@
 namespace latibot::ports {
 
 /// Audio out to a guild's voice connection
-/// (docs/features/Voice_Channels.md §3).
+/// (src/modules/voice/docs/Voice_Channels.md §3).
 ///
 /// The speech queue talks to this rather than to DPP's voice client, so what
 /// it sends and when can be tested without a connection. There is one voice

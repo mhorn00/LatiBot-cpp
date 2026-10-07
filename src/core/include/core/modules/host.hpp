@@ -131,7 +131,7 @@ public:
 
     /// Permissions the module needs in every server for something other than
     /// a command, which each server is checked for when it connects
-    /// (docs/features/Operations.md §6).
+    /// (src/core/docs/Operations.md §6).
     virtual auto permission(std::uint64_t bits, std::string purpose) -> void = 0;
 
     /// A value the log channel masks wherever it appears: an API key, a

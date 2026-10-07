@@ -70,12 +70,12 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
 
     // Typing first, so the wait for the model reads as the bot thinking
     // rather than ignoring whoever asked
-    // (docs/features/Language_Model.md §2.3). It lasts ten seconds, which
+    // (src/modules/llm/docs/Language_Model.md §2.3). It lasts ten seconds, which
     // covers most replies; a failure to show it is not worth a line.
     std::ignore = co_await services_.discord->start_typing(ask.channel_id);
 
     // Everyone the model hears of is an alias, never an id or a name
-    // (docs/features/Language_Model.md §3.8). Met as they are read, so that
+    // (src/modules/llm/docs/Language_Model.md §3.8). Met as they are read, so that
     // every name is known before any text is sanitized.
     people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, me.name);
     cast.meet(ask.author_id, ask.author_name);
@@ -111,7 +111,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
 
     // What is spoken is posted too, keeping the inline commands the
     // sanitizer allowed, so the channel sees what was said as it was said
-    // (docs/features/Language_Model.md §2.5).
+    // (src/modules/llm/docs/Language_Model.md §2.5).
     const bool speaking = ask.speak && services_.speech != nullptr;
     if (speaking) text = services_.speech->prepare_for_model(text, ask.guild_id);
 

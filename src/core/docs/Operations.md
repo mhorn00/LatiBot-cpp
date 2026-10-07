@@ -7,8 +7,8 @@ warnings about missing permissions.
 
 This is the spec for those: what each is for, how it behaves, how it is
 built, and what was decided and why. The root README has the setup steps,
-the [configuration table](../../README.md#configuration) with every
-`config.json` key, and [Logging](../../README.md#logging).
+the [configuration table](../../../README.md#configuration) with every
+`config.json` key, and [Logging](../../../README.md#logging).
 
 | | |
 |---|---|
@@ -79,7 +79,7 @@ explicitly set `SSL_CERT_FILE` still wins.
 
 - the embed tracker, every second;
 - feeding music to each voice connection playing it, every second
-  ([Music.md §4.2](Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this));
+  ([Music.md §4.2](../../modules/music/docs/Music.md#42-the-mixer-and-why-pause_audio-cannot-do-this));
 - the log channel, every 2 s;
 - auto-leave, every 5 s;
 - midnight, every 30 s;
@@ -134,18 +134,18 @@ Three layers, separated by how often each changes and who changes it:
   module reads with its own table when it starts; one no module reads is
   warned about and ignored (docs/modules/Module_Plan_Final.md §8).
 
-The README's [configuration table](../../README.md#configuration) is the
+The README's [configuration table](../../../README.md#configuration) is the
 reference for every key.
 
 **Other programs.** Music runs yt-dlp and ffmpeg, and yt-dlp uses Deno for
-YouTube ([Music.md §5](Music.md#5-dependencies-and-running-it)). Each is
+YouTube ([Music.md §5](../../modules/music/docs/Music.md#5-dependencies-and-running-it)). Each is
 looked for once at startup: at `music.ytdlp_path`, `music.ffmpeg_path` or `music.deno_path` in
 `config.json` if set, else beside `LatiBot.exe`, else on `PATH`. Without
 yt-dlp or ffmpeg the bot starts, warns, and `/music play` says what is
 missing; without Deno it warns, and music plays what it can. Their versions
 are logged, asked on a thread of its own so startup does not wait. The bot
 also runs bgutil's PO token provider, when it is set up, for as long as it
-runs ([Music.md §4.10](Music.md#410-po-tokens)).
+runs ([Music.md §4.10](../../modules/music/docs/Music.md#410-po-tokens)).
 `deploy/Install-Dependencies.ps1`, which the build copies beside
 `LatiBot.exe`, installs all of them on a server.
 
@@ -156,7 +156,7 @@ runs ([Music.md §4.10](Music.md#410-po-tokens)).
 | `DISCORD_BOT_TOKEN` | always |
 | `ANTHROPIC_API_KEY` | for Claude models |
 | `OPENAI_API_KEY` | for GPT models |
-| `LATIBOT_YTDLP_FIREFOX_PROFILE` | to sign music in to YouTube, for age-restricted videos: the folder of a Firefox profile kept for the bot ([Music.md §4.9](Music.md#49-signing-in-to-youtube)) |
+| `LATIBOT_YTDLP_FIREFOX_PROFILE` | to sign music in to YouTube, for age-restricted videos: the folder of a Firefox profile kept for the bot ([Music.md §4.9](../../modules/music/docs/Music.md#49-signing-in-to-youtube)) |
 | `LATIBOT_YTDLP_COOKIES` | the same, from a `cookies.txt` instead; the profile wins when both are set |
 
 `.env.example` lists them. They are masked in anything the
@@ -213,20 +213,20 @@ The old migrations, kept only for adoption:
 | # | Name | Adds | Spec |
 |---|---|---|---|
 | 1 | `guild_settings` | per-server settings | this one |
-| 2 | `triggers` | `triggers`, `trigger_responses` | [Triggers.md](Triggers.md) |
+| 2 | `triggers` | `triggers`, `trigger_responses` | [Triggers.md](../../modules/triggers/docs/Triggers.md) |
 | 3 | `bot_allowlist` | `allowed_bots`; `triggers.respond_to_bots` | [Message_Pipeline.md](Message_Pipeline.md) |
-| 4 | `nickname_history` | `nickname_history` | [Nicknames.md](Nicknames.md) |
-| 5 | `midnight_messages` | `midnight_messages` | [Midnight.md](Midnight.md) |
-| 6 | `url_replacement` | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links` | [Url_Replacement.md](Url_Replacement.md) |
-| 7 | `reaction_stats` | `reactions`, `reaction_log`, `emojis`, `emoji_aliases` | [Link_Stats.md](Link_Stats.md) |
-| 8 | `backfill_progress` | `backfill_progress` | [Link_Stats.md](Link_Stats.md) |
+| 4 | `nickname_history` | `nickname_history` | [Nicknames.md](../../modules/nicknames/docs/Nicknames.md) |
+| 5 | `midnight_messages` | `midnight_messages` | [Midnight.md](../../modules/midnight/docs/Midnight.md) |
+| 6 | `url_replacement` | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links` | [Url_Replacement.md](../../modules/links/docs/Url_Replacement.md) |
+| 7 | `reaction_stats` | `reactions`, `reaction_log`, `emojis`, `emoji_aliases` | [Link_Stats.md](../../modules/linkstats/docs/Link_Stats.md) |
+| 8 | `backfill_progress` | `backfill_progress` | [Link_Stats.md](../../modules/linkstats/docs/Link_Stats.md) |
 | 9 | `message_flags` | `message_flags` on triggers and midnight messages | [Commands_and_Panels.md](Commands_and_Panels.md#3-message-flags) |
-| 10 | `tts_voices` | `tts_voices` | [Speech.md](Speech.md) |
-| 11 | `llm` | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search`, `llm_blacklist`, `llm_triggers` | [Language_Model.md](Language_Model.md) |
-| 12 | `media_posts` | `replacement_messages.kind` | [Link_Stats.md](Link_Stats.md) |
-| 13 | `emoji_copies` | `emoji_images`, `emoji_copies` | [Link_Stats.md](Link_Stats.md) |
-| 14 | `emote_reactions` | `emote_reactions`, the view `counted_reactions` | [Link_Stats.md](Link_Stats.md) |
-| 15 | `llm_aliases` | `llm_aliases` | [Language_Model.md](Language_Model.md#38-who-the-model-is-told-about) |
+| 10 | `tts_voices` | `tts_voices` | [Speech.md](../../modules/dectalk/docs/Speech.md) |
+| 11 | `llm` | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search`, `llm_blacklist`, `llm_triggers` | [Language_Model.md](../../modules/llm/docs/Language_Model.md) |
+| 12 | `media_posts` | `replacement_messages.kind` | [Link_Stats.md](../../modules/linkstats/docs/Link_Stats.md) |
+| 13 | `emoji_copies` | `emoji_images`, `emoji_copies` | [Link_Stats.md](../../modules/linkstats/docs/Link_Stats.md) |
+| 14 | `emote_reactions` | `emote_reactions`, the view `counted_reactions` | [Link_Stats.md](../../modules/linkstats/docs/Link_Stats.md) |
+| 15 | `llm_aliases` | `llm_aliases` | [Language_Model.md](../../modules/llm/docs/Language_Model.md#38-who-the-model-is-told-about) |
 
 **Backups** use SQLite's online backup API, so a consistent copy is taken
 while the bot runs, even during an open write transaction. Every
@@ -237,8 +237,8 @@ setting at 0 turns backups off, and the startup log says so.
 
 **Importers.** The Java bot's `nicknames.json` and `UrlReplacements.txt` are
 read from beside the database when present. See
-[Nicknames.md §4](Nicknames.md#4-importing-the-java-history) and
-[Url_Replacement.md §2.7](Url_Replacement.md#27-rules-from-the-java-bot).
+[Nicknames.md §4](../../modules/nicknames/docs/Nicknames.md#4-importing-the-java-history) and
+[Url_Replacement.md §2.7](../../modules/links/docs/Url_Replacement.md#27-rules-from-the-java-bot).
 
 ## 6. Permission warnings
 

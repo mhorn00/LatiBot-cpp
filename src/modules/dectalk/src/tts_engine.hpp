@@ -12,7 +12,7 @@
 namespace latibot::ports {
 
 /// Which voice to speak with. `custom_params` carries a saved custom voice's
-/// `[:dv ...]` pairs (docs/features/Speech.md §3).
+/// `[:dv ...]` pairs (src/modules/dectalk/docs/Speech.md §3).
 struct voice_settings {
     std::string voice = "paul";
     int rate = 200;
@@ -25,12 +25,12 @@ struct voice_settings {
 /// One thing to say.
 struct speech_request {
     /// Must already have been through the sanitizer
-    /// (docs/features/Speech.md §4.3).
+    /// (src/modules/dectalk/docs/Speech.md §4.3).
     std::string text;
     voice_settings voice;
 
     /// Audio past this is dropped and the utterance ends there
-    /// (docs/features/Speech.md §2.3).
+    /// (src/modules/dectalk/docs/Speech.md §2.3).
     std::chrono::milliseconds max_duration{std::chrono::seconds{60}};
 };
 

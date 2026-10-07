@@ -11,7 +11,7 @@ class host;
 
 namespace latibot::links {
 
-/// The links module (README.md, docs/features/Url_Replacement.md):
+/// The links module (README.md, src/modules/links/docs/Url_Replacement.md):
 /// `/links`, `/urltoggle`, and replacing links with mirrors that preview.
 [[nodiscard]] auto make_module(modules::host& bot) -> std::unique_ptr<modules::module>;
 

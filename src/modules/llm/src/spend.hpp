@@ -17,7 +17,7 @@ class database;
 namespace latibot::llm {
 
 /// What every call to a model cost, in `llm_usage`
-/// (docs/features/Language_Model.md §3.6).
+/// (src/modules/llm/docs/Language_Model.md §3.6).
 class usage_store {
 public:
     explicit usage_store(db::database& db) : db_(&db) {}
@@ -37,7 +37,7 @@ private:
 };
 
 /// The caps from `config.json`, in dollars
-/// (docs/features/Language_Model.md §2.2).
+/// (src/modules/llm/docs/Language_Model.md §2.2).
 struct spend_caps {
     double daily = 2.0;
     double monthly = 20.0;

@@ -31,7 +31,7 @@ inline constexpr std::string_view nickname_history_view = "nicks";
 ///
 /// Ten pages is the point where clicking through stops being the easier way
 /// to read something. The Java version simply gave up past 2000 characters,
-/// which by now is most histories (docs/features/Nicknames.md §2.3).
+/// which by now is most histories (src/modules/nicknames/docs/Nicknames.md §2.3).
 inline constexpr std::size_t nickname_attachment_threshold = nicknames_per_page * 10;
 
 /// Discord's limit on a nickname, which it enforces server-side.
@@ -45,7 +45,7 @@ inline constexpr std::size_t nickname_length_limit = 32;
 [[nodiscard]] auto render_nickname_history(std::span<const events::nickname_change> history, dpp::snowflake user_id, int page)
     -> dpp::message;
 
-/// `/nickname` (docs/features/Nicknames.md §2.2).
+/// `/nickname` (src/modules/nicknames/docs/Nicknames.md §2.2).
 ///
 /// Records who ran it before asking Discord to make the change, because the
 /// invoker is the one thing Discord's own audit log gets wrong: it records the
@@ -66,7 +66,7 @@ private:
     dpp::cluster* cluster_;
 };
 
-/// `/nicknames` (docs/features/Nicknames.md §2.3).
+/// `/nicknames` (src/modules/nicknames/docs/Nicknames.md §2.3).
 class nicknames_command final : public command {
 public:
     explicit nicknames_command(events::nickname_store& store);

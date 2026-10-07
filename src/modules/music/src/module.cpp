@@ -126,7 +126,7 @@ public:
         player_pointer_ = player_.get();
 
         // Music plays through the mixer, which reads it from the player, and
-        // leaving takes the queue with it (docs/features/Music.md §3.4).
+        // leaving takes the queue with it (src/modules/music/docs/Music.md §3.4).
         voice_->mixer().set_music(player_.get());
         voice_->on_left([this](dpp::snowflake guild) { player_->forget(guild); });
 
@@ -196,7 +196,7 @@ private:
     }
 
     /// Says whether yt-dlp signs in, and with how many cookies, never what
-    /// they are (docs/features/Music.md §4.9).
+    /// they are (src/modules/music/docs/Music.md §4.9).
     auto log_account() const -> void {
         const cookie_status& cookies = cookies_;
         const std::string named = cookies.named().generic_string();
@@ -225,7 +225,7 @@ private:
         } else if (!cookies.found.youtube_sign_in) {
             util::log().warn(
                 "{} has no youtube.com SAPISID or __Secure-3PAPISID cookie, which yt-dlp needs to sign in; {} "
-                "(docs/features/Music.md §4.9)",
+                "(src/modules/music/docs/Music.md §4.9)",
                 named, again);
         }
         if (cookies.unsaved) {
@@ -241,7 +241,7 @@ private:
     }
 
     /// Starts bgutil's PO token provider when it is set up, and says why not
-    /// when it is not (docs/features/Music.md §4.10).
+    /// when it is not (src/modules/music/docs/Music.md §4.10).
     auto start_pot_provider() -> void {
         if (!ytdlp_ || !ffmpeg_) return;
         const std::string address = pot_provider_address(section_.pot_provider_port);
@@ -255,12 +255,12 @@ private:
             } else if (plugin) {
                 util::log().info(
                     "bgutil's PO token plugin is in {}, but its provider is not beside the bot; yt-dlp asks {} for tokens, "
-                    "so run one there (docs/features/Music.md §4.10)",
+                    "so run one there (src/modules/music/docs/Music.md §4.10)",
                     plugins, address);
             } else {
                 util::log().info(
                     "yt-dlp gets no PO tokens, so YouTube may refuse some of its requests; Install-Dependencies.ps1 sets "
-                    "a provider up (docs/features/Music.md §4.10)");
+                    "a provider up (src/modules/music/docs/Music.md §4.10)");
             }
             return;
         }

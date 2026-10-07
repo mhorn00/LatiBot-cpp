@@ -1,5 +1,5 @@
 // Recognising the bot's old replacements and finding whose link each one was
-// (docs/features/Link_Stats.md §4.1).
+// (src/modules/linkstats/docs/Link_Stats.md §4.1).
 
 #include "legacy_replacements.hpp"
 

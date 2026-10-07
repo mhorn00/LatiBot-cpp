@@ -26,7 +26,7 @@ namespace latibot::events {
 
 // The bot's own copies of the custom emojis it has seen, as application
 // emojis, so a statistic can still show an emote after its server deletes it
-// (docs/features/Link_Stats.md §10).
+// (src/modules/linkstats/docs/Link_Stats.md §10).
 
 /// Discord's cap on an emoji's image.
 inline constexpr std::size_t emoji_image_limit = std::size_t{256} * 1024;

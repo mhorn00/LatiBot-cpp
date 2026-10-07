@@ -1,5 +1,5 @@
 // The link scanner under URL replacement
-// (docs/features/Url_Replacement.md §3.1). The first tests are the Java bot's
+// (src/modules/links/docs/Url_Replacement.md §3.1). The first tests are the Java bot's
 // bugs, each written against the behaviour it got wrong.
 
 #include "core/util/url_scan.hpp"

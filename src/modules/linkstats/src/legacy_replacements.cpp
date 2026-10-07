@@ -253,7 +253,7 @@ auto attribute(const history_message& message, const legacy_match& match, std::s
 
     // Nothing matched. If there were candidates, the nearest link answered
     // something else, which is reported rather than credited
-    // (docs/features/Link_Stats.md §4.2).
+    // (src/modules/linkstats/docs/Link_Stats.md §4.2).
     found.mismatched = candidates > 0;
     return found;
 }

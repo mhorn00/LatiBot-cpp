@@ -49,7 +49,7 @@ public:
 };
 
 /// The only thing that writes to a guild's voice connection: speech from the
-/// speech queue, and music from a `music_source` (docs/features/Music.md
+/// speech queue, and music from a `music_source` (src/modules/music/docs/Music.md
 /// §4.2).
 ///
 /// DPP keeps one queue of audio per connection, so pausing it or clearing it

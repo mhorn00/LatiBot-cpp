@@ -8,7 +8,7 @@
 namespace latibot::util {
 
 // What the simple triggers and the language model's advanced triggers share
-// (docs/features/Triggers.md §2.1, docs/features/Language_Model.md §2.4):
+// (src/modules/triggers/docs/Triggers.md §2.1, src/modules/llm/docs/Language_Model.md §2.4):
 // how a pattern matches a message, and when one may fire again. Here rather
 // than with either, so that neither needs the other.
 

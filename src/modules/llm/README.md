@@ -3,8 +3,8 @@
 Answers when someone addresses the bot, or when an advanced trigger fires,
 with a model from Anthropic or OpenAI, within a spend cap; remembers what it
 chooses to; and knows people only by aliases, never by their Discord ids or
-names. How it behaves, and why, is [docs/features/Language_Model.md](../../../docs/features/Language_Model.md);
-the commands' replies are in [the user guide](../../../docs/features/README.md#llm).
+names. How it behaves, and why, is [docs/Language_Model.md](docs/Language_Model.md);
+the commands' replies are in [the user guide](../../../docs/User_Guide.md#llm).
 
 Built unless `LATIBOT_WITH_LLM` is off. Leaving it out leaves its tables and
 their rows where they are, for when it is built again.

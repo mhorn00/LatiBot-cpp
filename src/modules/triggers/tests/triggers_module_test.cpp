@@ -1,5 +1,5 @@
 // Triggers as a module: what it brings to the bot when it starts
-// (docs/modules/Module_Plan_Final.md §4, docs/features/Triggers.md).
+// (docs/modules/Module_Plan_Final.md §4, src/modules/triggers/docs/Triggers.md).
 
 #include "triggers/module.hpp"
 

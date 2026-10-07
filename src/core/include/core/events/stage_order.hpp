@@ -1,6 +1,6 @@
 #pragma once
 
-/// Where each message stage runs (docs/features/Message_Pipeline.md §2.2).
+/// Where each message stage runs (src/core/docs/Message_Pipeline.md §2.2).
 ///
 /// The core names the positions and a module picks one, so the order is
 /// written down here once rather than decided by which module happened to

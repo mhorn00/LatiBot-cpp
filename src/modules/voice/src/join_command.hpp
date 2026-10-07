@@ -9,7 +9,7 @@
 
 namespace latibot::commands {
 
-// `/join` and `/leave` (docs/features/Voice_Channels.md §2.1): the voice
+// `/join` and `/leave` (src/modules/voice/docs/Voice_Channels.md §2.1): the voice
 // module's, since joining is only worth anything to speech and music.
 
 /// What `/join` should do. Voice channel ids are `dpp::snowflake`, where 0

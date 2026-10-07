@@ -1,4 +1,4 @@
-// A server's music queue, as plain data (docs/features/Music.md §3.1, §3.2).
+// A server's music queue, as plain data (src/modules/music/docs/Music.md §3.1, §3.2).
 // The Java bot's queue bugs (§2) are each a test here.
 
 #include "music_queue.hpp"

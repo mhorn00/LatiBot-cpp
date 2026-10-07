@@ -90,7 +90,7 @@ TEST_CASE("an existing backup file is replaced", "[db][fs]") {
 }
 
 TEST_CASE("a backup taken while other threads write is consistent", "[db][fs][threads]") {
-    // The single-connection lock (docs/features/Operations.md §5) is what
+    // The single-connection lock (src/core/docs/Operations.md §5) is what
     // makes this safe: the backup holds the connection, so no write lands
     // mid-copy.
     const temp_directory temp;

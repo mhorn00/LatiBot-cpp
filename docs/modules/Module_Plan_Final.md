@@ -678,8 +678,10 @@ The dependency cache includes DPP.
   - its feature doc.
 - **A test keeps the README in sync**, checking what code can list:
   commands, panel view names, config keys and settings keys.
-- **`docs/features/`** stays as the behaviour specs, each with a line naming
-  its module. The user guide marks each command's module.
+- **The behaviour specs** stay, each with a line naming its module. They
+  moved from `docs/features/` into a `docs/` folder beside the code they
+  describe (`src/core/docs/`, `src/modules/<name>/docs/`); the user guide is
+  `docs/User_Guide.md` and marks each command's module.
 - **`docs/architecture/`** was to be redrawn for modules at the end; it was
   dropped instead, with `docs/analysis/`, `docs/testing/` and the test
   catalog, to cut what every change has to update.

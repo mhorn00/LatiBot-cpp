@@ -32,7 +32,7 @@ struct incoming_message {
     bool from_bot = false;
 
     /// Whether this guild allows LatiBot to hear this bot
-    /// (docs/features/Message_Pipeline.md §2.1). Only meaningful with
+    /// (src/core/docs/Message_Pipeline.md §2.1). Only meaningful with
     /// `from_bot`; resolved by the shell from `bot_allowlist`.
     bool author_is_allowed_bot = false;
 
@@ -50,18 +50,18 @@ struct incoming_message {
     std::string author_name;
 
     /// The author's roles here, for the model's blacklist
-    /// (docs/features/Language_Model.md §2.2).
+    /// (src/modules/llm/docs/Language_Model.md §2.2).
     std::vector<dpp::snowflake> author_roles;
 
     /// Whether the message @mentions LatiBot, or replies to one of its
     /// messages: two of the three ways to address it
-    /// (docs/features/Language_Model.md §2.1).
+    /// (src/modules/llm/docs/Language_Model.md §2.1).
     bool mentions_bot = false;
     bool replies_to_bot = false;
 
     /// Set by the pipeline once a stage has answered the message, so a later
     /// stage can stand back: the simple trigger wins over an advanced one
-    /// (docs/features/Message_Pipeline.md §2.2).
+    /// (src/core/docs/Message_Pipeline.md §2.2).
     bool answered = false;
 };
 
@@ -111,14 +111,14 @@ using action = std::variant<send_message, stop_bot, background_task>;
 ///
 /// `Action` is `action` for the pipeline. A stage with work of its own
 /// decides `own_action<Own>` instead, and `carried_out_by` makes it an
-/// `action` (docs/features/Message_Pipeline.md §3).
+/// `action` (src/core/docs/Message_Pipeline.md §3).
 template <typename Action>
 struct stage_decision {
     std::vector<Action> actions;
 
     /// Whether later stages should be skipped. A trigger response and a URL
     /// replacement can both fire on one message; an LLM reply should not
-    /// follow a goodbye (docs/features/Message_Pipeline.md §2.2).
+    /// follow a goodbye (src/core/docs/Message_Pipeline.md §2.2).
     bool consumed = false;
 
     /// Whether this stage answered the message, which later stages see as
@@ -166,7 +166,7 @@ template <typename Own, typename Stage, typename CarryOut>
 ///
 /// Each stage runs at a position, lowest first, rather than in the order it
 /// was added, so the order does not depend on which module started first
-/// (`stage_order`, docs/features/Message_Pipeline.md §2.2).
+/// (`stage_order`, src/core/docs/Message_Pipeline.md §2.2).
 class pipeline {
 public:
     using stage_fn = std::function<stage_result(const incoming_message&)>;
@@ -180,7 +180,7 @@ public:
     /// Everything the stages asked for, in order.
     ///
     /// Our own messages produce nothing, and so do other bots' unless this
-    /// guild allows that one (docs/features/Message_Pipeline.md §2.1).
+    /// guild allows that one (src/core/docs/Message_Pipeline.md §2.1).
     /// Reaching the stages is only permission to be considered: a stage still
     /// decides for itself whether it answers a bot.
     [[nodiscard]] auto run(const incoming_message& message) const -> std::vector<action>;

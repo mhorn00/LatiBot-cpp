@@ -7,7 +7,7 @@ The pipeline also decides whose messages are heard at all, which is where
 the per-server **bot allowlist** (`/bots`) comes in.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#bots) covers `/bots`.
+and what was decided and why. [The user guide](../../../docs/User_Guide.md#bots) covers `/bots`.
 
 | | |
 |---|---|
@@ -53,9 +53,9 @@ for itself whether it answers a bot:
 
 - **URL replacement** never replaces a bot's links.
 - **A simple trigger** answers a bot only if that trigger has `bots:true`
-  ([Triggers.md](Triggers.md)).
+  ([Triggers.md](../../modules/triggers/docs/Triggers.md)).
 - **The language model** answers a bot only when the bot addresses it, and
-  paces itself ([Language_Model.md](Language_Model.md)). No bot sets off an
+  paces itself ([Language_Model.md](../../modules/llm/docs/Language_Model.md)). No bot sets off an
   advanced trigger.
 - **The goodbye phrase** needs Administrator, which a bot could in principle
   have.
@@ -65,9 +65,9 @@ for itself whether it answers a bot:
 | Position | Stage | Consumes the message | Marks it answered |
 |---|---|---|---|
 | 100, `stop` | [The goodbye phrase](Basic_Commands.md#3-the-goodbye-phrase) | yes, when it matches | — |
-| 200, `rewrite` | [URL replacement](Url_Replacement.md) | no | no |
-| 300, `reply` | [Simple triggers](Triggers.md) | no | yes, when one replies |
-| 400, `model` | [The language model](Language_Model.md): addressed, or an advanced trigger | yes, when it answers | — |
+| 200, `rewrite` | [URL replacement](../../modules/links/docs/Url_Replacement.md) | no | no |
+| 300, `reply` | [Simple triggers](../../modules/triggers/docs/Triggers.md) | no | yes, when one replies |
+| 400, `model` | [The language model](../../modules/llm/docs/Language_Model.md): addressed, or an advanced trigger | yes, when it answers | — |
 
 - **Positions** are named in `events/stage_order.hpp`, and each stage is
   added at one. They run lowest first, whatever order they were added in, so
@@ -120,7 +120,7 @@ A stage takes that and nothing else, so it is tested without a gateway.
 |---|---|---|
 | `send_message` | the goodbye, a trigger | posting it with the flags it carries, then logging whether it was posted |
 | `stop_bot` | the goodbye | stopping the bot after a delay long enough for the goodbye to arrive |
-| `background_task` | URL replacement, the language model | running it without holding the pipeline up: `post_replacement` ([Url_Replacement.md §3.2](Url_Replacement.md#32-the-stage-and-the-post)) for a `replace_links`, the responder, after any pacing wait, for an `ask_llm` |
+| `background_task` | URL replacement, the language model | running it without holding the pipeline up: `post_replacement` ([Url_Replacement.md §3.2](../../modules/links/docs/Url_Replacement.md#32-the-stage-and-the-post)) for a `replace_links`, the responder, after any pacing wait, for an `ask_llm` |
 
 The core knows only those three. A stage with work of its own decides it as
 its own type, an `own_stage_result<replace_links>` or
@@ -139,7 +139,7 @@ from several threads. The trigger responder, for one, takes one lock around
 checking a cooldown, picking a reply and claiming the cooldown.
 
 **Other readers.** `on_message_create` also feeds the
-[link stats](Link_Stats.md#9-reactions-on-images) media tracker, which is
+[link stats](../../modules/linkstats/docs/Link_Stats.md#9-reactions-on-images) media tracker, which is
 not a stage: it never answers, and it looks at uploads rather than text.
 
 **The allowlist** is `allowed_bots(guild_id, bot_id)`, read per message by

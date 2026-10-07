@@ -1,4 +1,4 @@
-// The real yt-dlp and ffmpeg (docs/features/Music.md §7). Hidden ([.]) and
+// The real yt-dlp and ffmpeg (src/modules/music/docs/Music.md §7). Hidden ([.]) and
 // [live]: run with `latibot_music_tests.exe "[live]"`. Skipped when either
 // program is not installed.
 //

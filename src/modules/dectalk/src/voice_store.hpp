@@ -22,7 +22,7 @@ namespace latibot::audio {
 /// (docs/modules/Module_Plan_Final.md §7.1). Defined in module.cpp.
 [[nodiscard]] auto dectalk_schema() noexcept -> db::module_schema;
 
-/// A custom voice a guild has kept (docs/features/Speech.md §3).
+/// A custom voice a guild has kept (src/modules/dectalk/docs/Speech.md §3).
 struct saved_voice {
     std::string name;
     custom_voice voice;

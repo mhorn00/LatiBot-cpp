@@ -57,7 +57,7 @@ struct responder_services {
     usage_store* usage = nullptr;
     const tool_registry* tools = nullptr;
 
-    /// Who everyone is to the model (docs/features/Language_Model.md §3.8).
+    /// Who everyone is to the model (src/modules/llm/docs/Language_Model.md §3.8).
     alias_store* aliases = nullptr;
 
     /// The provider that serves models of a kind, or null when there is no
@@ -91,10 +91,10 @@ struct answer_report {
 /// What the bot says, when addressed, if the model could not answer.
 [[nodiscard]] auto failure_reply(const ports::api_error& error) -> std::string;
 
-/// Answers a message with the model (docs/features/Language_Model.md): reads
+/// Answers a message with the model (src/modules/llm/docs/Language_Model.md): reads
 /// the recent conversation, builds the prompt, runs the tool loop, records
 /// the spend, then posts the reply, and speaks it when the channel is a voice
-/// session's (docs/features/Language_Model.md §2.5).
+/// session's (src/modules/llm/docs/Language_Model.md §2.5).
 ///
 /// Thread-safe: every answer is independent, and the stores it uses guard
 /// themselves.

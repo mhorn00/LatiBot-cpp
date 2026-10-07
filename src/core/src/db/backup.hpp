@@ -11,7 +11,7 @@ class database;
 
 /// Copies a live database to `destination` with SQLite's online backup API,
 /// which produces a consistent copy while the bot keeps running
-/// (docs/features/Operations.md §5).
+/// (src/core/docs/Operations.md §5).
 ///
 /// The source connection is locked for the duration, so nothing else writes
 /// to it mid-copy. An existing destination file is replaced.

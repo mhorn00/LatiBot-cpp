@@ -76,7 +76,7 @@ auto sql_for(stat_kind kind) -> kind_sql {
 ///
 /// Aliases are applied here, at read time, which is what lets one added today
 /// change every count back to the first reaction
-/// (docs/features/Link_Stats.md §5). The parameters are numbered so every
+/// (src/modules/linkstats/docs/Link_Stats.md §5). The parameters are numbered so every
 /// query binds the same seven filters in the same order — guild, emoji,
 /// since, until, person, site, kind of post — and a list adds its limit and
 /// offset as 8 and 9.

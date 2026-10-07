@@ -1,4 +1,4 @@
-// The voice message /chat answers with (docs/features/Speech.md §4.4).
+// The voice message /chat answers with (src/modules/dectalk/docs/Speech.md §4.4).
 
 #include "chat_command.hpp"
 

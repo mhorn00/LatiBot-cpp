@@ -2,7 +2,7 @@
 
 // Discord's limits on what a message or a modal may carry, checked in one
 // place. The API is the only thing that enforces them, and it does so by
-// refusing the whole message (docs/features/Commands_and_Panels.md §5), so
+// refusing the whole message (src/core/docs/Commands_and_Panels.md §5), so
 // every renderer's test runs its output through these, the states that add
 // rows included.
 //

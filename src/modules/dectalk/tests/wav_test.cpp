@@ -1,4 +1,4 @@
-// WAV files and voice-message waveforms (docs/features/Speech.md §4.4).
+// WAV files and voice-message waveforms (src/modules/dectalk/docs/Speech.md §4.4).
 
 #include "wav.hpp"
 

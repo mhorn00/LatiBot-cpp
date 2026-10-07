@@ -20,7 +20,7 @@ auto refuse(std::string reason) -> tool_outcome {
 
 /// A memory as the model is shown it: whom it is about by alias, and its
 /// text sanitized, since one saved before aliases may name people
-/// (docs/features/Language_Model.md §3.8).
+/// (src/modules/llm/docs/Language_Model.md §3.8).
 auto describe(const memory& entry, people* cast) -> std::string {
     if (cast == nullptr) return std::format("#{}: {}", entry.id, entry.content);
     const std::string about = entry.subject ? std::format(" (about {})", cast->meet(*entry.subject)) : std::string{};

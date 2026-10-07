@@ -20,7 +20,7 @@ class discord_gateway;
 namespace latibot::events {
 
 /// Post working previews for links a URL rule covers
-/// (docs/features/Url_Replacement.md §3.2).
+/// (src/modules/links/docs/Url_Replacement.md §3.2).
 ///
 /// Carrying this out takes several calls and then some waiting, which is why
 /// it is an action of its own rather than a `send_message`: what gets posted
@@ -43,7 +43,7 @@ struct replace_links {
 /// loses links from the end until it fits, rather than failing outright.
 inline constexpr std::size_t message_length_limit = 2000;
 
-/// The URL replacement stage (docs/features/Url_Replacement.md §3.2).
+/// The URL replacement stage (src/modules/links/docs/Url_Replacement.md §3.2).
 ///
 /// Does nothing in a guild that has not turned replacement on. Does not
 /// consume the message: "420" and a link in one message get the joke and the
@@ -59,7 +59,7 @@ private:
 };
 
 /// Posts a replacement, turns the original's previews off, and starts
-/// watching for ours (docs/features/Url_Replacement.md §3.2, §3.3).
+/// watching for ours (src/modules/links/docs/Url_Replacement.md §3.2, §3.3).
 ///
 /// Posting comes first: if it fails, the original keeps its preview, which is
 /// better than a message with none. The replacement is a plain message rather

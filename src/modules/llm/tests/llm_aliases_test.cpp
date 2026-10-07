@@ -1,5 +1,5 @@
 // Who the model is told about, without being told who they are
-// (docs/features/Language_Model.md §3.8): aliases in place of Discord ids,
+// (src/modules/llm/docs/Language_Model.md §3.8): aliases in place of Discord ids,
 // markers in place of names, and names put back only in what is posted.
 // Every id and name here is made up.
 

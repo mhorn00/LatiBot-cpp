@@ -12,7 +12,7 @@ class host;
 
 namespace latibot::music {
 
-/// The music module (README.md, docs/features/Music.md): `/music`, yt-dlp,
+/// The music module (README.md, src/modules/music/docs/Music.md): `/music`, yt-dlp,
 /// ffmpeg and the PO token provider. Requires voice.
 [[nodiscard]] auto make_module(modules::host& bot) -> std::unique_ptr<modules::module>;
 

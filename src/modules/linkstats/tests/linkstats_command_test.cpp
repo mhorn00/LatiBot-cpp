@@ -1,5 +1,5 @@
 // /linkstats: leaderboards, emoji lists and aliases
-// (docs/features/Link_Stats.md §1).
+// (src/modules/linkstats/docs/Link_Stats.md §1).
 
 #include "linkstats_command.hpp"
 #include "core/commands/registry.hpp"
@@ -73,7 +73,7 @@ TEST_CASE("changing aliases and recomputing need Manage Server, and reading does
     // Discord's default permissions cover the whole command, and the command
     // is open to everyone, so this is the only thing standing between anybody
     // and a recompute of years of history
-    // (docs/features/Commands_and_Panels.md §2.1).
+    // (src/core/docs/Commands_and_Panels.md §2.1).
     using latibot::commands::linkstats_refusal;
 
     const dpp::permission nobody{};
@@ -621,7 +621,7 @@ TEST_CASE("a board's buttons from before people could be named still page", "[li
 }
 
 // --------------------------------------------------------------------------
-// Images and videos (docs/features/Link_Stats.md §9)
+// Images and videos (src/modules/linkstats/docs/Link_Stats.md §9)
 // --------------------------------------------------------------------------
 
 TEST_CASE("a board says what it counts: links, images, or both", "[linkstats]") {

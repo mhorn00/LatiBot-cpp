@@ -186,7 +186,7 @@ TEST_CASE("a restart moments after posting does not post again", "[midnight]") {
 
     // The date was saved with the post, not counted from it, so a scheduler
     // that has never run still knows the day is spoken for
-    // (docs/features/Midnight.md §2.1).
+    // (src/modules/midnight/docs/Midnight.md §2.1).
     clock.set(utc(2026, 9, 23, 0, 0, 40));
     midnight_scheduler after(fixture.store, clock);
     CHECK(after.tick().empty());

@@ -26,14 +26,14 @@ enum class speech_outcome : std::uint8_t {
     stopped,
 };
 
-/// What each guild is saying, in order (docs/features/Voice_Channels.md §3).
+/// What each guild is saying, in order (src/modules/voice/docs/Voice_Channels.md §3).
 ///
 /// Utterances are queued on the voice connection whole, each followed by a
 /// marker naming it, so playback reports each one finishing, and `skip` can
 /// drop exactly one. It is the only thing that plays audio for now. The
 /// mixer, which pauses music for speech, arrives with music: it would be an
 /// abstraction with one user until then
-/// (docs/features/Voice_Channels.md §4).
+/// (src/modules/voice/docs/Voice_Channels.md §4).
 ///
 /// Thread-safe: commands, DPP's voice events and timers all reach it.
 class speech_queue {

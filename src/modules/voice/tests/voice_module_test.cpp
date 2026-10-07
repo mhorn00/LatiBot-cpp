@@ -1,6 +1,6 @@
 // Voice as a module: what it offers the modules that require it, and what it
 // brings to the bot when it starts (docs/modules/Module_Plan_Final.md §4,
-// docs/features/Voice_Channels.md).
+// src/modules/voice/docs/Voice_Channels.md).
 
 #include "voice/module.hpp"
 

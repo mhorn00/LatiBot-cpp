@@ -5,12 +5,12 @@ entry, in the entry's own timezone and channel. A server can have any number
 of entries, managed with `/midnight`.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#midnight) has the
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#midnight) has the
 commands and replies.
 
 | | |
 |---|---|
-| **Module** | `midnight`, the first one: [its README](../../src/modules/midnight/README.md) lists what it owns |
+| **Module** | `midnight`, the first one: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/midnight/`: `src/midnight.*`, `src/midnight_command.*`, `src/module.cpp` |
 | **Tests** | `src/modules/midnight/tests/`, built as `latibot_midnight_tests` |
 | **Tables** | `midnight_messages`, the module's schema version 1 (was migrations 5 and 9) |

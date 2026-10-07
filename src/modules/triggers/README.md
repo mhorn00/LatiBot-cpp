@@ -2,8 +2,8 @@
 
 Replies to messages that match a pattern, with one of a trigger's responses,
 at most once per cooldown in each channel. How it behaves, and why, is
-[docs/features/Triggers.md](../../../docs/features/Triggers.md); the
-commands' replies are in [the user guide](../../../docs/features/README.md#triggers).
+[docs/Triggers.md](docs/Triggers.md); the
+commands' replies are in [the user guide](../../../docs/User_Guide.md#triggers).
 
 Built unless `LATIBOT_WITH_TRIGGERS` is off. Leaving it out leaves its tables
 and their rows where they are, for when it is built again. The language

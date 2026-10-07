@@ -3,7 +3,7 @@
 Joins and leaves voice channels, keeps a server's voice session, leaves a
 channel nobody else is in, and mixes what is played into one stream per
 connection. How it behaves, and why, is
-[docs/features/Voice_Channels.md](../../../docs/features/Voice_Channels.md).
+[docs/Voice_Channels.md](docs/Voice_Channels.md).
 
 It has no switch of its own: it is built when dectalk or music is, which
 require it (docs/modules/Module_Plan_Final.md D2).

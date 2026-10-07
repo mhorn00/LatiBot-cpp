@@ -9,13 +9,13 @@ pattern without being addressed. Every call is priced and counted against a
 spending cap.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#llm) has `/llm`,
-[`/memory`](README.md#memory) and [Talking to the bot](README.md#talking-to-the-bot),
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#llm) has `/llm`,
+[`/memory`](../../../../docs/User_Guide.md#memory) and [Talking to the bot](../../../../docs/User_Guide.md#talking-to-the-bot),
 with every reply.
 
 | | |
 |---|---|
-| **Module** | `llm`: [its README](../../src/modules/llm/README.md) lists what it owns |
+| **Module** | `llm`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/src/discord/dpp_http_client.*` |
 | **Tests** | `src/modules/llm/tests/` (`latibot_llm_tests`, with `mock_llm.hpp`); `tests/mocks/{mock_http,mock_speech}.hpp` |
 | **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); settings as `llm_*` rows in `guild_settings` |
@@ -63,7 +63,7 @@ In a server that has run `/llm on`, when somebody **addresses** the bot:
 
 Or when an [advanced trigger](#26-advanced-triggers) fires. An addressed
 message is **consumed**, so nothing after it in the
-[pipeline](Message_Pipeline.md) runs.
+[pipeline](../../../core/docs/Message_Pipeline.md) runs.
 
 ### 2.2 When it stays quiet
 
@@ -131,12 +131,12 @@ tools: when someone tells it something worth keeping, or asks it to.
 ### 2.5 Replies in a voice session
 
 A reply in the text channel of the server's
-[voice session](Voice_Channels.md#22-voice-sessions) is **spoken as well as
+[voice session](../../voice/docs/Voice_Channels.md#22-voice-sessions) is **spoken as well as
 posted**, in Paul's voice.
 
 - The prompt gains a speaking section: short, plain spoken text with no
   markdown, and a short list of inline commands and the built-in voices.
-- The reply is [sanitized](Speech.md#22-inline-commands-and-who-may-use-which)
+- The reply is [sanitized](../../dectalk/docs/Speech.md#22-inline-commands-and-who-may-use-which)
   at the `llm` trust level: **never** the host commands, whoever asked.
 - The **posted** text is the sanitized text, inline commands and all, so the
   channel sees what was said as it was said.
@@ -153,7 +153,7 @@ without the capability a reply is only posted
 ### 2.6 Advanced triggers
 
 A pattern (whole word or anywhere, ignoring case, as for
-[simple triggers](Triggers.md)) and a **prompt**, one line about what to
+[simple triggers](../../triggers/docs/Triggers.md)) and a **prompt**, one line about what to
 say: "Someone mentioned pineapple pizza. Defend it with unreasonable
 passion." How to say it comes from the server's **trigger style** document,
 so the prompt stays short.
@@ -174,7 +174,7 @@ copy if one is ever wanted.
 
 ### 2.7 Other bots
 
-It answers a bot only if the server [allows that bot](Message_Pipeline.md#23-bots),
+It answers a bot only if the server [allows that bot](../../../core/docs/Message_Pipeline.md#23-bots),
 and only when the bot **addresses** it. Then, per channel:
 
 - at most **6** replies to bots in a row, before a person has to say

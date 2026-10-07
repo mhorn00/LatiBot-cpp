@@ -35,7 +35,7 @@ constexpr std::array<std::pair<std::uint64_t, std::string_view>, 16> permission_
 // `modules::host::permission`: nicknames, View Audit Log; links, Embed Links
 // and Manage Messages. The voice commands declare Connect and Speak themselves, so a
 // warning always names something that actually exists
-// (docs/features/Operations.md §6).
+// (src/core/docs/Operations.md §6).
 constexpr std::array<requirement, 1> passive{{
     {.permissions = dpp::p_view_channel | dpp::p_send_messages, .purpose = "replying to messages"},
 }};

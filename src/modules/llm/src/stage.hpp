@@ -32,16 +32,16 @@ class speech;
 namespace latibot::llm {
 
 /// What the stage decides: notes it posts itself, and the `ask_llm` the
-/// pipeline hands to the responder (docs/features/Message_Pipeline.md §3).
+/// pipeline hands to the responder (src/core/docs/Message_Pipeline.md §3).
 using stage_result = events::own_stage_result<ask_llm>;
 
 /// Whether a message addresses the bot: an @mention, a reply to one of its
 /// messages, or a message that starts with its name
-/// (docs/features/Language_Model.md §2.1).
+/// (src/modules/llm/docs/Language_Model.md §2.1).
 [[nodiscard]] auto addresses_bot(const events::incoming_message& message, std::string_view bot_name) -> bool;
 
 /// What the bot says, once per guild per day or month, when a spend cap
-/// stops it answering (docs/features/Language_Model.md §2.2).
+/// stops it answering (src/modules/llm/docs/Language_Model.md §2.2).
 [[nodiscard]] auto spend_cap_reply(const spend_status& status) -> std::string;
 
 struct stage_services {
@@ -63,14 +63,14 @@ struct stage_services {
 
 /// The pipeline's last stage: decides whether the model answers a message,
 /// and if so hands the shell an `ask_llm`
-/// (docs/features/Message_Pipeline.md §2.2,
-/// docs/features/Language_Model.md §2.1).
+/// (src/core/docs/Message_Pipeline.md §2.2,
+/// src/modules/llm/docs/Language_Model.md §2.1).
 ///
 /// Everything that can refuse runs here, before any money is spent, in this
 /// order: the guild's switch; being addressed, or else an advanced trigger
 /// firing on a message nothing else answered; the blacklist; the spend caps;
 /// the rate limits; and for a bot, the pacing
-/// (docs/features/Language_Model.md §2.2, §2.7). Consumes what it answers,
+/// (src/modules/llm/docs/Language_Model.md §2.2, §2.7). Consumes what it answers,
 /// and what it refuses when addressed, so nothing after it sees a message
 /// meant for the model.
 ///

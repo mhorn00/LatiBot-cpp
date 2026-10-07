@@ -12,7 +12,7 @@ class host;
 
 namespace latibot::llm {
 
-/// The language model module (README.md, docs/features/Language_Model.md):
+/// The language model module (README.md, src/modules/llm/docs/Language_Model.md):
 /// `/llm`, `/memory`, and answering when addressed or when an advanced
 /// trigger fires.
 [[nodiscard]] auto make_module(modules::host& bot) -> std::unique_ptr<modules::module>;

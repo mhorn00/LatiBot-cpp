@@ -1,4 +1,4 @@
-// /music and /m (docs/features/Music.md §3.1): what the replies say, the
+// /music and /m (src/modules/music/docs/Music.md §3.1): what the replies say, the
 // queue's pages against Discord's limits, and the settings.
 
 #include "music_command.hpp"

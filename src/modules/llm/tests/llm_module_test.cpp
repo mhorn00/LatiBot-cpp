@@ -1,6 +1,6 @@
 // The language model as a module: its section, its keys, the speech it
 // finds or does not, and what it brings to the bot when it starts
-// (docs/modules/Module_Plan_Final.md §4, docs/features/Language_Model.md).
+// (docs/modules/Module_Plan_Final.md §4, src/modules/llm/docs/Language_Model.md).
 
 #include "llm/module.hpp"
 
@@ -63,7 +63,7 @@ TEST_CASE("the llm section reads its defaults, and the spend caps cannot be nega
 
 TEST_CASE("a model the bot cannot price stops the module from starting", "[llm]") {
     // Before anything connects, as a bad config.json key does
-    // (docs/features/Language_Model.md §3.2).
+    // (src/modules/llm/docs/Language_Model.md §3.2).
     test_host bot;
     bot.bootstrap_settings.sections["llm"] = {{"model", "claude-3-opus"}};
 

@@ -7,7 +7,7 @@
 namespace latibot::llm {
 
 /// The "llm" section of config.json: which model answers, and what it is
-/// allowed to cost (docs/features/Language_Model.md §3.2). Which providers
+/// allowed to cost (src/modules/llm/docs/Language_Model.md §3.2). Which providers
 /// and models are allowed is `check_config`'s to say.
 struct llm_config {
     std::string provider{"anthropic"};

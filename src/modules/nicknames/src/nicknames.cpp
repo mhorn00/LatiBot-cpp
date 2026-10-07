@@ -102,7 +102,7 @@ auto show_author(const nickname_change& change) -> std::string {
     if (change.changed_by) return std::format("<@{}>", change.changed_by->str());
     // An imported row's author was a guess, so there is nothing honest to
     // show. A row the bot watched happen and could not attribute is genuinely
-    // unknown, which is worth saying (docs/features/Nicknames.md §3).
+    // unknown, which is worth saying (src/modules/nicknames/docs/Nicknames.md §3).
     return change.source == nickname_source::imported ? std::string{} : "unknown";
 }
 

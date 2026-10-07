@@ -4,7 +4,7 @@
  * DECtalk reads heap memory it never wrote. With the debug CRT that memory is
  * always the fill pattern, so it goes unnoticed; with the release CRT it is
  * whatever an earlier engine left there, and the same request speaks
- * differently from one run to the next (docs/features/Speech.md §4.2). Every
+ * differently from one run to the next (src/modules/dectalk/docs/Speech.md §4.2). Every
  * allocation is zeroed instead, which makes the release build repeatable
  * without changing the submodule.
  *

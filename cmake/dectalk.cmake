@@ -1,5 +1,5 @@
 # DECtalk, built from the third_party/dectalk submodule without modifying it
-# (docs/features/Speech.md §4.2).
+# (src/modules/dectalk/docs/Speech.md §4.2).
 #
 # Three targets:
 #   dectalk       the engine, as a DLL exporting what src/dapi/src/dectalk.def
@@ -84,7 +84,7 @@ target_link_libraries(dectalk PRIVATE winmm)
 #
 # dectalk_zeroed_heap.h makes every allocation zeroed. DECtalk reads heap
 # memory it never wrote, so with the release CRT the same request spoke
-# differently from run to run (docs/features/Speech.md §4.2).
+# differently from run to run (src/modules/dectalk/docs/Speech.md §4.2).
 target_compile_options(dectalk PRIVATE /W0 "/FI${CMAKE_CURRENT_LIST_DIR}/dectalk_zeroed_heap.h")
 # Only ttsapi.h is meant for callers. It is consumed as a system header so
 # our /W4 /WX does not apply to it.

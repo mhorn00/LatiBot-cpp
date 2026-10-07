@@ -1,5 +1,5 @@
 // Posting a replacement and following it until its previews appear or its
-// mirrors run out (docs/features/Url_Replacement.md §2.2–§2.4).
+// mirrors run out (src/modules/links/docs/Url_Replacement.md §2.2–§2.4).
 
 #include "embed_watch.hpp"
 #include "core/db/database.hpp"
@@ -470,7 +470,7 @@ TEST_CASE("posting sends the replacement, records it, and turns the original's p
     REQUIRE(discord.sent.size() == 1);
     CHECK(discord.sent[0].content == "🔗 [_](https://fxtwitter.com/a/status/1)");
     CHECK((discord.sent[0].flags & dpp::m_suppress_notifications) != 0);
-    // A plain message, never a reply (docs/features/Url_Replacement.md §2.2).
+    // A plain message, never a reply (src/modules/links/docs/Url_Replacement.md §2.2).
     CHECK(discord.sent[0].message_reference.message_id.empty());
 
     REQUIRE(discord.suppressions.size() == 1);
@@ -518,7 +518,7 @@ TEST_CASE("a failure's actions reach Discord", "[links][coro]") {
 }
 
 // --------------------------------------------------------------------------
-// Settling what a restart cut off (docs/features/Url_Replacement.md §2.5)
+// Settling what a restart cut off (src/modules/links/docs/Url_Replacement.md §2.5)
 // --------------------------------------------------------------------------
 
 namespace {

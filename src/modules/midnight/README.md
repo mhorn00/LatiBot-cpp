@@ -2,8 +2,8 @@
 
 Posts a message shortly after midnight: once per local day, per entry, in
 the entry's own timezone and channel. How it behaves, and why, is
-[docs/features/Midnight.md](../../../docs/features/Midnight.md); the
-commands' replies are in [the user guide](../../../docs/features/README.md#midnight).
+[docs/Midnight.md](docs/Midnight.md); the
+commands' replies are in [the user guide](../../../docs/User_Guide.md#midnight).
 
 Built unless `LATIBOT_WITH_MIDNIGHT` is off. Leaving it out leaves its table
 and its rows where they are, for when it is built again.

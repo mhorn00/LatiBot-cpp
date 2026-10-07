@@ -37,7 +37,7 @@ struct is_optional<std::optional<T>> : std::true_type {
 
 /// A prepared statement.
 ///
-/// Holding one keeps the database locked (docs/features/Operations.md §5: a
+/// Holding one keeps the database locked (src/core/docs/Operations.md §5: a
 /// single connection guarded by a mutex). Statements are therefore meant to
 /// be short-lived: keep one for the duration of a query, not as a member.
 class statement {

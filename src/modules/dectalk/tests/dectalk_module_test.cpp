@@ -1,6 +1,6 @@
 // DECtalk as a module: the speech it offers, and what it brings to the bot
 // when it starts (docs/modules/Module_Plan_Final.md §4, §5.3,
-// docs/features/Speech.md).
+// src/modules/dectalk/docs/Speech.md).
 
 #include "dectalk/module.hpp"
 

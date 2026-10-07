@@ -2,8 +2,8 @@
 
 Replaces links to sites whose previews Discord does not show with mirrors
 that do, watches for the preview, and offers a Retry when none came. How it
-behaves, and why, is [docs/features/Url_Replacement.md](../../../docs/features/Url_Replacement.md);
-the commands' replies are in [the user guide](../../../docs/features/README.md#links).
+behaves, and why, is [docs/Url_Replacement.md](docs/Url_Replacement.md);
+the commands' replies are in [the user guide](../../../docs/User_Guide.md#links).
 
 Built unless `LATIBOT_WITH_LINKS` is off; linkstats requires it. Leaving it
 out leaves its tables and their rows where they are, for when it is built

@@ -227,7 +227,7 @@ music_command::music_command(music_services services)
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             // What the room hears, the room is told, without a ping
-            // (docs/features/Music.md §3.1).
+            // (src/modules/music/docs/Music.md §3.1).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       services_(std::move(services)) {}

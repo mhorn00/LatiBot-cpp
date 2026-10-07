@@ -1,5 +1,5 @@
 // bgutil's PO token provider, which the bot keeps running for yt-dlp's
-// plugin (docs/features/Music.md §4.10): how it is run, how the bot finds
+// plugin (src/modules/music/docs/Music.md §4.10): how it is run, how the bot finds
 // it set up, and that it is started again when it stops, and stopped with
 // the bot. The stand-in program (tests/support/test_child.cpp) plays it.
 

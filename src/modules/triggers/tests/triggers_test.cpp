@@ -128,7 +128,7 @@ TEST_CASE("cooldowns are measured from the last reply", "[triggers]") {
 }
 
 TEST_CASE("a zero cooldown means no cooldown", "[triggers]") {
-    // docs/features/Triggers.md §2.2 allows 0 explicitly, and it must not
+    // src/modules/triggers/docs/Triggers.md §2.2 allows 0 explicitly, and it must not
     // mean "never again".
     const auto start = std::chrono::steady_clock::time_point{};
     CHECK(off_cooldown(start, start, 0s));

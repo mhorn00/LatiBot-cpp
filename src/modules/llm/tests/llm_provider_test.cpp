@@ -331,7 +331,7 @@ auto checked(std::string_view text) -> void {
 TEST_CASE("the model has to be one the bot can price, from the provider named", "[llm]") {
     // The spend caps are worked out from each model's price, so a model the
     // bot has no price for would spend without being counted
-    // (docs/features/Language_Model.md §3.2).
+    // (src/modules/llm/docs/Language_Model.md §3.2).
     REQUIRE_THROWS_MATCHES(checked(R"({"llm": {"model": "claude-3-opus"}})"), latibot::config::config_error,
                            Catch::Matchers::MessageMatches(ContainsSubstring("claude-haiku-4-5")));
     REQUIRE_THROWS_MATCHES(checked(R"({"llm": {"provider": "mistral"}})"), latibot::config::config_error,

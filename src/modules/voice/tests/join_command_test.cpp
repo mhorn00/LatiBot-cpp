@@ -61,7 +61,7 @@ TEST_CASE("a target who left voice is not followed to their old channel", "[voic
 TEST_CASE("join and leave pass the registry's checks, and the room sees the bot come and go", "[voice]") {
     // The checks registry::add makes of every command, for these
     // (docs/modules/Module_Plan_Final.md §10). A refusal is still only for
-    // whoever asked (docs/features/Basic_Commands.md §5).
+    // whoever asked (src/core/docs/Basic_Commands.md §5).
     latibot::commands::registry commands;
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::join_command>()));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::leave_command>()));

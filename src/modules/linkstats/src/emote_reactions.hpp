@@ -20,7 +20,7 @@ class replacement_store;
 
 // Emotes sent as a message of their own just after a post, or as a reply to
 // it: a reaction in all but name, and counted as one
-// (docs/features/Link_Stats.md §12).
+// (src/modules/linkstats/docs/Link_Stats.md §12).
 
 /// How many messages after a post can be a reaction to it. The next post
 /// ends it sooner.

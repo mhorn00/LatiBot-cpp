@@ -86,14 +86,14 @@ TEST_CASE("values in the file replace the defaults", "[config][fs]") {
 TEST_CASE("IDs written as JSON numbers are rejected", "[config]") {
     // JSON numbers are doubles and lose precision past 2^53, so a snowflake
     // written unquoted would silently come out wrong
-    // (docs/features/Operations.md §4).
+    // (src/core/docs/Operations.md §4).
     REQUIRE_THROWS_MATCHES(bootstrap::from_json(R"({"trusted_users": [987654321098765432]})"), config_error,
                            Catch::Matchers::MessageMatches(ContainsSubstring("cannot represent a Discord ID exactly")));
 }
 
 TEST_CASE("a trusted ID that is not exactly an ID stops startup", "[config]") {
     // These lists gate what the bot lets people do to its host
-    // (docs/features/Speech.md §2.2), so a mistyped ID must not load as some
+    // (src/modules/dectalk/docs/Speech.md §2.2), so a mistyped ID must not load as some
     // other number: "12345abc" as 12345, or "-1" wrapped round to the largest
     // 64-bit number.
     for (const char* bad : {"12345abc", "-1", "0", ""}) {
@@ -213,7 +213,7 @@ TEST_CASE("trust needs a listed user, or an admin in a listed server", "[config]
 
     SECTION("an admin in some other server is not") {
         // The point of the list: being administrator somewhere else must not
-        // grant access to this host (docs/features/Speech.md §2.2).
+        // grant access to this host (src/modules/dectalk/docs/Speech.md §2.2).
         CHECK_FALSE(config.is_trusted(other_guild, stranger, /*administrator=*/true));
     }
 

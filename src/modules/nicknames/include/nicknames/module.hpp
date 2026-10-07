@@ -12,7 +12,7 @@ class host;
 
 namespace latibot::nicknames {
 
-/// The nicknames module (README.md, docs/features/Nicknames.md): `/nickname`,
+/// The nicknames module (README.md, src/modules/nicknames/docs/Nicknames.md): `/nickname`,
 /// `/nicknames`, and the history of every nickname a member has had.
 [[nodiscard]] auto make_module(modules::host& bot) -> std::unique_ptr<modules::module>;
 

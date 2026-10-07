@@ -1,5 +1,5 @@
 // Reactions on the images and videos people post
-// (docs/features/Link_Stats.md §9): what counts as one, and recording them as
+// (src/modules/linkstats/docs/Link_Stats.md §9): what counts as one, and recording them as
 // they are posted.
 
 #include "media_posts.hpp"

@@ -25,7 +25,7 @@ struct builtin_voice {
 
 /// The ten voices this build of DECtalk has. Chris is missing: the engine
 /// only defines him when built with HLSYN or CHANGES_AFTER_V43, and ours is
-/// built with neither (docs/features/Speech.md §2.1).
+/// built with neither (src/modules/dectalk/docs/Speech.md §2.1).
 [[nodiscard]] auto builtin_voices() -> std::span<const builtin_voice>;
 
 /// Case-insensitive; nullptr for a name that is not a built-in voice.
@@ -49,7 +49,7 @@ struct voice_parameter {
 };
 
 /// The parameters the voice lab edits together. Five at most: a modal holds
-/// no more (docs/features/Commands_and_Panels.md §5).
+/// no more (src/core/docs/Commands_and_Panels.md §5).
 struct voice_parameter_group {
     std::string_view name;
     std::array<std::string_view, 5> codes;
@@ -67,7 +67,7 @@ struct voice_parameter_group {
 [[nodiscard]] auto voice_parameter_groups() -> std::span<const voice_parameter_group>;
 
 /// A voice built on a built-in one: which, and the `[:dv]` edits made to it
-/// (docs/features/Speech.md §3). Every edit is within its parameter's limits.
+/// (src/modules/dectalk/docs/Speech.md §3). Every edit is within its parameter's limits.
 struct custom_voice {
     std::string base = "paul";
 
@@ -108,7 +108,7 @@ struct parsed_voice {
 /// then the rate, then a custom voice's `[:dv]` edits. An unknown voice falls
 /// back to Paul, and the rate is clamped to what DECtalk accepts.
 ///
-/// Every utterance runs on a fresh engine (docs/features/Speech.md §4.1), so
+/// Every utterance runs on a fresh engine (src/modules/dectalk/docs/Speech.md §4.1), so
 /// nothing needs resetting first; this only has to say what differs from the
 /// defaults.
 [[nodiscard]] auto voice_preamble(const ports::voice_settings& settings) -> std::string;

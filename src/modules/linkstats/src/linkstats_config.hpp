@@ -6,7 +6,7 @@
 
 namespace latibot::linkstats {
 
-/// The "linkstats" section of config.json (docs/features/Link_Stats.md §10).
+/// The "linkstats" section of config.json (src/modules/linkstats/docs/Link_Stats.md §10).
 struct linkstats_config {
     /// How many reactions an emote needs before the bot keeps its own copy
     /// of it, as an application emoji. 0 turns copying off. Raising it

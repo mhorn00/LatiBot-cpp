@@ -1,4 +1,4 @@
-// The speech capability as DECtalk offers it (docs/features/Language_Model.md
+// The speech capability as DECtalk offers it (src/modules/llm/docs/Language_Model.md
 // §2.5): what the language model's spoken replies go through.
 
 #include "dectalk_speech.hpp"

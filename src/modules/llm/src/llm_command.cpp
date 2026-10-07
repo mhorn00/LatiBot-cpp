@@ -111,7 +111,7 @@ auto match_mode_option() -> dpp::command_option {
 
 /// Memories with the people they name as mentions, which Discord shows as
 /// names, rather than the aliases the model wrote
-/// (docs/features/Language_Model.md §3.8).
+/// (src/modules/llm/docs/Language_Model.md §3.8).
 auto named(std::vector<llm::memory> memories, dpp::snowflake guild, const llm::alias_store* aliases) -> std::vector<llm::memory> {
     if (aliases == nullptr) return memories;
     for (llm::memory& entry : memories) {
@@ -625,7 +625,7 @@ auto llm_command::revert_document(const dpp::slashcommand_t& event, llm::documen
         co_return;
     }
     // Edits go to the log, not to the channel
-    // (docs/features/Language_Model.md §3.5).
+    // (src/modules/llm/docs/Language_Model.md §3.5).
     util::log().info("the {} in guild {} reverted to version {} by {}, as version {}", label_of(kind), guild, number,
                      describe_user(event.command.get_issuing_user()), *saved);
     co_await event.co_reply(result(event, describe_saved(kind, *saved, services_.documents->text(guild, kind))));
@@ -1028,7 +1028,7 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
         const int version =
             services_.documents->save(guild, *kind, text, event.command.get_issuing_user().id, seconds_now(*services_.clock));
         // Edits go to the log, not to the channel
-        // (docs/features/Language_Model.md §3.5).
+        // (src/modules/llm/docs/Language_Model.md §3.5).
         util::log().info("the {} in guild {} edited by {}: version {}, {} characters", label_of(*kind), guild, who, version,
                          util::character_count(text));
         ui::answer_privately(event, describe_saved(*kind, version, text));

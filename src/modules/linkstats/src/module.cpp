@@ -103,7 +103,7 @@ constexpr std::array<db::migration, 1> linkstats_steps{{
         ) WITHOUT ROWID;
 
         -- What became of each custom emoji's image, for the bot's own copies
-        -- of them (docs/features/Link_Stats.md 10).
+        -- of them (src/modules/linkstats/docs/Link_Stats.md 10).
         CREATE TABLE emoji_images (
             emoji_key    TEXT    PRIMARY KEY,   -- c:<id>
 
@@ -133,7 +133,7 @@ constexpr std::array<db::migration, 1> linkstats_steps{{
 
         -- Emojis somebody sent as a message of their own just after a post,
         -- or as a reply to it, which count as reactions to it
-        -- (docs/features/Link_Stats.md 12).
+        -- (src/modules/linkstats/docs/Link_Stats.md 12).
         CREATE TABLE emote_reactions (
             message_id INTEGER NOT NULL REFERENCES replacement_messages (message_id),
             user_id    INTEGER NOT NULL,
@@ -233,7 +233,7 @@ public:
         bot.listen(bot.cluster().on_message_create, "linkstats: image posts and emotes sent as reactions",
                    [this](const dpp::message_create_t& event) {
                        // Somebody's image or video, in a server that counts
-                       // reactions on them (docs/features/Link_Stats.md §9).
+                       // reactions on them (src/modules/linkstats/docs/Link_Stats.md §9).
                        const dpp::message& message = event.msg;
                        media_.on_message({.message_id = message.id,
                                           .guild_id = message.guild_id,
@@ -244,7 +244,7 @@ public:
                                           .has_links = !util::find_links(message.content).empty()});
                        // Emotes sent as a message of their own after a post,
                        // which count as reactions to it
-                       // (docs/features/Link_Stats.md §12).
+                       // (src/modules/linkstats/docs/Link_Stats.md §12).
                        if (!message.guild_id.empty()) emotes_.on_message(message.channel_id, as_emote_message(describe_history(message)));
                    });
         // The preview that shows a link was an image arrives as an update,
@@ -256,7 +256,7 @@ public:
         bot.listen(bot.cluster().on_message_delete, "linkstats: emotes deleted",
                    [this](const dpp::message_delete_t& event) { emotes_.on_delete(event.channel_id, event.id); });
 
-        // Reaction statistics (docs/features/Link_Stats.md §3). Every
+        // Reaction statistics (src/modules/linkstats/docs/Link_Stats.md §3). Every
         // reaction in every channel arrives here; the store counts the ones on
         // our replacements and ignores the rest in the same statement that
         // would have recorded them.
@@ -304,7 +304,7 @@ public:
 
 private:
     /// One round of keeping the bot's own copies of emojis
-    /// (docs/features/Link_Stats.md §10); the round logs what it did.
+    /// (src/modules/linkstats/docs/Link_Stats.md §10); the round logs what it did.
     auto copy_round() -> dpp::task<void> { co_await copier_.run_round(); }
 
     /// The clock's time to the second, which is what the database stores.

@@ -50,7 +50,7 @@ namespace latibot::commands {
 /// Whether someone may edit the personality: anyone with Manage Server, or
 /// anyone holding the guild's personality role. The role is @everyone, the
 /// guild's own id, until an admin narrows it
-/// (docs/features/Language_Model.md §3.5).
+/// (src/modules/llm/docs/Language_Model.md §3.5).
 [[nodiscard]] auto may_edit_personality(bool manages_server, dpp::snowflake guild, dpp::snowflake editor_role,
                                         std::span<const dpp::snowflake> roles) -> bool;
 
@@ -88,10 +88,10 @@ struct llm_overview {
 
 /// "saved as version 3 (about 250 tokens)", with a warning when a document
 /// has grown expensive to send with every message
-/// (docs/features/Language_Model.md §3.5).
+/// (src/modules/llm/docs/Language_Model.md §3.5).
 [[nodiscard]] auto describe_saved(llm::document_kind kind, int version, std::string_view content) -> std::string;
 
-/// The settings panel (docs/features/Language_Model.md §2.9): every value, a
+/// The settings panel (src/modules/llm/docs/Language_Model.md §2.9): every value, a
 /// menu that opens a group's form, and the switch.
 [[nodiscard]] auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled) -> dpp::message;
 
@@ -102,7 +102,7 @@ struct llm_overview {
 
 /// What a group's form sent, as the values to store. Every field has to be
 /// valid or nothing is stored, and the reason names the first that is not,
-/// with its range (docs/features/Language_Model.md §2.9).
+/// with its range (src/modules/llm/docs/Language_Model.md §2.9).
 [[nodiscard]] auto read_llm_settings_form(std::string_view group, const std::map<std::string, std::string, std::less<>>& fields)
     -> std::variant<std::vector<std::pair<std::string_view, std::int64_t>>, std::string>;
 
@@ -148,12 +148,12 @@ struct llm_command_services {
 
 /// `/llm`: the switch, the model, the settings panel, the documents, the
 /// advanced triggers and the blacklist
-/// (docs/features/Language_Model.md §2.9).
+/// (src/modules/llm/docs/Language_Model.md §2.9).
 ///
 /// Open to everyone, since the personality is
-/// (docs/features/Language_Model.md §2.9); everything that changes how the
+/// (src/modules/llm/docs/Language_Model.md §2.9); everything that changes how the
 /// model behaves for the whole server checks Manage Server itself, as default
-/// permissions are per command (docs/features/Commands_and_Panels.md §2.1).
+/// permissions are per command (src/core/docs/Commands_and_Panels.md §2.1).
 class llm_command final : public command {
 public:
     explicit llm_command(llm_command_services services);
@@ -185,7 +185,7 @@ private:
     llm_command_services services_;
 };
 
-/// `/memory list | forget | clear` (docs/features/Language_Model.md §2.4).
+/// `/memory list | forget | clear` (src/modules/llm/docs/Language_Model.md §2.4).
 /// Admins see and remove everything; anyone else sees and removes what is
 /// about them.
 class memory_command final : public command {

@@ -42,7 +42,7 @@ public:
 
         // The hooks run after the mixer on both: a new connection has lost
         // what the old one queued, and music's markers are the mixer's to
-        // hand on (docs/features/Voice_Channels.md §3).
+        // hand on (src/modules/voice/docs/Voice_Channels.md §3).
         bot.listen(bot.cluster().on_voice_ready, "voice: connections ready", [this](const dpp::voice_ready_t& event) {
             if (event.voice_client == nullptr) return;
             const dpp::snowflake guild = event.voice_client->server_id;
@@ -63,11 +63,11 @@ public:
                    [this](const dpp::voice_state_update_t& event) { on_voice_state(event.state); });
 
         // Keeps a few seconds queued on each connection playing
-        // (docs/features/Music.md §4.2). Most ticks find nothing to do.
+        // (src/modules/music/docs/Music.md §4.2). Most ticks find nothing to do.
         bot.every(std::chrono::seconds{1}, "feeding the mixer", [this] { mixer_.tick(); });
 
         // Leaving a voice channel nobody else is in, once its guild's grace
-        // has passed (docs/features/Voice_Channels.md §2.3). Leaving is the
+        // has passed (src/modules/voice/docs/Voice_Channels.md §2.3). Leaving is the
         // bot's own voice state changing, which on_voice_state tidies up
         // after.
         bot.every(events::auto_leave_tick, "the voice auto-leave check", [this] {
@@ -91,7 +91,7 @@ public:
 private:
     /// Someone's voice state changed, the bot's included. Tidies up after the
     /// bot leaves a channel, however that happened, and tells the auto-leave
-    /// check whether it is on its own (docs/features/Voice_Channels.md §2.3).
+    /// check whether it is on its own (src/modules/voice/docs/Voice_Channels.md §2.3).
     auto on_voice_state(const dpp::voicestate& state) -> void {
         const dpp::snowflake guild = state.guild_id;
         const dpp::snowflake me = bot_->me().id;

@@ -11,7 +11,7 @@ namespace latibot::llm {
 inline constexpr std::string_view openai_url = "https://api.openai.com/v1/chat/completions";
 
 /// The Chat Completions body for `call`
-/// (docs/features/Language_Model.md §3.2).
+/// (src/modules/llm/docs/Language_Model.md §3.2).
 ///
 /// Reasoning is off: Chat Completions only lets these models call functions
 /// with `reasoning_effort` at `none`, and the bot's memory is functions. The

@@ -1,5 +1,5 @@
 // Midnight as a module: what it brings to the bot when it starts
-// (docs/modules/Module_Plan_Final.md §4, docs/features/Midnight.md).
+// (docs/modules/Module_Plan_Final.md §4, src/modules/midnight/docs/Midnight.md).
 
 #include "midnight/module.hpp"
 

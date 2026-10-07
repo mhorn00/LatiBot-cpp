@@ -21,11 +21,11 @@
 
 namespace latibot::music {
 
-// yt-dlp and ffmpeg (docs/features/Music.md §4.4, §4.5): reading a link, and
+// yt-dlp and ffmpeg (src/modules/music/docs/Music.md §4.4, §4.5): reading a link, and
 // fetching a track into ffmpeg to become PCM. The argument lists and the
 // reading of yt-dlp's JSON are plain functions, tested on their own.
 
-/// What a run of yt-dlp is told beyond its link (docs/features/Music.md
+/// What a run of yt-dlp is told beyond its link (src/modules/music/docs/Music.md
 /// §4.9, §5). Each part is left out when empty.
 struct ytdlp_extras {
     /// Deno, which yt-dlp solves YouTube's JavaScript challenges with;
@@ -69,7 +69,7 @@ struct ytdlp_extras {
 /// can take many seconds, and must not hold up DPP's threads.
 ///
 /// Before yt-dlp is run, the link's host is resolved, and a link into a
-/// private or loopback network is refused (docs/features/Music.md §6).
+/// private or loopback network is refused (src/modules/music/docs/Music.md §6).
 /// With `cookies`, a link yt-dlp says needs signing in is read again,
 /// signed in with a copy of its own (§4.9), and only that try's failure is
 /// told.

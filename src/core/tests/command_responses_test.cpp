@@ -48,7 +48,7 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
 
 TEST_CASE("the views meant for the room are public and the rest are private", "[commands]") {
     // The room sees the bot stop, so it sees why; a refusal is still only
-    // for whoever asked (docs/features/Basic_Commands.md §5).
+    // for whoever asked (src/core/docs/Basic_Commands.md §5).
     const latibot::commands::shutdown_command shutdown([] {});
     CHECK(shutdown.info().responses_for("").result == dpp::m_suppress_notifications);
     CHECK(shutdown.info().responses_for("").refusal == dpp::m_ephemeral);

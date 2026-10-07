@@ -131,7 +131,7 @@ TEST_CASE("all() lists everything set for one guild", "[config]") {
 TEST_CASE("the goodbye phrase can be set, read back and turned off", "[config]") {
     // /goodbye stores through guild_settings, and the pipeline stage reads
     // the same key, so this pins the contract between them
-    // (docs/features/Basic_Commands.md §3).
+    // (src/core/docs/Basic_Commands.md §3).
     settings_fixture fixture;
     constexpr dpp::snowflake guild{4242};
 

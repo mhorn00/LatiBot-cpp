@@ -15,7 +15,7 @@
 namespace latibot::util {
 
 // Running other programs: yt-dlp and ffmpeg, for music
-// (docs/features/Music.md §4.6). Arguments are always a list, never a shell
+// (src/modules/music/docs/Music.md §4.6). Arguments are always a list, never a shell
 // line, so nothing in them is ever interpreted by a shell.
 
 /// A program and its arguments.

@@ -6,13 +6,13 @@ somebody's nickname with the change on record under whoever ran it. The
 Java bot's `nicknames.json` history is imported on startup.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#nickname) has the
-commands and replies, and [Nickname tracking](README.md#nickname-tracking)
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#nickname) has the
+commands and replies, and [Nickname tracking](../../../../docs/User_Guide.md#nickname-tracking)
 the passive side.
 
 | | |
 |---|---|
-| **Module** | `nicknames`: [its README](../../src/modules/nicknames/README.md) lists what it owns |
+| **Module** | `nicknames`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/nicknames/src/`: `nicknames.*`, `nickname_import.*`, `nickname_command.*`, and `module.cpp`, which holds the gateway handlers |
 | **Tests** | `src/modules/nicknames/tests/`, built as `latibot_nicknames_tests` |
 | **Tables** | `nickname_history`, the module's schema version 1 (was migration 4) |
@@ -214,4 +214,4 @@ no time-zone library is needed.
 - **Later: appearance tracking.** Avatars, per-server profiles, role colours
   including gradients, and decorations. It is expected to need a raw API
   read and a generated image, since an embed colour cannot show a gradient.
-  See [Planned.md](Planned.md).
+  See [Planned.md](../../../../docs/Planned.md).

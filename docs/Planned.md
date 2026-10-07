@@ -1,17 +1,17 @@
 # What LatiBot will do
 
 Features that are designed but not built, written the same way as
-[what already exists](README.md): what each command does, its options, who may
+[what already exists](User_Guide.md): what each command does, its options, who may
 run it, and how it should behave. The language model, which was here, is built
 and documented there now.
 
 **This is the document to correct.** Nothing here is written yet, so changing a
 reply, an option name or a rule costs nothing now and costs a rewrite later. The
 technical design behind each one — schemas, algorithms, the bugs being fixed —
-is in [docs/porting/Porting_Plan_Final.md](../porting/Porting_Plan_Final.md)
+is in [docs/porting/Porting_Plan_Final.md](porting/Porting_Plan_Final.md)
 (§15, §16 and §8.5); this is the user-facing side of the same thing. When one
 is built, it gets a spec of its own beside the
-[others](README.md#feature-specs).
+[others](User_Guide.md#feature-specs).
 
 Command names, option names and reply wording are all proposals.
 
@@ -30,4 +30,4 @@ generated image, since an embed cannot represent a gradient.
 **Self-hosted embeds.** Downloading the linked content and hosting the embed
 directly, so it survives the original being deleted or the mirror services
 disappearing. Written up in
-[docs/ideas/Self_Hosted_Embeds.md](../ideas/Self_Hosted_Embeds.md).
+[docs/ideas/Self_Hosted_Embeds.md](ideas/Self_Hosted_Embeds.md).

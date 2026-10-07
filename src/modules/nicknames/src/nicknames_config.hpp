@@ -4,7 +4,7 @@
 
 namespace latibot::nicknames {
 
-/// The "nicknames" section of config.json (docs/features/Nicknames.md §3).
+/// The "nicknames" section of config.json (src/modules/nicknames/docs/Nicknames.md §3).
 struct nicknames_config {
     /// Whether to watch for nickname changes.
     ///

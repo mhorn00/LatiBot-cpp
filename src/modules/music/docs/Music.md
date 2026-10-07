@@ -8,14 +8,14 @@ the music **pauses at once**, the speech plays, and the music **resumes
 from exactly where it stopped**.
 
 This is the feature's spec: what it is for, how it behaves, how it is
-built, and what was decided and why. [The user guide](README.md#music) has
+built, and what was decided and why. [The user guide](../../../../docs/User_Guide.md#music) has
 the subcommands and replies. What it builds on is in
-[Voice_Channels.md](Voice_Channels.md) (joining, leaving, the speech queue)
-and [Speech.md](Speech.md).
+[Voice_Channels.md](../../voice/docs/Voice_Channels.md) (joining, leaving, the speech queue)
+and [Speech.md](../../dectalk/docs/Speech.md).
 
 | | |
 |---|---|
-| **Module** | `music`, which requires voice: [its README](../../src/modules/music/README.md) lists what it owns |
+| **Module** | `music`, which requires voice: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/music/src/`: `{music_queue,music_player,yt_dlp,links,cookies,pot_provider,process}.*`, `music_command.*`, `media.hpp`, `module.cpp`; the mixer is voice's (`voice/voice_mixer.hpp`) |
 | **Tests** | `src/modules/music/tests/` (`latibot_music_tests`, with `mock_media.hpp`), `tests/mocks/mock_voice.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
@@ -180,7 +180,7 @@ the samples itself (§4.2).
 
 The music stops and the queue is **emptied** whenever the bot leaves the
 channel: `/leave`, `/voice stop`, being disconnected, or leaving because it
-was alone ([Voice_Channels.md §2.3](Voice_Channels.md#23-leaving-an-empty-channel)).
+was alone ([Voice_Channels.md §2.3](../../voice/docs/Voice_Channels.md#23-leaving-an-empty-channel)).
 Music does not keep the bot in an empty channel. Moving to another channel
 with `/join` keeps the queue; the current track carries on, less up to three
 seconds that were queued on the old connection (§4.2).
@@ -792,16 +792,16 @@ As built, each step with its tests passing:
 
 ## 11. What changed elsewhere
 
-- **[Voice_Channels.md](Voice_Channels.md)**: the mixer sits between the
+- **[Voice_Channels.md](../../voice/docs/Voice_Channels.md)**: the mixer sits between the
   speech queue and DPP, and leaving empties the music queue.
-- **[Operations.md §4](Operations.md#4-configuration)** and `.env.example`:
+- **[Operations.md §4](../../../core/docs/Operations.md#4-configuration)** and `.env.example`:
   `LATIBOT_YTDLP_COOKIES` and `LATIBOT_YTDLP_FIREFOX_PROFILE`, from
   2026-10-01; Deno and the PO token provider among the other programs.
 - **`deploy/`**: `Install-Dependencies.ps1` and its readme, from 2026-10-01.
-- **[Speech.md](Speech.md)**: speech pauses music, and `/tts stop` stops
+- **[Speech.md](../../dectalk/docs/Speech.md)**: speech pauses music, and `/tts stop` stops
   speech only.
-- **[Operations.md](Operations.md)**: the two executables, their
+- **[Operations.md](../../../core/docs/Operations.md)**: the two executables, their
   `config.json` keys, the startup warning, and the music timer.
-- **[Planned.md](Planned.md)**: music left it.
+- **[Planned.md](../../../../docs/Planned.md)**: music left it.
 - **The user guide**: `/music`.
 - **The root README**: the release files and the configuration keys.

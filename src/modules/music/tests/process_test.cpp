@@ -1,5 +1,5 @@
 // Running other programs, as music runs yt-dlp and ffmpeg
-// (docs/features/Music.md §4.6), against a stand-in program the tests build
+// (src/modules/music/docs/Music.md §4.6), against a stand-in program the tests build
 // (tests/support/test_child.cpp).
 
 #include "process.hpp"

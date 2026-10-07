@@ -12,7 +12,7 @@ class host;
 
 namespace latibot::linkstats {
 
-/// The linkstats module (README.md, docs/features/Link_Stats.md):
+/// The linkstats module (README.md, src/modules/linkstats/docs/Link_Stats.md):
 /// `/linkstats`, and counting the reactions on replacements and image posts.
 [[nodiscard]] auto make_module(modules::host& bot) -> std::unique_ptr<modules::module>;
 

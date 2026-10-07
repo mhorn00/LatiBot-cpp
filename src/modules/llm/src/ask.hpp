@@ -8,7 +8,7 @@
 
 namespace latibot::llm {
 
-/// Ask the model to answer a message (docs/features/Language_Model.md).
+/// Ask the model to answer a message (src/modules/llm/docs/Language_Model.md).
 ///
 /// An action of its own because answering takes a model call, maybe several,
 /// and the stage that decides to answer cannot wait for them: it only
@@ -29,11 +29,11 @@ struct ask_llm {
     std::string context_prompt;
 
     /// Also say the reply in the voice session this channel belongs to
-    /// (docs/features/Language_Model.md §2.5).
+    /// (src/modules/llm/docs/Language_Model.md §2.5).
     bool speak = false;
 
     /// How long to wait before answering: bot-to-bot pacing
-    /// (docs/features/Language_Model.md §2.7).
+    /// (src/modules/llm/docs/Language_Model.md §2.7).
     std::chrono::seconds wait{0};
 };
 

@@ -1,5 +1,5 @@
 // What each guild is saying, in order, and stopping it
-// (docs/features/Speech.md §2.4, docs/features/Voice_Channels.md §3).
+// (src/modules/dectalk/docs/Speech.md §2.4, src/modules/voice/docs/Voice_Channels.md §3).
 
 #include "speech_queue.hpp"
 

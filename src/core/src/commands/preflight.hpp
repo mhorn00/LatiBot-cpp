@@ -12,7 +12,7 @@ namespace latibot::commands {
 ///
 /// The purpose is carried alongside the bits so a warning can say what stops
 /// working, rather than naming a permission and leaving the reader to guess
-/// (docs/features/Operations.md §6).
+/// (src/core/docs/Operations.md §6).
 struct requirement {
     std::uint64_t permissions = 0;
     std::string_view purpose;

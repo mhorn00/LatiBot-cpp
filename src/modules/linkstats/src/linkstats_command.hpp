@@ -143,7 +143,7 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
                             const std::string& chosen) -> bool;
 
 /// A recompute's progress message: running while it runs, then the final
-/// report (docs/features/Link_Stats.md §4.3). Messages worth a look are
+/// report (src/modules/linkstats/docs/Link_Stats.md §4.3). Messages worth a look are
 /// linked, so a click shows them.
 [[nodiscard]] auto render_backfill(const events::backfill_report& report, const events::backfill_request& request, bool finished)
     -> std::string;
@@ -165,7 +165,7 @@ auto on_linkstats_component(events::reaction_store& store, const dpp::interactio
 /// Reading is open to everyone; changing aliases and recomputing need Manage
 /// Server. Discord's default permissions are per command, not per subcommand,
 /// so this is the only check these get
-/// (docs/features/Commands_and_Panels.md §2.1).
+/// (src/core/docs/Commands_and_Panels.md §2.1).
 [[nodiscard]] auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> std::optional<std::string>;
 
 /// What `/linkstats recompute` needs from outside the statistics.
@@ -183,7 +183,7 @@ struct recompute_support {
 };
 
 /// `/linkstats top | reactions | duplicates | alias … | recompute … | images …`
-/// (docs/features/Link_Stats.md §1).
+/// (src/modules/linkstats/docs/Link_Stats.md §1).
 ///
 /// Reading is open to everyone; aliases and recomputing need Manage Server,
 /// which `linkstats_refusal` decides before any subcommand runs.
@@ -212,7 +212,7 @@ private:
     auto images(const dpp::slashcommand_t& event, bool enabled) -> dpp::task<void>;
 
     /// Whether this guild counts reactions on images and videos
-    /// (docs/features/Link_Stats.md §9).
+    /// (src/modules/linkstats/docs/Link_Stats.md §9).
     [[nodiscard]] auto counts_images(dpp::snowflake guild_id) const -> bool;
 
     /// The `source` option, or when it is left out, both where images are

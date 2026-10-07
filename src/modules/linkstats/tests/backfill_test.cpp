@@ -1,5 +1,5 @@
 // /linkstats recompute: reading history back into the reaction statistics
-// (docs/features/Link_Stats.md §4), against the Discord mock and a real
+// (src/modules/linkstats/docs/Link_Stats.md §4), against the Discord mock and a real
 // database.
 
 #include "backfill.hpp"
@@ -377,7 +377,7 @@ TEST_CASE("the bot's own links are not replacements unless they answered one", "
 }
 
 // --------------------------------------------------------------------------
-// Images and videos (docs/features/Link_Stats.md §9)
+// Images and videos (src/modules/linkstats/docs/Link_Stats.md §9)
 // --------------------------------------------------------------------------
 
 namespace {
@@ -447,7 +447,7 @@ TEST_CASE("where images are not counted, a recompute leaves them alone", "[links
 }
 
 // --------------------------------------------------------------------------
-// Emotes sent as reactions (docs/features/Link_Stats.md §12)
+// Emotes sent as reactions (src/modules/linkstats/docs/Link_Stats.md §12)
 // --------------------------------------------------------------------------
 
 namespace {

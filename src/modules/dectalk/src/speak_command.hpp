@@ -31,7 +31,7 @@ class voice_lab;
 // Decisions
 // --------------------------------------------------------------------------
 
-/// Per-guild limits on speech (docs/features/Speech.md §2.3).
+/// Per-guild limits on speech (src/modules/dectalk/docs/Speech.md §2.3).
 struct speech_limits {
     std::size_t max_characters = 1000;
     std::chrono::seconds max_duration{60};
@@ -52,7 +52,7 @@ inline constexpr std::int64_t max_seconds_limit = 600;
 
 /// Whether `caller` may stop or skip what is being said: whoever asked for
 /// the utterance playing now, an administrator, or a trusted user
-/// (docs/features/Speech.md §2.4). With nothing playing, only the latter two.
+/// (src/modules/dectalk/docs/Speech.md §2.4). With nothing playing, only the latter two.
 [[nodiscard]] auto may_stop_speech(dpp::snowflake caller, std::optional<dpp::snowflake> speaking_for, bool trusted,
                                    bool administrator) noexcept -> bool;
 
@@ -66,7 +66,7 @@ inline constexpr std::string_view nothing_left_reply = "there's nothing left to 
     -> std::optional<ports::voice_settings>;
 
 /// How far to trust what whoever used `event` wants spoken
-/// (docs/features/Speech.md §2.2).
+/// (src/modules/dectalk/docs/Speech.md §2.2).
 [[nodiscard]] auto speech_trust_of(const config::bootstrap& bootstrap, const dpp::interaction_create_t& event) -> audio::speech_trust;
 
 /// Logs, at debug, which inline commands the sanitizer took out.
@@ -91,7 +91,7 @@ struct speech_services {
     audio::voice_store* voices = nullptr;
 };
 
-/// Says something in the voice channel (docs/features/Speech.md §2.1).
+/// Says something in the voice channel (src/modules/dectalk/docs/Speech.md §2.1).
 class speak_command final : public command {
 public:
     explicit speak_command(speech_services services);
@@ -107,7 +107,7 @@ private:
 };
 
 /// Stops or skips speech, sets the limits on it, and keeps the guild's
-/// custom voices (docs/features/Speech.md §2.4, §3).
+/// custom voices (src/modules/dectalk/docs/Speech.md §2.4, §3).
 class tts_command final : public command {
 public:
     tts_command(speech_services services, voice_lab& lab);

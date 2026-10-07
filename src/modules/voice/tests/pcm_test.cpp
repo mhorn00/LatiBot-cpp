@@ -1,4 +1,4 @@
-// Volume and resampling for Discord (docs/features/Speech.md §4.1).
+// Volume and resampling for Discord (src/modules/dectalk/docs/Speech.md §4.1).
 
 #include "voice/pcm.hpp"
 

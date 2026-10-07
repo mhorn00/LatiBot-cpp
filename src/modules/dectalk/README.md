@@ -3,8 +3,8 @@
 Speaks in voice channels with DECtalk: `/speak` once, `/tts` for everything
 a person writes, `/chat` for a channel's messages, and custom voices made in
 the voice lab. It also offers the speech the language model speaks through.
-How it behaves, and why, is [docs/features/Speech.md](../../../docs/features/Speech.md);
-the commands' replies are in [the user guide](../../../docs/features/README.md#tts).
+How it behaves, and why, is [docs/Speech.md](docs/Speech.md);
+the commands' replies are in [the user guide](../../../docs/User_Guide.md#tts).
 
 Built unless `LATIBOT_WITH_DECTALK` is off; it requires voice. DECtalk itself
 (`third_party/dectalk`, `cmake/dectalk.cmake`) is linked by this module only.

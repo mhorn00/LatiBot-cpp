@@ -46,7 +46,7 @@ join_command::join_command()
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             // The room sees the bot come and go, so it sees why
-            // (docs/features/Voice_Channels.md §2.1).
+            // (src/modules/voice/docs/Voice_Channels.md §2.1).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 
@@ -104,7 +104,7 @@ leave_command::leave_command()
             .default_member_permissions = dpp::permission(dpp::p_speak),
             .guild_only = true,
             // The room sees the bot come and go, so it sees why
-            // (docs/features/Voice_Channels.md §2.1).
+            // (src/modules/voice/docs/Voice_Channels.md §2.1).
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}} {}
 

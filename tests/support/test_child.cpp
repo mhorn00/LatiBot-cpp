@@ -1,5 +1,5 @@
 // A program the process tests run in place of yt-dlp and ffmpeg
-// (docs/features/Music.md §7). What it does is its first argument:
+// (src/modules/music/docs/Music.md §7). What it does is its first argument:
 //
 //   echo-args ...     each further argument on a line of its own, as Windows
 //                     parsed the command line, in UTF-8

@@ -51,14 +51,14 @@ struct trigger {
     std::string pattern;
     match_mode mode = match_mode::whole_word;
 
-    /// Per channel, and may be zero (docs/features/Triggers.md §2.2).
+    /// Per channel, and may be zero (src/modules/triggers/docs/Triggers.md §2.2).
     std::chrono::seconds cooldown{30};
     bool enabled = true;
 
     /// Whether this trigger answers messages from other bots.
     ///
     /// Off by default, and only reachable at all for bots this guild has
-    /// allowed (docs/features/Message_Pipeline.md §2.1): the allowlist
+    /// allowed (src/core/docs/Message_Pipeline.md §2.1): the allowlist
     /// decides who is heard, this decides who is answered.
     bool respond_to_bots = false;
 
@@ -118,9 +118,9 @@ private:
 ///
 /// Does not consume the message: a message with both "420" and a link should
 /// get the reply and the replacement
-/// (docs/features/Message_Pipeline.md §2.2). A reply marks the message
+/// (src/core/docs/Message_Pipeline.md §2.2). A reply marks the message
 /// answered, which keeps the advanced triggers quiet: the simple one wins
-/// (docs/features/Message_Pipeline.md §2.2).
+/// (src/core/docs/Message_Pipeline.md §2.2).
 ///
 /// Safe to call from several threads at once, which is how DPP delivers
 /// messages.

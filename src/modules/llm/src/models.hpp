@@ -15,7 +15,7 @@ enum class provider_kind : std::uint8_t { anthropic, openai };
 [[nodiscard]] auto provider_from_string(std::string_view name) -> std::optional<provider_kind>;
 
 /// A model the bot may use, what it costs, and what its requests may carry
-/// (docs/features/Language_Model.md §3.2).
+/// (src/modules/llm/docs/Language_Model.md §3.2).
 ///
 /// A model is only usable when it is in this table: the spend cap is worked
 /// out from these prices, and a model without one would spend without being
@@ -38,7 +38,7 @@ struct model_info {
     /// Whether requests carry an effort setting. Sent to a model without it,
     /// it is a 400; the thinking models take `low`, which keeps thinking on
     /// but short, rather than switching it off
-    /// (docs/features/Language_Model.md §3.2).
+    /// (src/modules/llm/docs/Language_Model.md §3.2).
     bool takes_effort = false;
 };
 

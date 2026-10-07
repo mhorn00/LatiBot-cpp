@@ -68,7 +68,7 @@ public:
              commands::trigger_toggle_view, commands::trigger_bots_view, commands::trigger_silent_view, commands::trigger_previews_view},
             module_name);
         // After link replacement and before the language model, which a
-        // reply here keeps quiet (docs/features/Message_Pipeline.md §2.2).
+        // reply here keeps quiet (src/core/docs/Message_Pipeline.md §2.2).
         bot.add_stage(stage_order::reply, "triggers", [this](const incoming_message& message) { return responder_(message); });
     }
 

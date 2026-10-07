@@ -11,13 +11,13 @@ namespace latibot::llm {
 inline constexpr std::string_view anthropic_url = "https://api.anthropic.com/v1/messages";
 inline constexpr std::string_view anthropic_version = "2023-06-01";
 
-/// The Messages API body for `call` (docs/features/Language_Model.md §3.2).
+/// The Messages API body for `call` (src/modules/llm/docs/Language_Model.md §3.2).
 ///
 /// Model-aware: an effort setting goes only to the models that take one, and
 /// nothing sends `temperature`, which current models reject. The stable
 /// part of the instructions carries the one cache breakpoint, which caches
 /// the tools with it, since the cache covers tools, then system, in that
-/// order (docs/features/Language_Model.md §3.3).
+/// order (src/modules/llm/docs/Language_Model.md §3.3).
 [[nodiscard]] auto anthropic_body(const request& call) -> nlohmann::json;
 
 /// Reads a Messages API reply. A status outside 2xx is an `api_error`

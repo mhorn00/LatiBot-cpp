@@ -129,7 +129,7 @@ auto embed_urls_of(const dpp::message& message) -> std::vector<std::string> {
 class links_module;
 
 /// The Retry button on a replacement that found no preview
-/// (docs/features/Url_Replacement.md §2.4).
+/// (src/modules/links/docs/Url_Replacement.md §2.4).
 class retry_panel {
 public:
     explicit retry_panel(links_module& owner) : owner_(&owner) {}
@@ -176,7 +176,7 @@ public:
         bot.panels().add(retry_, {url_retry_view}, module_name);
 
         // Before the trigger replies, which a message with a link and a joke
-        // gets as well (docs/features/Message_Pipeline.md §2.2).
+        // gets as well (src/core/docs/Message_Pipeline.md §2.2).
         bot.add_stage(stage_order::rewrite, "url replacement",
                       carried_out_by<replace_links>(url_replacer(rules_), "posting a replacement", [this](replace_links request) {
                           return post_replacement(bot_->gateway(), replacements_, tracker_, bot_->clock(), std::move(request));
@@ -198,7 +198,7 @@ public:
 
         // Discord adds link previews by updating the message a moment after
         // it was posted, which is how the embed tracker learns that a mirror
-        // worked (docs/features/Url_Replacement.md §3.3). Every update goes to
+        // worked (src/modules/links/docs/Url_Replacement.md §3.3). Every update goes to
         // it: the one for our message often arrives without an author, so
         // there is nothing to filter on here.
         bot.listen(bot.cluster().on_message_update, "links: previews arriving",
@@ -229,14 +229,14 @@ public:
 
         // Answering the button with the edit is the first attempt, so it
         // cannot be overtaken by another press. Anyone may press it
-        // (docs/features/Url_Replacement.md §2.4).
+        // (src/modules/links/docs/Url_Replacement.md §2.4).
         event.reply(dpp::ir_update_message, build_edit(retry.first));
         carry_out(tracker_.watch(std::move(retry.request)));
     }
 
 private:
     /// Copies the Java bot's URL rules into a guild, once
-    /// (docs/features/Url_Replacement.md §2.7).
+    /// (src/modules/links/docs/Url_Replacement.md §2.7).
     auto import_rules(const dpp::guild& guild) -> void {
         config::guild_settings& settings = bot_->settings();
         if (settings.get_bool(guild.id, url_rules_imported_key, false)) return;
@@ -254,7 +254,7 @@ private:
 
     /// Settles this guild's replacements the last run left mid-watch, once:
     /// its first guild_create hands them over
-    /// (docs/features/Url_Replacement.md §2.5).
+    /// (src/modules/links/docs/Url_Replacement.md §2.5).
     auto settle_stranded(dpp::snowflake guild_id) -> void {
         std::vector<replacement_record> mine;
         {

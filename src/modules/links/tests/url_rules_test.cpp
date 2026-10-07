@@ -1,5 +1,5 @@
 // Deciding which links in a message get replaced, and with what
-// (docs/features/Url_Replacement.md §3.1).
+// (src/modules/links/docs/Url_Replacement.md §3.1).
 
 #include "links/url_rules.hpp"
 

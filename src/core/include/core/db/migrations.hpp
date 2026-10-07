@@ -11,7 +11,7 @@ class database;
 /// (core/db/schema_versions.hpp).
 ///
 /// Steps are append-only: once a version has shipped, its SQL is never
-/// edited, and a change becomes a new step (docs/features/Operations.md §5).
+/// edited, and a change becomes a new step (src/core/docs/Operations.md §5).
 struct migration {
     int version;
     std::string_view name;

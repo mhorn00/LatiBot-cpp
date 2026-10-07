@@ -758,7 +758,7 @@ auto render_backfill(const events::backfill_report& report, const events::backfi
         text += std::format("Old mirrors recognised: {}{}\n", hosts, more > 0 ? std::format(" and {} more", more) : std::string{});
     }
 
-    // Linked rather than guessed at (docs/features/Link_Stats.md §4.3), so a
+    // Linked rather than guessed at (src/modules/linkstats/docs/Link_Stats.md §4.3), so a
     // click shows each one. The reply after this carries them all, and the
     // log has them too.
     for (const issue_list& list : issue_lists(report)) {
@@ -973,7 +973,7 @@ auto linkstats_refusal(std::string_view subcommand, dpp::permission invoker) -> 
     if (invoker.can(dpp::p_manage_guild)) return std::nullopt;
     if (subcommand.starts_with("alias ") && subcommand != "alias list") return "changing emoji aliases needs Manage Server";
     // Reading years of history is a lot of API calls; this one is for the
-    // people who run the server (docs/features/Link_Stats.md §1).
+    // people who run the server (src/modules/linkstats/docs/Link_Stats.md §1).
     if (subcommand.starts_with("recompute ")) return "recomputing link stats needs Manage Server";
     if (subcommand.starts_with("images ")) return "choosing whether images are counted needs Manage Server";
     return std::nullopt;

@@ -7,13 +7,13 @@ the new preview has actually appeared. A server chooses the sites and
 mirrors, and each member can opt out.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](README.md#links) says how to
+and what was decided and why. [The user guide](../../../../docs/User_Guide.md#links) says how to
 use it, with every reply. The reactions on replacements are counted by
-[link stats](Link_Stats.md).
+[link stats](../../linkstats/docs/Link_Stats.md).
 
 | | |
 |---|---|
-| **Module** | `links`: [its README](../../src/modules/links/README.md) lists what it owns |
+| **Module** | `links`: [its README](../README.md) lists what it owns |
 | **Code** | `src/core/{include/core,src}/util/url_scan.*` (the core's, which linkstats shares); `src/modules/links/`: `include/links/{url_rules,replacements}.hpp`, `src/{url_replacer,embed_watch,links_command,module}.*` |
 | **Tests** | `src/core/tests/url_scan_test.cpp`, `src/modules/links/tests/` (`latibot_links_tests`), `tests/fuzz/fuzz_url_scan.cpp`; a link beside a trigger in `tests/app` |
 | **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links`, the module's schema version 1 (was migrations 6 and 12) |
@@ -192,7 +192,7 @@ already being tried.
 
 ### 3.2 The stage and the post
 
-`url_replacer` is a stage of the [message pipeline](Message_Pipeline.md). It
+`url_replacer` is a stage of the [message pipeline](../../../core/docs/Message_Pipeline.md). It
 returns a `replace_links` action and **does not consume** the message, so a
 message with "420" and a link gets the trigger's reply and the replacement.
 It keeps almost every message away from the database: messages from bots
@@ -236,7 +236,7 @@ to **256** of them, and a new watch absorbs any it finds.
 `pending`, `ok`, `failed` or `retrying`. `replacement_links` holds its links
 in order. Mirrors are not stored, since Retry uses the rule as it is when
 pressed. Rows are kept after the message is gone, because
-[link stats](Link_Stats.md) counts reactions against them, and a
+[link stats](../../linkstats/docs/Link_Stats.md) counts reactions against them, and a
 `kind` column (migration 12) lets that table hold image posts too.
 
 `url_rules` holds one row per mirror, with `position` 0 tried first. A rule
@@ -254,7 +254,7 @@ travel in each component's `custom_id` (views `urlpanel`, `urlpick`,
 `urllist` for `/links list`'s pages), so it survives a restart and two
 people can each have their own open. Lines are shortened evenly when a page
 of long mirror lists would pass 2,000 characters. The shared shape of
-panels is in [Commands_and_Panels.md](Commands_and_Panels.md).
+panels is in [Commands_and_Panels.md](../../../core/docs/Commands_and_Panels.md).
 
 ## 4. Decisions
 
@@ -290,7 +290,7 @@ panels is in [Commands_and_Panels.md](Commands_and_Panels.md).
   crash that loses the database write.
 - Turning the original's preview off needs **Manage Messages**, and our
   preview needs **Embed Links**. Without them the replacement still posts,
-  and the startup log names what is missing ([Operations.md](Operations.md#6-permission-warnings)).
+  and the startup log names what is missing ([Operations.md](../../../core/docs/Operations.md#6-permission-warnings)).
 - Wiring in the shell is untested by design: `on_message_update` feeding the
   tracker, `on_message_delete` forgetting a message, and the one-second
   timer.

@@ -32,14 +32,14 @@ namespace latibot::events {
 
 /// The bot's own copy of a custom emoji, an application emoji the bot can
 /// show anywhere, even after the original's server deletes it
-/// (docs/features/Link_Stats.md §10).
+/// (src/modules/linkstats/docs/Link_Stats.md §10).
 struct emoji_copy {
     dpp::snowflake id;
     std::string name;
     bool animated = false;
 };
 
-/// An emoji as the statistics know it (docs/features/Link_Stats.md §3).
+/// An emoji as the statistics know it (src/modules/linkstats/docs/Link_Stats.md §3).
 struct emoji_ref {
     /// "u:💀" for a Unicode emoji, "c:<id>" for a custom one.
     std::string key;
@@ -76,7 +76,7 @@ struct emoji_ref {
 // --------------------------------------------------------------------------
 
 /// Which side of a reaction a statistic counts
-/// (docs/features/Link_Stats.md §2).
+/// (src/modules/linkstats/docs/Link_Stats.md §2).
 enum class stat_kind : std::uint8_t {
     /// Credited to whoever posted the original link.
     received,
@@ -91,7 +91,7 @@ enum class stat_kind : std::uint8_t {
 [[nodiscard]] auto stat_kind_from_string(std::string_view name) -> std::optional<stat_kind>;
 
 /// Which posts a statistic counts: the bot's link replacements, people's own
-/// images and videos (docs/features/Link_Stats.md §9), or both.
+/// images and videos (src/modules/linkstats/docs/Link_Stats.md §9), or both.
 enum class stat_source : std::uint8_t { both, links, images };
 
 /// What to count.
@@ -132,7 +132,7 @@ struct emoji_alias {
 };
 
 /// One emoji somebody sent as a message of its own, just after a post or as a
-/// reply to it, which counts as a reaction (docs/features/Link_Stats.md §12).
+/// reply to it, which counts as a reaction (src/modules/linkstats/docs/Link_Stats.md §12).
 struct emote_reaction {
     dpp::snowflake user_id;
     emoji_ref emoji;
@@ -191,7 +191,7 @@ public:
 
     /// Makes one message's reactions exactly what Discord shows now, which is
     /// what makes a backfill safe to run twice
-    /// (docs/features/Link_Stats.md §4). Rows that stay keep the time they
+    /// (src/modules/linkstats/docs/Link_Stats.md §4). Rows that stay keep the time they
     /// were seen being added; new ones have none. Returns how many reactions
     /// the message has afterwards.
     auto replace_for_message(dpp::snowflake message_id, std::span<const observed> reactions) -> int;
@@ -274,7 +274,7 @@ public:
 
     /// Custom emojis whose names look alike (`names_look_alike`), which is
     /// usually one emote uploaded twice, or to two servers
-    /// (docs/features/Link_Stats.md §5). Emojis already merged by an alias
+    /// (src/modules/linkstats/docs/Link_Stats.md §5). Emojis already merged by an alias
     /// count as the one they were merged into. Each group is at least two,
     /// most used first, and the groups are in order of how many reactions
     /// they hold between them.

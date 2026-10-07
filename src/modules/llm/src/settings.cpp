@@ -14,7 +14,7 @@ namespace {
 
 constexpr std::array<std::string_view, 3> groups{"context", "replies", "bots"};
 
-// The defaults and ranges are the table in docs/features/Language_Model.md
+// The defaults and ranges are the table in src/modules/llm/docs/Language_Model.md
 // §2.9, chosen to keep a friendly server well inside the spend caps.
 constexpr std::array<setting_spec, 10> specs{{
     {.key = "llm_context_messages", .label = "Recent messages it reads", .group = "context", .fallback = 15, .min = 0, .max = 50},

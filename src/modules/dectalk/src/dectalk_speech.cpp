@@ -48,7 +48,7 @@ auto dectalk_speech::say(dpp::snowflake guild, dpp::snowflake for_user, std::str
 
     const ports::pcm_audio& pcm = spoken.value();
     // Queued under whoever asked, so they can /tts stop it
-    // (docs/features/Speech.md §2.4).
+    // (src/modules/dectalk/docs/Speech.md §2.4).
     queue_->enqueue(guild, for_user, ticket, to_discord(pcm.samples, pcm.sample_rate));
     util::log().info("speaking the model's reply of {} in guild {}", pcm.duration(), guild);
 }

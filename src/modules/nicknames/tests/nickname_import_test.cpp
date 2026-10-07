@@ -45,7 +45,7 @@ TEST_CASE("the hour that happens twice each November takes the earlier one", "[n
     // 2023-11-05 01:30 Central happened at 06:30 UTC and again at 07:30 UTC.
     // Either is at most an hour wrong and there is no way to know which was
     // meant, so the choice is made once and written down
-    // (docs/features/Nicknames.md §4).
+    // (src/modules/nicknames/docs/Nicknames.md §4).
     CHECK(central_time_to_utc("2023-11-05 01:30:00") == utc(2023, 11, 5, 6, 30, 0));
 }
 
@@ -134,7 +134,7 @@ TEST_CASE("an imported entry keeps the text its time was read from", "[nicknames
     REQUIRE(report.entries.size() == 1);
 
     // So the conversion can be redone if the timezone turns out to be wrong
-    // (docs/features/Nicknames.md §4).
+    // (src/modules/nicknames/docs/Nicknames.md §4).
     CHECK(report.entries.front().imported_raw == "2023-11-25 01:58:23");
 }
 

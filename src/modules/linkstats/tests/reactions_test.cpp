@@ -1,5 +1,5 @@
 // How emojis are keyed and shown for the reaction statistics
-// (docs/features/Link_Stats.md §3).
+// (src/modules/linkstats/docs/Link_Stats.md §3).
 
 #include "reactions.hpp"
 

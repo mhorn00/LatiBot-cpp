@@ -13,7 +13,7 @@ using json = nlohmann::json;
 
 /// What chat replies are asked to spend. Thinking stays on for the models
 /// that think, which is what they are tuned for, but short
-/// (docs/features/Language_Model.md §3.2).
+/// (src/modules/llm/docs/Language_Model.md §3.2).
 constexpr std::string_view chat_effort = "low";
 
 auto text_block(std::string_view text) -> json {

@@ -98,7 +98,7 @@ TEST_CASE("a stage that consumes the message stops the ones after it", "[events]
 TEST_CASE("the bot never answers itself, or a bot this guild has not allowed", "[events]") {
     // Answering our own message is a loop with no exit, and answering an
     // arbitrary bot is the same loop with two participants
-    // (docs/features/Message_Pipeline.md §2.1).
+    // (src/core/docs/Message_Pipeline.md §2.1).
     std::vector<std::string> ran;
     pipeline stages;
     stages.add(1, "only", recorder(ran, "only", false, true));
@@ -130,7 +130,7 @@ TEST_CASE("the bot never answers itself, or a bot this guild has not allowed", "
 
 TEST_CASE("an allowed bot reaches the stages", "[events]") {
     // Being heard is the allowlist's decision; whether to answer is each
-    // stage's own (docs/features/Message_Pipeline.md §2.1).
+    // stage's own (src/core/docs/Message_Pipeline.md §2.1).
     std::vector<std::string> ran;
     pipeline stages;
     stages.add(1, "only", recorder(ran, "only", false, true));

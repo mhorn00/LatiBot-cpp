@@ -65,7 +65,7 @@ TEST_CASE("importing the same file twice adds nothing the second time", "[nickna
 
     // Which is what lets the file simply be left where it is, rather than
     // needing to be moved or marked after one run
-    // (docs/features/Nicknames.md §4).
+    // (src/modules/nicknames/docs/Nicknames.md §4).
     CHECK(import_nicknames(fixture.store, report) == 0);
     CHECK(fixture.store.count(guild, member) == 2);
 }

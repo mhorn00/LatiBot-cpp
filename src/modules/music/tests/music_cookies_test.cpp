@@ -1,4 +1,4 @@
-// Signing yt-dlp in with a cookies file (docs/features/Music.md §4.9): what
+// Signing yt-dlp in with a cookies file (src/modules/music/docs/Music.md §4.9): what
 // is counted in one, the copy each run gets, that the owner's file is never
 // written to, and that yt-dlp goes signed out until it is told to sign in.
 // Every cookie here is made up.

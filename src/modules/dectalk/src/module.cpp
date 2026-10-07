@@ -61,7 +61,7 @@ public:
 
         // Speech waits for the connection to be ready, is told when each
         // utterance finishes playing, and is forgotten when the bot leaves
-        // (docs/features/Voice_Channels.md §3).
+        // (src/modules/voice/docs/Voice_Channels.md §3).
         voice.on_ready([this](dpp::snowflake guild) { queue_->on_ready(guild); });
         voice.on_marker([this](dpp::snowflake guild, const std::string& marker) { queue_->on_marker(guild, marker); });
         voice.on_left([this](dpp::snowflake guild) { queue_->forget(guild); });
