@@ -11,8 +11,8 @@ and what was decided and why. [The user guide](../../../docs/User_Guide.md#bots)
 
 | | |
 |---|---|
-| **Code** | `src/core/{include/core,src}/events/message_pipeline.*`, `src/core/src/events/bot_allowlist.*`, `src/core/src/commands/bots.*`; `bot::describe` and `bot::carry_out` in `src/core/src/bot.cpp` |
-| **Tests** | `src/core/tests/message_pipeline_test.cpp`, `src/core/tests/bots_command_test.cpp`, `src/core/tests/bot_allowlist_test.cpp` |
+| **Code** | `src/core/{include/core,src}/events/message_pipeline.*`, `src/core/src/events/bot_allowlist.*`, `src/core/src/events/replies.*`, `src/core/src/commands/bots.*`; `bot::describe` and `bot::carry_out` in `src/core/src/bot.cpp` |
+| **Tests** | `src/core/tests/message_pipeline_test.cpp`, `src/core/tests/bots_command_test.cpp`, `src/core/tests/bot_allowlist_test.cpp`, `src/core/tests/replies_test.cpp` |
 | **Tables** | `allowed_bots` (migration 3) |
 | **Plan** | Replaces plan §5.4 and §11.1 |
 | **Status** | Built in phase 1 (2026-09-21, the allowlist 2026-09-23); the `answered` flag in phase 5 |
@@ -107,9 +107,13 @@ resolved there:
 - whether the author has Administrator in this server, from roles and
   overwrites;
 - the author's roles, for the language model's blacklist;
-- whether the message mentions the bot, or replies to one of its messages.
-  DPP does not parse the message a reply points to, so its author is read
-  from the gateway frame's `referenced_message`, and only for replies.
+- whether the message mentions the bot, or replies to one of its messages,
+  and which message it replies to. DPP does not parse the message a reply
+  points to, so its author, and whether it was a command's response, are
+  read from the gateway frame's `referenced_message`, and only for replies
+  (`events/replies.*`). A reply to a command's result or refusal is not a
+  reply to the bot, and a reply's ping is not a mention
+  ([Language_Model.md §2.1](../../modules/llm/docs/Language_Model.md#21-when-it-answers)).
 
 A stage takes that and nothing else, so it is tested without a gateway.
 

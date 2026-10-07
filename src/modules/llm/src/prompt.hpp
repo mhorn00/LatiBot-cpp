@@ -67,14 +67,18 @@ struct instruction_parts {
 
 /// What the model is asked: the recent conversation, oldest first, then the
 /// message to answer, or for an advanced trigger what caught its attention.
+/// When that message is a reply, `replied_to` is what it replies to, shown
+/// just before it whether or not the transcript has it, since a reply can
+/// be to something long gone from the channel's last few messages; null
+/// otherwise (src/modules/llm/docs/Language_Model.md §2.3).
 ///
 /// `history` is oldest first, and is cut from the oldest end to fit
 /// `token_budget`, so the messages closest to the one being answered are the
 /// ones kept (src/modules/llm/docs/Language_Model.md §2.3). The whole conversation
 /// is one turn rather than a turn per message: several people talk in a
 /// channel, and the providers expect two sides taking turns.
-[[nodiscard]] auto question_for(std::span<const context_message> history, const context_message& latest, std::string_view context_prompt,
-                                std::size_t token_budget, people& cast) -> std::string;
+[[nodiscard]] auto question_for(std::span<const context_message> history, const context_message& latest, const context_message* replied_to,
+                                std::string_view context_prompt, std::size_t token_budget, people& cast) -> std::string;
 
 /// A reply cut into Discord messages of at most `limit` characters, on line
 /// breaks where it can, and at most `most` of them; anything after that is

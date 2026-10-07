@@ -34,6 +34,7 @@ add_library(latibot_core STATIC
     src/events/goodbye.cpp
     src/events/log_channel.cpp
     src/events/message_pipeline.cpp
+    src/events/replies.cpp
     src/modules/capability_registry.cpp
     src/modules/host.cpp
     src/modules/module.cpp

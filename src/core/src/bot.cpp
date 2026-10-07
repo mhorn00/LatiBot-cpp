@@ -18,6 +18,7 @@
 #include "db/backup.hpp"
 #include "discord/dpp_log.hpp"
 #include "events/goodbye.hpp"
+#include "events/replies.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -41,25 +42,6 @@ namespace {
 /// `content`, which silently disables the whole pipeline: the goodbye phrase
 /// and the triggers both read it (src/core/docs/Operations.md §3).
 constexpr std::uint32_t core_intents = dpp::i_default_intents | dpp::i_message_content;
-
-/// Who wrote the message a reply replies to, or 0.
-///
-/// DPP reads the reference but not the message it points at, which Discord
-/// sends whole in the same frame. Only parsed for replies, so an ordinary
-/// message costs nothing.
-auto replied_to_author(const std::string& raw_event) -> dpp::snowflake {
-    const auto frame = nlohmann::json::parse(raw_event, nullptr, /*allow_exceptions=*/false);
-    if (frame.is_discarded() || !frame.contains("d")) return {};
-
-    const auto& payload = frame.at("d");
-    const auto referenced = payload.find("referenced_message");
-    if (referenced == payload.end() || !referenced->is_object()) return {};
-    const auto author = referenced->find("author");
-    if (author == referenced->end() || !author->is_object()) return {};
-    const auto id = author->find("id");
-    if (id == author->end() || !id->is_string()) return {};
-    return dpp::snowflake(id->get<std::string>());
-}
 
 using ui::answer_privately;
 
@@ -375,9 +357,21 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     if (described.author_name.empty()) described.author_name = message.author.username;
     described.author_roles = message.member.get_roles();
 
-    described.mentions_bot =
-        std::ranges::any_of(message.mentions, [this](const auto& mention) { return mention.first.id == cluster_.me.id; });
-    if (!message.message_reference.message_id.empty()) described.replies_to_bot = replied_to_author(raw_event) == cluster_.me.id;
+    // Only a reply's frame is parsed, so an ordinary message costs nothing.
+    // A forward carries a reference too, but is not a reply.
+    const bool is_reply = message.type == dpp::mt_reply && !message.message_reference.message_id.empty();
+    const events::reply_target target = is_reply ? events::reply_target_in(raw_event) : events::reply_target{};
+    const bool replies_to_me = is_reply && target.author_id == cluster_.me.id;
+    if (is_reply) described.reply_to = message.message_reference.message_id;
+
+    // A reply to a command's result or refusal is about that, not to the bot
+    // (src/modules/llm/docs/Language_Model.md §2.1).
+    described.replies_to_bot = replies_to_me && !target.command_output;
+
+    // A reply pings whoever it replies to unless that is turned off, which
+    // lists the bot in `mentions` without anybody writing a mention.
+    const bool listed = std::ranges::any_of(message.mentions, [this](const auto& mention) { return mention.first.id == cluster_.me.id; });
+    described.mentions_bot = listed && (!replies_to_me || events::writes_mention(message.content, cluster_.me.id));
 
     // Administrator is a guild-level question, so it needs the guild and the
     // member: a message carries neither on its own.

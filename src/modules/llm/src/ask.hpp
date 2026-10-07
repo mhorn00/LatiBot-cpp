@@ -23,6 +23,10 @@ struct ask_llm {
     std::string content;
     bool author_is_bot = false;
 
+    /// The message it replies to, shown to the model beside it; 0 when it is
+    /// not a reply (src/modules/llm/docs/Language_Model.md §2.3).
+    dpp::snowflake reply_to;
+
     /// Set when an advanced trigger fired rather than someone addressing the
     /// bot: which one, and what it asks the model to say.
     std::int64_t trigger_id = 0;

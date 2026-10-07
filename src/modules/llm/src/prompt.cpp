@@ -77,13 +77,14 @@ auto transcript_line(const context_message& message, people& cast) -> std::strin
     return std::format("{}{}: {}", cast.meet(message.author_id), message.from_bot ? " (a bot)" : "", indented);
 }
 
-auto question_for(std::span<const context_message> history, const context_message& latest, std::string_view context_prompt,
-                  std::size_t token_budget, people& cast) -> std::string {
+auto question_for(std::span<const context_message> history, const context_message& latest, const context_message* replied_to,
+                  std::string_view context_prompt, std::size_t token_budget, people& cast) -> std::string {
     const std::string last = transcript_line(latest, cast);
+    const std::string earlier = replied_to == nullptr ? std::string{} : transcript_line(*replied_to, cast);
 
-    // Newest first until the budget runs out; the message being answered is
-    // always there, whatever it costs.
-    std::size_t spent = estimate_tokens(last);
+    // Newest first until the budget runs out; the message being answered,
+    // and what it replies to, are always there, whatever they cost.
+    std::size_t spent = estimate_tokens(last) + estimate_tokens(earlier);
     std::vector<std::string> kept;
     for (const context_message& message : std::views::reverse(history)) {
         std::string line = transcript_line(message, cast);
@@ -100,6 +101,11 @@ auto question_for(std::span<const context_message> history, const context_messag
             text += '\n';
         }
         text += '\n';
+    }
+
+    if (replied_to != nullptr) {
+        text +=
+            std::format("The {} replies to this one:\n{}\n\n", context_prompt.empty() ? "message to answer" : "latest message", earlier);
     }
 
     if (context_prompt.empty()) {

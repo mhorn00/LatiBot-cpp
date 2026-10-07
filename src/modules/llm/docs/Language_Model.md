@@ -61,6 +61,14 @@ In a server that has run `/llm on`, when somebody **addresses** the bot:
   letter: `latibot, what's the plan` and `LatiBot what's the plan`, but not
   `latibots` or `hey latibot`.
 
+A reply to a slash command's **result or refusal** does not address it: it
+is about what the command said, like the list `/nicknames` shows. A reply to
+a **post**, a message the bot put in the channel such as `/say`'s or its own
+answer, does. Discord marks a command's response with `interaction_metadata`,
+which is how the two are told apart. And since a reply pings whoever it
+replies to unless that is turned off, a reply's ping is not a mention: only
+`<@LatiBot>` written in the message is.
+
 Or when an [advanced trigger](#26-advanced-triggers) fires. An addressed
 message is **consumed**, so nothing after it in the
 [pipeline](../../../core/docs/Message_Pipeline.md) runs.
@@ -91,6 +99,10 @@ Checked in this order, **before anything is spent**:
   to about **3,000 tokens** (four characters to a token), then the message
   it is answering. They are fetched from Discord for each answer, never kept
   in memory, so they are right after a restart, an edit or a deletion.
+- When the message is a **reply**, the message it replies to is shown just
+  before it, fetched if it is older than those fifteen, so a reply to
+  something said an hour ago is not read on its own. A reply to a message
+  deleted since is answered without it.
 - The messages are one **transcript**, in one user turn: `u7kx3q: text`,
   each person an alias, never a name or a Discord id (§3.8). Continuation
   lines are indented, so a message cannot fake another speaker, and mentions
@@ -459,6 +471,8 @@ saved before 2026-10-02 may hold a name the model wrote then.
 | 2026-10-02 | Names typed in messages found and replaced too, whole words of three characters or more | A name beside an alias would undo it. Shorter names are mostly words |
 | 2026-10-02 | Documents keep their names; only their mentions become aliases | They are the cached prefix, and must be the same text each time; admins write them |
 | 2026-10-02 | Roles, channels, emoji, timestamps and commands written as names | They carried ids, and their names read better to the model |
+| 2026-10-06 | A reply to a command's result or refusal does not address the bot; a reply's ping is not a mention | The owner's request: replying to `/nicknames` or `/linkstats` output started a conversation nobody asked for |
+| 2026-10-06 | The message a reply replies to shown beside it, fetched when outside the window | Replies to older messages were answered as if on their own |
 
 ## 5. Limits, and what is still to check
 
@@ -474,7 +488,9 @@ saved before 2026-10-02 may hold a name the model wrote then.
   - that OpenAI's GPT-6 models accept `reasoning_effort: none` under Chat
     Completions.
 - **Still to check in Discord:**
-  - that `describe` sees mentions and replies;
+  - that `describe` sees mentions and replies, and that Discord's
+    `referenced_message` carries `interaction_metadata` for a command's
+    response, so replies to `/nicknames` are left alone;
   - that real models write markers where they would write names, and
     `about` as an alias, and how often a name gets through in what people
     type (§3.8);

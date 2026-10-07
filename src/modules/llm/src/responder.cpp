@@ -13,6 +13,7 @@
 #include "spend.hpp"
 #include "tools.hpp"
 
+#include <algorithm>
 #include <format>
 #include <ranges>
 #include <tuple>
@@ -23,6 +24,20 @@ namespace {
 
 auto seconds_now(const ports::clock& clock) -> std::chrono::sys_seconds {
     return std::chrono::floor<std::chrono::seconds>(clock.now());
+}
+
+/// Meets a fetched message's author, and everyone it mentions, so that
+/// every name is known before any text is sanitized. A fetched message
+/// carries no server nicknames; the cache has those.
+auto meet_everyone_in(const dpp::message& message, const context_message& shown, people& cast) -> void {
+    cast.meet(message.author.id, shown.author_name, message.author.username);
+    for (const auto& [user, member] : message.mentions) {
+        std::string name = member.get_nickname();
+        if (name.empty()) name = user.global_name;
+        if (name.empty()) name = user.username;
+        cast.meet(user.id, name, user.username);
+    }
+    cast.meet_mentioned(message.content);
 }
 
 auto joined(const std::vector<std::string>& names) -> std::string {
@@ -83,9 +98,10 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
 
     const int wanted = addressed ? settings.context_messages : settings.trigger_context;
     const std::vector<context_message> history = co_await recent_messages(ask, wanted, me.id, cast);
+    const std::optional<context_message> replied_to = co_await replied_message(ask, history, me.id, cast);
 
     const auto now = seconds_now(*services_.clock);
-    request call = build_request(ask, settings, *model, history, now, cast);
+    request call = build_request(ask, settings, *model, history, replied_to ? &*replied_to : nullptr, now, cast);
 
     const tool_context context{
         .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
@@ -127,8 +143,11 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     const std::string why = addressed ? std::string("addressed") : std::format("advanced trigger {}", ask.trigger_id);
     const std::string tools =
         outcome.value().tools_run.empty() ? std::string{} : std::format("; tools: {}", joined(outcome.value().tools_run));
-    util::log().info("{} answered {} in channel {} ({}): {} in, {} cached, {} out, ${:.4f}{}", model->id, ask.author_id, ask.channel_id,
-                     why, report.used.input_tokens + report.used.cache_write_tokens, report.used.cache_read_tokens,
+    // How much of the channel it read, so a reply that seems to miss the
+    // conversation can be told apart from one that never saw it.
+    const std::string read = std::format("{} earlier message(s){}", history.size(), replied_to ? " and the one replied to" : "");
+    util::log().info("{} answered {} in channel {} ({}, read {}): {} in, {} cached, {} out, ${:.4f}{}", model->id, ask.author_id,
+                     ask.channel_id, why, read, report.used.input_tokens + report.used.cache_write_tokens, report.used.cache_read_tokens,
                      report.used.output_tokens, report.cost, tools);
 
     if (speaking && !report.posted.empty()) co_await services_.speech->say(ask.guild_id, ask.author_id, std::move(text));
@@ -149,21 +168,31 @@ auto responder::recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowfl
     // Newest first from Discord; the transcript reads oldest first.
     for (const dpp::message& message : std::views::reverse(page.value())) {
         history.push_back(to_context(message, bot_id));
-        // A fetched message carries no server nicknames; the cache has those.
-        cast.meet(message.author.id, history.back().author_name, message.author.username);
-        for (const auto& [user, member] : message.mentions) {
-            std::string shown = member.get_nickname();
-            if (shown.empty()) shown = user.global_name;
-            if (shown.empty()) shown = user.username;
-            cast.meet(user.id, shown, user.username);
-        }
-        cast.meet_mentioned(message.content);
+        meet_everyone_in(message, history.back(), cast);
     }
     co_return history;
 }
 
+auto responder::replied_message(const llm::ask_llm& ask, const std::vector<context_message>& history, dpp::snowflake bot_id,
+                                people& cast) const -> dpp::task<std::optional<context_message>> {
+    if (ask.reply_to.empty()) co_return std::nullopt;
+    const auto in_history = std::ranges::find(history, ask.reply_to, &context_message::id);
+    if (in_history != history.end()) co_return *in_history;
+
+    const auto fetched = co_await services_.discord->get_message(ask.channel_id, ask.reply_to);
+    if (!fetched.has_value()) {
+        // Deleted since, most likely; the answer goes ahead without it.
+        util::log().debug("could not read message {}, which {} replies to: {}", ask.reply_to, ask.message_id, fetched.error().message);
+        co_return std::nullopt;
+    }
+    context_message shown = to_context(fetched.value(), bot_id);
+    meet_everyone_in(fetched.value(), shown, cast);
+    co_return shown;
+}
+
 auto responder::build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
-                              const std::vector<context_message>& history, std::chrono::sys_seconds now, people& cast) const -> request {
+                              const std::vector<context_message>& history, const context_message* replied_to, std::chrono::sys_seconds now,
+                              people& cast) const -> request {
     const bool addressed = ask.trigger_id == 0;
     const context_message latest{.id = ask.message_id,
                                  .author_id = ask.author_id,
@@ -193,7 +222,7 @@ auto responder::build_request(const llm::ask_llm& ask, const llm_settings& setti
     call.varying_system = varying_instructions(memories, now, cast);
     call.conversation.push_back(
         {.from = speaker::user,
-         .text = question_for(history, latest, ask.context_prompt, static_cast<std::size_t>(settings.context_tokens), cast),
+         .text = question_for(history, latest, replied_to, ask.context_prompt, static_cast<std::size_t>(settings.context_tokens), cast),
          .calls = {},
          .results = {},
          .raw = {}});

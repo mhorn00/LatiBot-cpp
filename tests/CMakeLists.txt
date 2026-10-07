@@ -86,6 +86,7 @@ latibot_test_executable(latibot_core_tests PRIVATE_INCLUDES "${PROJECT_SOURCE_DI
     ${core_tests_dir}/preflight_test.cpp
     ${core_tests_dir}/raw_api_test.cpp
     ${core_tests_dir}/registry_test.cpp
+    ${core_tests_dir}/replies_test.cpp
     ${core_tests_dir}/schema_versions_test.cpp
     ${core_tests_dir}/text_test.cpp
     ${core_tests_dir}/unregister_test.cpp

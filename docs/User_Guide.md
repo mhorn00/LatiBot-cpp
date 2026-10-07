@@ -1602,6 +1602,12 @@ answers anyone who **addresses** the bot:
 - **starts the message with its name**: `latibot, what's the plan` or
   `LatiBot what's the plan`, but not `latibots` or `hey latibot`.
 
+A reply to a command's answer, such as the list `/nicknames` shows or a
+refusal, is about that answer and is left alone. A reply to something posted
+in the channel, such as a `/say` message or the model's own reply, still
+counts. The ping a reply sends is not a mention: only `@LatiBot` written in
+the message is.
+
 It shows *LatiBot is typing…* while it thinks, then replies to the message.
 Whoever asked is notified of the reply, as with any reply; nothing the model
 writes can ping anyone else, `@everyone` included. A reply too long for one
@@ -1609,8 +1615,9 @@ message is split, three messages at most.
 
 **What it reads.** The last fifteen messages in the channel, cut to about 3000
 tokens from the oldest end, then the message it is answering; both numbers are
-[settings](#llm-settings). The messages are what it is shown, not instructions
-it has to follow, and it is told so.
+[settings](#llm-settings). When that message is a reply, it is also shown
+what it replies to, however long ago that was. The messages are what it is
+shown, not instructions it has to follow, and it is told so.
 
 **Who it sees.** Never anyone's name or Discord ID. Each person is a random
 alias to it, and the names people type are swapped for markers; the bot puts

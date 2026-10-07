@@ -138,6 +138,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
                      .author_name = message.author_name,
                      .content = message.content,
                      .author_is_bot = message.from_bot,
+                     .reply_to = message.reply_to,
                      .trigger_id = fired ? fired->id : 0,
                      .context_prompt = fired ? fired->context_prompt : std::string{},
                      .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),

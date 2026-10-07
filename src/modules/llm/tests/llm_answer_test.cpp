@@ -144,6 +144,7 @@ auto ask_from_alice(std::string content) -> ask_llm {
             .author_name = "Alice",
             .content = std::move(content),
             .author_is_bot = false,
+            .reply_to = {},
             .trigger_id = 0,
             .context_prompt = {},
             .speak = false,
@@ -196,7 +197,20 @@ TEST_CASE("an addressed message is handed to the model and consumed", "[llm]") {
     CHECK(ask->trigger_id == 0);
     CHECK(ask->content == "latibot, tell me a joke");
     CHECK(ask->author_name == "Alice");
+    CHECK(ask->reply_to.empty());
     CHECK_FALSE(ask->speak);
+}
+
+TEST_CASE("a reply hands the model which message it replies to", "[llm]") {
+    fixture test;
+    incoming_message message = from_alice("no it doesn't");
+    message.replies_to_bot = true;
+    message.reply_to = dpp::snowflake{4000};
+
+    const auto result = test.stage(message);
+    const ask_llm* ask = asked(result);
+    REQUIRE(ask != nullptr);
+    CHECK(ask->reply_to == dpp::snowflake{4000});
 }
 
 TEST_CASE("the model stays quiet in a guild that has not turned it on, or has no key", "[llm]") {
@@ -373,6 +387,45 @@ TEST_CASE("an answer reads the channel, builds the prompt, records the spend and
 
     const auto spent = latibot::llm::spend_status_at(test.usage, {}, noon);
     CHECK(spent.today > 0);
+}
+
+TEST_CASE("a reply is shown with what it replies to, fetched when the recent messages do not have it", "[llm][coro]") {
+    fixture test;
+    const std::string expected_tail =
+        "The message to answer replies to this one:\nLatiBot (you): pineapple belongs on pizza\n\nThe message to answer:\n";
+    ask_llm ask = ask_from_alice("no it doesn't");
+    ask.reply_to = dpp::snowflake{4000};
+    test.model.answer("it does");
+
+    SECTION("long gone from the channel's last messages") {
+        test.discord.message_pages.emplace_back(std::vector<dpp::message>{history_message(4999, bob, "bob", "unrelated")});
+        test.discord.stored_messages[dpp::snowflake{4000}] = history_message(4000, bot_id, "LatiBot", "pineapple belongs on pizza");
+    }
+    SECTION("still among them") {
+        test.discord.message_pages.emplace_back(std::vector<dpp::message>{
+            history_message(4999, bob, "bob", "unrelated"), history_message(4000, bot_id, "LatiBot", "pineapple belongs on pizza")});
+    }
+
+    test.answer(std::move(ask));
+    REQUIRE(test.model.requests.size() == 1);
+    const std::string& question = test.model.requests[0].conversation.at(0).text;
+    CHECK(question.contains(std::format("{}: unrelated", test.alias(bob))));
+    CHECK(question.ends_with(expected_tail + std::format("{}: no it doesn't", test.alias(alice))));
+}
+
+TEST_CASE("a reply to a message deleted since is answered without it", "[llm][coro]") {
+    fixture test;
+    ask_llm ask = ask_from_alice("no it doesn't");
+    ask.reply_to = dpp::snowflake{4000};
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{});
+    test.model.answer("ok");
+
+    const auto report = test.answer(std::move(ask));
+    CHECK(report.failure.empty());
+    REQUIRE(test.model.requests.size() == 1);
+    const std::string& question = test.model.requests[0].conversation.at(0).text;
+    CHECK_FALSE(question.contains("replies to"));
+    CHECK(question == std::format("The message to answer:\n{}: no it doesn't", test.alias(alice)));
 }
 
 TEST_CASE("the model can remember something about the person it is answering", "[llm][coro]") {
@@ -562,7 +615,7 @@ TEST_CASE("the conversation keeps the newest messages that fit the token budget"
 
     fixture test;
     latibot::llm::people cast(test.aliases, test.discord, guild, bot_id, "LatiBot");
-    const std::string question = latibot::llm::question_for(history, latest, {}, 30, cast);
+    const std::string question = latibot::llm::question_for(history, latest, nullptr, {}, 30, cast);
     CHECK(question.contains("message number 9"));
     CHECK_FALSE(question.contains("message number 0"));
     CHECK(question.ends_with(test.alias(alice) + ": hi"));

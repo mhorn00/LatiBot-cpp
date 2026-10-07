@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -110,11 +111,17 @@ private:
     [[nodiscard]] auto recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
         -> dpp::task<std::vector<context_message>>;
 
+    /// The message the one being answered replies to: from `history` when it
+    /// is there, fetched when not, and nothing when it is not a reply or the
+    /// message is gone. Its author, and whom it mentions, are met in `cast`.
+    [[nodiscard]] auto replied_message(const llm::ask_llm& ask, const std::vector<context_message>& history, dpp::snowflake bot_id,
+                                       people& cast) const -> dpp::task<std::optional<context_message>>;
+
     /// The first request: the instructions, the memories and the question,
     /// with everyone in them as aliases.
     [[nodiscard]] auto build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
-                                     const std::vector<context_message>& history, std::chrono::sys_seconds now, people& cast) const
-        -> request;
+                                     const std::vector<context_message>& history, const context_message* replied_to,
+                                     std::chrono::sys_seconds now, people& cast) const -> request;
 
     /// Tells whoever addressed the bot that the model could not answer.
     auto apologise(const llm::ask_llm& ask, const ports::api_error& error) const -> dpp::task<void>;

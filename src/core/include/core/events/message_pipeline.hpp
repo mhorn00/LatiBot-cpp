@@ -56,8 +56,16 @@ struct incoming_message {
     /// Whether the message @mentions LatiBot, or replies to one of its
     /// messages: two of the three ways to address it
     /// (src/modules/llm/docs/Language_Model.md §2.1).
+    ///
+    /// A reply to a slash command's result or refusal is not a reply to the
+    /// bot, and a reply's ping is not a mention: only one written in the
+    /// message is.
     bool mentions_bot = false;
     bool replies_to_bot = false;
+
+    /// The message this one replies to, whoever wrote it; 0 for a message
+    /// that is not a reply.
+    dpp::snowflake reply_to;
 
     /// Set by the pipeline once a stage has answered the message, so a later
     /// stage can stand back: the simple trigger wins over an advanced one
