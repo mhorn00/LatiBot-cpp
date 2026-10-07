@@ -15,6 +15,7 @@
   "llm": {
     "provider": "anthropic",
     "model": "claude-haiku-4-5",
+    "check_model": "claude-haiku-4-5",
     "spend_cap_daily_usd": 2.0,
     "spend_cap_monthly_usd": 20.0,
     "tool_rounds": 4

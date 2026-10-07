@@ -12,6 +12,7 @@ namespace latibot::llm {
 struct llm_config {
     std::string provider{"anthropic"};
     std::string model{"claude-haiku-4-5"};
+    std::string check_model{"claude-haiku-4-5"};
     double spend_cap_daily_usd = 2.0;
     double spend_cap_monthly_usd = 20.0;
     int tool_rounds = 4;
@@ -24,6 +25,8 @@ struct llm_config {
         {
             config::key("provider", &llm_config::provider, "Who answers by default: anthropic or openai."),
             config::key("model", &llm_config::model, "The model that answers by default; a server can choose another."),
+            config::key("check_model", &llm_config::check_model,
+                        "The model that decides whether to join in a conversation: a yes or no, so the cheapest will do."),
             config::key("spend_cap_daily_usd", &llm_config::spend_cap_daily_usd,
                         "The most the model may cost in a day, across every server.", config::at_least(0)),
             config::key("spend_cap_monthly_usd", &llm_config::spend_cap_monthly_usd, "The most it may cost in a month.",

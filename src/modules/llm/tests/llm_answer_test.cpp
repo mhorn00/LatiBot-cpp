@@ -1,5 +1,6 @@
 #include "advanced_triggers.hpp"
 #include "aliases.hpp"
+#include "conversation.hpp"
 #include "core/capabilities/link_replacements.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
@@ -31,6 +32,7 @@
 #include <vector>
 
 using latibot::events::incoming_message;
+using latibot::llm::approach;
 using latibot::llm::ask_llm;
 using latibot::llm::document_kind;
 using json = nlohmann::json;
@@ -70,6 +72,8 @@ struct fixture {
     latibot::llm::tool_registry tools;
 
     latibot::testing::mock_clock clock{noon};
+    latibot::llm::conversation_windows windows{clock};
+    latibot::llm::channel_activity activity{clock};
     latibot::testing::mock_discord discord;
     latibot::testing::mock_llm model;
     latibot::testing::mock_speech speech;
@@ -85,6 +89,8 @@ struct fixture {
                                    .usage = &usage,
                                    .speech = &speech,
                                    .replacements = &replacements,
+                                   .windows = &windows,
+                                   .activity = &activity,
                                    .has_provider = [this](latibot::llm::provider_kind) { return has_key; },
                                    .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }},
                                   clock,
@@ -117,6 +123,18 @@ struct fixture {
         auto report = responder.answer(std::move(ask)).sync_wait_for(2s);
         REQUIRE(report.has_value());
         return *report;
+    }
+
+    auto check(const ask_llm& ask) -> latibot::llm::check_report {
+        auto report = responder.check(ask).sync_wait_for(2s);
+        REQUIRE(report.has_value());
+        return *report;
+    }
+
+    /// Conversation mode on, and a conversation open in the channel.
+    auto converse() -> void {
+        settings.set_bool(guild, latibot::llm::conversation_key, true);
+        windows.opened(channel);
     }
 };
 
@@ -156,6 +174,8 @@ auto ask_from_alice(std::string content) -> ask_llm {
             .content = std::move(content),
             .author_is_bot = false,
             .reply_to = {},
+            .how = approach::addressed,
+            .check_first = false,
             .trigger_id = 0,
             .context_prompt = {},
             .speak = false,
@@ -232,6 +252,179 @@ TEST_CASE("a reply to a link replacement comments on the post, and is not for th
         message.reply_to = dpp::snowflake{4001};
         CHECK(asked(test.stage(message)) != nullptr);
     }
+}
+
+// --------------------------------------------------------------------------
+// Conversation mode (src/modules/llm/docs/Language_Model.md §2.10)
+// --------------------------------------------------------------------------
+
+TEST_CASE("its name anywhere is checked first, and only with conversation mode on", "[llm][conversation]") {
+    fixture test;
+    const incoming_message message = from_alice("honestly latibot is pretty good at this");
+    CHECK(test.stage(message).actions.empty());
+
+    test.settings.set_bool(guild, latibot::llm::conversation_key, true);
+    const auto result = test.stage(message);
+    const ask_llm* ask = asked(result);
+    REQUIRE(ask != nullptr);
+    CHECK(ask->how == approach::named);
+    CHECK(ask->check_first);
+}
+
+TEST_CASE("during a conversation its name is answered at once", "[llm][conversation]") {
+    fixture test;
+    test.converse();
+    const auto result = test.stage(from_alice("what do you reckon, latibot"));
+    const ask_llm* ask = asked(result);
+    REQUIRE(ask != nullptr);
+    CHECK(ask->how == approach::named);
+    CHECK_FALSE(ask->check_first);
+}
+
+TEST_CASE("during a conversation any message may be for the bot, and is checked", "[llm][conversation]") {
+    fixture test;
+    test.converse();
+    incoming_message message = from_alice("that's wild, how does that even work");
+
+    SECTION("a plain message") {
+        const auto result = test.stage(message);
+        const ask_llm* ask = asked(result);
+        REQUIRE(ask != nullptr);
+        CHECK(ask->how == approach::joined_in);
+        CHECK(ask->check_first);
+    }
+    SECTION("not one that replies to somebody else") {
+        message.reply_to = dpp::snowflake{4000};
+        CHECK(test.stage(message).actions.empty());
+    }
+    SECTION("not one that mentions somebody else") {
+        message.mentions_others = true;
+        CHECK(test.stage(message).actions.empty());
+    }
+    SECTION("not another bot's") {
+        message.from_bot = true;
+        message.author_is_allowed_bot = true;
+        CHECK(test.stage(message).actions.empty());
+    }
+    SECTION("not one a simple trigger answered") {
+        message.answered = true;
+        CHECK(test.stage(message).actions.empty());
+    }
+    SECTION("not one with no text") {
+        message.content = "  ";
+        CHECK(test.stage(message).actions.empty());
+    }
+    SECTION("not once the conversation is over") {
+        test.clock.advance(181s);
+        CHECK(test.stage(message).actions.empty());
+    }
+}
+
+TEST_CASE("a message waiting on the check takes its rate limit only once the check agrees", "[llm][conversation]") {
+    fixture test;
+    test.converse();
+
+    // Three a minute per person: more than that wait on the check, and the
+    // check's yes claims the reply.
+    std::vector<ask_llm> asks;
+    for (int index = 0; index < 4; ++index) {
+        incoming_message message = from_alice(std::format("message {}", index));
+        message.message_id = dpp::snowflake{static_cast<std::uint64_t>(5000 + index)};
+        const auto result = test.stage(message);
+        REQUIRE(asked(result) != nullptr);
+        asks.push_back(*asked(result));
+    }
+    CHECK(test.stage.claim_reply(asks[0]));
+    CHECK(test.stage.claim_reply(asks[1]));
+    CHECK(test.stage.claim_reply(asks[2]));
+    CHECK_FALSE(test.stage.claim_reply(asks[3]));
+}
+
+TEST_CASE("the stage notes each person's latest message", "[llm][conversation]") {
+    fixture test;
+    test.stage(from_alice("one"));
+    incoming_message second = from_alice("two");
+    second.message_id = dpp::snowflake{5001};
+    test.stage(second);
+    CHECK_FALSE(test.activity.is_latest(channel, alice, dpp::snowflake{5000}));
+    CHECK(test.activity.is_latest(channel, alice, dpp::snowflake{5001}));
+}
+
+TEST_CASE("the check asks the check model, briefly, and records what it cost", "[llm][conversation][coro]") {
+    fixture test;
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{history_message(4999, bot_id, "LatiBot", "i did!")});
+    ask_llm ask = ask_from_alice("what did you think of it");
+    ask.how = approach::joined_in;
+    ask.check_first = true;
+
+    SECTION("yes") {
+        test.model.answer("Yes");
+        const auto report = test.check(ask);
+        CHECK(report.yes);
+        CHECK(report.cost > 0);
+        CHECK(latibot::llm::spend_status_at(test.usage, {}, noon).today > 0);
+
+        REQUIRE(test.model.requests.size() == 1);
+        const latibot::llm::request& sent = test.model.requests[0];
+        CHECK(sent.model == "claude-haiku-4-5");
+        CHECK(sent.stable_system == latibot::llm::check_instructions());
+        CHECK(sent.tools.empty());
+        CHECK_FALSE(sent.allow_tools);
+        CHECK(sent.max_output_tokens == latibot::llm::check_output_tokens);
+        CHECK(sent.conversation.at(0).text.contains("LatiBot (you): i did!"));
+        CHECK_FALSE(sent.conversation.at(0).text.contains("Alice"));
+        CHECK(test.discord.typing.empty());
+    }
+    SECTION("no") {
+        test.model.answer("no");
+        CHECK_FALSE(test.check(ask).yes);
+    }
+    SECTION("a failure is a no") {
+        test.model.fail("overloaded", 529);
+        const auto report = test.check(ask);
+        CHECK_FALSE(report.yes);
+        CHECK_FALSE(report.failure.empty());
+    }
+}
+
+TEST_CASE("joining in, the model may say nothing, and otherwise posts without a ping", "[llm][conversation][coro]") {
+    fixture test;
+    ask_llm ask = ask_from_alice("that's wild");
+    ask.how = approach::joined_in;
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{});
+
+    SECTION("nothing") {
+        test.model.answer("[silent]");
+        const auto report = test.answer(ask);
+        CHECK(report.posted.empty());
+        CHECK(report.failure == "the model chose to say nothing");
+        CHECK(test.discord.sent.empty());
+    }
+    SECTION("something") {
+        test.model.answer("right? i read about it yesterday");
+        const auto report = test.answer(ask);
+        CHECK(report.posted.size() == 1);
+        REQUIRE(test.discord.sent.size() == 1);
+        CHECK_FALSE(test.discord.sent[0].allowed_mentions.replied_user);
+        CHECK((test.discord.sent[0].flags & dpp::m_suppress_notifications) != 0);
+    }
+    REQUIRE(test.model.requests.size() == 1);
+    CHECK(test.model.requests[0].conversation.at(0).text.contains("Nobody addressed you"));
+    CHECK(test.discord.typing.empty());
+}
+
+TEST_CASE("named, the model answers as if addressed, and whoever named it is notified", "[llm][conversation][coro]") {
+    fixture test;
+    ask_llm ask = ask_from_alice("what do you reckon, latibot");
+    ask.how = approach::named;
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{});
+    test.model.answer("i reckon so");
+
+    const auto report = test.answer(std::move(ask));
+    CHECK(report.posted.size() == 1);
+    REQUIRE(test.discord.sent.size() == 1);
+    CHECK(test.discord.sent[0].allowed_mentions.replied_user);
+    CHECK(test.model.requests[0].conversation.at(0).text.starts_with("The message to answer:"));
 }
 
 TEST_CASE("a reply hands the model which message it replies to", "[llm]") {
@@ -542,6 +735,7 @@ TEST_CASE("when the model fails, someone who asked hears so and a trigger stays 
 
     test.model.fail("bad request", 400);
     ask_llm trigger = ask_from_alice("pizza");
+    trigger.how = approach::trigger;
     trigger.trigger_id = 7;
     trigger.context_prompt = "Talk about pizza.";
     test.answer(trigger);
@@ -553,6 +747,7 @@ TEST_CASE("an advanced trigger's reply follows the style document, and posts sil
     test.model.answer("pineapple belongs on pizza");
 
     ask_llm trigger = ask_from_alice("who wants pizza");
+    trigger.how = approach::trigger;
     trigger.trigger_id = 7;
     trigger.context_prompt = "Defend pineapple on it.";
     const auto report = test.answer(trigger);
@@ -648,7 +843,7 @@ TEST_CASE("the conversation keeps the newest messages that fit the token budget"
 
     fixture test;
     latibot::llm::people cast(test.aliases, test.discord, guild, bot_id, "LatiBot");
-    const std::string question = latibot::llm::question_for(history, latest, nullptr, {}, 30, cast);
+    const std::string question = latibot::llm::question_for(history, latest, nullptr, approach::addressed, {}, 30, cast);
     CHECK(question.contains("message number 9"));
     CHECK_FALSE(question.contains("message number 0"));
     CHECK(question.ends_with(test.alias(alice) + ": hi"));

@@ -57,6 +57,8 @@ namespace latibot::commands {
 /// Where spending stands, and what this guild's model is set to: `/llm status`.
 struct llm_overview {
     bool enabled = false;
+    /// Conversation mode (src/modules/llm/docs/Language_Model.md §2.10).
+    bool conversation = false;
     std::string model;
     bool has_key = false;
     llm::spend_status spend;
@@ -92,8 +94,10 @@ struct llm_overview {
 [[nodiscard]] auto describe_saved(llm::document_kind kind, int version, std::string_view content) -> std::string;
 
 /// The settings panel (src/modules/llm/docs/Language_Model.md §2.9): every value, a
-/// menu that opens a group's form, and the switch.
-[[nodiscard]] auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled) -> dpp::message;
+/// menu that opens a group's form, and the switches for the model and for
+/// conversation mode.
+[[nodiscard]] auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled, bool conversation)
+    -> dpp::message;
 
 /// The form for one group of settings, filled with what they are now.
 /// Nothing for a group that does not exist.
@@ -168,6 +172,7 @@ private:
         -> dpp::task<void>;
     auto status(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto switch_to(const dpp::slashcommand_t& event, bool on) -> dpp::task<void>;
+    auto switch_conversation(const dpp::slashcommand_t& event, bool on) -> dpp::task<void>;
     auto model(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto document(const dpp::slashcommand_t& event, llm::document_kind kind, std::string_view action) -> dpp::task<void>;
     auto edit_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void>;

@@ -89,6 +89,27 @@ struct answer_report {
     std::string failure;
 };
 
+/// What the conversation check decided (src/modules/llm/docs/Language_Model.md
+/// §2.10), for the log and for tests.
+struct check_report {
+    /// The bot should reply. False when the check could not be asked, too.
+    bool yes = false;
+
+    usage used;
+    double cost = 0;
+
+    /// Why the check could not be asked, or empty.
+    std::string failure;
+};
+
+/// How many recent messages the check reads, and roughly how many tokens of
+/// them: enough to see who is talking to whom, and cheap.
+inline constexpr int check_context_messages = 8;
+inline constexpr std::size_t check_context_tokens = 1500;
+
+/// Its answer is one word.
+inline constexpr int check_output_tokens = 8;
+
 /// What the bot says, when addressed, if the model could not answer.
 [[nodiscard]] auto failure_reply(const ports::api_error& error) -> std::string;
 
@@ -104,6 +125,11 @@ public:
     responder(responder_services services, std::function<bot_identity()> me);
 
     auto answer(llm::ask_llm ask) -> dpp::task<answer_report>;
+
+    /// Asks `llm.check_model` whether the bot should reply to the message,
+    /// from the last few messages and what it replies to, and records what
+    /// that cost (src/modules/llm/docs/Language_Model.md §2.10).
+    auto check(const llm::ask_llm& ask) -> dpp::task<check_report>;
 
 private:
     /// The messages before the one being answered, oldest first. Their

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ask.hpp"
 #include "memory.hpp"
 
 #include <dpp/snowflake.h>
@@ -77,8 +78,33 @@ struct instruction_parts {
 /// ones kept (src/modules/llm/docs/Language_Model.md §2.3). The whole conversation
 /// is one turn rather than a turn per message: several people talk in a
 /// channel, and the providers expect two sides taking turns.
+///
+/// `how` says how the message came to the model: the message to answer for
+/// someone talking to it, what caught its attention for an advanced trigger
+/// (`context_prompt`), and for joining in, the choice of `silent_reply`.
 [[nodiscard]] auto question_for(std::span<const context_message> history, const context_message& latest, const context_message* replied_to,
-                                std::string_view context_prompt, std::size_t token_budget, people& cast) -> std::string;
+                                approach how, std::string_view context_prompt, std::size_t token_budget, people& cast) -> std::string;
+
+/// What the model writes, joining in, to say nothing
+/// (src/modules/llm/docs/Language_Model.md §2.10).
+inline constexpr std::string_view silent_reply = "[silent]";
+
+/// Whether the model chose to say nothing.
+[[nodiscard]] auto is_silence(std::string_view answer) -> bool;
+
+/// The conversation check's instructions: whether the bot should reply to
+/// the latest message, in one word (src/modules/llm/docs/Language_Model.md
+/// §2.10). Fixed, and the same for every server.
+[[nodiscard]] auto check_instructions() noexcept -> std::string_view;
+
+/// What the check is asked: the recent messages, cut to `token_budget` from
+/// the oldest end, what the latest replies to if anything, and the latest.
+[[nodiscard]] auto check_question(std::span<const context_message> history, const context_message& latest,
+                                  const context_message* replied_to, std::size_t token_budget, people& cast) -> std::string;
+
+/// Whether the check's answer is a yes. Anything else, a refusal included,
+/// is a no.
+[[nodiscard]] auto check_says_yes(std::string_view answer) -> bool;
 
 /// A reply cut into Discord messages of at most `limit` characters, on line
 /// breaks where it can, and at most `most` of them; anything after that is

@@ -2,6 +2,7 @@
 
 #include "advanced_triggers.hpp"
 #include "ask.hpp"
+#include "conversation.hpp"
 #include "core/events/message_pipeline.hpp"
 #include "guards.hpp"
 #include "llm_config.hpp"
@@ -62,6 +63,12 @@ struct stage_services {
     /// module is built in; null otherwise, and then none is.
     const capabilities::link_replacements* replacements = nullptr;
 
+    /// Conversation mode (src/modules/llm/docs/Language_Model.md §2.10):
+    /// where a conversation is open, and who last said what. Null leaves it
+    /// off.
+    const conversation_windows* windows = nullptr;
+    channel_activity* activity = nullptr;
+
     /// Whether a key is set for this provider.
     std::function<bool(provider_kind)> has_provider;
 
@@ -89,13 +96,32 @@ public:
 
     auto operator()(const events::incoming_message& message) -> stage_result;
 
+    /// Takes the rate limits for an ask that waited on the check, now that
+    /// the check agreed. False when they are used up.
+    auto claim_reply(const ask_llm& ask) -> bool;
+
 private:
+    /// How a message nobody addressed reaches the model.
+    struct route {
+        approach how = approach::addressed;
+        bool check_first = false;
+    };
+
+    /// Whether conversation mode takes up a message nobody addressed: it
+    /// names the bot, or a conversation is open and nothing says the message
+    /// is for someone else (src/modules/llm/docs/Language_Model.md §2.10).
+    [[nodiscard]] auto join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name) const
+        -> std::optional<route>;
+
     /// The guards after the switch and the address, in order: the blacklist,
-    /// the spend caps, the rate limits, and for a bot the pacing. The wait
-    /// before answering when all of them let it through, nothing when one
-    /// did not.
-    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, stage_result& result)
+    /// the spend caps, the rate limits unless `take_rate` is false, and for a
+    /// bot the pacing. The wait before answering when all of them let it
+    /// through, nothing when one did not.
+    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate, stage_result& result)
         -> std::optional<std::chrono::seconds>;
+
+    /// One reply from the author's and the channel's per-minute limits.
+    auto take_rate_limits(dpp::snowflake guild, dpp::snowflake channel, dpp::snowflake author, const llm_settings& settings) -> bool;
 
     /// Whether a spend cap is reached, adding the notice to `result` the
     /// first time a guild asks after it was.

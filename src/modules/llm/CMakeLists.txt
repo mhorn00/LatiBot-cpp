@@ -5,6 +5,7 @@ latibot_module(llm CONFIG
         src/aliases.cpp
         src/anthropic.cpp
         src/config_check.cpp
+        src/conversation.cpp
         src/documents.cpp
         src/guards.cpp
         src/llm_command.cpp
@@ -23,6 +24,7 @@ latibot_module(llm CONFIG
         tests/llm_aliases_test.cpp
         tests/llm_answer_test.cpp
         tests/llm_command_test.cpp
+        tests/llm_conversation_test.cpp
         tests/llm_guards_test.cpp
         tests/llm_module_test.cpp
         tests/llm_panel_test.cpp

@@ -69,8 +69,8 @@ auto llm_stage::over_spend_cap(const events::incoming_message& message, bool add
     return true;
 }
 
-auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, stage_result& result)
-    -> std::optional<std::chrono::seconds> {
+auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate,
+                      stage_result& result) -> std::optional<std::chrono::seconds> {
     if (services_.blacklist->blocks(message.guild_id, message.author_id, message.author_roles)) {
         util::log().debug("not answering {} in guild {}: blacklisted", message.author_id, message.guild_id);
         return std::nullopt;
@@ -78,11 +78,7 @@ auto llm_stage::admit(const events::incoming_message& message, const llm_setting
 
     if (over_spend_cap(message, addressed, result)) return std::nullopt;
 
-    if (!users_.try_take({message.guild_id, message.author_id}, settings.user_per_minute) ||
-        !channels_.try_take({message.guild_id, message.channel_id}, settings.channel_per_minute)) {
-        util::log().debug("not answering {} in channel {}: rate limited", message.author_id, message.channel_id);
-        return std::nullopt;
-    }
+    if (take_rate && !take_rate_limits(message.guild_id, message.channel_id, message.author_id, settings)) return std::nullopt;
 
     if (!message.from_bot) return std::chrono::seconds{0};
     const pacing_decision paced = pacing_.claim(message.guild_id, message.channel_id, settings.pacing);
@@ -93,12 +89,48 @@ auto llm_stage::admit(const events::incoming_message& message, const llm_setting
     return paced.wait;
 }
 
+auto llm_stage::take_rate_limits(dpp::snowflake guild, dpp::snowflake channel, dpp::snowflake author, const llm_settings& settings)
+    -> bool {
+    if (users_.try_take({guild, author}, settings.user_per_minute) && channels_.try_take({guild, channel}, settings.channel_per_minute)) {
+        return true;
+    }
+    util::log().debug("not answering {} in channel {}: rate limited", author, channel);
+    return false;
+}
+
+auto llm_stage::claim_reply(const ask_llm& ask) -> bool {
+    const llm_settings settings = load_llm_settings(*services_.settings, ask.guild_id, *services_.section);
+    return take_rate_limits(ask.guild_id, ask.channel_id, ask.author_id, settings);
+}
+
+auto llm_stage::join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name) const
+    -> std::optional<route> {
+    if (!settings.conversation.enabled || services_.windows == nullptr || util::is_blank(message.content)) return std::nullopt;
+
+    // The check runs on its own model, which needs its key.
+    const model_info* checker = find_model(services_.section->check_model);
+    if (checker == nullptr || !services_.has_provider(checker->provider)) return std::nullopt;
+
+    const bool open = services_.windows->open(message.channel_id, settings.conversation);
+
+    // Its name anywhere: during a conversation that is talking to it; at
+    // other times it may be talking about it, which the check tells apart.
+    if (names_bot(message.content, bot_name)) return route{.how = approach::named, .check_first = !open};
+    if (!open) return std::nullopt;
+
+    // A reply or a mention is meant for whoever it names, so it is not
+    // worth a check. A reply to the bot that counted was addressed already.
+    if (!message.reply_to.empty() || message.mentions_others) return std::nullopt;
+    return route{.how = approach::joined_in, .check_first = true};
+}
+
 auto llm_stage::operator()(const events::incoming_message& message) -> stage_result {
     stage_result result;
 
     // Every person speaking resets the bot-to-bot count, whether or not the
     // model answers them (src/modules/llm/docs/Language_Model.md §2.7).
     if (!message.from_bot) pacing_.human_spoke(message.channel_id);
+    if (services_.activity != nullptr) services_.activity->posted(message.channel_id, message.author_id, message.message_id);
     if (message.guild_id.empty()) return result;
 
     const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.section);
@@ -112,6 +144,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const bot_identity me = services_.me();
     const bool addressed = addresses_bot(message, me.name, reply_counts);
 
+    route chosen{.how = approach::addressed, .check_first = false};
     std::optional<advanced_trigger> fired;
     if (!addressed) {
         // A bot has to address LatiBot to be answered: two bots trading
@@ -119,7 +152,13 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
         // message a simple trigger answered is not answered twice.
         if (message.from_bot || message.answered) return result;
         fired = matcher_.fire(services_.triggers->for_guild(message.guild_id), message.channel_id, message.content);
-        if (!fired) return result;
+        if (fired) {
+            chosen.how = approach::trigger;
+        } else {
+            const std::optional<route> joining = join_in(message, settings, me.name);
+            if (!joining) return result;
+            chosen = *joining;
+        }
     }
 
     const model_info* model = find_model(settings.model);
@@ -131,7 +170,9 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     // From here the message is the model's, answered or not.
     result.consumed = addressed;
 
-    const auto wait = admit(message, settings, addressed, result);
+    // What waits on a check takes its place in the rate limits only once the
+    // check agrees, so a "no" leaves room for the next message.
+    const auto wait = admit(message, settings, addressed, !chosen.check_first, result);
     if (!wait) return result;
 
     result.consumed = true;
@@ -145,6 +186,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
                      .content = message.content,
                      .author_is_bot = message.from_bot,
                      .reply_to = message.reply_to,
+                     .how = chosen.how,
+                     .check_first = chosen.check_first,
                      .trigger_id = fired ? fired->id : 0,
                      .context_prompt = fired ? fired->context_prompt : std::string{},
                      .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),

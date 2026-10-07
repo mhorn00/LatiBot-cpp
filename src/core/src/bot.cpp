@@ -372,6 +372,8 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     // lists the bot in `mentions` without anybody writing a mention.
     const bool listed = std::ranges::any_of(message.mentions, [this](const auto& mention) { return mention.first.id == cluster_.me.id; });
     described.mentions_bot = listed && (!replies_to_me || events::writes_mention(message.content, cluster_.me.id));
+    described.mentions_others = std::ranges::any_of(
+        message.mentions, [&](const auto& mention) { return mention.first.id != cluster_.me.id && mention.first.id != message.author.id; });
 
     // Administrator is a guild-level question, so it needs the guild and the
     // member: a message carries neither on its own.

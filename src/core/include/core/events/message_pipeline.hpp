@@ -67,6 +67,11 @@ struct incoming_message {
     /// that is not a reply.
     dpp::snowflake reply_to;
 
+    /// Whether it @mentions somebody other than the bot and its author: a
+    /// sign it is meant for them (src/modules/llm/docs/Language_Model.md
+    /// §2.10).
+    bool mentions_others = false;
+
     /// Set by the pipeline once a stage has answered the message, so a later
     /// stage can stand back: the simple trigger wins over an advanced one
     /// (src/core/docs/Message_Pipeline.md §2.2).

@@ -19,11 +19,11 @@ registers, so this table cannot fall behind the code.
 | Commands | `/llm`, `/memory` | ✓ |
 | Panels | `llmset`, `llmsetpick`, `llmsetform`, `llmswitch`, `llmdoc`, `memlist` | ✓ |
 | Message stages | `language model`, at the model position, last: it consumes what it answers | ✓ |
-| Discord events | none | ✓ |
+| Discord events | `llm: who is typing` (typing starts), for conversation mode, which waits for people to finish; needs the typing intent, which is not privileged | ✓ |
 | Timers | none | ✓ |
 | Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases` | ✓ |
 | Per-server settings | the llm_ keys in `src/settings.hpp`, each with its default and range | |
-| Config section | `llm.provider`, `llm.model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
+| Config section | `llm.provider`, `llm.model`, `llm.check_model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
 | Environment | ANTHROPIC_API_KEY, OPENAI_API_KEY; a provider exists only with its key, and the log channel masks both | |
 | Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. | |
 | Requires | the core | |
@@ -36,6 +36,7 @@ registers, so this table cannot fall behind the code.
 | `src/module.cpp` | the module: its schema, keys, providers, commands, panels and stage |
 | `src/llm_config.hpp`, `src/config_check.*` | its config section, and refusing a model it cannot price |
 | `src/stage.*` | deciding whether a message is answered |
+| `src/conversation.*` | conversation mode: its windows, who is typing, and hearing its name |
 | `src/responder.*`, `src/prompt.*` | answering: the prompt, the tool loop, posting and speaking |
 | `src/anthropic.*`, `src/openai.*`, `src/provider.hpp`, `src/models.*` | the providers and their prices |
 | `src/memory.*`, `src/memory_tools.*`, `src/tools.*` | what the model remembers, as tools it calls |

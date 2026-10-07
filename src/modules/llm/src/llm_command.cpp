@@ -62,6 +62,7 @@ auto manages_server(const dpp::interaction_create_t& event) -> bool {
 auto group_title(std::string_view group) -> std::string_view {
     if (group == "context") return "What it reads";
     if (group == "replies") return "Replies and rate limits";
+    if (group == "conversation") return "Conversation mode";
     return "Talking to other bots";
 }
 
@@ -136,6 +137,7 @@ auto render_llm_status(const llm_overview& overview) -> std::string {
     std::string text = std::format("The language model is **{}** here, using {}.", overview.enabled ? "on" : "off",
                                    model == nullptr ? overview.model : std::string(model->label));
     if (!overview.has_key) text += " There is no API key for it on the bot, so it cannot answer.";
+    if (overview.conversation) text += " Conversation mode is **on**: it keeps listening for a while after it answers.";
     text += std::format("\nSpent today: ${:.2f} of ${:.2f}. This month: ${:.2f} of ${:.2f}, ${:.2f} of it here.", overview.spend.today,
                         overview.caps.daily, overview.spend.this_month, overview.caps.monthly, overview.guild_this_month);
     if (overview.spend.over()) text += "\nThe spend cap is reached, so it stays quiet until it resets.";
@@ -247,8 +249,9 @@ auto describe_saved(llm::document_kind kind, int version, std::string_view conte
     return text;
 }
 
-auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled) -> dpp::message {
-    std::string body = std::format("**Language model settings**: the model is **{}** here.\n", enabled ? "on" : "off");
+auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled, bool conversation) -> dpp::message {
+    std::string body = std::format("**Language model settings**: the model is **{}** here, and conversation mode is **{}**.\n",
+                                   enabled ? "on" : "off", conversation ? "on" : "off");
     for (const std::string_view group : llm::setting_groups()) {
         body += std::format("\n__{}__\n", group_title(group));
         for (const llm::setting_spec& spec : llm::setting_specs()) {
@@ -273,6 +276,8 @@ auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>&
     panel.add_component(dpp::component().set_type(dpp::cot_action_row).add_component(menu));
 
     const auto flip = ui::encode({.view = std::string(llm_switch_view), .page = 0, .argument = enabled ? "off" : "on"});
+    const auto flip_conversation =
+        ui::encode({.view = std::string(llm_switch_view), .page = 0, .argument = conversation ? "conversation off" : "conversation on"});
     const auto refresh = ui::encode({.view = std::string(llm_settings_view), .page = 0, .argument = {}});
     dpp::component row;
     row.set_type(dpp::cot_action_row);
@@ -281,6 +286,11 @@ auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>&
                           .set_style(enabled ? dpp::cos_danger : dpp::cos_success)
                           .set_label(enabled ? "Turn off" : "Turn on")
                           .set_id(flip.value_or(std::string(llm_switch_view))));
+    row.add_component(dpp::component()
+                          .set_type(dpp::cot_button)
+                          .set_style(conversation ? dpp::cos_danger : dpp::cos_success)
+                          .set_label(conversation ? "Conversation off" : "Conversation on")
+                          .set_id(flip_conversation.value_or(std::string(llm_switch_view))));
     row.add_component(dpp::component()
                           .set_type(dpp::cot_button)
                           .set_style(dpp::cos_secondary)
@@ -390,6 +400,11 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
 
     payload.add_option(dpp::command_option(dpp::co_sub_command, "settings", "Open the settings panel (Manage Server)."));
 
+    dpp::command_option conversation(dpp::co_sub_command_group, "conversation", "Keep talking for a while after answering.");
+    conversation.add_option(dpp::command_option(dpp::co_sub_command, "on", "Join in when a message seems meant for it (Manage Server)."));
+    conversation.add_option(dpp::command_option(dpp::co_sub_command, "off", "Answer only when addressed (Manage Server)."));
+    payload.add_option(conversation);
+
     payload.add_option(document_group("personality", "How the bot comes across.", true));
     payload.add_option(document_group("system", "Instructions that are not up for negotiation (Manage Server).", false));
     payload.add_option(document_group("style", "How advanced-trigger replies are written (Manage Server).", false));
@@ -479,6 +494,8 @@ auto llm_command::manage(const dpp::slashcommand_t& event, std::string_view path
     } else if (path == "settings") {
         const llm_panels panels(services_);
         co_await event.co_reply(result(event, panels.settings_panel(event.command.guild_id)));
+    } else if (group == "conversation" && (action == "on" || action == "off")) {
+        co_await switch_conversation(event, action == "on");
     } else if (group == "trigger") {
         co_await trigger(event, action);
     } else if (group == "blacklist") {
@@ -497,12 +514,34 @@ auto llm_command::status(const dpp::slashcommand_t& event) -> dpp::task<void> {
 
     const llm_overview overview{
         .enabled = settings.enabled,
+        .conversation = settings.conversation.enabled,
         .model = settings.model,
         .has_key = model != nullptr && services_.has_provider(model->provider),
         .spend = llm::spend_status_at(*services_.usage, caps, now),
         .caps = caps,
         .guild_this_month = services_.usage->spent_between(guild, llm::month_start(now), now + std::chrono::seconds{1})};
     co_await event.co_reply(result(event, render_llm_status(overview)));
+}
+
+auto llm_command::switch_conversation(const dpp::slashcommand_t& event, bool on) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    services_.settings->set_bool(guild, llm::conversation_key, on);
+    util::log().info("conversation mode turned {} in guild {} by {}", on ? "on" : "off", guild,
+                     describe_user(event.command.get_issuing_user()));
+
+    std::string reply = on ? "ok, after i answer someone here i'll keep listening for a few minutes, and join in when a message "
+                             "seems meant for me"
+                           : "ok, i'll answer here only when addressed";
+    if (on) {
+        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
+        const llm::model_info* checker = llm::find_model(services_.section->check_model);
+        if (!settings.enabled) {
+            reply += ", once the model itself is on: that's /llm on";
+        } else if (checker == nullptr || !services_.has_provider(checker->provider)) {
+            reply += ", but there's no API key on the bot for the model that decides, so it can't yet";
+        }
+    }
+    co_await event.co_reply(result(event, reply));
 }
 
 auto llm_command::switch_to(const dpp::slashcommand_t& event, bool on) -> dpp::task<void> {
@@ -912,7 +951,8 @@ auto llm_panels::values(dpp::snowflake guild) const -> std::map<std::string, std
 }
 
 auto llm_panels::settings_panel(dpp::snowflake guild) const -> dpp::message {
-    return render_llm_settings(values(guild), services_.settings->get_bool(guild, llm::enabled_key, false));
+    return render_llm_settings(values(guild), services_.settings->get_bool(guild, llm::enabled_key, false),
+                               services_.settings->get_bool(guild, llm::conversation_key, false));
 }
 
 auto llm_panels::on_component(const dpp::interaction_create_t& event, const ui::page_state& state, const std::string& chosen) -> bool {
@@ -952,10 +992,13 @@ auto llm_panels::on_component(const dpp::interaction_create_t& event, const ui::
             ui::update_panel(event, settings_panel(guild));
         }
     } else if (state.view == llm_switch_view) {
-        const bool on = state.argument == "on";
-        services_.settings->set_bool(guild, llm::enabled_key, on);
-        util::log().info("the language model turned {} in guild {} by {} from the panel", on ? "on" : "off", guild,
-                         describe_user(event.command.get_issuing_user()));
+        // "on" and "off" switch the model; "conversation on" and
+        // "conversation off", conversation mode.
+        const bool conversation = state.argument.starts_with("conversation ");
+        const bool on = state.argument.ends_with("on");
+        services_.settings->set_bool(guild, conversation ? llm::conversation_key : llm::enabled_key, on);
+        util::log().info("{} turned {} in guild {} by {} from the panel", conversation ? "conversation mode" : "the language model",
+                         on ? "on" : "off", guild, describe_user(event.command.get_issuing_user()));
         ui::update_panel(event, settings_panel(guild));
     } else {
         ui::update_panel(event, settings_panel(guild));

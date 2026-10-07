@@ -5,6 +5,7 @@
 #include "anthropic.hpp"
 #include "ask.hpp"
 #include "config_check.hpp"
+#include "conversation.hpp"
 #include "core/capabilities/link_replacements.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
@@ -24,6 +25,7 @@
 #include "openai.hpp"
 #include "provider.hpp"
 #include "responder.hpp"
+#include "settings.hpp"
 #include "spend.hpp"
 #include "stage.hpp"
 #include "tools.hpp"
@@ -172,6 +174,8 @@ public:
           aliases_(bot.database()),
           blacklist_(bot.database()),
           triggers_(bot.database()),
+          windows_(bot.clock()),
+          activity_(bot.clock()),
           anthropic_(keys_.anthropic ? std::make_unique<anthropic_provider>(bot.http(), *keys_.anthropic) : nullptr),
           openai_(keys_.openai ? std::make_unique<openai_provider>(bot.http(), *keys_.openai) : nullptr),
           panels_(services()) {}
@@ -230,6 +234,8 @@ public:
                                                        .usage = &usage_,
                                                        .speech = speech,
                                                        .replacements = replacements,
+                                                       .windows = &windows_,
+                                                       .activity = &activity_,
                                                        .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; },
                                                        .me = me},
                                         bot.clock());
@@ -240,6 +246,14 @@ public:
                          {commands::llm_settings_view, commands::llm_settings_pick_view, commands::llm_settings_form_view,
                           commands::llm_switch_view, commands::llm_document_form_view, commands::memory_list_view},
                          module_name);
+
+        // Conversation mode waits for people to finish typing
+        // (src/modules/llm/docs/Language_Model.md §2.10). Not privileged.
+        // The bot's own typing, while it thinks, is not someone else's.
+        bot.intents(dpp::i_guild_message_typing);
+        bot.listen(bot.cluster().on_typing_start, "llm: who is typing", [this](const dpp::typing_start_t& event) {
+            if (event.user_id != bot_->me().id) activity_.started_typing(event.typing_channel.id, event.user_id);
+        });
 
         // Last: it consumes what it answers, and a simple trigger's reply
         // before it keeps an advanced trigger quiet
@@ -280,13 +294,47 @@ private:
                 .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; }};
     }
 
-    /// Waits out any pacing, then has the model answer
+    /// Waits out any pacing, or anyone typing, asks the check when it has
+    /// to agree first, then has the model answer
     /// (src/modules/llm/docs/Language_Model.md).
     auto answer(ask_llm ask) -> dpp::task<void> {
         // Bot-to-bot pacing (src/modules/llm/docs/Language_Model.md §2.7). The turn
         // was claimed when the stage decided, so the wait only spaces it out.
         if (ask.wait > std::chrono::seconds::zero()) co_await bot_->cluster().co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
-        co_await responder_->answer(std::move(ask));
+
+        // Unaddressed, it lets people finish, and answers only their latest
+        // (src/modules/llm/docs/Language_Model.md §2.10).
+        const bool unprompted = ask.how == approach::named || ask.how == approach::joined_in;
+        if (unprompted) {
+            co_await wait_for_typing(ask);
+            if (!activity_.is_latest(ask.channel_id, ask.author_id, ask.message_id)) {
+                util::log().debug("not checking message {} in channel {}: its author has said more since", ask.message_id, ask.channel_id);
+                co_return;
+            }
+        }
+
+        if (ask.check_first) {
+            const check_report checked = co_await responder_->check(ask);
+            if (!checked.yes || !stage_->claim_reply(ask)) co_return;
+        }
+
+        const answer_report report = co_await responder_->answer(ask);
+        if (report.posted.empty()) co_return;
+        if (ask.how == approach::joined_in) {
+            windows_.joined_in(ask.channel_id);
+        } else if (spoke_to_bot(ask)) {
+            windows_.opened(ask.channel_id);
+        }
+    }
+
+    /// Waits while anyone in the channel is typing, a second at a time, up
+    /// to the guild's `llm_conversation_typing`.
+    auto wait_for_typing(const ask_llm& ask) -> dpp::task<void> {
+        const llm_settings settings = load_llm_settings(bot_->settings(), ask.guild_id, section_);
+        for (std::chrono::seconds waited{0}; waited < settings.conversation.typing_wait && activity_.anyone_typing(ask.channel_id);
+             waited += std::chrono::seconds{1}) {
+            co_await bot_->cluster().co_sleep(1);
+        }
     }
 
     modules::host* bot_;
@@ -298,6 +346,8 @@ private:
     alias_store aliases_;
     blacklist_store blacklist_;
     advanced_trigger_store triggers_;
+    conversation_windows windows_;
+    channel_activity activity_;
     tool_registry tools_;
     // A provider exists only when its key is set; the stage and the commands
     // ask `provider_for` rather than assume.

@@ -12,11 +12,11 @@
 namespace latibot::llm {
 namespace {
 
-constexpr std::array<std::string_view, 3> groups{"context", "replies", "bots"};
+constexpr std::array<std::string_view, 4> groups{"context", "replies", "bots", "conversation"};
 
 // The defaults and ranges are the table in src/modules/llm/docs/Language_Model.md
 // §2.9, chosen to keep a friendly server well inside the spend caps.
-constexpr std::array<setting_spec, 10> specs{{
+constexpr std::array<setting_spec, 14> specs{{
     {.key = "llm_context_messages", .label = "Recent messages it reads", .group = "context", .fallback = 15, .min = 0, .max = 50},
     {.key = "llm_context_tokens", .label = "Token budget for them", .group = "context", .fallback = 3000, .min = 200, .max = 20000},
     {.key = "llm_trigger_context", .label = "Messages an advanced trigger reads", .group = "context", .fallback = 5, .min = 0, .max = 20},
@@ -33,6 +33,30 @@ constexpr std::array<setting_spec, 10> specs{{
      .min = 0,
      .max = 1,
      .is_switch = true},
+    {.key = "llm_conversation_minutes",
+     .label = "Minutes it keeps listening after a reply",
+     .group = "conversation",
+     .fallback = 3,
+     .min = 1,
+     .max = 30},
+    {.key = "llm_conversation_replies",
+     .label = "Replies per conversation, unaddressed",
+     .group = "conversation",
+     .fallback = 6,
+     .min = 1,
+     .max = 30},
+    {.key = "llm_conversation_longest",
+     .label = "Longest conversation, in minutes",
+     .group = "conversation",
+     .fallback = 15,
+     .min = 1,
+     .max = 120},
+    {.key = "llm_conversation_typing",
+     .label = "Seconds it waits for typing to stop",
+     .group = "conversation",
+     .fallback = 6,
+     .min = 0,
+     .max = 30},
 }};
 
 auto clamped(const setting_spec& spec, std::int64_t value) -> std::int64_t {
@@ -106,6 +130,12 @@ auto load_llm_settings(const config::guild_settings& settings, dpp::snowflake gu
                      .delay = std::chrono::seconds{as_int(settings, guild, "llm_bot_delay_seconds")},
                      .daily_cap = as_int(settings, guild, "llm_bot_daily_cap"),
                      .needs_human = as_int(settings, guild, "llm_bot_needs_human") != 0};
+
+    loaded.conversation = {.enabled = settings.get_bool(guild, conversation_key, false),
+                           .quiet_after = std::chrono::minutes{as_int(settings, guild, "llm_conversation_minutes")},
+                           .replies = as_int(settings, guild, "llm_conversation_replies"),
+                           .longest = std::chrono::minutes{as_int(settings, guild, "llm_conversation_longest")},
+                           .typing_wait = std::chrono::seconds{as_int(settings, guild, "llm_conversation_typing")}};
 
     const auto role = util::parse_snowflake(settings.get(guild, personality_role_key, ""));
     loaded.personality_role = role.value_or(guild);

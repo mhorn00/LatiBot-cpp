@@ -104,6 +104,11 @@ as `OOF! Error from underlying websocket: 4014`. The bot watches for 4014,
 and logs the setting and the portal page by name. `nicknames.track_changes: false`
 is the way out if the Server Members toggle cannot be turned on.
 
+The language model also asks for **Guild Message Typing**, which is not
+privileged and needs nothing in the portal: conversation mode waits for
+people to finish typing
+([Language_Model.md §2.10](../../modules/llm/docs/Language_Model.md#210-conversation-mode)).
+
 ## 4. Configuration
 
 Three layers, separated by how often each changes and who changes it:
@@ -120,8 +125,8 @@ Three layers, separated by how often each changes and who changes it:
   release is only the executable. A folder that cannot be written to is a
   warning, and the bot runs on the defaults.
 - **Rejected at startup, naming the problem:** an unknown key, a value of
-  the wrong type, an unreadable file, an `llm.model` whose price the bot does
-  not know, and an id that is a number or not exactly an id. Ids are
+  the wrong type, an unreadable file, an `llm.model` or `llm.check_model` whose
+  price the bot does not know, and an id that is a number or not exactly an id. Ids are
   **strings**, because a JSON number cannot hold a snowflake exactly.
 - **Never overwritten**, and git-ignored, since it holds real ids.
   `config.example.json` is the same text, kept identical by a test.

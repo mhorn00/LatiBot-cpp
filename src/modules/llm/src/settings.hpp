@@ -1,5 +1,6 @@
 #pragma once
 
+#include "conversation.hpp"
 #include "guards.hpp"
 #include "llm_config.hpp"
 
@@ -63,6 +64,9 @@ struct setting_spec {
 
 // Settings that are not numbers, and so not on the panel's forms.
 inline constexpr std::string_view enabled_key = "llm_enabled";
+/// Conversation mode, switched separately from the model itself
+/// (src/modules/llm/docs/Language_Model.md §2.10).
+inline constexpr std::string_view conversation_key = "llm_conversation";
 inline constexpr std::string_view model_key = "llm_model";
 inline constexpr std::string_view personality_role_key = "llm_personality_role";
 
@@ -90,6 +94,10 @@ struct llm_settings {
     int trigger_context = 5;
 
     pacing_rules pacing;
+
+    /// Whether, and for how long, it keeps talking once it has answered
+    /// (src/modules/llm/docs/Language_Model.md §2.10).
+    conversation_rules conversation;
 
     /// Who may edit the personality: a role, or the guild's id for @everyone,
     /// which is the default (src/modules/llm/docs/Language_Model.md §3.5).

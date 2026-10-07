@@ -48,7 +48,7 @@ stays as the record of how the port was designed.
 | 🏷 | [Nickname tracking](#nickname-tracking) | Records every nickname change, and who made it | — | [Nicknames](../src/modules/nicknames/docs/Nicknames.md) |
 | 🌙 | [The midnight message](#the-midnight-message) | Posts once per local day, per timezone | — | [Midnight](../src/modules/midnight/docs/Midnight.md) |
 | 🔊 | [Leaving empty voice channels](#leaving-empty-voice-channels) | Never sits alone in a voice channel | — | [Voice channels](../src/modules/voice/docs/Voice_Channels.md#23-leaving-an-empty-channel) |
-| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, remembers, speaks in a voice session | — | [Language model](../src/modules/llm/docs/Language_Model.md) |
+| 🧠 | [Talking to the bot](#talking-to-the-bot) | Answers when addressed, keeps up a conversation, remembers, speaks in a voice session | — | [Language model](../src/modules/llm/docs/Language_Model.md) |
 | 🔒 | [Permission warnings](#permission-warnings) | Says what it cannot do in a server, at startup | — | [Running the bot](../src/core/docs/Operations.md#6-permission-warnings) |
 
 Commands reply **ephemerally** by default — only the person who ran it sees the
@@ -1093,6 +1093,7 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 |---|---|---|
 | `status` | none | Whether it is on, the model, and what was spent against the caps |
 | `on` / `off` | none | Lets it answer here, or stops it |
+| `conversation on` / `conversation off` | none | [Conversation mode](#conversation-mode): it keeps talking for a while after it answers |
 | `model` | `name` (one of the models below) | This server's model from now on |
 | `settings` | none | Opens the [settings panel](#llm-settings) |
 | `personality` · `system` · `style` | a subcommand, below | The [documents](#the-documents) |
@@ -1120,13 +1121,15 @@ knows, since its spending limit is worked out from them:
 | `on` | `ok, i'll answer here when addressed` |
 | `on`, with no key for its model | `ok, i'll answer here when addressed, but there's no API key for its model on the bot, so it can't yet` |
 | `off` | `ok, i'll stay quiet here` |
+| `conversation on` | `ok, after i answer someone here i'll keep listening for a few minutes, and join in when a message seems meant for me`, plus `, once the model itself is on: that's /llm on` when it is off, or a warning when there is no API key for the model that decides |
+| `conversation off` | `ok, i'll answer here only when addressed` |
 | `model` | `ok, this server now uses Claude Sonnet 5.5` |
 | `model` with no key for it | `there's no openai API key on the bot, so GPT-6 Luna can't be used` |
 | Anything but `status` or the personality, without Manage Server | `that needs Manage Server` |
 | `status` | `The language model is **on** here, using Claude Haiku 4.5.` then what was spent today and this month, against the caps, and how much of the month's was this server's |
 
-`status` adds a line when there is no API key for the model, and one when a
-spending limit has been reached.
+`status` adds a line when there is no API key for the model, one when
+conversation mode is on, and one when a spending limit has been reached.
 
 #### The documents
 
@@ -1181,7 +1184,8 @@ A panel of the numbers that shape each reply. A menu opens a form for one
 group; every value is checked against its range, and a form with any value out
 of range changes nothing and says which, for example `"Token budget for them"
 takes a whole number from 200 to 20000; nothing was changed`. Changes apply to
-the next message. The panel also turns the model on or off.
+the next message. The panel also turns the model, and conversation mode, on
+or off.
 
 | Setting | Default | Range |
 |---|---|---|
@@ -1195,6 +1199,10 @@ the next message. The panel also turns the model on or off.
 | Seconds between bot turns | 5 | 0–300 |
 | Replies to bots per day | 50 | 0–1000 |
 | Only after a person spoke | no | yes or no |
+| Minutes it keeps listening after a reply | 3 | 1–30 |
+| Replies per conversation, unaddressed | 6 | 1–30 |
+| Longest conversation, in minutes | 15 | 1–120 |
+| Seconds it waits for typing to stop | 6 | 0–30 |
 
 The token budget is a rough count, four characters to a token. The longest
 reply includes the model's thinking, on the models that think, so it is not a
@@ -1656,7 +1664,8 @@ cut at this server's [`/speak` limit](#tts). Whoever asked can stop it with
 **When it stays quiet.** Checked in this order, before anything is spent:
 
 - The server has not turned it on, or there is no API key for its model.
-- Nobody addressed it and no [advanced trigger](#advanced-triggers) fired.
+- Nobody addressed it, no [advanced trigger](#advanced-triggers) fired, and
+  [conversation mode](#conversation-mode) did not take the message up.
 - The author, or one of their roles, is on the [blacklist](#the-blacklist).
 - **The spending limit is reached**: $2 in a UTC day or $20 in a UTC month,
   across every server, from the `config.json` caps. It says
@@ -1685,6 +1694,32 @@ only once a person has spoken in the channel. All of these are
 which is what the spending limit adds up. The instructions and documents are
 marked for the provider's prompt cache, so a conversation in full swing pays
 far less for them.
+
+#### Conversation mode
+
+Turned on with [`/llm conversation on`](#llm), separately from `/llm on`, the
+bot keeps talking once it has answered someone, rather than waiting to be
+addressed every time.
+
+- After it answers someone who addressed it, it **keeps listening** in that
+  channel: until it has been quiet for 3 minutes, has joined in 6 times
+  without being addressed, or 15 minutes have passed. Addressing it again
+  starts over.
+- While it listens, a message that says **latibot anywhere** is answered.
+  Outside that time, a message that names it is answered only if a quick
+  check agrees it was talking *to* the bot, not about it.
+- While it listens, **any other message** may be for it. A quick check reads
+  the last few messages and decides; if it says yes, the bot joins in. A
+  reply to someone else, a message that @mentions someone else, another bot,
+  or a message with no text is never checked.
+- It **waits for people to finish typing**, for up to 6 seconds, and answers
+  only someone's latest message.
+- Joining in, it may still decide to say nothing. Its reply comes without a
+  notification, as an advanced trigger's does.
+
+Each check costs about a twentieth of a cent with Claude Haiku 4.5, the
+`llm.check_model` in `config.json`, and counts toward the spending limit. The
+times and counts are [settings](#llm-settings).
 
 ### Permission warnings
 

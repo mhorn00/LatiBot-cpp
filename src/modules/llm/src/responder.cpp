@@ -40,6 +40,31 @@ auto meet_everyone_in(const dpp::message& message, const context_message& shown,
     cast.meet_mentioned(message.content);
 }
 
+/// Why the model answered, for the log.
+auto why(const llm::ask_llm& ask) -> std::string {
+    switch (ask.how) {
+    case approach::addressed:
+        return "addressed";
+    case approach::named:
+        return "named";
+    case approach::joined_in:
+        return "joined in";
+    case approach::trigger:
+        return std::format("advanced trigger {}", ask.trigger_id);
+    }
+    return "asked";
+}
+
+/// The message being answered, as the transcript shows it.
+auto latest_of(const llm::ask_llm& ask) -> context_message {
+    return {.id = ask.message_id,
+            .author_id = ask.author_id,
+            .author_name = ask.author_name,
+            .from_me = false,
+            .from_bot = ask.author_is_bot,
+            .content = ask.content};
+}
+
 auto joined(const std::vector<std::string>& names) -> std::string {
     std::string text;
     for (const std::string& name : names) {
@@ -71,7 +96,7 @@ responder::responder(responder_services services, std::function<bot_identity()> 
 auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     answer_report report;
     const bot_identity me = me_();
-    const bool addressed = ask.trigger_id == 0;
+    const bool addressed = spoke_to_bot(ask);
 
     const llm_settings settings = load_llm_settings(*services_.settings, ask.guild_id, *services_.section);
     const model_info* model = find_model(settings.model);
@@ -86,8 +111,9 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     // Typing first, so the wait for the model reads as the bot thinking
     // rather than ignoring whoever asked
     // (src/modules/llm/docs/Language_Model.md §2.3). It lasts ten seconds, which
-    // covers most replies; a failure to show it is not worth a line.
-    std::ignore = co_await services_.discord->start_typing(ask.channel_id);
+    // covers most replies; a failure to show it is not worth a line. Not
+    // when joining in, where the model may yet say nothing.
+    if (ask.how != approach::joined_in) std::ignore = co_await services_.discord->start_typing(ask.channel_id);
 
     // Everyone the model hears of is an alias, never an id or a name
     // (src/modules/llm/docs/Language_Model.md §3.8). Met as they are read, so that
@@ -96,7 +122,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
 
-    const int wanted = addressed ? settings.context_messages : settings.trigger_context;
+    const int wanted = ask.how == approach::trigger ? settings.trigger_context : settings.context_messages;
     const std::vector<context_message> history = co_await recent_messages(ask, wanted, me.id, cast);
     const std::optional<context_message> replied_to = co_await replied_message(ask, history, me.id, cast);
 
@@ -115,6 +141,15 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
         report.failure = outcome.error().message;
         util::log().warn("{} could not answer {} in channel {}: {}", model->id, ask.author_id, ask.channel_id, report.failure);
         if (addressed) co_await apologise(ask, outcome.error());
+        co_return report;
+    }
+
+    // Joining in, the model may decide the message was not for it after all
+    // (src/modules/llm/docs/Language_Model.md §2.10).
+    if (is_silence(outcome.value().text)) {
+        report.failure = "the model chose to say nothing";
+        util::log().info("{} chose to say nothing to {} in channel {} ({}): ${:.4f}", model->id, ask.author_id, ask.channel_id, why(ask),
+                         report.cost);
         co_return report;
     }
 
@@ -140,17 +175,62 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
 
     co_await post(ask, split_for_discord(text), report);
 
-    const std::string why = addressed ? std::string("addressed") : std::format("advanced trigger {}", ask.trigger_id);
     const std::string tools =
         outcome.value().tools_run.empty() ? std::string{} : std::format("; tools: {}", joined(outcome.value().tools_run));
     // How much of the channel it read, so a reply that seems to miss the
     // conversation can be told apart from one that never saw it.
     const std::string read = std::format("{} earlier message(s){}", history.size(), replied_to ? " and the one replied to" : "");
     util::log().info("{} answered {} in channel {} ({}, read {}): {} in, {} cached, {} out, ${:.4f}{}", model->id, ask.author_id,
-                     ask.channel_id, why, read, report.used.input_tokens + report.used.cache_write_tokens, report.used.cache_read_tokens,
-                     report.used.output_tokens, report.cost, tools);
+                     ask.channel_id, why(ask), read, report.used.input_tokens + report.used.cache_write_tokens,
+                     report.used.cache_read_tokens, report.used.output_tokens, report.cost, tools);
 
     if (speaking && !report.posted.empty()) co_await services_.speech->say(ask.guild_id, ask.author_id, std::move(text));
+    co_return report;
+}
+
+auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
+    check_report report;
+    const model_info* model = find_model(services_.section->check_model);
+    provider* checking = model == nullptr ? nullptr : services_.provider_for(model->provider);
+    if (checking == nullptr) {
+        // The stage checks this too; a key can only have gone since.
+        report.failure = std::format("no provider for {}", services_.section->check_model);
+        util::log().debug("cannot check message {} in guild {}: {}", ask.message_id, ask.guild_id, report.failure);
+        co_return report;
+    }
+
+    // The same aliases as the answer, never an id or a name
+    // (src/modules/llm/docs/Language_Model.md §3.8).
+    const bot_identity me = me_();
+    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, me.name);
+    cast.meet(ask.author_id, ask.author_name);
+    cast.meet_mentioned(ask.content);
+    const std::vector<context_message> history = co_await recent_messages(ask, check_context_messages, me.id, cast);
+    const std::optional<context_message> replied_to = co_await replied_message(ask, history, me.id, cast);
+
+    request call;
+    call.model = std::string(model->id);
+    call.stable_system = std::string(check_instructions());
+    call.conversation.push_back(
+        {.from = speaker::user,
+         .text = check_question(history, latest_of(ask), replied_to ? &*replied_to : nullptr, check_context_tokens, cast),
+         .calls = {},
+         .results = {},
+         .raw = {}});
+    call.allow_tools = false;
+    call.max_output_tokens = check_output_tokens;
+
+    const auto outcome = co_await checking->complete(std::move(call));
+    if (!outcome.has_value()) {
+        report.failure = outcome.error().message;
+        util::log().warn("{} could not check message {} in channel {}: {}", model->id, ask.message_id, ask.channel_id, report.failure);
+        co_return report;
+    }
+    report.used = outcome.value().used;
+    report.cost = services_.usage->record(ask.guild_id, *model, report.used, seconds_now(*services_.clock));
+    report.yes = check_says_yes(outcome.value().reply.text);
+    util::log().debug("{} says {} to replying to {} in channel {} ({}): ${:.5f}", model->id, report.yes ? "yes" : "no", ask.author_id,
+                      ask.channel_id, why(ask), report.cost);
     co_return report;
 }
 
@@ -193,13 +273,7 @@ auto responder::replied_message(const llm::ask_llm& ask, const std::vector<conte
 auto responder::build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
                               const std::vector<context_message>& history, const context_message* replied_to, std::chrono::sys_seconds now,
                               people& cast) const -> request {
-    const bool addressed = ask.trigger_id == 0;
-    const context_message latest{.id = ask.message_id,
-                                 .author_id = ask.author_id,
-                                 .author_name = ask.author_name,
-                                 .from_me = false,
-                                 .from_bot = ask.author_is_bot,
-                                 .content = ask.content};
+    const context_message latest = latest_of(ask);
 
     // Searched with what the model will see, since memories name people by
     // alias; whom they are about are met before any text is sanitized.
@@ -216,16 +290,17 @@ auto responder::build_request(const llm::ask_llm& ask, const llm_settings& setti
     call.stable_system = stable_instructions(
         {.system_document = cast.sanitize(services_.documents->text(ask.guild_id, document_kind::system), false),
          .personality = cast.sanitize(services_.documents->text(ask.guild_id, document_kind::personality), false),
-         .trigger_style =
-             addressed ? std::string{} : cast.sanitize(services_.documents->text(ask.guild_id, document_kind::trigger_style), false),
+         .trigger_style = ask.how != approach::trigger
+                              ? std::string{}
+                              : cast.sanitize(services_.documents->text(ask.guild_id, document_kind::trigger_style), false),
          .speaking_guide = ask.speak && services_.speech != nullptr ? services_.speech->guide_for_model() : std::string{}});
     call.varying_system = varying_instructions(memories, now, cast);
-    call.conversation.push_back(
-        {.from = speaker::user,
-         .text = question_for(history, latest, replied_to, ask.context_prompt, static_cast<std::size_t>(settings.context_tokens), cast),
-         .calls = {},
-         .results = {},
-         .raw = {}});
+    call.conversation.push_back({.from = speaker::user,
+                                 .text = question_for(history, latest, replied_to, ask.how, ask.context_prompt,
+                                                      static_cast<std::size_t>(settings.context_tokens), cast),
+                                 .calls = {},
+                                 .results = {},
+                                 .raw = {}});
     call.tools = services_.tools->definitions();
     call.max_output_tokens = settings.max_output_tokens;
     return call;
@@ -240,14 +315,15 @@ auto responder::apologise(const llm::ask_llm& ask, const ports::api_error& error
 }
 
 auto responder::post(const llm::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void> {
-    const bool addressed = ask.trigger_id == 0;
+    const bool addressed = spoke_to_bot(ask);
     for (std::size_t index = 0; index < parts.size(); ++index) {
         dpp::message reply(ask.channel_id, parts[index]);
         if (index == 0) reply.set_reference(ask.message_id, ask.guild_id, ask.channel_id, false);
 
         // Nothing the model writes pings anyone. Someone who addressed the
         // bot is notified of the reply, as with any reply; an advanced
-        // trigger's comment arrives silently, as a simple trigger's does.
+        // trigger's comment arrives silently, as a simple trigger's does, and
+        // so does joining in a conversation.
         reply.set_allowed_mentions(false, false, false, addressed && index == 0);
         if (!addressed) reply.set_flags(dpp::m_suppress_notifications);
 

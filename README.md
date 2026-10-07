@@ -374,6 +374,7 @@ put your own user ID in `trusted_users`:
 | `linkstats.emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](src/modules/linkstats/docs/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
 | `llm.provider` | text | `anthropic` | `anthropic` or `openai`: whose model `llm.model` is; was `llm_provider` |
 | `llm.model` | text | `claude-haiku-4-5` | the model a server uses until `/llm model` picks another; must be one the bot [knows the price of](docs/User_Guide.md#llm); was `llm_model` |
+| `llm.check_model` | text | `claude-haiku-4-5` | the model that decides, in [conversation mode](docs/User_Guide.md#conversation-mode), whether a message is for the bot; it only answers yes or no, so the cheapest will do; must be one the bot knows the price of |
 | `llm.spend_cap_daily_usd` | number | `2.0` | the language model stops answering, everywhere, once this much was spent in a UTC day |
 | `llm.spend_cap_monthly_usd` | number | `20.0` | and once this much was spent in a UTC month |
 | `llm.tool_rounds` | whole number | `4` | how many rounds of tools (its memory) the model may use in one reply; must be at least 1; was `llm_tool_rounds` |

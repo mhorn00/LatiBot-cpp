@@ -18,6 +18,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include <dpp/dpp.h>
+
 #include <filesystem>
 #include <set>
 #include <string>
@@ -132,8 +134,8 @@ TEST_CASE("the llm README lists what the module registers", "[llm]") {
     }
     CHECK(latibot::testing::readme_row(readme(), "Config section") == keys);
 
-    CHECK(latibot::testing::readme_row(readme(), "Discord events").empty());
-    CHECK(bot.listeners.empty());
+    CHECK(latibot::testing::readme_row(readme(), "Discord events") == std::set<std::string>(bot.listeners.begin(), bot.listeners.end()));
+    CHECK(bot.wanted_intents == dpp::i_guild_message_typing);
     CHECK(latibot::testing::readme_row(readme(), "Timers").empty());
     CHECK(bot.timers.empty());
 }

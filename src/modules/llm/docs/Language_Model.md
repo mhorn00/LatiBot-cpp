@@ -19,7 +19,7 @@ with every reply.
 | **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/src/discord/dpp_http_client.*` |
 | **Tests** | `src/modules/llm/tests/` (`latibot_llm_tests`, with `mock_llm.hpp`); `tests/mocks/{mock_http,mock_speech}.hpp` |
 | **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); settings as `llm_*` rows in `guild_settings` |
-| **Config** | the `llm` section of `config.json`: `provider`, `model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
+| **Config** | the `llm` section of `config.json`: `provider`, `model`, `check_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
 | **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
 | **Status** | Built in phase 5 (2026-09-28). **Never called a real API or run in Discord**: see §5 |
 
@@ -220,8 +220,9 @@ default permissions are per command, not per subcommand.
 |---|---|
 | `status` | On or off, the model, and what was spent today and this month against the caps, with this server's share |
 | `on`, `off` | Lets it answer here, or stops it. `on` warns when the model has no API key |
+| `conversation on`, `conversation off` | Conversation mode (§2.10). `on` warns when the model is off here, or the check model has no API key |
 | `model name` | This server's model, from the known ones (§3.2) |
-| `settings` | A panel of the numbers below, a form per group, and the on/off switch |
+| `settings` | A panel of the numbers below, a form per group, and the switches for the model and for conversation mode |
 | `personality`, `system`, `style` | The documents (§3.5) |
 | `trigger` | Advanced triggers (§2.6) |
 | `blacklist add \| remove \| list` | A `user` or a `role` it never answers here |
@@ -242,6 +243,51 @@ clamped when read.
 | Seconds between bot turns | 5 | 0–300 |
 | Replies to bots per day | 50 | 0–1000 |
 | Only after a person spoke | no | yes or no |
+| Minutes it keeps listening after a reply | 3 | 1–30 |
+| Replies per conversation, unaddressed | 6 | 1–30 |
+| Longest conversation, in minutes | 15 | 1–120 |
+| Seconds it waits for typing to stop | 6 | 0–30 |
+
+### 2.10 Conversation mode
+
+Answering only when addressed makes the bot a poor member of a
+conversation: people stop saying its name once it is talking with them.
+Conversation mode lets it keep up. It is **off in every server**, apart
+from `/llm on`, until `/llm conversation on`, since it costs a check on
+messages nobody addressed it in.
+
+- **A conversation** opens in a channel when the bot answers someone who
+  addressed it or named it, and stays open while the bot keeps replying:
+  until **3 minutes** pass without a reply from it, it has made **6**
+  replies nobody asked for, or **15 minutes** have passed since it opened.
+  Being addressed again starts a fresh one. All three are settings.
+- **Its name anywhere** in a message, `thanks latibot` as much as
+  `latibot, ...`, is answered at once during a conversation. Outside one it
+  could be people talking *about* the bot, so the **check** decides.
+- **During a conversation**, any other message from a person may be for
+  it, and the check decides. Some are left without a check, since they are
+  plainly for someone else: a reply to anybody but the bot (or to its
+  command output or a link replacement, §2.1), a message that @mentions
+  somebody else, one with no text, another bot's, or one a simple trigger
+  answered.
+- **The check** is one short call to `llm.check_model` (Claude Haiku 4.5
+  by default) with fixed instructions, the last 8 messages (about 1,500
+  tokens at most), what the message replies to, and the message, asking
+  whether the bot should reply: yes or no, in at most 8 tokens. People are
+  aliases, as everywhere (§3.8). It costs about $0.0006 on Haiku, counts
+  toward the spend caps, and a failure is a no. A message waiting on the
+  check takes its place in the rate limits only once the check says yes.
+- **Before the check** it waits while anyone in the channel is typing, up
+  to **6 seconds**, and then checks only the author's latest message: one
+  they have since followed up is answered through the newer one, which
+  comes with it in the transcript.
+- **Joining in**, the model is told nobody addressed it, and may answer
+  `[silent]`, which posts nothing. It does not show *typing…* first, and
+  its reply arrives silently, as an advanced trigger's does. Named, it
+  answers as if addressed, and whoever named it is notified.
+
+The bot watches who is typing through Discord's typing events, which need
+the `GUILD_MESSAGE_TYPING` intent. It is not privileged.
 
 ## 3. How it works
 
@@ -249,8 +295,13 @@ clamped when read.
 
 `llm_stage` is the last pipeline stage. It **decides**, and never waits:
 the guards of §2.2, the trigger match, the pacing claim. What it decides is
-an `ask_llm` action. The shell hands that to the **responder**, after any
-pacing wait, since a model call cannot happen inside a stage.
+an `ask_llm` action, which says how the message came to the model
+(`approach`: addressed, named, joined in or a trigger) and whether the
+conversation check has to agree first (§2.10). The shell hands that to the
+**responder**, after any pacing wait, since a model call cannot happen
+inside a stage. For conversation mode the module waits for typing to stop,
+asks the responder's `check`, claims the rate limits, and only then has it
+answer; a posted answer opens or extends the channel's conversation.
 
 The responder:
 
@@ -476,6 +527,9 @@ saved before 2026-10-02 may hold a name the model wrote then.
 | 2026-10-06 | A reply to a command's result or refusal does not address the bot; a reply's ping is not a mention | The owner's request: replying to `/nicknames` or `/linkstats` output started a conversation nobody asked for |
 | 2026-10-06 | The message a reply replies to shown beside it, fetched when outside the window | Replies to older messages were answered as if on their own |
 | 2026-10-06 | A reply to a link replacement does not address the bot | The owner's request: people reply to a replacement to comment on the post |
+| 2026-10-07 | Conversation mode: a window per channel after an answer, a cheap yes-or-no check on `llm.check_model` (Haiku 4.5) for what nobody addressed, the bot's name anywhere checked outside a window and answered within one; off until `/llm conversation on` | The owner's request: the bot only answered when addressed. A separate check came out cheaper than letting the answering model decide, unless nearly every message deserves a reply; free rules skip what is plainly for someone else |
+| 2026-10-07 | No two-person shortcut: every unaddressed message in a window goes to the check | The owner judged it would answer wrongly |
+| 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
 
 ## 5. Limits, and what is still to check
 
@@ -505,4 +559,9 @@ saved before 2026-10-02 may hold a name the model wrote then.
     on the picked option after a cancelled form;
   - whether any document was saved blank before the fix of 2026-09-29.
     `history` shows one, and `revert` restores it.
-- Pacing and rate limits live in memory, so a restart resets them.
+- Pacing and rate limits live in memory, so a restart resets them, and so
+  do conversations and who is typing.
+- **Conversation mode has never run.** Still to see in Discord: how often
+  the check says yes when it should not, and the other way round; whether
+  the windows' defaults suit the server; and whether the model uses
+  `[silent]` when it should.

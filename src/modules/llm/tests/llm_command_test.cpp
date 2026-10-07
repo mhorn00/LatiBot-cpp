@@ -152,12 +152,12 @@ TEST_CASE("history lists the newest versions first, with who and when", "[llm]")
 }
 
 TEST_CASE("the settings panel shows every setting and fits a message", "[llm]") {
-    const dpp::message panel = latibot::commands::render_llm_settings(default_values(), true);
+    const dpp::message panel = latibot::commands::render_llm_settings(default_values(), true, false);
     latibot::testing::check_message_fits(panel);
     for (const auto& spec : latibot::llm::setting_specs()) {
         CHECK(panel.content.contains(spec.label));
     }
-    CHECK(panel.content.contains("**on**"));
+    CHECK(panel.content.contains("the model is **on** here, and conversation mode is **off**"));
 }
 
 TEST_CASE("each settings form fits a modal and is filled with the current values", "[llm]") {
@@ -213,6 +213,9 @@ TEST_CASE("the status says what was spent against the caps", "[llm]") {
     CHECK(latibot::commands::render_llm_status(overview) ==
           "The language model is **on** here, using Claude Haiku 4.5.\n"
           "Spent today: $0.50 of $2.00. This month: $3.25 of $20.00, $1.00 of it here.");
+
+    overview.conversation = true;
+    CHECK(latibot::commands::render_llm_status(overview).contains("Conversation mode is **on**"));
 }
 
 TEST_CASE("the llm and memory commands register, within Discord's limits", "[llm]") {
