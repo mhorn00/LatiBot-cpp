@@ -598,7 +598,7 @@ them.
 | I2 | **DPP linked statically**, if it links cleanly. DECtalk stays a DLL with its dictionary beside it. | No `dpp.dll` to copy |
 | I3 | **Ninja Multi-Config**, if two checks pass: CMake writes `compile_commands.json` for it, and VS Code's CMake Tools loads the Visual Studio environment. | The separate clang-tidy folder and its Conan install; `CMAKE_CONFIGURATION_TYPES` forcing |
 | I4 | **Workflow presets**: one command per job, such as `cmake --workflow --preset asan`. `cmake_minimum_required` moves to 3.25. | Chained configure, build and test commands |
-| I5 | **An install step**: `cmake --install` writes `out/LatiBot/` (Git-ignored), holding `LatiBot.exe`, `dectalk.dll`, `dtalk_us.dic`, and `Install-Dependencies.ps1` with its readme. The live bot runs from there; you move `config.json` and `.env` yourself. | Building while the bot runs; copying files by hand |
+| I5 | **An install step**: `cmake --install` writes `out/LatiBot/` (Git-ignored; since 2026-10-07 `out/LatiBot-Release/`, and `out/LatiBot-Debug/` for Debug), holding `LatiBot.exe`, `dectalk.dll`, `dtalk_us.dic`, and `Install-Dependencies.ps1` with its readme. The live bot runs from there; you move `config.json` and `.env` yourself. | Building while the bot runs; copying files by hand |
 | I6 | **Interface targets** for warnings, sanitizers and runtime DLL copies, linked by `latibot_module()` | Every target remembering three function calls |
 | I7 | **A Conan lockfile** (`conan.lock`), committed. CI's cache key is its hash. | Unpinned transitive versions and recipe revisions |
 | I8 | **A precompiled header for DPP**, if a measured clean build is faster with it | Compile time |

@@ -54,7 +54,8 @@ add_custom_target(latibot_deploy_files ALL
 add_dependencies(LatiBot latibot_deploy_files)
 
 # The folder a server needs: `cmake --install build/build --config Release`
-# writes it to out/LatiBot (CMakePresets.json, installDir), so the bot that
+# writes it to out/LatiBot-Release (CMakePresets.json, installDir; the VS Code
+# task for Debug passes --prefix out/LatiBot-Debug), so the bot that
 # runs is never the one being rebuilt (docs/modules/Module_Plan_Final.md §9.1,
 # I5). README.md, "On another machine", says what else goes beside it.
 install(TARGETS LatiBot RUNTIME DESTINATION .)

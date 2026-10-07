@@ -59,15 +59,17 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
-      // The folder a server needs, from a fresh build, in out/LatiBot
-      // (README.md, "On another machine"), beside the config.json, .env and
-      // data/ kept there. launch.json runs these first, then the bot from that
-      // folder, so a build alone never fights the running executable; an
-      // install over a bot that is still running fails, so stop it first.
+      // The folder a server needs, from a fresh build: out/LatiBot-Debug or
+      // out/LatiBot-Release (README.md, "On another machine"), each beside
+      // its own config.json, .env and data/. launch.json runs these first,
+      // then the bot from that folder, so a build alone never fights the
+      // running executable; an install over a bot that is still running
+      // fails, so stop it first. Release goes where the preset's installDir
+      // says; Debug is sent to its own folder.
       "label": "Install the bot (Debug)",
       "type": "process",
       "command": "cmake",
-      "args": ["--install", "build/build", "--config", "Debug"],
+      "args": ["--install", "build/build", "--config", "Debug", "--prefix", "out/LatiBot-Debug"],
       "dependsOn": ["Build bot (Debug)"],
       "problemMatcher": [],
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
@@ -89,9 +91,9 @@
       // ordinary start registers them again.
       "label": "Unregister the bot's commands (Debug)",
       "type": "process",
-      "command": "${workspaceFolder}/out/LatiBot/LatiBot.exe",
+      "command": "${workspaceFolder}/out/LatiBot-Debug/LatiBot.exe",
       "args": ["--unregister-commands"],
-      "options": { "cwd": "${workspaceFolder}/out/LatiBot" },
+      "options": { "cwd": "${workspaceFolder}/out/LatiBot-Debug" },
       "dependsOn": ["Install the bot (Debug)"],
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
