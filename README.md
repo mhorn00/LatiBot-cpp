@@ -453,7 +453,9 @@ who ran it and what they passed, every reply the bot posts by itself, startup,
 shutdown, schema changes and guilds joined. `debug` adds why — which stage
 wanted what, which trigger matched and why it stayed quiet, what a panel button
 decoded to, how long a command took. `trace` adds the content of every message
-the bot sees, and DPP's own gateway chatter.
+the bot sees, each step it takes through the message stages and the language
+model (what was addressed, why a stage let it pass, what the model was sent
+and what came back), and DPP's own gateway chatter.
 
 To keep the output to one file:
 

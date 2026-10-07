@@ -252,7 +252,9 @@ public:
         // The bot's own typing, while it thinks, is not someone else's.
         bot.intents(dpp::i_guild_message_typing);
         bot.listen(bot.cluster().on_typing_start, "llm: who is typing", [this](const dpp::typing_start_t& event) {
-            if (event.user_id != bot_->me().id) activity_.started_typing(event.typing_channel.id, event.user_id);
+            if (event.user_id == bot_->me().id) return;
+            util::log().trace("llm: {} started typing in channel {}", event.user_id, event.typing_channel.id);
+            activity_.started_typing(event.typing_channel.id, event.user_id);
         });
 
         // Last: it consumes what it answers, and a simple trigger's reply
@@ -298,9 +300,15 @@ private:
     /// to agree first, then has the model answer
     /// (src/modules/llm/docs/Language_Model.md).
     auto answer(ask_llm ask) -> dpp::task<void> {
+        util::log().trace("llm: answering message {} in channel {} ({}{})", ask.message_id, ask.channel_id, to_string(ask.how),
+                          ask.check_first ? ", check first" : "");
+
         // Bot-to-bot pacing (src/modules/llm/docs/Language_Model.md §2.7). The turn
         // was claimed when the stage decided, so the wait only spaces it out.
-        if (ask.wait > std::chrono::seconds::zero()) co_await bot_->cluster().co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
+        if (ask.wait > std::chrono::seconds::zero()) {
+            util::log().trace("llm: pacing message {}: waiting {}", ask.message_id, ask.wait);
+            co_await bot_->cluster().co_sleep(static_cast<std::uint64_t>(ask.wait.count()));
+        }
 
         // Unaddressed, it lets people finish, and answers only their latest
         // (src/modules/llm/docs/Language_Model.md §2.10).
@@ -315,15 +323,29 @@ private:
 
         if (ask.check_first) {
             const check_report checked = co_await responder_->check(ask);
-            if (!checked.yes || !stage_->claim_reply(ask)) co_return;
+            if (!checked.yes) {
+                util::log().trace("llm: message {} left alone: the check said no{}", ask.message_id,
+                                  checked.failure.empty() ? "" : " (it failed)");
+                co_return;
+            }
+            if (!stage_->claim_reply(ask)) {
+                util::log().trace("llm: message {} left alone: the check said yes, but the rate limits are used up", ask.message_id);
+                co_return;
+            }
         }
 
         const answer_report report = co_await responder_->answer(ask);
-        if (report.posted.empty()) co_return;
+        if (report.posted.empty()) {
+            util::log().trace("llm: nothing posted for message {}: {}", ask.message_id,
+                              report.failure.empty() ? "no reason given" : report.failure);
+            co_return;
+        }
         if (ask.how == approach::joined_in) {
             windows_.joined_in(ask.channel_id);
+            util::log().trace("llm: the conversation in channel {} goes on", ask.channel_id);
         } else if (spoke_to_bot(ask)) {
             windows_.opened(ask.channel_id);
+            util::log().trace("llm: a conversation is open in channel {}", ask.channel_id);
         }
     }
 
@@ -331,9 +353,13 @@ private:
     /// to the guild's `llm_conversation_typing`.
     auto wait_for_typing(const ask_llm& ask) -> dpp::task<void> {
         const llm_settings settings = load_llm_settings(bot_->settings(), ask.guild_id, section_);
-        for (std::chrono::seconds waited{0}; waited < settings.conversation.typing_wait && activity_.anyone_typing(ask.channel_id);
-             waited += std::chrono::seconds{1}) {
+        std::chrono::seconds waited{0};
+        for (; waited < settings.conversation.typing_wait && activity_.anyone_typing(ask.channel_id); waited += std::chrono::seconds{1}) {
             co_await bot_->cluster().co_sleep(1);
+        }
+        if (waited > std::chrono::seconds::zero()) {
+            util::log().trace("llm: waited {} for typing to stop in channel {}{}", waited, ask.channel_id,
+                              activity_.anyone_typing(ask.channel_id) ? ", and gave up" : "");
         }
     }
 

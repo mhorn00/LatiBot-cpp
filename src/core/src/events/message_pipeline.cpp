@@ -6,6 +6,8 @@
 #include <exception>
 #include <format>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace latibot::events {
@@ -24,7 +26,10 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
     // Answering ourselves is a loop with no exit. Answering another bot is
     // one too, unless this guild has said it wants that
     // (src/core/docs/Message_Pipeline.md §2.1).
-    if (message.from_self) return actions;
+    if (message.from_self) {
+        util::log().trace("message {} is the bot's own; no stage sees it", message.message_id);
+        return actions;
+    }
     if (message.from_bot && !message.author_is_allowed_bot) {
         // Debug rather than trace: "why did the bot ignore the other bot" is a
         // question worth being able to answer without raising the level twice.
@@ -37,6 +42,7 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
 
     // A copy the stages see, so one stage answering is visible to the rest.
     incoming_message current = message;
+    std::string_view consumed_by;
 
     for (const stage& entry : stages_) {
         stage_result result;
@@ -58,14 +64,21 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
         if (!result.actions.empty() || result.consumed) {
             util::log().debug("stage \"{}\" wants {} action(s){}", entry.name, result.actions.size(),
                               result.consumed ? " and consumed the message" : "");
+        } else {
+            util::log().trace("stage \"{}\" let message {} pass", entry.name, message.message_id);
         }
 
         actions.insert(actions.end(), std::make_move_iterator(result.actions.begin()), std::make_move_iterator(result.actions.end()));
         current.answered = current.answered || result.answered;
 
-        if (result.consumed) break;
+        if (result.consumed) {
+            consumed_by = entry.name;
+            break;
+        }
     }
 
+    util::log().trace("message {} done: {} action(s){}", message.message_id, actions.size(),
+                      consumed_by.empty() ? std::string(", and every stage saw it") : std::format(", consumed by \"{}\"", consumed_by));
     return actions;
 }
 

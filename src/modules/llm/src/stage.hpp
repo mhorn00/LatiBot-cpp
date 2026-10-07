@@ -37,6 +37,10 @@ namespace latibot::llm {
 /// pipeline hands to the responder (src/core/docs/Message_Pipeline.md §3).
 using stage_result = events::own_stage_result<ask_llm>;
 
+/// Whether a message starts with the bot's name followed by anything but a
+/// letter: "latibot, what's up", but not "latibots are great".
+[[nodiscard]] auto starts_with_name(std::string_view content, std::string_view bot_name) -> bool;
+
 /// Whether a message addresses the bot: an @mention, a reply to one of its
 /// messages, or a message that starts with its name
 /// (src/modules/llm/docs/Language_Model.md §2.1). `reply_counts` is false
@@ -106,6 +110,11 @@ private:
         approach how = approach::addressed;
         bool check_first = false;
     };
+
+    /// How a message nobody addressed reaches the model, if at all: an
+    /// advanced trigger, which it sets `fired` to, or conversation mode.
+    [[nodiscard]] auto unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
+                                   std::optional<advanced_trigger>& fired) -> std::optional<route>;
 
     /// Whether conversation mode takes up a message nobody addressed: it
     /// names the bot, or a conversation is open and nothing says the message

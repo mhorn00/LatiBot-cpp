@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace latibot::llm {
 
@@ -62,6 +63,22 @@ struct ask_llm {
     /// (src/modules/llm/docs/Language_Model.md §2.7).
     std::chrono::seconds wait{0};
 };
+
+/// The approach as the log names it: "addressed", "named", "joined in",
+/// "trigger".
+[[nodiscard]] constexpr auto to_string(approach how) noexcept -> std::string_view {
+    switch (how) {
+    case approach::addressed:
+        return "addressed";
+    case approach::named:
+        return "named";
+    case approach::joined_in:
+        return "joined in";
+    case approach::trigger:
+        return "trigger";
+    }
+    return "unknown";
+}
 
 /// Whether whoever wrote it was talking to the bot: they are notified of
 /// the reply, and told if the model fails.

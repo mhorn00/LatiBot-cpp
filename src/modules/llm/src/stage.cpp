@@ -24,14 +24,17 @@ auto is_word_character(char letter) -> bool {
 
 } // namespace
 
-auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts) -> bool {
-    if (message.mentions_bot || (message.replies_to_bot && reply_counts)) return true;
+auto starts_with_name(std::string_view content, std::string_view bot_name) -> bool {
     if (bot_name.empty()) return false;
 
     // "latibot, what's up" and "LatiBot what's up", but not "latibots".
-    const std::string_view text = util::trim(message.content);
+    const std::string_view text = util::trim(content);
     if (text.size() < bot_name.size() || !util::equals_ignoring_case(text.substr(0, bot_name.size()), bot_name)) return false;
     return text.size() == bot_name.size() || !is_word_character(text[bot_name.size()]);
+}
+
+auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts) -> bool {
+    return message.mentions_bot || (message.replies_to_bot && reply_counts) || starts_with_name(message.content, bot_name);
 }
 
 auto spend_cap_reply(const spend_status& status) -> std::string {
@@ -105,23 +108,66 @@ auto llm_stage::claim_reply(const ask_llm& ask) -> bool {
 
 auto llm_stage::join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name) const
     -> std::optional<route> {
-    if (!settings.conversation.enabled || services_.windows == nullptr || util::is_blank(message.content)) return std::nullopt;
+    if (!settings.conversation.enabled || services_.windows == nullptr) {
+        util::log().trace("llm: message {} was not addressed, and conversation mode is off in guild {}", message.message_id,
+                          message.guild_id);
+        return std::nullopt;
+    }
+    if (util::is_blank(message.content)) {
+        util::log().trace("llm: message {} has no text for conversation mode", message.message_id);
+        return std::nullopt;
+    }
 
     // The check runs on its own model, which needs its key.
     const model_info* checker = find_model(services_.section->check_model);
-    if (checker == nullptr || !services_.has_provider(checker->provider)) return std::nullopt;
+    if (checker == nullptr || !services_.has_provider(checker->provider)) {
+        util::log().trace("llm: message {} left alone: no API key for the check model {}", message.message_id,
+                          services_.section->check_model);
+        return std::nullopt;
+    }
 
     const bool open = services_.windows->open(message.channel_id, settings.conversation);
 
     // Its name anywhere: during a conversation that is talking to it; at
     // other times it may be talking about it, which the check tells apart.
-    if (names_bot(message.content, bot_name)) return route{.how = approach::named, .check_first = !open};
-    if (!open) return std::nullopt;
+    if (names_bot(message.content, bot_name)) {
+        util::log().trace("llm: message {} names the bot, {}", message.message_id,
+                          open ? "during a conversation: answering" : "outside a conversation: checking first");
+        return route{.how = approach::named, .check_first = !open};
+    }
+    if (!open) {
+        util::log().trace("llm: message {} was not addressed, and no conversation is open in channel {}", message.message_id,
+                          message.channel_id);
+        return std::nullopt;
+    }
 
     // A reply or a mention is meant for whoever it names, so it is not
     // worth a check. A reply to the bot that counted was addressed already.
-    if (!message.reply_to.empty() || message.mentions_others) return std::nullopt;
+    if (!message.reply_to.empty() || message.mentions_others) {
+        util::log().trace("llm: message {} in a conversation is for someone else ({}); not checking", message.message_id,
+                          message.reply_to.empty() ? "it mentions someone" : "it replies to someone");
+        return std::nullopt;
+    }
+    util::log().trace("llm: message {} in a conversation goes to the check", message.message_id);
     return route{.how = approach::joined_in, .check_first = true};
+}
+
+auto llm_stage::unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
+                            std::optional<advanced_trigger>& fired) -> std::optional<route> {
+    // A bot has to address LatiBot to be answered: two bots trading
+    // unprompted remarks is the loop pacing is there to stop. And a message
+    // a simple trigger answered is not answered twice.
+    if (message.from_bot || message.answered) {
+        util::log().trace("llm: message {} left alone: {}", message.message_id,
+                          message.from_bot ? "a bot has to address it" : "a simple trigger answered it");
+        return std::nullopt;
+    }
+    fired = matcher_.fire(services_.triggers->for_guild(message.guild_id), message.channel_id, message.content);
+    if (fired) {
+        util::log().trace("llm: message {} fired advanced trigger {}", message.message_id, fired->id);
+        return route{.how = approach::trigger, .check_first = false};
+    }
+    return join_in(message, settings, bot_name);
 }
 
 auto llm_stage::operator()(const events::incoming_message& message) -> stage_result {
@@ -131,10 +177,16 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     // model answers them (src/modules/llm/docs/Language_Model.md §2.7).
     if (!message.from_bot) pacing_.human_spoke(message.channel_id);
     if (services_.activity != nullptr) services_.activity->posted(message.channel_id, message.author_id, message.message_id);
-    if (message.guild_id.empty()) return result;
+    if (message.guild_id.empty()) {
+        util::log().trace("llm: message {} is not in a server", message.message_id);
+        return result;
+    }
 
     const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.section);
-    if (!settings.enabled) return result;
+    if (!settings.enabled) {
+        util::log().trace("llm: off in guild {}; message {} left alone", message.guild_id, message.message_id);
+        return result;
+    }
 
     // A reply to a link replacement comments on the post, not to the bot
     // (src/modules/llm/docs/Language_Model.md §2.1).
@@ -143,22 +195,16 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
 
     const bot_identity me = services_.me();
     const bool addressed = addresses_bot(message, me.name, reply_counts);
+    util::log().trace("llm: message {} {} (mentions the bot: {}, replies to the bot: {}{}, starts with \"{}\": {})", message.message_id,
+                      addressed ? "addresses the bot" : "does not address the bot", message.mentions_bot, message.replies_to_bot,
+                      reply_counts ? "" : ", but to a link replacement", me.name, starts_with_name(message.content, me.name));
 
     route chosen{.how = approach::addressed, .check_first = false};
     std::optional<advanced_trigger> fired;
     if (!addressed) {
-        // A bot has to address LatiBot to be answered: two bots trading
-        // unprompted remarks is the loop pacing is there to stop. And a
-        // message a simple trigger answered is not answered twice.
-        if (message.from_bot || message.answered) return result;
-        fired = matcher_.fire(services_.triggers->for_guild(message.guild_id), message.channel_id, message.content);
-        if (fired) {
-            chosen.how = approach::trigger;
-        } else {
-            const std::optional<route> joining = join_in(message, settings, me.name);
-            if (!joining) return result;
-            chosen = *joining;
-        }
+        const std::optional<route> unprompted = unaddressed(message, settings, me.name, fired);
+        if (!unprompted) return result;
+        chosen = *unprompted;
     }
 
     const model_info* model = find_model(settings.model);
@@ -175,6 +221,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const auto wait = admit(message, settings, addressed, !chosen.check_first, result);
     if (!wait) return result;
 
+    util::log().debug("llm: handing message {} in channel {} to the model ({}{})", message.message_id, message.channel_id,
+                      to_string(chosen.how), chosen.check_first ? ", once the check agrees" : "");
     result.consumed = true;
     result.answered = true;
     result.actions.emplace_back(

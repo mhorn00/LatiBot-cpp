@@ -374,6 +374,11 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     described.mentions_bot = listed && (!replies_to_me || events::writes_mention(message.content, cluster_.me.id));
     described.mentions_others = std::ranges::any_of(
         message.mentions, [&](const auto& mention) { return mention.first.id != cluster_.me.id && mention.first.id != message.author.id; });
+    if (is_reply) {
+        util::log().trace("message {} replies to {} by {}{}", message.id, described.reply_to,
+                          target.author_id.empty() ? std::string("someone unknown") : target.author_id.str(),
+                          target.command_output ? ", a command's result or refusal" : "");
+    }
 
     // Administrator is a guild-level question, so it needs the guild and the
     // member: a message carries neither on its own.
@@ -385,6 +390,10 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
         }
     }
 
+    util::log().trace("message {} in guild {}: mentions the bot {}, replies to the bot {}, mentions others {}, {} character(s){}{}",
+                      message.id, message.guild_id, described.mentions_bot, described.replies_to_bot, described.mentions_others,
+                      described.content.size(), described.from_bot ? ", from a bot" : "",
+                      described.from_bot && !described.author_is_allowed_bot ? " not allowed here" : "");
     return described;
 }
 
@@ -467,6 +476,7 @@ auto bot::carry_out(std::vector<events::action> actions) -> void {
                                                 util::log().info("posted {} in channel {} ({}): \"{}\"", what, channel, flags, content);
                                             });
                 } else if constexpr (std::is_same_v<step_type, events::background_task>) {
+                    util::log().trace("starting {}", step.what);
                     detach(step.run(), step.what);
                 } else if constexpr (std::is_same_v<step_type, events::stop_bot>) {
                     util::log().info("shutting down on request from a message");

@@ -59,6 +59,8 @@ auto run_tool_loop(provider& model, request call, const tool_registry& tools, co
         if (record) record(reply.used);
 
         const bool wants_tools = reply.stop == stop_reason::tool_use && !reply.reply.calls.empty();
+        util::log().trace("llm: round {} with {} stopped ({}), {} tool call(s){}", round + 1, call.model, to_string(reply.stop),
+                          reply.reply.calls.size(), wants_tools && !call.allow_tools ? ", but tools are no longer allowed" : "");
         if (!wants_tools || !call.allow_tools) {
             outcome.stop = reply.stop;
             outcome.text = util::is_blank(reply.reply.text) ? said_along_the_way : reply.reply.text;
@@ -74,6 +76,7 @@ auto run_tool_loop(provider& model, request call, const tool_registry& tools, co
         for (const tool_call& wanted : reply.reply.calls) {
             outcome.tools_run.push_back(wanted.name);
             results.results.push_back(tools.run(wanted, context));
+            util::log().trace("llm: tool {} {}", wanted.name, results.results.back().is_error ? "failed" : "ran");
         }
         call.conversation.push_back(std::move(reply.reply));
         call.conversation.push_back(std::move(results));

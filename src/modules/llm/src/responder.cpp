@@ -128,6 +128,11 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
 
     const auto now = seconds_now(*services_.clock);
     request call = build_request(ask, settings, *model, history, replied_to ? &*replied_to : nullptr, now, cast);
+    util::log().trace(
+        "llm: asking {} about message {}: {} character(s) of instructions, {} of memories and time, {} of conversation, "
+        "{} tool(s), at most {} token(s) back",
+        call.model, ask.message_id, call.stable_system.size(), call.varying_system.size(),
+        call.conversation.empty() ? 0 : call.conversation.front().text.size(), call.tools.size(), call.max_output_tokens);
 
     const tool_context context{
         .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
@@ -143,6 +148,9 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
         if (addressed) co_await apologise(ask, outcome.error());
         co_return report;
     }
+
+    util::log().trace("llm: {} finished message {} after {} request(s) ({}): {} character(s) of reply", model->id, ask.message_id,
+                      outcome.value().requests, to_string(outcome.value().stop), outcome.value().text.size());
 
     // Joining in, the model may decide the message was not for it after all
     // (src/modules/llm/docs/Language_Model.md §2.10).
@@ -229,6 +237,8 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
     report.used = outcome.value().used;
     report.cost = services_.usage->record(ask.guild_id, *model, report.used, seconds_now(*services_.clock));
     report.yes = check_says_yes(outcome.value().reply.text);
+    util::log().trace("llm: the check on message {} answered \"{}\" ({})", ask.message_id, util::trim(outcome.value().reply.text),
+                      to_string(outcome.value().stop));
     util::log().debug("{} says {} to replying to {} in channel {} ({}): ${:.5f}", model->id, report.yes ? "yes" : "no", ask.author_id,
                       ask.channel_id, why(ask), report.cost);
     co_return report;
@@ -237,7 +247,10 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
 auto responder::recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
     -> dpp::task<std::vector<context_message>> {
     std::vector<context_message> history;
-    if (wanted <= 0) co_return history;
+    if (wanted <= 0) {
+        util::log().trace("llm: reading no earlier messages for message {}", ask.message_id);
+        co_return history;
+    }
 
     const auto page = co_await services_.discord->get_messages(ask.channel_id, ask.message_id, static_cast<std::uint64_t>(wanted));
     if (!page.has_value()) {
@@ -250,6 +263,9 @@ auto responder::recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowfl
         history.push_back(to_context(message, bot_id));
         meet_everyone_in(message, history.back(), cast);
     }
+    const auto own = std::ranges::count_if(history, &context_message::from_me);
+    util::log().trace("llm: read {} of the {} message(s) asked for before message {} in channel {}, {} of them the bot's", history.size(),
+                      wanted, ask.message_id, ask.channel_id, own);
     co_return history;
 }
 
@@ -257,7 +273,10 @@ auto responder::replied_message(const llm::ask_llm& ask, const std::vector<conte
                                 people& cast) const -> dpp::task<std::optional<context_message>> {
     if (ask.reply_to.empty()) co_return std::nullopt;
     const auto in_history = std::ranges::find(history, ask.reply_to, &context_message::id);
-    if (in_history != history.end()) co_return *in_history;
+    if (in_history != history.end()) {
+        util::log().trace("llm: message {} replies to {}, among the recent messages", ask.message_id, ask.reply_to);
+        co_return *in_history;
+    }
 
     const auto fetched = co_await services_.discord->get_message(ask.channel_id, ask.reply_to);
     if (!fetched.has_value()) {
@@ -267,6 +286,7 @@ auto responder::replied_message(const llm::ask_llm& ask, const std::vector<conte
     }
     context_message shown = to_context(fetched.value(), bot_id);
     meet_everyone_in(fetched.value(), shown, cast);
+    util::log().trace("llm: message {} replies to {}, fetched{}", ask.message_id, ask.reply_to, shown.from_me ? "; it is the bot's" : "");
     co_return shown;
 }
 
