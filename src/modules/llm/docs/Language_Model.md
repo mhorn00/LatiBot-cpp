@@ -59,7 +59,10 @@ In a server that has run `/llm on`, when somebody **addresses** the bot:
 - a **reply** to one of its messages;
 - a message **starting with its name** followed by anything that is not a
   letter: `latibot, what's the plan` and `LatiBot what's the plan`, but not
-  `latibots` or `hey latibot`.
+  `latibots` or `hey latibot`. Its name is LatiBot, or its Discord username
+  where that differs, such as a test bot's `LatiBot 2`. The model is always
+  told it is LatiBot, and its own messages are shown under that name, so its
+  rules and the transcript agree.
 
 A reply to a slash command's **result or refusal** does not address it: it
 is about what the command said, like the list `/nicknames` shows. Nor does a
@@ -528,6 +531,8 @@ saved before 2026-10-02 may hold a name the model wrote then.
 | 2026-10-06 | The message a reply replies to shown beside it, fetched when outside the window | Replies to older messages were answered as if on their own |
 | 2026-10-06 | A reply to a link replacement does not address the bot | The owner's request: people reply to a replacement to comment on the post |
 | 2026-10-07 | Conversation mode: a window per channel after an answer, a cheap yes-or-no check on `llm.check_model` (Haiku 4.5) for what nobody addressed, the bot's name anywhere checked outside a window and answered within one; off until `/llm conversation on` | The owner's request: the bot only answered when addressed. A separate check came out cheaper than letting the answering model decide, unless nearly every message deserves a reply; free rules skip what is plainly for someone else |
+| 2026-10-07 | It answers to LatiBot and to its Discord username; the model always sees itself as LatiBot | A test bot named "LatiBot 2" ignored "latibot ..." and read its own messages as "LatiBot 2 (you)" while its rules said "LatiBot (you)" |
+| 2026-10-07 | Joining in is told the check judged the message to be for it, and to stay silent only when it plainly is not | In the first live run it chose `[silent]` for a message clearly aimed at it |
 | 2026-10-07 | No two-person shortcut: every unaddressed message in a window goes to the check | The owner judged it would answer wrongly |
 | 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
 

@@ -82,6 +82,9 @@ struct fixture {
     bool has_key = true;
     double roll = 0.0;
 
+    /// The bot's Discord username; a test bot's is often not "LatiBot".
+    std::string username = "LatiBot";
+
     latibot::llm::llm_stage stage{{.settings = &settings,
                                    .section = &config,
                                    .blacklist = &blacklist,
@@ -92,7 +95,7 @@ struct fixture {
                                    .windows = &windows,
                                    .activity = &activity,
                                    .has_provider = [this](latibot::llm::provider_kind) { return has_key; },
-                                   .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }},
+                                   .me = [this] { return latibot::llm::bot_identity{.id = bot_id, .name = username}; }},
                                   clock,
                                   [this] { return roll; }};
 
@@ -107,7 +110,7 @@ struct fixture {
                                        .aliases = &aliases,
                                        .provider_for = [this](latibot::llm::provider_kind) -> latibot::llm::provider* { return &model; },
                                        .speech = &speech},
-                                      [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }};
+                                      [this] { return latibot::llm::bot_identity{.id = bot_id, .name = username}; }};
 
     fixture() {
         latibot::testing::create_schema(db);
@@ -257,6 +260,35 @@ TEST_CASE("a reply to a link replacement comments on the post, and is not for th
 // --------------------------------------------------------------------------
 // Conversation mode (src/modules/llm/docs/Language_Model.md §2.10)
 // --------------------------------------------------------------------------
+
+TEST_CASE("a test bot answers to LatiBot as well as its own username", "[llm]") {
+    fixture test;
+    test.username = "LatiBot 2";
+    CHECK(asked(test.stage(from_alice("latibot plz say smthing"))) != nullptr);
+    CHECK(asked(test.stage(from_alice("LatiBot 2, hi"))) != nullptr);
+    CHECK(test.stage(from_alice("hey there")).actions.empty());
+
+    test.settings.set_bool(guild, latibot::llm::conversation_key, true);
+    const auto result = test.stage(from_alice("i think latibot is right"));
+    REQUIRE(asked(result) != nullptr);
+    CHECK(asked(result)->how == approach::named);
+}
+
+TEST_CASE("the model knows itself as LatiBot, whatever the bot's username", "[llm][coro]") {
+    // Its rules say it is LatiBot, shown as "LatiBot (you)"; its own
+    // messages under another name would read as somebody else's.
+    fixture test;
+    test.username = "LatiBot 2";
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{history_message(4999, bot_id, "LatiBot 2", "first")});
+    test.model.answer("hi");
+
+    test.answer(ask_from_alice("<@42> hello"));
+    REQUIRE(test.model.requests.size() == 1);
+    const std::string& question = test.model.requests[0].conversation.at(0).text;
+    CHECK(question.contains("LatiBot (you): first"));
+    CHECK(question.contains(": @LatiBot hello"));
+    CHECK_FALSE(question.contains("LatiBot 2"));
+}
 
 TEST_CASE("its name anywhere is checked first, and only with conversation mode on", "[llm][conversation]") {
     fixture test;
@@ -409,7 +441,7 @@ TEST_CASE("joining in, the model may say nothing, and otherwise posts without a 
         CHECK((test.discord.sent[0].flags & dpp::m_suppress_notifications) != 0);
     }
     REQUIRE(test.model.requests.size() == 1);
-    CHECK(test.model.requests[0].conversation.at(0).text.contains("Nobody addressed you"));
+    CHECK(test.model.requests[0].conversation.at(0).text.contains("It does not name you"));
     CHECK(test.discord.typing.empty());
 }
 

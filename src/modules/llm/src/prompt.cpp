@@ -127,8 +127,8 @@ auto question_for(std::span<const context_message> history, const context_messag
         text += std::format("The message to answer:\n{}", last);
     } else if (how == approach::joined_in) {
         text += std::format(
-            "The latest message:\n{}\n\nNobody addressed you, but you have been part of this conversation, and it may be "
-            "meant for you. Answer it if it is and you have something worth adding. If not, write only {}",
+            "The latest message:\n{}\n\nIt does not name you, but you have been part of this conversation, and it was judged "
+            "to be meant for you. Answer it. Only if it plainly is not for you, write only {}",
             last, silent_reply);
     } else {
         text += std::format("The latest message:\n{}\n\nNobody asked you, but something in it caught your attention. What to say: {}", last,

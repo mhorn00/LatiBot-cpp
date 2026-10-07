@@ -118,7 +118,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     // Everyone the model hears of is an alias, never an id or a name
     // (src/modules/llm/docs/Language_Model.md §3.8). Met as they are read, so that
     // every name is known before any text is sanitized.
-    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, me.name);
+    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
     cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
 
@@ -210,7 +210,7 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
     // The same aliases as the answer, never an id or a name
     // (src/modules/llm/docs/Language_Model.md §3.8).
     const bot_identity me = me_();
-    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, me.name);
+    people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
     cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
     const std::vector<context_message> history = co_await recent_messages(ask, check_context_messages, me.id, cast);

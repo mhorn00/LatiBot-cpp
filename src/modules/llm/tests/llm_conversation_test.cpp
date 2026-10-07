@@ -205,7 +205,7 @@ TEST_CASE("joining in, the model is told it may stay silent, and how", "[llm][co
     const context_message latest = line(3, alice, "that's wild");
 
     const std::string joining = latibot::llm::question_for({}, latest, nullptr, approach::joined_in, {}, 3000, cast);
-    CHECK(joining.contains("Nobody addressed you"));
+    CHECK(joining.contains("It does not name you"));
     CHECK(joining.ends_with("write only [silent]"));
 
     const std::string named = latibot::llm::question_for({}, latest, nullptr, approach::named, {}, 3000, cast);

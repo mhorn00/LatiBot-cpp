@@ -1608,7 +1608,8 @@ answers anyone who **addresses** the bot:
 - **@mentions** it anywhere in a message,
 - **replies** to one of its messages, or
 - **starts the message with its name**: `latibot, what's the plan` or
-  `LatiBot what's the plan`, but not `latibots` or `hey latibot`.
+  `LatiBot what's the plan`, but not `latibots` or `hey latibot`. A test bot
+  with another username, such as `LatiBot 2`, answers to that as well.
 
 A reply to a command's answer, such as the list `/nicknames` shows or a
 refusal, is about that answer and is left alone, and so is a reply to a link

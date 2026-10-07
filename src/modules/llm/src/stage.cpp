@@ -34,7 +34,8 @@ auto starts_with_name(std::string_view content, std::string_view bot_name) -> bo
 }
 
 auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts) -> bool {
-    return message.mentions_bot || (message.replies_to_bot && reply_counts) || starts_with_name(message.content, bot_name);
+    return message.mentions_bot || (message.replies_to_bot && reply_counts) || starts_with_name(message.content, model_name) ||
+           starts_with_name(message.content, bot_name);
 }
 
 auto spend_cap_reply(const spend_status& status) -> std::string {
@@ -130,7 +131,7 @@ auto llm_stage::join_in(const events::incoming_message& message, const llm_setti
 
     // Its name anywhere: during a conversation that is talking to it; at
     // other times it may be talking about it, which the check tells apart.
-    if (names_bot(message.content, bot_name)) {
+    if (names_bot(message.content, model_name) || names_bot(message.content, bot_name)) {
         util::log().trace("llm: message {} names the bot, {}", message.message_id,
                           open ? "during a conversation: answering" : "outside a conversation: checking first");
         return route{.how = approach::named, .check_first = !open};
@@ -195,9 +196,10 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
 
     const bot_identity me = services_.me();
     const bool addressed = addresses_bot(message, me.name, reply_counts);
-    util::log().trace("llm: message {} {} (mentions the bot: {}, replies to the bot: {}{}, starts with \"{}\": {})", message.message_id,
-                      addressed ? "addresses the bot" : "does not address the bot", message.mentions_bot, message.replies_to_bot,
-                      reply_counts ? "" : ", but to a link replacement", me.name, starts_with_name(message.content, me.name));
+    util::log().trace(R"(llm: message {} {} (mentions the bot: {}, replies to the bot: {}{}, starts with "{}" or "{}": {}))",
+                      message.message_id, addressed ? "addresses the bot" : "does not address the bot", message.mentions_bot,
+                      message.replies_to_bot, reply_counts ? "" : ", but to a link replacement", model_name, me.name,
+                      starts_with_name(message.content, model_name) || starts_with_name(message.content, me.name));
 
     route chosen{.how = approach::addressed, .check_first = false};
     std::optional<advanced_trigger> fired;

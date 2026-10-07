@@ -37,8 +37,8 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
         return actions;
     }
 
-    util::log().trace("message {} from {} in channel {}: \"{}\"", message.from_bot ? "(bot)" : "", message.author_id, message.channel_id,
-                      message.content);
+    util::log().trace("message {} from {}{} in channel {}: \"{}\"", message.message_id, message.from_bot ? "bot " : "", message.author_id,
+                      message.channel_id, message.content);
 
     // A copy the stages see, so one stage answering is visible to the rest.
     incoming_message current = message;

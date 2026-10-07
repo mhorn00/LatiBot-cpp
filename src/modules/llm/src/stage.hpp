@@ -42,7 +42,8 @@ using stage_result = events::own_stage_result<ask_llm>;
 [[nodiscard]] auto starts_with_name(std::string_view content, std::string_view bot_name) -> bool;
 
 /// Whether a message addresses the bot: an @mention, a reply to one of its
-/// messages, or a message that starts with its name
+/// messages, or a message that starts with its name, "LatiBot" or
+/// `bot_name`, its Discord username
 /// (src/modules/llm/docs/Language_Model.md §2.1). `reply_counts` is false
 /// for a reply that comments on something rather than talking to the bot,
 /// such as a reply to a link replacement.

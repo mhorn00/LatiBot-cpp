@@ -16,6 +16,12 @@ namespace latibot::llm {
 
 class people;
 
+/// What the model is told it is called, in its fixed rules, the transcript
+/// and the check, whatever the bot's Discord username: a test bot named
+/// "LatiBot 2" must not read its own messages as somebody else's
+/// (src/modules/llm/docs/Language_Model.md §3.3).
+inline constexpr std::string_view model_name = "LatiBot";
+
 /// A message in the channel, as the model is shown it.
 struct context_message {
     dpp::snowflake id;

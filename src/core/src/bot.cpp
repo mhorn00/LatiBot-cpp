@@ -390,10 +390,15 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
         }
     }
 
-    util::log().trace("message {} in guild {}: mentions the bot {}, replies to the bot {}, mentions others {}, {} character(s){}{}",
+    std::string_view author;
+    if (described.from_self) {
+        author = ", the bot's own";
+    } else if (described.from_bot) {
+        author = described.author_is_allowed_bot ? ", from an allowed bot" : ", from a bot not allowed here";
+    }
+    util::log().trace("message {} in guild {}: mentions the bot {}, replies to the bot {}, mentions others {}, {} character(s){}",
                       message.id, message.guild_id, described.mentions_bot, described.replies_to_bot, described.mentions_others,
-                      described.content.size(), described.from_bot ? ", from a bot" : "",
-                      described.from_bot && !described.author_is_allowed_bot ? " not allowed here" : "");
+                      described.content.size(), author);
     return described;
 }
 
