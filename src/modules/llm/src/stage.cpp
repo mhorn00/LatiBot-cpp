@@ -1,5 +1,6 @@
 #include "stage.hpp"
 
+#include "core/capabilities/link_replacements.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/ports/clock.hpp"
@@ -23,8 +24,8 @@ auto is_word_character(char letter) -> bool {
 
 } // namespace
 
-auto addresses_bot(const events::incoming_message& message, std::string_view bot_name) -> bool {
-    if (message.mentions_bot || message.replies_to_bot) return true;
+auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts) -> bool {
+    if (message.mentions_bot || (message.replies_to_bot && reply_counts)) return true;
     if (bot_name.empty()) return false;
 
     // "latibot, what's up" and "LatiBot what's up", but not "latibots".
@@ -103,8 +104,13 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.section);
     if (!settings.enabled) return result;
 
+    // A reply to a link replacement comments on the post, not to the bot
+    // (src/modules/llm/docs/Language_Model.md §2.1).
+    const bool reply_counts =
+        !message.replies_to_bot || services_.replacements == nullptr || !services_.replacements->is_replacement(message.reply_to);
+
     const bot_identity me = services_.me();
-    const bool addressed = addresses_bot(message, me.name);
+    const bool addressed = addresses_bot(message, me.name, reply_counts);
 
     std::optional<advanced_trigger> fired;
     if (!addressed) {

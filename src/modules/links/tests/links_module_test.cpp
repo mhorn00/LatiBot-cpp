@@ -3,9 +3,12 @@
 
 #include "links/module.hpp"
 
+#include "core/capabilities/link_replacements.hpp"
 #include "core/commands/registry.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/module.hpp"
 #include "core/ui/panel_routes.hpp"
+#include "links/replacements.hpp"
 
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
@@ -53,6 +56,28 @@ TEST_CASE("links asks for Embed Links and Manage Messages in every server", "[li
     }
     CHECK(asked == (dpp::p_embed_links | dpp::p_manage_messages));
     CHECK(bot.wanted_intents == 0);
+}
+
+TEST_CASE("links tells the language model which messages are replacements", "[links]") {
+    // A reply to one comments on the post, and is not for the model
+    // (src/modules/llm/docs/Language_Model.md §2.1).
+    test_host bot;
+    const module_list modules = start_links(bot);
+    const auto* replacements = bot.offered.find<latibot::capabilities::link_replacements>();
+    REQUIRE(replacements != nullptr);
+
+    latibot::events::replacement_store store(bot.database());
+    store.record({.message_id = dpp::snowflake{700},
+                  .guild_id = dpp::snowflake{1},
+                  .channel_id = dpp::snowflake{2},
+                  .original_message_id = dpp::snowflake{699},
+                  .original_author_id = dpp::snowflake{3},
+                  .state = latibot::events::replacement_state::ok,
+                  .created_at = std::chrono::sys_seconds{std::chrono::days{20000}},
+                  .retried_at = std::nullopt,
+                  .links = {}});
+    CHECK(replacements->is_replacement(dpp::snowflake{700}));
+    CHECK_FALSE(replacements->is_replacement(dpp::snowflake{699}));
 }
 
 TEST_CASE("the links README lists what the module registers", "[links]") {

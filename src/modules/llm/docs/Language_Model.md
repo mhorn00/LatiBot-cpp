@@ -62,9 +62,11 @@ In a server that has run `/llm on`, when somebody **addresses** the bot:
   `latibots` or `hey latibot`.
 
 A reply to a slash command's **result or refusal** does not address it: it
-is about what the command said, like the list `/nicknames` shows. A reply to
-a **post**, a message the bot put in the channel such as `/say`'s or its own
-answer, does. Discord marks a command's response with `interaction_metadata`,
+is about what the command said, like the list `/nicknames` shows. Nor does a
+reply to a **link replacement**: people reply to one to comment on the post.
+The links module says which messages those are, through the
+`link_replacements` capability. A reply to any other **post**, a message the
+bot put in the channel such as `/say`'s or its own answer, does. Discord marks a command's response with `interaction_metadata`,
 which is how the two are told apart. And since a reply pings whoever it
 replies to unless that is turned off, a reply's ping is not a mention: only
 `<@LatiBot>` written in the message is.
@@ -473,6 +475,7 @@ saved before 2026-10-02 may hold a name the model wrote then.
 | 2026-10-02 | Roles, channels, emoji, timestamps and commands written as names | They carried ids, and their names read better to the model |
 | 2026-10-06 | A reply to a command's result or refusal does not address the bot; a reply's ping is not a mention | The owner's request: replying to `/nicknames` or `/linkstats` output started a conversation nobody asked for |
 | 2026-10-06 | The message a reply replies to shown beside it, fetched when outside the window | Replies to older messages were answered as if on their own |
+| 2026-10-06 | A reply to a link replacement does not address the bot | The owner's request: people reply to a replacement to comment on the post |
 
 ## 5. Limits, and what is still to check
 

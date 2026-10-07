@@ -1603,7 +1603,8 @@ answers anyone who **addresses** the bot:
   `LatiBot what's the plan`, but not `latibots` or `hey latibot`.
 
 A reply to a command's answer, such as the list `/nicknames` shows or a
-refusal, is about that answer and is left alone. A reply to something posted
+refusal, is about that answer and is left alone, and so is a reply to a link
+replacement, which comments on the post. A reply to something posted
 in the channel, such as a `/say` message or the model's own reply, still
 counts. The ping a reply sends is not a mention: only `@LatiBot` written in
 the message is.

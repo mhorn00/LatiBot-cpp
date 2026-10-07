@@ -27,7 +27,7 @@ module registers, so this table cannot fall behind the code.
 | Permissions | Embed Links, for the replacements' previews; Manage Messages, to turn off the original's | |
 | Environment | none | |
 | Files | UrlReplacements.txt beside the database, the Java bot's rules, imported once per server | |
-| Capabilities | offers none, uses none | |
+| Capabilities | offers link_replacements (core/capabilities/link_replacements.hpp), which llm uses to leave replies to a replacement alone; uses none | |
 | Requires | the core | |
 
 ## Public headers

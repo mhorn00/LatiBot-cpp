@@ -1,9 +1,11 @@
 #include "links/module.hpp"
 
+#include "core/capabilities/link_replacements.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/events/stage_order.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/panel_routes.hpp"
@@ -140,6 +142,19 @@ private:
     links_module* owner_;
 };
 
+/// Tells the language model which messages are replacements, so a reply
+/// commenting on one is not taken as talking to the bot
+/// (src/modules/llm/docs/Language_Model.md §2.1).
+class replacement_lookup final : public capabilities::link_replacements {
+public:
+    explicit replacement_lookup(const replacement_store& replacements) : replacements_(&replacements) {}
+
+    [[nodiscard]] auto is_replacement(dpp::snowflake message_id) const -> bool override { return replacements_->contains(message_id); }
+
+private:
+    const replacement_store* replacements_;
+};
+
 class links_module final : public modules::module {
 public:
     explicit links_module(modules::host& bot)
@@ -147,11 +162,16 @@ public:
           rules_(bot.database()),
           replacements_(bot.database()),
           tracker_(replacements_, bot.clock()),
+          lookup_(replacements_),
           panel_(rules_),
           retry_(*this) {}
 
     [[nodiscard]] auto name() const -> std::string_view override { return module_name; }
     [[nodiscard]] auto schema() const -> std::span<const db::migration> override { return links_steps; }
+
+    auto offer(modules::capability_registry& offered) -> void override {
+        offered.offer<capabilities::link_replacements>(lookup_, module_name);
+    }
 
     auto start(modules::host& bot) -> void override {
         // Read before the connection starts, so everything found was cut off
@@ -278,6 +298,7 @@ private:
     url_rule_store rules_;
     replacement_store replacements_;
     embed_tracker tracker_;
+    replacement_lookup lookup_;
     commands::url_panel panel_;
     retry_panel retry_;
 

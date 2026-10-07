@@ -339,6 +339,10 @@ namespace.
 Keep them few and small. One that grows module-specific types becomes a
 bridge instead.
 
+There are two: `speech` (§5.3), and since 2026-10-06 `link_replacements`,
+one call that links offers so the language model can leave replies to a
+replacement alone.
+
 ### 5.3 The `speech` capability
 
 ```cpp

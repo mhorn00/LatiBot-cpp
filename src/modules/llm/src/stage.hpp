@@ -26,8 +26,9 @@ class clock;
 }
 
 namespace latibot::capabilities {
+class link_replacements;
 class speech;
-}
+} // namespace latibot::capabilities
 
 namespace latibot::llm {
 
@@ -37,8 +38,10 @@ using stage_result = events::own_stage_result<ask_llm>;
 
 /// Whether a message addresses the bot: an @mention, a reply to one of its
 /// messages, or a message that starts with its name
-/// (src/modules/llm/docs/Language_Model.md §2.1).
-[[nodiscard]] auto addresses_bot(const events::incoming_message& message, std::string_view bot_name) -> bool;
+/// (src/modules/llm/docs/Language_Model.md §2.1). `reply_counts` is false
+/// for a reply that comments on something rather than talking to the bot,
+/// such as a reply to a link replacement.
+[[nodiscard]] auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts = true) -> bool;
 
 /// What the bot says, once per guild per day or month, when a spend cap
 /// stops it answering (src/modules/llm/docs/Language_Model.md §2.2).
@@ -54,6 +57,10 @@ struct stage_services {
     /// Whether a channel's replies are spoken, when DECtalk is built in;
     /// null otherwise, and then none is.
     const capabilities::speech* speech = nullptr;
+
+    /// Which of the bot's messages are link replacements, when the links
+    /// module is built in; null otherwise, and then none is.
+    const capabilities::link_replacements* replacements = nullptr;
 
     /// Whether a key is set for this provider.
     std::function<bool(provider_kind)> has_provider;

@@ -1,5 +1,6 @@
 #include "advanced_triggers.hpp"
 #include "aliases.hpp"
+#include "core/capabilities/link_replacements.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/util/text.hpp"
@@ -25,6 +26,7 @@
 
 #include <chrono>
 #include <format>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -46,6 +48,13 @@ constexpr dpp::snowflake other_bot{99};
 /// Noon on 2026-03-15, UTC.
 constexpr std::chrono::sys_seconds noon{std::chrono::sys_days{std::chrono::year{2026} / 3 / 15} + 12h};
 
+/// The links module's replacements, as the stage sees them.
+struct fake_replacements final : latibot::capabilities::link_replacements {
+    std::set<dpp::snowflake> ids;
+
+    [[nodiscard]] auto is_replacement(dpp::snowflake message_id) const -> bool override { return ids.contains(message_id); }
+};
+
 /// Everything the stage and the responder need, over an in-memory database
 /// and the mocks.
 struct fixture {
@@ -64,6 +73,7 @@ struct fixture {
     latibot::testing::mock_discord discord;
     latibot::testing::mock_llm model;
     latibot::testing::mock_speech speech;
+    fake_replacements replacements;
 
     bool has_key = true;
     double roll = 0.0;
@@ -74,6 +84,7 @@ struct fixture {
                                    .triggers = &triggers,
                                    .usage = &usage,
                                    .speech = &speech,
+                                   .replacements = &replacements,
                                    .has_provider = [this](latibot::llm::provider_kind) { return has_key; },
                                    .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }},
                                   clock,
@@ -199,6 +210,28 @@ TEST_CASE("an addressed message is handed to the model and consumed", "[llm]") {
     CHECK(ask->author_name == "Alice");
     CHECK(ask->reply_to.empty());
     CHECK_FALSE(ask->speak);
+}
+
+TEST_CASE("a reply to a link replacement comments on the post, and is not for the model", "[llm]") {
+    fixture test;
+    test.replacements.ids.insert(dpp::snowflake{4000});
+    incoming_message message = from_alice("lol this is great");
+    message.replies_to_bot = true;
+    message.reply_to = dpp::snowflake{4000};
+
+    SECTION("only replying") {
+        const auto result = test.stage(message);
+        CHECK(result.actions.empty());
+        CHECK_FALSE(result.consumed);
+    }
+    SECTION("but also mentioning the bot, or starting with its name") {
+        message.content = "latibot, is this real?";
+        CHECK(asked(test.stage(message)) != nullptr);
+    }
+    SECTION("a reply to one of the bot's other messages still counts") {
+        message.reply_to = dpp::snowflake{4001};
+        CHECK(asked(test.stage(message)) != nullptr);
+    }
 }
 
 TEST_CASE("a reply hands the model which message it replies to", "[llm]") {

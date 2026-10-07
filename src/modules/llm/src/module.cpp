@@ -5,6 +5,7 @@
 #include "anthropic.hpp"
 #include "ask.hpp"
 #include "config_check.hpp"
+#include "core/capabilities/link_replacements.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
 #include "core/events/stage_order.hpp"
@@ -204,6 +205,9 @@ public:
         auto* speech = bot.capabilities().find<capabilities::speech>();
         util::log().debug("the language model {}", speech != nullptr ? "speaks in voice channels with a session" : "never speaks");
 
+        // Replies to link replacements left alone, when links is built in.
+        const auto* replacements = bot.capabilities().find<capabilities::link_replacements>();
+
         const auto me = [this] { return bot_identity{.id = bot_->me().id, .name = bot_->me().username}; };
         responder_ =
             std::make_unique<responder>(responder_services{.discord = &bot.gateway(),
@@ -225,6 +229,7 @@ public:
                                                        .triggers = &triggers_,
                                                        .usage = &usage_,
                                                        .speech = speech,
+                                                       .replacements = replacements,
                                                        .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; },
                                                        .me = me},
                                         bot.clock());

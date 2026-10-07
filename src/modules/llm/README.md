@@ -25,7 +25,7 @@ registers, so this table cannot fall behind the code.
 | Per-server settings | the llm_ keys in `src/settings.hpp`, each with its default and range | |
 | Config section | `llm.provider`, `llm.model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
 | Environment | ANTHROPIC_API_KEY, OPENAI_API_KEY; a provider exists only with its key, and the log channel masks both | |
-| Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. | |
+| Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. | |
 | Requires | the core | |
 
 ## Files
