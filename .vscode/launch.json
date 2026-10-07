@@ -1,36 +1,38 @@
 {
   "version": "0.2.0",
 
-  // F5 builds the bot and runs it under the debugger. Breakpoints in our code
-  // work; DPP's own threads show up too, so a breakpoint in an event handler
-  // stops on a gateway thread rather than the main one.
+  // F5 builds the bot, installs it to out/LatiBot, and runs it from there
+  // under the debugger. Breakpoints in our code work, since the executable
+  // still points at its symbols in build/; DPP's own threads show up too, so
+  // a breakpoint in an event handler stops on a gateway thread rather than
+  // the main one. Debug and Release install to the same folder, so whichever
+  // ran last is the one there.
   "configurations": [
     {
       "name": "Run the bot (Debug)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/build/bin/Debug/LatiBot.exe",
+      "program": "${workspaceFolder}/out/LatiBot/LatiBot.exe",
       "args": [],
 
       // The bot resolves .env, config.json and data/ relative to the working
-      // directory, so this has to be the repo root. It also means a run from
-      // here and a run from the terminal behave identically.
-      "cwd": "${workspaceFolder}",
+      // directory, which is where they are kept: beside the installed bot.
+      "cwd": "${workspaceFolder}/out/LatiBot",
 
       // Deliberately no "envFile": the bot reads .env itself, so pointing
       // VS Code at it as well would mean two loaders that could disagree.
       "console": "integratedTerminal",
-      "preLaunchTask": "Build bot (Debug)"
+      "preLaunchTask": "Install the bot (Debug)"
     },
     {
       "name": "Run the bot (Release)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/build/bin/Release/LatiBot.exe",
+      "program": "${workspaceFolder}/out/LatiBot/LatiBot.exe",
       "args": [],
-      "cwd": "${workspaceFolder}",
+      "cwd": "${workspaceFolder}/out/LatiBot",
       "console": "integratedTerminal",
-      "preLaunchTask": "Build bot (Release)"
+      "preLaunchTask": "Install the bot (Release)"
     }
   ]
 }

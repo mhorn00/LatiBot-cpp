@@ -37,8 +37,8 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
-      // The preLaunchTask of "Run the bot (Debug)" in launch.json. Builds only
-      // the executable, so starting the bot does not wait for the tests.
+      // Builds only the executable, so starting the bot does not wait for the
+      // tests.
       "label": "Build bot (Debug)",
       "type": "cmake",
       "command": "build",
@@ -59,16 +59,27 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
-      // The folder a server needs, from a fresh Release build, in out/LatiBot
-      // (README.md, "On another machine"). Run the live bot from there, and
-      // building never fights the running executable.
+      // The folder a server needs, from a fresh build, in out/LatiBot
+      // (README.md, "On another machine"), beside the config.json, .env and
+      // data/ kept there. launch.json runs these first, then the bot from that
+      // folder, so a build alone never fights the running executable; an
+      // install over a bot that is still running fails, so stop it first.
+      "label": "Install the bot (Debug)",
+      "type": "process",
+      "command": "cmake",
+      "args": ["--install", "build/build", "--config", "Debug"],
+      "dependsOn": ["Build bot (Debug)"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
       "label": "Install the bot (Release)",
       "type": "process",
       "command": "cmake",
       "args": ["--install", "build/build", "--config", "Release"],
       "dependsOn": ["Build bot (Release)"],
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+      "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
       // Deletes every slash command the bot in .env has registered, then
@@ -78,10 +89,10 @@
       // ordinary start registers them again.
       "label": "Unregister the bot's commands (Debug)",
       "type": "process",
-      "command": "${workspaceFolder}/build/build/bin/Debug/LatiBot.exe",
+      "command": "${workspaceFolder}/out/LatiBot/LatiBot.exe",
       "args": ["--unregister-commands"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "dependsOn": ["Build bot (Debug)"],
+      "options": { "cwd": "${workspaceFolder}/out/LatiBot" },
+      "dependsOn": ["Install the bot (Debug)"],
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     },

@@ -277,8 +277,11 @@ the shell already set. Run it from the repo root so it finds both `.env` and
 `config.json`, which the first run writes if it is missing (see
 [Configuration](#configuration)).
 
-In VS Code, **F5** does both: `.vscode/launch.json` builds the executable and
-runs it from the repo root, so the same `.env` applies.
+In VS Code, **F5** does it all: `.vscode/launch.json` builds the executable,
+installs it to `out\LatiBot\` (see [On another machine](#on-another-machine)),
+and runs it from there, so `.env`, `config.json` and `data\` belong in that
+folder. Debug and Release install to the same place; stop the bot before
+launching again, since installing cannot replace a running executable.
 
 ### On another machine
 
@@ -415,7 +418,9 @@ when done testing:
 .\build\build\bin\Debug\LatiBot.exe --unregister-commands
 ```
 
-or run the **Unregister the bot's commands (Debug)** task. It signs in as
+from the folder holding its `.env`, or run the **Unregister the bot's
+commands (Debug)** task, which installs the bot and runs it from
+`out\LatiBot\`. It signs in as
 whichever bot `DISCORD_BOT_TOKEN` belongs to, logs its name, deletes its global
 commands and any a server has of its own, and exits. It never comes online,
 and nothing else of the bot runs. Its next ordinary start registers them
@@ -637,8 +642,8 @@ step 4.
 `.vscode/tasks.json` wraps the common ones, so they are available from
 **Run Task** with clickable output: build and test per configuration, the
 AddressSanitizer run, clang-tidy over `src/` or a single file, clang-format,
-the Conan install, a short fuzz run, and
-unregistering a test bot's commands. They call the same commands as above;
+the Conan install, a short fuzz run, installing the bot to `out\LatiBot\`
+in either configuration, and unregistering a test bot's commands. They call the same commands as above;
 nothing is exclusive to the editor.
 
 ## Project layout
