@@ -8,9 +8,7 @@ of channel history back into those counts, and it keeps its own copy of every
 custom emoji it counts.
 
 This is the feature's working document. It records how the feature works,
-what was decided and why, and what has been asked for. [The user guide](README.md#linkstats) says how to use it;
-[Classes.md §8](../architecture/Classes.md#8-link-stats-and-the-recompute)
-draws its classes.
+what was decided and why, and what has been asked for. [The user guide](README.md#linkstats) says how to use it.
 
 | | |
 |---|---|

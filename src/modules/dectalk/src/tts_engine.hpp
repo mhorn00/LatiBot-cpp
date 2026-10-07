@@ -53,7 +53,7 @@ struct pcm_audio {
 /// Speech synthesis.
 ///
 /// The mixer and the commands talk to this rather than to DECtalk directly,
-/// so they can be tested without the engine (docs/testing/README.md).
+/// so they can be tested without the engine.
 class tts_engine {
 public:
     virtual ~tts_engine() = default;

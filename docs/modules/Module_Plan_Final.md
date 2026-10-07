@@ -621,7 +621,7 @@ Conan's generated files go to `build/conan/`. clang-tidy reads
 
 | When | Jobs |
 |---|---|
-| Every push | Debug and Release (tests); ASan (I9); core-only (D10); the test catalog and formatting checks; the secret scan |
+| Every push | Debug and Release (tests); ASan (I9); core-only (D10); the formatting check; the secret scan |
 | Weekly | The full module matrix, and the fuzzers |
 
 The dependency cache includes DPP.
@@ -680,7 +680,9 @@ The dependency cache includes DPP.
   commands, panel view names, config keys and settings keys.
 - **`docs/features/`** stays as the behaviour specs, each with a line naming
   its module. The user guide marks each command's module.
-- **`docs/architecture/`** is redrawn for modules at the end.
+- **`docs/architecture/`** was to be redrawn for modules at the end; it was
+  dropped instead, with `docs/analysis/`, `docs/testing/` and the test
+  catalog, to cut what every change has to update.
 
 ---
 
@@ -712,7 +714,7 @@ Nothing is pushed.
 | **4. Folders and targets** | `src/core/{include,src,tests}`, `src/app`, `latibot_module()`, the generated list, per-module test executables; midnight moved | done but the core's split: `cmake/modules.cmake`, `LATIBOT_WITH_MIDNIGHT`, `latibot_midnight_tests` and `latibot_app_tests`, midnight's README checked by a test. The core's `include`/`src` split moves to the end of phase 5, once the features have left it, so its include lines change once rather than twice |
 | **5. The other modules** | nicknames, triggers, links, linkstats, voice (with K9), dectalk, music, llm. Each step brings its settings table, its README with the sync test, and its tests moved and retagged. | nicknames done (`6b6525c`): its intent, View Audit Log and listeners come from the module; module config sections reach the written config.json through the generated `enabled_config_defaults()`, so the example-file test moved to `latibot_app_tests`. Triggers done: its stage at `reply`; the panel tests split per module, their helpers in `tests/support/panel_queries.hpp`; a trigger beside a link is an app test. Links and linkstats done, together: the core's link-stats code needed links' stores, and the core cannot require a module. Linkstats opens its own instances of links' stateless stores over the same database; links' permissions, linkstats' section and LATIBOT_DEBUG_RECOMPUTE_BOT_ID left the core. Llm done: it takes its own `llm_config` rather than the whole bootstrap, reads its own keys, and finds speech through the capability, which the bot offered until dectalk moved. Voice, dectalk and music done, together: voice offers `voice::services` (mixer, sessions, the on_left, on_ready and on_marker hooks, K9's order kept); dectalk finds it in its own `offer` and offers speech; music finds it in start. `/join` and `/leave` left `commands/basic`, `util/process` went to music (D30), and `module_list` destroys modules last first. The core has no feature code left |
 | | 5z The core's `include`/`src` split (§6.1), and `latibot_tests` becomes `latibot_core_tests` | done: public headers in `src/core/include/core`, the rest in `src/core/src`, included by `<area>/<file>.hpp` when private; the core's tests in `src/core/tests`; only the executable sees the private headers besides the core and its tests |
-| **6. Matrix and docs** | `Test-ModuleMatrix.ps1`, the core-only CI job, the architecture docs, the user guide | done: the matrix builds every module, the core alone and each module left out (ten builds, in `build/build-matrix`); its first run found the example-config test skipping by schemas, which music has none of, so it now skips by sections, and a dectalk engine test failing about one run in thirty: DPP's `sync_wait_for` reads the result unlocked while the worker writes it, so the engine's tests wait through `tests/support/finished_within.hpp` instead. A `core-only` preset and workflow, and a CI job of it, not yet run on GitHub. Components, Classes and Execution_Flow redrawn for the core and modules; the user guide names each command's module; the README says how to leave modules out |
+| **6. Matrix and docs** | `Test-ModuleMatrix.ps1`, the core-only CI job, the architecture docs (dropped instead), the user guide | done: the matrix builds every module, the core alone and each module left out (ten builds, in `build/build-matrix`); its first run found the example-config test skipping by schemas, which music has none of, so it now skips by sections, and a dectalk engine test failing about one run in thirty: DPP's `sync_wait_for` reads the result unlocked while the worker writes it, so the engine's tests wait through `tests/support/finished_within.hpp` instead. A `core-only` preset and workflow, and a CI job of it, not yet run on GitHub. `docs/architecture/`, `docs/analysis/`, `docs/testing/` and the test catalog with its generator and CI check deleted rather than kept up to date; the user guide names each command's module; the README says how to leave modules out |
 | **When you say** | Delete migrations 1–15, adoption, the comparison test and the old config keys | |
 
 ---

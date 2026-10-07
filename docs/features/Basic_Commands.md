@@ -8,8 +8,7 @@ The small commands the Java bot had: `/ping`, `/say`, `/status` and
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#ping) has every
-option and reply. [Classes.md §4](../architecture/Classes.md#4-slash-commands)
-draws the command classes.
+option and reply.
 
 | | |
 |---|---|

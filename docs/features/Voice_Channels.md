@@ -10,7 +10,6 @@ language model's replies in that channel are heard there. The bot also
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#join--leave) has
 `/join`, `/leave` and [`/voice`](README.md#voice), with every reply.
-[Classes.md §9](../architecture/Classes.md#9-speech) draws the classes.
 
 | | |
 |---|---|

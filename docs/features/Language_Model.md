@@ -11,9 +11,7 @@ spending cap.
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#llm) has `/llm`,
 [`/memory`](README.md#memory) and [Talking to the bot](README.md#talking-to-the-bot),
-with every reply. [Classes.md §10–§11](../architecture/Classes.md#10-the-language-model-deciding-to-answer)
-draw its classes, and [Execution_Flow.md §7](../architecture/Execution_Flow.md#7-the-language-model-answers)
-follows an answer.
+with every reply.
 
 | | |
 |---|---|

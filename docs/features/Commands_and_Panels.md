@@ -7,10 +7,7 @@ kept on the bot's side; and how the bot's commands are unregistered. The
 features themselves are in their own specs.
 
 This is the spec for that shared machinery: what it is for, how it behaves,
-how it is built, and what was decided and why. [Classes.md §4–§5](../architecture/Classes.md#4-slash-commands)
-draw the classes, and [Execution_Flow.md §8](../architecture/Execution_Flow.md#8-a-slash-command)
-and [§10](../architecture/Execution_Flow.md#10-panels-buttons-menus-and-forms)
-the flows.
+how it is built, and what was decided and why.
 
 | | |
 |---|---|

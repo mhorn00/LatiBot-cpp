@@ -7,8 +7,7 @@ responses, a cooldown, and a panel to manage them.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#trigger) says how to
-use it, with every reply. [Classes.md §12](../architecture/Classes.md#12-triggers-nicknames-and-midnight-messages)
-draws its classes. The triggers that ask the language model to answer
+use it, with every reply. The triggers that ask the language model to answer
 instead are [advanced triggers](Language_Model.md#26-advanced-triggers).
 
 | | |

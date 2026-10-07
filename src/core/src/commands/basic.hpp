@@ -29,7 +29,7 @@ namespace latibot::commands {
 // Decisions
 //
 // The interesting part of each command is a function from plain data to a
-// decision (docs/testing/README.md). The handler below resolves Discord's
+// decision. The handler below resolves Discord's
 // state into arguments, calls one of these, and carries the answer out.
 // --------------------------------------------------------------------------
 

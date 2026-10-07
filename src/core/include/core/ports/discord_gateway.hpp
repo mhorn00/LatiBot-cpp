@@ -27,7 +27,7 @@ struct member_names {
 ///
 /// Deliberately small: it covers what features need today and grows as they
 /// land, rather than mirroring `dpp::cluster`. Keeping it narrow is what lets
-/// a mock stand in for Discord in tests (docs/testing/README.md).
+/// a mock stand in for Discord in tests.
 class discord_gateway {
 public:
     virtual ~discord_gateway() = default;

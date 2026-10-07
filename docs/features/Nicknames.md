@@ -8,9 +8,7 @@ Java bot's `nicknames.json` history is imported on startup.
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#nickname) has the
 commands and replies, and [Nickname tracking](README.md#nickname-tracking)
-the passive side. [Classes.md §12](../architecture/Classes.md#12-triggers-nicknames-and-midnight-messages)
-draws its classes, and [Execution_Flow.md §12](../architecture/Execution_Flow.md#12-nickname-changes)
-follows a change through.
+the passive side.
 
 | | |
 |---|---|

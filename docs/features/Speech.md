@@ -9,9 +9,7 @@ voice channel is [Voice_Channels.md](Voice_Channels.md).
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#speak) has the
-commands and replies. [Classes.md §9](../architecture/Classes.md#9-speech)
-draws its classes, and [Execution_Flow.md §9](../architecture/Execution_Flow.md#9-speech)
-follows a `/speak`.
+commands and replies.
 
 | | |
 |---|---|

@@ -9,10 +9,6 @@ This is the spec for those: what each is for, how it behaves, how it is
 built, and what was decided and why. The root README has the setup steps,
 the [configuration table](../../README.md#configuration) with every
 `config.json` key, and [Logging](../../README.md#logging).
-[Execution_Flow.md §1–§2](../architecture/Execution_Flow.md#1-from-main-to-shutdown)
-follow startup, and [Classes.md §3](../architecture/Classes.md#3-the-database-and-the-stores)
-and [§13](../architecture/Classes.md#13-configuration-and-logging) draw the
-classes.
 
 | | |
 |---|---|
@@ -302,6 +298,5 @@ shows no preview, which looks exactly like a broken mirror.
 - `config.json` is read once. Changing it needs a restart.
 - Backups go to the same disk as the database, by default.
 - The bot shell (`bot`) is not unit-tested, by design: testing it would mean
-  mocking `dpp::cluster`, which is what the ports exist to avoid. What that
-  leaves untested is listed in [docs/testing/](../testing/README.md#known-gaps),
-  and each spec names its own.
+  mocking `dpp::cluster`, which is what the ports exist to avoid. Each
+  spec names what that leaves untested in its feature.

@@ -8,9 +8,6 @@ the per-server **bot allowlist** (`/bots`) comes in.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#bots) covers `/bots`.
-[Classes.md §6](../architecture/Classes.md#6-the-message-pipeline) draws
-its classes, and [Execution_Flow.md §4–§5](../architecture/Execution_Flow.md#4-a-message-arrives)
-follows a message through it.
 
 | | |
 |---|---|

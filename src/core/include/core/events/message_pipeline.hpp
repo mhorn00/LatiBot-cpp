@@ -21,7 +21,7 @@ namespace latibot::events {
 ///
 /// Deliberately not `dpp::message`: a stage that takes plain data can be
 /// tested without a gateway, and the shell is the only place that has to know
-/// how Discord spells any of this (docs/testing/README.md).
+/// how Discord spells any of this.
 struct incoming_message {
     dpp::snowflake guild_id;
     dpp::snowflake channel_id;

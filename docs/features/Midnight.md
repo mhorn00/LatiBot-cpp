@@ -6,9 +6,7 @@ of entries, managed with `/midnight`.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#midnight) has the
-commands and replies. [Classes.md §12](../architecture/Classes.md#12-triggers-nicknames-and-midnight-messages)
-draws its classes, and [Execution_Flow.md §13](../architecture/Execution_Flow.md#13-the-timers)
-its timer.
+commands and replies.
 
 | | |
 |---|---|

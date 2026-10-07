@@ -1,7 +1,7 @@
 {
   // TestMate C++ drives the Testing sidebar for this project. Everything sits
   // under one top-level node so a single run button covers the whole suite,
-  // then component tag, then source file, matching docs/testing/Test_Catalog.md.
+  // then component tag, then source file.
   //
   // Two things about "tags" are easy to get wrong, and TestMate only mentions
   // them in its log (the setting has no schema, so the editor will not flag

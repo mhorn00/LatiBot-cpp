@@ -176,15 +176,6 @@
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     },
     {
-      // CI fails if the committed catalog differs from what this produces.
-      "label": "Docs: update the test catalog",
-      "type": "process",
-      "command": "pwsh",
-      "args": ["-NoProfile", "-File", "tools/Update-TestCatalog.ps1"],
-      "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
-    },
-    {
       // DPP's recipe first, then both configurations into build/conan, which
       // every build folder shares. Needed after editing conanfile.py or
       // moving the DPP submodule; the first run builds the dependencies.

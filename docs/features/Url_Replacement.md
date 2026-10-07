@@ -8,10 +8,7 @@ mirrors, and each member can opt out.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#links) says how to
-use it, with every reply. [Classes.md §7](../architecture/Classes.md#7-link-replacement)
-draws its classes, and
-[Execution_Flow.md §6](../architecture/Execution_Flow.md#6-link-replacement-posting-and-watching)
-the posting and watching. The reactions on replacements are counted by
+use it, with every reply. The reactions on replacements are counted by
 [link stats](Link_Stats.md).
 
 | | |

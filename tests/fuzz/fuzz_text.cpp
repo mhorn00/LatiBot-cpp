@@ -1,5 +1,5 @@
 // Fuzzes the text helpers that run over every message, and the ones that cut
-// text down to Discord's limits (docs/testing/README.md).
+// text down to Discord's limits.
 //
 // Each check is a property of the result that the helper's own code does not
 // state, so a wrong implementation can fail it.

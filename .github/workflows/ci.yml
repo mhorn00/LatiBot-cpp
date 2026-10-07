@@ -21,7 +21,7 @@ jobs:
     # is the core alone, every module off, which must build and pass on its
     # own (docs/modules/Module_Plan_Final.md D10; tools/Test-ModuleMatrix.ps1
     # tries each module off, locally).
-    # clang-tidy and fuzzing stay local (docs/testing/README.md, Tooling).
+    # clang-tidy and fuzzing stay local.
     # `configuration` is the Conan build type; `test_preset` the workflow.
     strategy:
       fail-fast: false
@@ -51,16 +51,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Cheap and independent of the build: catches a test added without
-      # regenerating docs/testing/Test_Catalog.md, and any mistagged test,
-      # since the generator refuses those.
-      - name: Check the test catalog is up to date
-        if: matrix.test_preset == 'debug'
-        run: |
-          pwsh -NoProfile -File tools/Update-TestCatalog.ps1
-          git diff --exit-code -- docs/testing/Test_Catalog.md
-
-      # Also cheap and independent of the build. It uses Visual Studio's
+      # Cheap and independent of the build. It uses Visual Studio's
       # clang-format, as the local task does; if the image's version ever
       # formats differently, this is where it shows.
       - name: Check formatting

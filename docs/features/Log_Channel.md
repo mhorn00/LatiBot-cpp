@@ -9,8 +9,6 @@ This is the feature's spec: what it is for, how it behaves, how it is built,
 and what was decided and why. [The user guide](README.md#logs) has the
 subcommands and replies, and the root README's
 [Logging](../../README.md#logging) covers the console log and its levels.
-[Classes.md §13](../architecture/Classes.md#13-configuration-and-logging)
-draws its classes.
 
 | | |
 |---|---|

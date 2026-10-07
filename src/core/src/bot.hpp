@@ -36,7 +36,7 @@ namespace latibot {
 ///
 /// This is the shell: it wires DPP events to core functions and holds the
 /// ports features talk through. The logic itself lives outside, where it can
-/// be tested without Discord (docs/testing/README.md).
+/// be tested without Discord.
 ///
 /// It is also the modules' host (docs/modules/Module_Plan_Final.md §4): it
 /// builds them with `make_modules`, has each offer its capabilities and then
