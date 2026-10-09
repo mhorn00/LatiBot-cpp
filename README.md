@@ -1,8 +1,9 @@
 # LatiBot
 
-C++ port of a Discord bot (originally written in Java), built with CMake + MSVC
-as C++23. It uses [DPP (D++)](https://dpp.dev/) for the Discord API, built from
-source as a git submodule, and Conan 2 for the remaining dependencies.
+C++ port of a Discord bot (originally written in Java), built with CMake as
+C++23: with MSVC on Windows, and GCC 14 on Linux ([below](#on-linux)). It uses
+[DPP (D++)](https://dpp.dev/) for the Discord API, built from source as a git
+submodule, and Conan 2 for the remaining dependencies.
 
 The `java-reference/` folder holds the original Java source purely for
 reference during the port; it is not part of the C++ build.
@@ -224,6 +225,39 @@ underlined in red while the command line builds perfectly.
 tell which build of a Conan package this project links, so it is a stopgap
 rather than the answer.
 
+## On Linux
+
+The same code, presets and dependencies build with GCC 14 or newer on x86-64
+Linux; CI builds and tests both. On Debian 13, or Ubuntu 24.04 with `gcc-14`:
+
+```sh
+sudo apt install build-essential cmake ninja-build git python3-venv
+python3 -m venv ~/conan && ~/conan/bin/pip install "conan>=2.0"   # or pipx install conan
+export PATH="$HOME/conan/bin:$PATH"
+
+git clone --recursive https://github.com/mhorn00/LatiBot-cpp.git
+cd LatiBot-cpp
+conan profile detect                  # should say compiler=gcc, compiler.version=14
+conan export conan/dpp
+conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
+cmake --workflow --preset linux-release
+```
+
+- **Ubuntu 24.04's `gcc` is 13**, too old. Install `g++-14` and set
+  `CC=gcc-14 CXX=g++-14` before `conan profile detect` and every `cmake`
+  command, so Conan and CMake both use it.
+- **The presets** are the Windows ones' twins: `linux` builds in
+  `build/linux` (workflows `linux-debug` and `linux-release`), and there are
+  `linux-asan` and `linux-core-only`. Add a Debug `conan install` for the
+  Debug ones.
+- **Memory.** Each compiler job takes up to 2 GB; on a small machine, cap
+  them with `CMAKE_BUILD_PARALLEL_LEVEL=2`. Building every dependency from
+  source the first time takes about twenty minutes.
+- **The bot** is `build/linux/bin/Release/LatiBot`, with DECtalk's
+  `libdectalk.so` and dictionary beside it, which it finds by its run path.
+  `cmake --install build/linux --config Release` copies them to
+  `out/LatiBot-Release/` ([On another machine](#on-another-machine)).
+
 ## Running
 
 ### The Discord application
@@ -328,8 +362,15 @@ install the latest:
 winget install Microsoft.VCRedist.2015+.x64
 ```
 
+**On Linux**, the folder holds `LatiBot`, `libdectalk.so` and
+`dtalk_us.dic`, with `install-dependencies.sh`, which puts yt-dlp and Deno
+beside the bot and installs ffmpeg from the system's packages
+([Install-Dependencies.md](deploy/Install-Dependencies.md#on-linux)). There is
+no redistributable to install: the C++ runtime is the system's own, so build
+on the distribution the bot runs on, or an older one.
+
 Then, in that folder: create `.env` with the line `DISCORD_BOT_TOKEN=<your
-token>` (or set the variable), and run `LatiBot.exe`. The first run writes
+token>` (or set the variable), and run `LatiBot.exe` (`./LatiBot` on Linux). The first run writes
 `config.json` with the defaults, and `data/` for the database, its backups and
 the certificate bundle, all beside where it was run from. Without a token it
 stops, saying exactly where `.env` goes.

@@ -187,8 +187,10 @@ gets an engine of its own**, started for it and shut down after it, about
    voice, the rate and a custom voice's `[:dv]` edits.
 5. On each buffer message: take the **front** buffer from the deque, keep
    its samples, and requeue it from inside the callback. The callback's
-   buffer pointer is 32 bits on a 64-bit build, so it is only compared with
-   the low 32 bits of the front buffer, as a sanity check.
+   buffer pointer is 32 bits on 64-bit Windows, so it is only compared with
+   the low 32 bits of the front buffer, as a sanity check. (On Linux it is
+   whole, and the same check holds. There the messages are the constants
+   `TTS_MSG_BUFFER` and `TTS_MSG_STATUS`, not registered window messages.)
 6. `TextToSpeechSync` on a thread of its own, while the worker watches the
    duration and wall-time limits; `ReturnBuffer` hands back the part-filled
    tail.
@@ -223,6 +225,22 @@ compiled with `cmake/dectalk_zeroed_heap.h` force-included, which turns
 `malloc` into `calloc` and `realloc` into `_recalloc`. DECtalk reads heap
 memory it never wrote, and without that a Release build does not say the
 same thing twice (§5, 2026-09-26).
+
+**On Linux** it follows upstream's Linux makefiles instead: their object list
+(`osf/` and `api/init.c` in place of the Windows-only files), their defines,
+audio off, and `-Bsymbolic`. It is a shared library, `libdectalk.so`,
+exporting only what `DECTALK.DEF` lists, through a version script made from
+it. The programs find it by their `$ORIGIN` run path, and
+`dectalk_engine::default_dictionary` finds the dictionary beside it with
+`dladdr`. `_DEBUG` is never defined there, as upstream never does, since
+`include/kernel.h`'s debug-only `OutputDebugString` macro does not compile.
+`realloc`'s zeroing uses `malloc_usable_size`, as glibc has no `_recalloc`.
+Its audio is the same length as on Windows, and as repeatable, but not the
+same to the sample: about 45 dB from it, in the texture of the noise, which
+`tests/golden/dectalk_linux.txt` fingerprints separately. The build puts
+upstream's one-line `DECtalk.conf` beside the bot, which DECtalk otherwise
+complains of on stderr at every utterance. It also loads `~/udic.dic`, a user
+dictionary, if the account the bot runs as has one.
 
 DECtalk is proprietary Fonix code, and the repository is public. As a
 submodule, it is referenced and never redistributed.

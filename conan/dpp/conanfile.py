@@ -67,11 +67,17 @@ class DppConan(ConanFile):
         lib = os.path.join(self.package_folder, "lib")
         bin = os.path.join(self.package_folder, "bin")
         library = "dpp" if self.options.shared else "dppstatic"
-        copy(self, f"*/{library}.lib", src=self.build_folder, dst=lib, keep_path=False)
-        copy(self, "*/dpp.dll", src=self.build_folder, dst=bin, keep_path=False)
-        copy(self, "*/dpp.pdb", src=self.build_folder, dst=bin, keep_path=False)
-        if not os.path.isfile(os.path.join(lib, f"{library}.lib")):
-            raise RuntimeError(f"no {library}.lib under {self.build_folder}: DPP's build put it somewhere unexpected")
+        if self.settings.os == "Windows":
+            file = f"{library}.lib"
+            copy(self, f"*/{file}", src=self.build_folder, dst=lib, keep_path=False)
+            copy(self, "*/dpp.dll", src=self.build_folder, dst=bin, keep_path=False)
+            copy(self, "*/dpp.pdb", src=self.build_folder, dst=bin, keep_path=False)
+        else:
+            file = f"lib{library}.so" if self.options.shared else f"lib{library}.a"
+            copy(self, f"*/lib{library}.so*", src=self.build_folder, dst=lib, keep_path=False)
+            copy(self, f"*/lib{library}.a", src=self.build_folder, dst=lib, keep_path=False)
+        if not os.path.isfile(os.path.join(lib, file)):
+            raise RuntimeError(f"no {file} under {self.build_folder}: DPP's build put it somewhere unexpected")
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "dpp")
@@ -86,4 +92,7 @@ class DppConan(ConanFile):
             self.cpp_info.libs = ["dppstatic"]
             # Without it, DPP's headers declare everything __declspec(dllimport).
             self.cpp_info.defines.append("DPP_STATIC")
-            self.cpp_info.system_libs = ["ws2_32", "wsock32", "crypt32"]
+            if self.settings.os == "Windows":
+                self.cpp_info.system_libs = ["ws2_32", "wsock32", "crypt32"]
+            else:
+                self.cpp_info.system_libs = ["pthread", "dl"]

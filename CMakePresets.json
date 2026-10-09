@@ -15,6 +15,7 @@
       "toolchainFile": "${sourceDir}/build/conan/conan_toolchain.cmake",
       "architecture": { "value": "x64", "strategy": "external" },
       "toolset": { "value": "host=x64", "strategy": "external" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
@@ -66,6 +67,50 @@
         "LATIBOT_WITH_LINKS": "OFF",
         "LATIBOT_WITH_LINKSTATS": "OFF"
       }
+    },
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "description": "Ninja Multi-Config with GCC 14 or newer, its dependencies from Conan in build/conan, as on Windows. The compiler is whatever CC and CXX name, else cc and c++, which must be the one Conan detected (README.md, Linux).",
+      "generator": "Ninja Multi-Config",
+      "installDir": "${sourceDir}/out/LatiBot-Release",
+      "toolchainFile": "${sourceDir}/build/conan/conan_toolchain.cmake",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "linux",
+      "inherits": "linux-base",
+      "displayName": "Linux: Debug and Release",
+      "binaryDir": "${sourceDir}/build/linux"
+    },
+    {
+      "name": "linux-asan",
+      "inherits": "linux-base",
+      "displayName": "Linux: AddressSanitizer",
+      "binaryDir": "${sourceDir}/build/linux-asan",
+      "cacheVariables": {
+        "LATIBOT_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "linux-core-only",
+      "inherits": "linux-base",
+      "displayName": "Linux: the core alone",
+      "binaryDir": "${sourceDir}/build/linux-core",
+      "cacheVariables": {
+        "LATIBOT_WITH_DECTALK": "OFF",
+        "LATIBOT_WITH_MUSIC": "OFF",
+        "LATIBOT_WITH_LLM": "OFF",
+        "LATIBOT_WITH_TRIGGERS": "OFF",
+        "LATIBOT_WITH_NICKNAMES": "OFF",
+        "LATIBOT_WITH_MIDNIGHT": "OFF",
+        "LATIBOT_WITH_LINKS": "OFF",
+        "LATIBOT_WITH_LINKSTATS": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -73,7 +118,11 @@
     { "name": "release", "configurePreset": "default", "configuration": "Release" },
     { "name": "asan", "configurePreset": "asan", "configuration": "Debug" },
     { "name": "fuzz", "configurePreset": "fuzz", "configuration": "Debug" },
-    { "name": "core-only", "configurePreset": "core-only", "configuration": "Debug" }
+    { "name": "core-only", "configurePreset": "core-only", "configuration": "Debug" },
+    { "name": "linux-debug", "configurePreset": "linux", "configuration": "Debug" },
+    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" },
+    { "name": "linux-asan", "configurePreset": "linux-asan", "configuration": "Debug" },
+    { "name": "linux-core-only", "configurePreset": "linux-core-only", "configuration": "Debug" }
   ],
   "testPresets": [
     {
@@ -99,6 +148,34 @@
     {
       "name": "core-only",
       "configurePreset": "core-only",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux",
+      "configuration": "Release",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
+    },
+    {
+      "name": "linux-asan",
+      "configurePreset": "linux-asan",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "name": "\\[live\\]" } }
+    },
+    {
+      "name": "linux-core-only",
+      "configurePreset": "linux-core-only",
       "configuration": "Debug",
       "output": { "outputOnFailure": true },
       "filter": { "exclude": { "name": "\\[live\\]" } }
@@ -139,6 +216,42 @@
         { "type": "configure", "name": "core-only" },
         { "type": "build", "name": "core-only" },
         { "type": "test", "name": "core-only" }
+      ]
+    },
+    {
+      "name": "linux-debug",
+      "displayName": "Linux Debug: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "linux" },
+        { "type": "build", "name": "linux-debug" },
+        { "type": "test", "name": "linux-debug" }
+      ]
+    },
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "linux" },
+        { "type": "build", "name": "linux-release" },
+        { "type": "test", "name": "linux-release" }
+      ]
+    },
+    {
+      "name": "linux-asan",
+      "displayName": "Linux AddressSanitizer: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "linux-asan" },
+        { "type": "build", "name": "linux-asan" },
+        { "type": "test", "name": "linux-asan" }
+      ]
+    },
+    {
+      "name": "linux-core-only",
+      "displayName": "Linux, the core alone: configure, build, test",
+      "steps": [
+        { "type": "configure", "name": "linux-core-only" },
+        { "type": "build", "name": "linux-core-only" },
+        { "type": "test", "name": "linux-core-only" }
       ]
     }
   ]

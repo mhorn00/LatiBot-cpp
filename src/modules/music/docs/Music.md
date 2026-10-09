@@ -342,7 +342,9 @@ found.
 
 ### 4.6 Running programs
 
-`util::process` is a small Win32 wrapper:
+`util::process` is a small wrapper over Win32, or over POSIX elsewhere
+(`process_windows.cpp`, `process_posix.cpp`; what they share is in
+`process.cpp`):
 
 - **Arguments are a list**, quoted with `quote_argument` so that
   `CommandLineToArgvW` reads back exactly what was given, and never pass
@@ -355,6 +357,15 @@ found.
   (`PROC_THREAD_ATTRIBUTE_HANDLE_LIST`). Another server's music may be
   starting at the same moment, and a pipe end leaking into the wrong process
   would keep that pipe open after its owner finished.
+- **On POSIX**, `posix_spawn` starts each program in **one process group per
+  pipeline**, and killing the pipeline kills the group. The group's leader is
+  only reaped when the pipeline is destroyed (`waitid` with `WNOWAIT` before
+  that), so the group's id cannot be reused while a kill might still reach
+  it. Every pipe is `O_CLOEXEC`, so a child holds only the three ends it is
+  given. SIGPIPE, which DPP ignores, is reset to the default for each child,
+  so ffmpeg ends when its reader goes. Unlike the job object, nothing kills
+  the programs if the bot itself is killed. They end anyway, once their
+  pipes close.
 - **stderr is drained** line by line on a thread per program, and logged at
   `debug`, since a full stderr pipe stops a program.
 - **`run`** runs one program to its end with a watchdog, for reading links

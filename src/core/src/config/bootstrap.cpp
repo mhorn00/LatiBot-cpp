@@ -217,8 +217,12 @@ auto bootstrap::load(const std::filesystem::path& path, const nlohmann::ordered_
     } else {
         // Something is there, so it is somebody's configuration: one that
         // cannot be read stops startup rather than being replaced.
+        // A folder opens on Linux, and only fails once read, so it is
+        // refused by name.
         const std::ifstream file(path);
-        if (!file) throw config_error("could not read the configuration file at " + std::filesystem::absolute(path).generic_string());
+        if (!file || std::filesystem::is_directory(path, error)) {
+            throw config_error("could not read the configuration file at " + std::filesystem::absolute(path).generic_string());
+        }
 
         std::ostringstream contents;
         contents << file.rdbuf();

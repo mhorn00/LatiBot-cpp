@@ -15,6 +15,12 @@ function(latibot_target_warnings target)
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
         if(LATIBOT_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE -Werror)
+            # GCC 12 to 14, optimising, report std::string's own copies as out
+            # of bounds once they are inlined far enough (GCC bugs 105545 and
+            # 107138): warned of, but not errors.
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(${target} PRIVATE -Wno-error=array-bounds -Wno-error=stringop-overflow -Wno-error=stringop-overread)
+            endif()
         endif()
     endif()
 endfunction()

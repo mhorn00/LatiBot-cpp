@@ -2,7 +2,8 @@
 // sample.
 //
 // tests/golden/dectalk.txt holds each phrase's sample count and a hash of
-// its samples. On a mismatch the audio actually produced is written beside
+// its samples, and dectalk_linux.txt the same for Linux, where DECtalk's
+// audio is the same length but not the same to the sample (Speech.md §4.2). On a mismatch the audio actually produced is written beside
 // it as <name>.wav, so the difference can be listened to rather than guessed
 // at. After a deliberate change (a DECtalk update, a new preamble), run the
 // tests with LATIBOT_UPDATE_GOLDEN=1 to rewrite the file, and listen to the
@@ -72,6 +73,15 @@ auto golden_directory() -> std::filesystem::path {
     return std::filesystem::path(LATIBOT_TESTS_DIR) / "golden";
 }
 
+/// This system's fingerprints.
+auto golden_file() -> std::filesystem::path {
+#ifdef _WIN32
+    return golden_directory() / "dectalk.txt";
+#else
+    return golden_directory() / "dectalk_linux.txt";
+#endif
+}
+
 /// name -> fingerprint, from lines of "name samples hash".
 auto read_golden(const std::filesystem::path& file) -> std::map<std::string, fingerprint> {
     std::map<std::string, fingerprint> golden;
@@ -91,7 +101,7 @@ auto read_golden(const std::filesystem::path& file) -> std::map<std::string, fin
 } // namespace
 
 TEST_CASE("DECtalk's audio matches the golden fingerprints", "[dectalk][golden][fs][coro][threads]") {
-    const std::filesystem::path file = golden_directory() / "dectalk.txt";
+    const std::filesystem::path file = golden_file();
     const bool updating = latibot::util::env_var("LATIBOT_UPDATE_GOLDEN").value_or("") == "1";
     const auto golden = read_golden(file);
 

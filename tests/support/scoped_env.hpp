@@ -22,7 +22,18 @@ public:
     ~scoped_env() { set(previous_ ? previous_->c_str() : nullptr); }
 
 private:
-    auto set(const char* value) const -> void { _putenv_s(name_, value != nullptr ? value : ""); }
+    /// Null or empty removes it, as `_putenv_s` does with an empty value.
+    auto set(const char* value) const -> void {
+#ifdef _MSC_VER
+        _putenv_s(name_, value != nullptr ? value : "");
+#else
+        if (value == nullptr || *value == '\0') {
+            unsetenv(name_);
+        } else {
+            setenv(name_, value, 1);
+        }
+#endif
+    }
 
     const char* name_;
     std::optional<std::string> previous_;

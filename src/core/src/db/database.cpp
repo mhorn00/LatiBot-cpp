@@ -53,7 +53,16 @@ database::database(const std::filesystem::path& path) {
         throw db_error(result, message);
     }
 
-    configure();
+    // A file that is not a database opens, and only fails here. The
+    // destructor does not run for a constructor that throws, so the handle
+    // is closed by hand.
+    try {
+        configure();
+    } catch (...) {
+        sqlite3_close(handle_);
+        handle_ = nullptr;
+        throw;
+    }
 }
 
 database::~database() {

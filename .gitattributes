@@ -16,3 +16,6 @@ CMakeLists.txt text
 
 # Fuzz seeds are inputs, byte for byte: no line ending conversion.
 tests/fuzz/corpus/** -text
+
+# Shell scripts run on Linux, even when copied there from a Windows checkout.
+*.sh text eol=lf

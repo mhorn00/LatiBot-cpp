@@ -10,6 +10,8 @@
 
 using latibot::util::export_system_certificates;
 
+#ifdef _WIN32
+
 namespace {
 
 auto read(const std::filesystem::path& path) -> std::string {
@@ -28,8 +30,6 @@ auto count_of(std::string_view text, std::string_view needle) -> std::size_t {
 }
 
 } // namespace
-
-#ifdef _WIN32
 
 TEST_CASE("the system root certificates export as a readable PEM bundle", "[util][fs]") {
     // This is what stands between the bot and "Malformed HTTP response": the

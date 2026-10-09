@@ -22,6 +22,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <mutex>
 #include <optional>
 #include <string>
 
@@ -56,7 +57,7 @@ namespace {
 class cached_guild {
 public:
     cached_guild(dpp::snowflake member, dpp::snowflake voice_channel) {
-        // The cache owns it once stored, and frees it after `remove`.
+        // Stored by pointer; taken back out and freed by the destructor.
         guild_ = new dpp::guild(); // NOLINT(cppcoreguidelines-owning-memory)
         guild_->id = guild;
         dpp::voicestate state;
@@ -67,12 +68,15 @@ public:
         dpp::get_guild_cache()->store(guild_);
     }
     ~cached_guild() {
-        // Queued for deletion, which allocates; a test that cannot even do
-        // that has bigger problems than a guild left in the cache.
-        try {
-            dpp::get_guild_cache()->remove(guild_);
-        } catch (...) { // NOLINT(bugprone-empty-catch)
+        // Taken out and freed here rather than with `remove`, which only
+        // queues it for a collection a test never lives to see, and
+        // LeakSanitizer reports it.
+        auto* cache = dpp::get_guild_cache();
+        {
+            const std::unique_lock lock(cache->get_mutex());
+            cache->get_container().erase(guild_->id);
         }
+        delete guild_; // NOLINT(cppcoreguidelines-owning-memory)
     }
 
     cached_guild(const cached_guild&) = delete;

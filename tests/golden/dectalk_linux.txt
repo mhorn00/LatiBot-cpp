@@ -1,0 +1,6 @@
+# name samples fnv1a64 (tests/unit/dectalk_golden_test.cpp)
+paul 34804 2c024583095d80fd
+betty 34990 87a33933789ad76a
+harry_fast 6836 aa935c17ac53d7e7
+numbers 72888 5a834202fc150a1a
+inline 30517 d5de72ca18c48d55

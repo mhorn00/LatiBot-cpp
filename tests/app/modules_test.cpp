@@ -249,7 +249,10 @@ TEST_CASE("the example config is exactly what the bot writes, every module's sec
     // sections rather than the schemas, since a module with no tables, such
     // as music, has a section all the same.
     const nlohmann::ordered_json sections = latibot::modules::enabled_config_defaults();
-    for (const auto& [name, value] : nlohmann::ordered_json::parse(example).items()) {
+    // Named: items() refers into it, and a temporary would be gone before the
+    // loop ran.
+    const nlohmann::ordered_json parsed = nlohmann::ordered_json::parse(example);
+    for (const auto& [name, value] : parsed.items()) {
         if (value.is_object() && !sections.contains(name)) {
             SKIP("this build leaves out " << name << ", which the example has a section for");
         }

@@ -48,6 +48,13 @@ latibot_strip_runtime_checks()
 
 # Put every built binary, and DECtalk's DLL beside them, in one folder per config.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+# Off Windows a program finds a shared library by its run path rather than
+# beside it. $ORIGIN is its own folder, where DECtalk's is
+# (cmake/dectalk.cmake), built and installed alike.
+if(UNIX)
+    set(CMAKE_BUILD_RPATH "$ORIGIN")
+    set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
 
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
@@ -56,8 +63,6 @@ find_package(ctre REQUIRED)
 # configuration rather than once per build folder.
 find_package(dpp REQUIRED)
 latibot_map_conan_configs()
-
-include(dectalk)
 
 add_subdirectory(src)
 

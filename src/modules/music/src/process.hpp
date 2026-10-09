@@ -40,13 +40,17 @@ public:
 /// The whole command line: the program's path, then each argument, quoted.
 [[nodiscard]] auto command_line(const program& to_run) -> std::string;
 
-/// The folder the bot's own executable is in, or nothing when Windows will
-/// not say.
+/// The folder the bot's own executable is in, or nothing when the system
+/// will not say.
 [[nodiscard]] auto executable_directory() -> std::optional<std::filesystem::path>;
 
-/// Where a program is: `configured` when it is set, which must exist;
-/// otherwise `name.exe` beside the bot's own executable, then on `PATH`.
-/// Nothing when it cannot be found.
+/// The file a program called `name` is in: `name.exe` on Windows, `name`
+/// elsewhere.
+[[nodiscard]] auto executable_name(std::string_view name) -> std::string;
+
+/// Where a program is: `configured` when it is set, which must exist and,
+/// off Windows, be executable; otherwise `executable_name(name)` beside the
+/// bot's own executable, then on `PATH`. Nothing when it cannot be found.
 [[nodiscard]] auto locate_program(std::string_view name, const std::filesystem::path& configured) -> std::optional<std::filesystem::path>;
 
 /// What running a program to its end gave.
@@ -71,8 +75,9 @@ struct run_result {
 /// without a shell. The first reads nothing; the caller reads the last
 /// one's output.
 ///
-/// Every program runs in one Windows job object, so `kill`, or destroying
-/// the pipeline, ends them and anything they started. Each program's stderr
+/// Every program runs in one Windows job object, or elsewhere one process
+/// group, so `kill`, or destroying the pipeline, ends them and anything they
+/// started. Each program's stderr
 /// is read on a thread of its own and handed over line by line, since a
 /// full stderr pipe would stop the program.
 class pipeline {

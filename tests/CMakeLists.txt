@@ -16,7 +16,9 @@ target_link_libraries(latibot_test_support INTERFACE latibot_core Catch2::Catch2
 # A program the process tests run in place of yt-dlp and ffmpeg
 # (support/test_child.cpp); the tests find it by its path.
 add_executable(latibot_test_child support/test_child.cpp)
-target_link_libraries(latibot_test_child PRIVATE shell32)
+if(WIN32)
+    target_link_libraries(latibot_test_child PRIVATE shell32)
+endif()
 latibot_target_warnings(latibot_test_child)
 
 # Builds every test executable: the Testing sidebar's runTask
@@ -40,6 +42,12 @@ function(latibot_test_executable target)
     # says why there is one at all).
     target_precompile_headers(${target} PRIVATE <dpp/dpp.h> <catch2/catch_test_macros.hpp>)
     latibot_target_warnings(${target})
+    # GCC warns of every field a designated initializer leaves out. The tests
+    # rely on the defaults on purpose; src/ lists every field, and keeps the
+    # warning.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(${target} PRIVATE -Wno-missing-field-initializers)
+    endif()
     latibot_target_sanitizers(${target})
     latibot_copy_runtime_dlls(${target})
     add_dependencies(latibot_all_tests ${target})

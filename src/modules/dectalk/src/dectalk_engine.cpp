@@ -8,14 +8,15 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <format>
 #include <functional>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+#ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -27,6 +28,11 @@
 #include <mmreg.h>
 #include <mmsystem.h>
 #include <ttsapi.h>
+#else
+// ttsapi.h brings osf/dtmmedefs.h, DECtalk's own Windows types.
+#include <dlfcn.h>
+#include <ttsapi.h>
+#endif
 
 namespace latibot::audio {
 namespace {
@@ -74,13 +80,21 @@ struct session {
 /// registered window message rather than a constant
 /// (src/modules/dectalk/docs/Speech.md §4.1).
 auto buffer_message() -> UINT {
+#ifdef _WIN32
     static const UINT id = RegisterWindowMessageA("DECtalkBufferMessage");
     return id;
+#else
+    return TTS_MSG_BUFFER;
+#endif
 }
 
 auto error_message() -> UINT {
+#ifdef _WIN32
     static const UINT id = RegisterWindowMessageA("DECtalkErrorMessage");
     return id;
+#else
+    return TTS_MSG_STATUS;
+#endif
 }
 
 // DECtalk takes a plain function and a 32-bit instance value, too narrow for
@@ -117,10 +131,11 @@ auto on_dectalk_message(LONG first, LONG second, DWORD /*instance*/, UINT messag
     buffer* filled = speaking.in_flight.front();
     speaking.in_flight.pop_front();
 
-    // Both as the 32 bits they are: the callback's LONG is signed, so an
-    // address with bit 31 set arrives negative.
+    // Both as their low 32 bits: the callback's LONG is signed, so an
+    // address with bit 31 set arrives negative, and on Windows it is all
+    // there is (elsewhere LONG is 64 bits, and the whole address arrives).
     const auto low_bits = static_cast<std::uint32_t>(reinterpret_cast<std::uintptr_t>(&filled->header));
-    const auto reported = std::bit_cast<std::uint32_t>(second);
+    const auto reported = static_cast<std::uint32_t>(static_cast<std::make_unsigned_t<LONG>>(second));
     if (low_bits != reported) ++speaking.out_of_order;
 
     keep(speaking, *filled);
@@ -160,6 +175,7 @@ struct dectalk_engine::job {
 };
 
 auto dectalk_engine::default_dictionary() -> std::filesystem::path {
+#ifdef _WIN32
     // Any function in the DLL names the module it came from.
     HMODULE module = nullptr;
     const auto* address = reinterpret_cast<LPCWSTR>(&TextToSpeechStartupExFonix);
@@ -172,6 +188,17 @@ auto dectalk_engine::default_dictionary() -> std::filesystem::path {
     if (length == 0 || length >= path.size()) return "dtalk_us.dic";
     path.resize(length);
     return std::filesystem::path(path).parent_path() / "dtalk_us.dic";
+#else
+    // Any function in the shared library names the file it came from.
+    Dl_info found{};
+    if (dladdr(reinterpret_cast<const void*>(&TextToSpeechStartupExFonix), &found) == 0 || found.dli_fname == nullptr) {
+        return "dtalk_us.dic";
+    }
+    std::error_code error;
+    const std::filesystem::path library = std::filesystem::canonical(found.dli_fname, error);
+    if (error) return "dtalk_us.dic";
+    return library.parent_path() / "dtalk_us.dic";
+#endif
 }
 
 dectalk_engine::dectalk_engine(std::filesystem::path dictionary, std::chrono::milliseconds max_synthesis)

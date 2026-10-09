@@ -10,11 +10,11 @@ namespace latibot::music {
 /// The "music" section of config.json: where its programs are
 /// (src/modules/music/docs/Music.md §5, §4.10).
 struct music_config {
-    /// Empty: `yt-dlp.exe` and `ffmpeg.exe` beside the bot, then on PATH.
+    /// Empty: `yt-dlp` and `ffmpeg` (`.exe` on Windows) beside the bot, then on PATH.
     std::filesystem::path ytdlp_path;
     std::filesystem::path ffmpeg_path;
     /// Where Deno is, which yt-dlp solves YouTube's JavaScript challenges
-    /// with. Empty: `deno.exe` beside the bot, then on PATH.
+    /// with. Empty: `deno` (`deno.exe`) beside the bot, then on PATH.
     std::filesystem::path deno_path;
     /// bgutil's PO token provider, which the bot runs while it runs: its
     /// `server` folder, and the port it listens on, on this machine only.

@@ -92,10 +92,10 @@ public:
           deno_(util::locate_program("deno", section_.deno_path)),
           pot_server_(locate_pot_server(section_)),
           cookies_(load_cookies(sign_in_.cookies, sign_in_.firefox_profile, bot.bootstrap().database_path.parent_path() / "yt-dlp-runs")),
-          resolver_(ytdlp_.value_or("yt-dlp.exe"), std::chrono::seconds{30}, 2, cookies_.source,
+          resolver_(ytdlp_.value_or(util::executable_name("yt-dlp")), std::chrono::seconds{30}, 2, cookies_.source,
                     music_extras(deno_, ytdlp_, section_.pot_provider_port)),
-          opener_(ytdlp_.value_or("yt-dlp.exe"), ffmpeg_.value_or("ffmpeg.exe"), true, cookies_.source,
-                  music_extras(deno_, ytdlp_, section_.pot_provider_port)),
+          opener_(ytdlp_.value_or(util::executable_name("yt-dlp")), ffmpeg_.value_or(util::executable_name("ffmpeg")), true,
+                  cookies_.source, music_extras(deno_, ytdlp_, section_.pot_provider_port)),
           panel_(player_pointer_) {}
 
     music_module(const music_module&) = delete;

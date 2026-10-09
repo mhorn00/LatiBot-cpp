@@ -52,9 +52,11 @@ auto touch(const std::filesystem::path& path) -> void {
 } // namespace
 
 TEST_CASE("the provider runs with Deno from its packages, on this machine's port", "[music]") {
-    const auto run = pot_provider_program(R"(C:\bot\deno.exe)", R"(C:\bot\bgutil-ytdlp-pot-provider\server)", 4416);
-    CHECK(run.path == std::filesystem::path(R"(C:\bot\deno.exe)"));
-    CHECK(run.working_directory == std::filesystem::path(R"(C:\bot\bgutil-ytdlp-pot-provider\server\node_modules)"));
+    const std::filesystem::path bot = "bot";
+    const std::filesystem::path server = bot / "bgutil-ytdlp-pot-provider" / "server";
+    const auto run = pot_provider_program(bot / "deno", server, 4416);
+    CHECK(run.path == bot / "deno");
+    CHECK(run.working_directory == server / "node_modules");
     CHECK(run.arguments == std::vector<std::string>{"run", "--allow-env", "--allow-net", "--allow-ffi=.", "--allow-read=.",
                                                     "../src/main.ts", "--port", "4416"});
     CHECK(pot_provider_address(4416) == "http://127.0.0.1:4416");

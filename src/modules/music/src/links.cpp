@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cstring>
+
+#ifdef _WIN32
 #include <mutex>
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -15,6 +17,12 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 
 namespace latibot::music {
 namespace {
@@ -46,13 +54,15 @@ auto literal_is_private(const std::string& host, bool& is_address) -> bool {
 
 /// Winsock has to be started before a name can be resolved. DPP starts it
 /// in the bot, but nothing does in the tests, and starting it again only
-/// counts once more.
+/// counts once more. Other systems need nothing started.
 auto start_winsock() -> void {
+#ifdef _WIN32
     static std::once_flag started;
     std::call_once(started, [] {
         WSADATA data{};
         WSAStartup(MAKEWORD(2, 2), &data);
     });
+#endif
 }
 
 } // namespace

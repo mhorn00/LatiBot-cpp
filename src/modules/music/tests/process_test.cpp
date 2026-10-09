@@ -15,9 +15,11 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -25,6 +27,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#else
+#include <fstream>
+#endif
 
 using latibot::util::command_line;
 using latibot::util::pipeline;
@@ -37,6 +42,32 @@ namespace {
 
 auto child(std::vector<std::string> arguments) -> program {
     return {.path = LATIBOT_TEST_CHILD, .arguments = std::move(arguments)};
+}
+
+/// Whether process `id`, which is not ours to wait for, ends within
+/// `timeout`.
+auto ends_within(std::uint64_t id, std::chrono::milliseconds timeout) -> bool {
+#ifdef _WIN32
+    HANDLE watched = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(id));
+    if (watched == nullptr) return true; // already gone
+    const bool ended = WaitForSingleObject(watched, static_cast<DWORD>(timeout.count())) == WAIT_OBJECT_0;
+    CloseHandle(watched);
+    return ended;
+#else
+    // Its parent is gone, so whatever adopted it reaps it; until then it is
+    // a zombie, which has ended too.
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    const std::filesystem::path stat = std::filesystem::path("/proc") / std::to_string(id) / "stat";
+    while (std::chrono::steady_clock::now() < deadline) {
+        std::ifstream file(stat);
+        std::string pid;
+        std::string name;
+        std::string state;
+        if (!(file >> pid >> name >> state) || state == "Z") return true;
+        std::this_thread::sleep_for(20ms);
+    }
+    return false;
+#endif
 }
 
 auto lines_of(const std::string& text) -> std::vector<std::string> {
@@ -129,7 +160,7 @@ TEST_CASE("a program runs in the folder it is given, or the bot's own", "[music]
 TEST_CASE("the bot's own folder is the test program's", "[music]") {
     const auto directory = latibot::util::executable_directory();
     REQUIRE(directory.has_value());
-    CHECK(std::filesystem::exists(*directory / "latibot_music_tests.exe"));
+    CHECK(std::filesystem::exists(*directory / latibot::util::executable_name("latibot_music_tests")));
 }
 
 TEST_CASE("a program that cannot be found is refused", "[music]") {
@@ -182,13 +213,11 @@ TEST_CASE("killing a pipeline ends its programs and what they started", "[music]
     while (chain.read(byte) == 1 && static_cast<char>(byte[0]) != '\n') {
         first += static_cast<char>(byte[0]);
     }
-    const auto grandchild = static_cast<DWORD>(std::stoul(first));
-    HANDLE watched = OpenProcess(SYNCHRONIZE, FALSE, grandchild);
-    REQUIRE(watched != nullptr);
+    const std::uint64_t grandchild = std::stoull(first);
+    REQUIRE_FALSE(ends_within(grandchild, 0ms));
 
     chain.kill();
-    CHECK(WaitForSingleObject(watched, 10000) == WAIT_OBJECT_0);
-    CloseHandle(watched);
+    CHECK(ends_within(grandchild, 10s));
 
     std::array<std::byte, 64> rest{};
     CHECK(chain.read(rest) == 0);

@@ -1,5 +1,7 @@
 # The dectalk module (README.md). DECtalk itself (cmake/dectalk.cmake) is only
 # built with it; only dectalk_engine.cpp includes its header.
+include(dectalk)
+
 latibot_module(dectalk
     REQUIRES voice
     SOURCES
@@ -32,3 +34,10 @@ latibot_module(dectalk
         tests/voice_store_test.cpp
         tests/wav_test.cpp
 )
+
+# Beside the bot in the folder a server needs (src/CMakeLists.txt).
+install(TARGETS dectalk RUNTIME DESTINATION . LIBRARY DESTINATION .)
+install(FILES "${DECTALK_DICTIONARY}" DESTINATION .)
+if(DECTALK_CONF)
+    install(FILES "${DECTALK_CONF}" DESTINATION .)
+endif()

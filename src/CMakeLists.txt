@@ -36,20 +36,26 @@ if(latibot_multi_config)
 else()
     set(LATIBOT_DEPLOY_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
+# Off Windows, the shell script that does the same.
+if(WIN32)
+    set(LATIBOT_DEPLOY_SCRIPT Install-Dependencies.ps1)
+else()
+    set(LATIBOT_DEPLOY_SCRIPT install-dependencies.sh)
+endif()
 set(LATIBOT_DEPLOY_SOURCES
-    "${PROJECT_SOURCE_DIR}/deploy/Install-Dependencies.ps1"
+    "${PROJECT_SOURCE_DIR}/deploy/${LATIBOT_DEPLOY_SCRIPT}"
     "${PROJECT_SOURCE_DIR}/deploy/Install-Dependencies.md"
 )
 add_custom_command(
-    OUTPUT "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.ps1" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
+    OUTPUT "${LATIBOT_DEPLOY_DIR}/${LATIBOT_DEPLOY_SCRIPT}" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${LATIBOT_DEPLOY_DIR}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LATIBOT_DEPLOY_SOURCES} "${LATIBOT_DEPLOY_DIR}"
     DEPENDS ${LATIBOT_DEPLOY_SOURCES}
-    COMMENT "Copying Install-Dependencies.ps1 beside LatiBot.exe"
+    COMMENT "Copying ${LATIBOT_DEPLOY_SCRIPT} beside the bot"
     VERBATIM
 )
 add_custom_target(latibot_deploy_files ALL
-    DEPENDS "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.ps1" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
+    DEPENDS "${LATIBOT_DEPLOY_DIR}/${LATIBOT_DEPLOY_SCRIPT}" "${LATIBOT_DEPLOY_DIR}/Install-Dependencies.md"
 )
 add_dependencies(LatiBot latibot_deploy_files)
 
@@ -59,6 +65,5 @@ add_dependencies(LatiBot latibot_deploy_files)
 # runs is never the one being rebuilt (docs/modules/Module_Plan_Final.md §9.1,
 # I5). README.md, "On another machine", says what else goes beside it.
 install(TARGETS LatiBot RUNTIME DESTINATION .)
-install(TARGETS dectalk RUNTIME DESTINATION .)
-install(FILES "${DECTALK_DICTIONARY}" DESTINATION .)
-install(FILES ${LATIBOT_DEPLOY_SOURCES} DESTINATION .)
+install(PROGRAMS "${PROJECT_SOURCE_DIR}/deploy/${LATIBOT_DEPLOY_SCRIPT}" DESTINATION .)
+install(FILES "${PROJECT_SOURCE_DIR}/deploy/Install-Dependencies.md" DESTINATION .)

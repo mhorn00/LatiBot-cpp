@@ -194,6 +194,31 @@ Install-Dependencies.ps1, Install-Dependencies.md   this
 | The log warns the PO token provider keeps stopping | Its own lines are in the log at debug level (`LATIBOT_LOG_LEVEL=debug`). A port in use stops it at once: change `pot_provider_port` |
 | `The old copy at ... could not be deleted` | An update left the previous provider behind under a `.old-` name; delete that folder |
 
+## On Linux
+
+The build puts `install-dependencies.sh` beside `LatiBot` instead, which does
+the same on Debian or Ubuntu, x86-64:
+
+```sh
+cd /path/to/LatiBot
+sudo ./install-dependencies.sh
+```
+
+- **From the system's packages**, with apt, which is why it needs root:
+  ffmpeg, tzdata (`/midnight`'s time zones), and curl, jq and unzip for the
+  script itself. `--skip-packages` leaves them alone and runs as any user,
+  once they are installed.
+- **Beside the bot**, as on Windows: yt-dlp (its standalone `yt-dlp_linux`
+  build, which needs no Python), Deno, and bgutil's PO token provider and
+  plugin, checked against GitHub's SHA-256 in the same way.
+  `--skip-pot-provider` leaves the provider out.
+- **No Firefox.** A server has no screen to sign in on, so the bot signs in
+  with a `cookies.txt` instead, named by `LATIBOT_YTDLP_COOKIES` (above).
+  The script says what to do once it is done.
+
+`--destination <folder>` and `--force` are as `-Destination` and `-Force`
+above; `--help` lists them. Run it again to update, with the bot stopped.
+
 ## Removing it
 
 Delete the files and folders listed above from the bot's folder. Firefox and
