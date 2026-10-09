@@ -235,6 +235,7 @@ struct pipeline::state {
     handle job;
     std::vector<handle> processes;
     handle output;
+    detail::readers_running readers;
     std::vector<std::jthread> error_readers;
 
     std::mutex mutex;
@@ -261,8 +262,11 @@ pipeline::pipeline(std::span<const program> programs, const error_line& on_error
             output.child.reset();
             errors.child.reset();
 
-            state_->error_readers.emplace_back(
-                [pipe = std::move(errors.parent), index, on_error] { drain_errors(pipe.get(), index, on_error); });
+            state_->readers.started();
+            state_->error_readers.emplace_back([pipe = std::move(errors.parent), index, on_error, &readers = state_->readers] {
+                drain_errors(pipe.get(), index, on_error);
+                readers.finished();
+            });
 
             // This program's output is the next one's input, which must be
             // inheritable for that one alone; the last is ours to read.
@@ -308,6 +312,7 @@ auto pipeline::wait() -> std::vector<int> {
         GetExitCodeProcess(process.get(), &code);
         codes.push_back(static_cast<int>(code));
     }
+    state_->readers.wait_for(detail::last_lines_wait);
     return codes;
 }
 

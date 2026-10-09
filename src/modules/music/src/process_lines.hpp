@@ -3,12 +3,50 @@
 #include "process.hpp"
 
 #include <array>
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
+#include <mutex>
 #include <span>
 #include <string>
 #include <string_view>
 
 namespace latibot::util::detail {
+
+/// The stderr readers still running, so `pipeline::wait` can let them hand
+/// over a program's last lines before it says the program has ended: a
+/// caller reads why it failed straight after.
+class readers_running {
+public:
+    auto started() -> void {
+        const std::scoped_lock lock(mutex_);
+        ++running_;
+    }
+
+    auto finished() -> void {
+        {
+            const std::scoped_lock lock(mutex_);
+            --running_;
+        }
+        done_.notify_all();
+    }
+
+    /// Waits for every one to finish, for at most `longest`: something a
+    /// program started can hold its stderr open after it has gone.
+    auto wait_for(std::chrono::milliseconds longest) -> void {
+        std::unique_lock lock(mutex_);
+        done_.wait_for(lock, longest, [this] { return running_ == 0; });
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable done_;
+    int running_ = 0;
+};
+
+/// How long `pipeline::wait` gives the stderr readers once the programs have
+/// ended.
+inline constexpr std::chrono::milliseconds last_lines_wait{2000};
 
 /// Reads a program's stderr until it ends, handing `on_error` a line at a
 /// time. `read_some` fills the buffer it is given and says how much it

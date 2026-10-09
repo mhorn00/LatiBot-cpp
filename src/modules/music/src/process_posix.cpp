@@ -217,6 +217,7 @@ struct pipeline::state {
     /// How each ended, once waited for; the leader's while it is a zombie.
     std::vector<std::optional<int>> codes;
     descriptor output;
+    detail::readers_running readers;
     std::vector<std::jthread> error_readers;
 
     std::mutex mutex;
@@ -253,8 +254,10 @@ pipeline::pipeline(std::span<const program> programs, const error_line& on_error
             output.write.reset();
             errors.write.reset();
 
-            state_->error_readers.emplace_back([pipe = std::move(errors.read), index, on_error] {
+            state_->readers.started();
+            state_->error_readers.emplace_back([pipe = std::move(errors.read), index, on_error, &readers = state_->readers] {
                 detail::drain_lines([&pipe](std::span<char> into) { return read_some(pipe.get(), into); }, index, on_error);
+                readers.finished();
             });
 
             // This program's output is the next one's input; the last is
@@ -298,6 +301,7 @@ auto pipeline::wait() -> std::vector<int> {
         if (!code) code = wait_for(state_->processes[index], index == 0);
         codes.push_back(*code);
     }
+    state_->readers.wait_for(detail::last_lines_wait);
     return codes;
 }
 

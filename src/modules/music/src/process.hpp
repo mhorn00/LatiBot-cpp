@@ -105,7 +105,9 @@ public:
     /// Ends every program in it. Safe from any thread, and more than once.
     auto kill() -> void;
 
-    /// Waits for every program to end, and says how each did, in order.
+    /// Waits for every program to end, and says how each did, in order. Each
+    /// one's stderr has been handed over by then, unless something it
+    /// started holds it open for more than two seconds.
     [[nodiscard]] auto wait() -> std::vector<int>;
 
 private:
