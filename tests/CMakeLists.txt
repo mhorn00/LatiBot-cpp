@@ -92,6 +92,7 @@ latibot_test_executable(latibot_core_tests PRIVATE_INCLUDES "${PROJECT_SOURCE_DI
     ${core_tests_dir}/panels_test.cpp
     ${core_tests_dir}/ports_test.cpp
     ${core_tests_dir}/preflight_test.cpp
+    ${core_tests_dir}/process_test.cpp
     ${core_tests_dir}/raw_api_test.cpp
     ${core_tests_dir}/registry_test.cpp
     ${core_tests_dir}/replies_test.cpp
@@ -100,6 +101,7 @@ latibot_test_executable(latibot_core_tests PRIVATE_INCLUDES "${PROJECT_SOURCE_DI
     ${core_tests_dir}/unregister_test.cpp
     ${core_tests_dir}/url_scan_test.cpp
     ${core_tests_dir}/version_test.cpp
+    ${core_tests_dir}/voice_message_test.cpp
 )
 
 # Each module's own, latibot_<name>_tests, which sees the module's private

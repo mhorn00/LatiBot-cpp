@@ -6,6 +6,7 @@
 #include "llm_config.hpp"
 #include "memory.hpp"
 #include "models.hpp"
+#include "personas.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
 
@@ -28,6 +29,7 @@ class guild_settings;
 } // namespace latibot::config
 
 namespace latibot::llm {
+struct advanced_trigger;
 class advanced_trigger_store;
 class alias_store;
 class blacklist_store;
@@ -68,6 +70,24 @@ struct llm_overview {
 
 [[nodiscard]] auto render_llm_status(const llm_overview& overview) -> std::string;
 
+/// A document as the commands show it: which one, and for a persona's,
+/// whose (src/modules/llm/docs/Language_Model.md §2.11).
+struct document_target {
+    llm::document_ref ref;
+
+    /// The persona's name, for one of a persona's documents.
+    std::string persona_name;
+
+    // Implicit, so that a kind on its own names the server's document.
+    // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
+    document_target(llm::document_kind kind) : ref(kind) {}
+    document_target(llm::document_ref document, std::string name) : ref(document), persona_name(std::move(name)) {}
+};
+
+/// What a document is called in replies: "the personality", "Claude's
+/// system instructions".
+[[nodiscard]] auto document_label(const document_target& target) -> std::string;
+
 /// A document cut into the parts a form holds: at most five of 4000
 /// characters each, split between lines where possible. Nothing when it
 /// will not fit, which is when an attachment is the way to edit it.
@@ -79,19 +99,27 @@ struct llm_overview {
 
 /// The form that edits a document, pre-filled. Nothing when it is too long
 /// for one.
-[[nodiscard]] auto document_form(llm::document_kind kind, std::string_view current) -> std::optional<dpp::interaction_modal_response>;
+[[nodiscard]] auto document_form(const document_target& target, std::string_view current) -> std::optional<dpp::interaction_modal_response>;
 
 /// What a document says, for `view`: in a code block when it fits in a
 /// message, and as a file when it does not.
-[[nodiscard]] auto render_document(llm::document_kind kind, const llm::document_version& shown, bool is_default) -> dpp::message;
+[[nodiscard]] auto render_document(const document_target& target, const llm::document_version& shown, bool is_default) -> dpp::message;
 
 /// The versions, newest first, for `history`.
-[[nodiscard]] auto render_history(llm::document_kind kind, std::span<const llm::document_version> versions) -> std::string;
+[[nodiscard]] auto render_history(const document_target& target, std::span<const llm::document_version> versions) -> std::string;
 
 /// "saved as version 3 (about 250 tokens)", with a warning when a document
 /// has grown expensive to send with every message
 /// (src/modules/llm/docs/Language_Model.md §3.5).
-[[nodiscard]] auto describe_saved(llm::document_kind kind, int version, std::string_view content) -> std::string;
+[[nodiscard]] auto describe_saved(const document_target& target, int version, std::string_view content) -> std::string;
+
+/// `/llm persona list`: every persona here, on or off.
+[[nodiscard]] auto render_personas(std::span<const llm::persona> personas) -> std::string;
+
+/// `/llm persona view`: one persona, its triggers, and what it spent this
+/// month.
+[[nodiscard]] auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
+                                  double spent_this_month) -> std::string;
 
 /// The settings panel (src/modules/llm/docs/Language_Model.md §2.9): every value, a
 /// menu that opens a group's form, and the switches for the model and for
@@ -137,6 +165,7 @@ struct llm_command_services {
     llm::document_store* documents = nullptr;
     llm::advanced_trigger_store* triggers = nullptr;
     llm::blacklist_store* blacklist = nullptr;
+    llm::persona_store* personas = nullptr;
     llm::memory_store* memories = nullptr;
     /// To show the people a memory names as mentions, not aliases.
     const llm::alias_store* aliases = nullptr;
@@ -166,6 +195,9 @@ public:
     [[nodiscard]] auto build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand override;
     auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
 
+    /// Completes the persona options from this server's personas.
+    auto autocomplete(const dpp::autocomplete_t& event) const -> void override;
+
 private:
     /// The subcommands that need Manage Server, once that is checked.
     auto manage(const dpp::slashcommand_t& event, std::string_view path, std::string_view group, std::string_view action)
@@ -174,17 +206,27 @@ private:
     auto switch_to(const dpp::slashcommand_t& event, bool on) -> dpp::task<void>;
     auto switch_conversation(const dpp::slashcommand_t& event, bool on) -> dpp::task<void>;
     auto model(const dpp::slashcommand_t& event) -> dpp::task<void>;
-    auto document(const dpp::slashcommand_t& event, llm::document_kind kind, std::string_view action) -> dpp::task<void>;
-    auto edit_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void>;
-    auto diff_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void>;
-    auto revert_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void>;
-    auto edit_from_file(const dpp::slashcommand_t& event, llm::document_kind kind, dpp::snowflake attachment) -> dpp::task<void>;
+    auto document(const dpp::slashcommand_t& event, const document_target& target, std::string_view action) -> dpp::task<void>;
+    auto edit_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void>;
+    auto diff_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void>;
+    auto revert_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void>;
+    auto edit_from_file(const dpp::slashcommand_t& event, const document_target& target, dpp::snowflake attachment) -> dpp::task<void>;
     auto editors(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto trigger(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
     auto blacklist(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
 
+    /// `/llm persona …` (src/modules/llm/docs/Language_Model.md §2.11).
+    /// `list`, `view` and reading a personality are open to everyone, and
+    /// the rest needs Manage Server, as for LatiBot's own.
+    auto persona(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
+    auto add_persona(const dpp::slashcommand_t& event) -> dpp::task<void>;
+    auto edit_persona(const dpp::slashcommand_t& event, llm::persona who) -> dpp::task<void>;
+
+    /// The persona an option names, by name, in this server.
+    [[nodiscard]] auto named_persona(const dpp::slashcommand_t& event, const char* option) const -> std::optional<llm::persona>;
+
     /// Whether the invoker may change the document, answering them if not.
-    [[nodiscard]] auto may_change(const dpp::slashcommand_t& event, llm::document_kind kind) const -> bool;
+    [[nodiscard]] auto may_change(const dpp::slashcommand_t& event, const document_target& target) const -> bool;
 
     command_info info_;
     llm_command_services services_;

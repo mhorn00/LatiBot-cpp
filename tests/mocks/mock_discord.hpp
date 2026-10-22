@@ -3,6 +3,7 @@
 #include "core/ports/discord_gateway.hpp"
 
 #include <deque>
+#include <format>
 #include <map>
 #include <optional>
 #include <string>
@@ -170,6 +171,73 @@ public:
             co_return scripted;
         }
         co_return ports::result<void>{};
+    }
+
+    /// Each channel's webhooks, as `channel_webhooks` lists them and
+    /// `create_webhook` adds to them; a channel in `webhook_errors` fails
+    /// both with that error.
+    std::map<dpp::snowflake, std::vector<ports::webhook>> webhooks;
+    std::map<dpp::snowflake, ports::api_error> webhook_errors;
+    std::vector<std::pair<dpp::snowflake, std::string>> webhooks_created;
+
+    /// Every message posted through a webhook, in order, with whom it was
+    /// posted as.
+    struct webhook_post {
+        ports::webhook hook;
+        dpp::message message;
+        std::string username;
+        std::string avatar_url;
+        dpp::snowflake thread;
+    };
+    std::vector<webhook_post> webhook_posts;
+    std::deque<ports::result<dpp::message>> webhook_results;
+
+    /// The user the mock's webhooks are made by: the bot, as a test sets it.
+    dpp::snowflake webhook_creator{1};
+
+    auto channel_webhooks(dpp::snowflake channel_id) -> dpp::task<ports::result<std::vector<ports::webhook>>> override {
+        if (const auto failing = webhook_errors.find(channel_id); failing != webhook_errors.end())
+            co_return std::unexpected(failing->second);
+        const auto found = webhooks.find(channel_id);
+        co_return found == webhooks.end() ? std::vector<ports::webhook>{} : found->second;
+    }
+
+    auto create_webhook(dpp::snowflake channel_id, std::string name) -> dpp::task<ports::result<ports::webhook>> override {
+        webhooks_created.emplace_back(channel_id, name);
+        if (const auto failing = webhook_errors.find(channel_id); failing != webhook_errors.end())
+            co_return std::unexpected(failing->second);
+        const ports::webhook made{.id = next_id(),
+                                  .channel_id = channel_id,
+                                  .name = std::move(name),
+                                  .token = std::format("token-{}", last_id_),
+                                  .created_by = webhook_creator};
+        webhooks[channel_id].push_back(made);
+        co_return made;
+    }
+
+    auto execute_webhook(const ports::webhook& hook, dpp::message message, std::string username, std::string avatar_url,
+                         dpp::snowflake thread) -> dpp::task<ports::result<dpp::message>> override {
+        webhook_posts.push_back(
+            {.hook = hook, .message = message, .username = username, .avatar_url = std::move(avatar_url), .thread = thread});
+        if (!webhook_results.empty()) {
+            auto scripted = std::move(webhook_results.front());
+            webhook_results.pop_front();
+            co_return scripted;
+        }
+        message.id = next_id();
+        message.webhook_id = hook.id;
+        message.author.id = hook.id;
+        message.author.username = std::move(username);
+        co_return message;
+    }
+
+    /// Threads and the channel each belongs to.
+    std::map<dpp::snowflake, dpp::snowflake> thread_parents;
+
+    [[nodiscard]] auto thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> override {
+        const auto found = thread_parents.find(channel_id);
+        if (found == thread_parents.end()) return std::nullopt;
+        return found->second;
     }
 
     /// What the cache knows: members by (guild, user), roles and channels.

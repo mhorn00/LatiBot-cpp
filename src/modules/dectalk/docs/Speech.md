@@ -270,10 +270,20 @@ synthesizes, wraps the audio in a 44-byte WAV header, and computes:
 - a waveform: the peak absolute sample in each of 256 buckets, normalised to
   0–255 and base64-encoded.
 
-It then answers the interaction through `post_rest_multipart`, with a
-hand-built `payload_json` carrying `flags: 8192` and the attachment's
-`duration_secs` and `waveform`. It answers directly rather than deferring,
-so the voice message is the reply itself, and no temporary file is written.
+It then answers the interaction with a hand-built `payload_json` carrying
+`flags: 8192` and the attachment's `duration_secs` and `waveform`. It
+answers directly rather than deferring, so the voice message is the reply
+itself, and no temporary file is written.
+
+The form is built by hand too, and posted to the interaction's callback
+through the `http_client` port. DPP's `post_rest_multipart` names a lone
+file's part `file`, while attachment 0 in `payload_json` means the part
+`files[0]`, so Discord refused it: `400: Invalid Form Body`, found the first
+time `/soundboard` ran. The callback needs the interaction's token, not the
+bot's. The payload, the form, the waveform and the call are the core's
+(`core/discord/voice_message.hpp`), which `/soundboard` sends its voice
+messages through too
+([Soundboard.md §3](../../soundboard/docs/Soundboard.md#3-making-the-voice-message)).
 
 The Java waveform summed the **raw signed bytes of the file**, header
 included, into an average. Sixteen-bit samples are roughly symmetric around

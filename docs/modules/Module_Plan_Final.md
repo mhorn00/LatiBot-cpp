@@ -126,13 +126,14 @@ otherwise.
 | **core** | `/ping` `/say` `/status` `/shutdown` `/goodbye` `/bots` `/logs`; the pipeline and the goodbye phrase; panel routing; permission warnings; the log channel; backups; the module host | — | — |
 | **voice** | `/join` `/leave` `/voice start`, `stop`, `grace`; the mixer; voice sessions; auto-leave. It has no switch of its own: it is built when dectalk or music is. | core | — |
 | **dectalk** | `/speak` `/tts` `/chat`; `/tts voices lab`, `list`, `delete`; DECtalk itself, which is only built with this module | voice | — |
-| **music** | `/music`; yt-dlp, ffmpeg, cookies, the PO token provider; `util/process` | voice | — |
+| **music** | `/music`; yt-dlp, ffmpeg, cookies, the PO token provider | voice | — |
 | **llm** | `/llm` `/memory`; answering, advanced triggers, memory, aliases, spend | core | speech |
 | **triggers** | `/trigger`; trigger replies | core | — |
 | **nicknames** | `/nickname` `/nicknames`; history, audit attribution, the Java import, the Server Members intent | core | — |
 | **midnight** | `/midnight`; the daily message | core | — |
 | **links** | `/links` (was `/urlrepl`) and `/urltoggle`; replacing links, watching previews, Retry, the Java rules import | core | — |
 | **linkstats** | `/linkstats`; reaction counts, image posts, emote messages, the recompute, emoji copies | links | — |
+| **soundboard** (added 2026-10-21) | `/soundboard`; soundboard sounds as voice messages, through ffmpeg | core | — |
 
 ### 3.2 Why the core holds what it holds
 
@@ -757,7 +758,7 @@ Settled across v1 and v2:
 | D24 | The build system before the modules |
 | D28 | The schema comparison test while the old migrations live; afterwards, old databases are refused |
 | D29 | Key tables for config and per-server settings |
-| D30 | `util/process` moves to music |
+| D30 | `util/process` moves to music. It came back to the core on 2026-10-21, when the soundboard module needed ffmpeg too. |
 | D31 | `std::expected` for `ports::result`; `std::move_only_function` for `background_task` |
 
 ---
@@ -788,7 +789,7 @@ Paths are under `src/core/` today:
 
 | Files | |
 |---|---|
-| `util/*` (ca_certificates, env, log, text, url_scan), new `util/match` | pub |
+| `util/*` (ca_certificates, env, log, text, url_scan), new `util/match`; `util/process`, since 2026-10-21 (D30) | pub |
 | `db/database`, `db/statement`, `db/error`, `db/migrations` | pub (the runner, `schema_versions`, adoption, 1–15 marked for deletion) |
 | `db/backup` | priv |
 | `config/guild_settings`, `config/bootstrap` (core keys), new `config/section` | pub |

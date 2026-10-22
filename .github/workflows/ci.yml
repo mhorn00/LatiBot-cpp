@@ -50,6 +50,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       # Cheap and independent of the build. It uses Visual Studio's
       # clang-format, as the local task does; if the image's version ever
@@ -58,8 +60,13 @@ jobs:
         if: matrix.test_preset == 'debug'
         run: pwsh -NoProfile -File tools/Invoke-ClangFormat.ps1 -Check
 
+      # Into .venv, at the version requirements.txt pins, as
+      # tools/DevEnvSetup.ps1 does locally; on PATH for the steps after.
       - name: Install Conan
-        run: pip install "conan>=2.0"
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --disable-pip-version-check -r requirements.txt
+          "$PWD\.venv\Scripts" >> $env:GITHUB_PATH
 
       # Detection follows whatever the image ships. Its result is printed
       # because the toolset it picks decides whether ConanCenter has prebuilt
@@ -161,6 +168,8 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install the build tools
         run: |
@@ -168,7 +177,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends gcc-14 g++-14 ninja-build
 
       - name: Install Conan
-        run: pip install "conan>=2.0"
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Detect Conan profile
         run: |

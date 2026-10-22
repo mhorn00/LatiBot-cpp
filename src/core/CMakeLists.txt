@@ -3,6 +3,15 @@
 # module sees; its private ones in src/, which only it, the executable and its
 # tests see. A public header is included as "core/<area>/<file>.hpp", a private
 # one as "<area>/<file>.hpp".
+#
+# Starting other programs is the one part written for each system
+# (src/util/process.cpp).
+if(WIN32)
+    set(core_platform_sources src/util/process_windows.cpp)
+else()
+    set(core_platform_sources src/util/process_posix.cpp)
+endif()
+
 add_library(latibot_core STATIC
     src/bot.cpp
     src/commands/basic.cpp
@@ -29,6 +38,7 @@ add_library(latibot_core STATIC
     src/discord/dpp_log.cpp
     src/discord/message_flags.cpp
     src/discord/raw_api.cpp
+    src/discord/voice_message.cpp
     src/discord/unregister_commands.cpp
     src/events/bot_allowlist.cpp
     src/events/goodbye.cpp
@@ -46,6 +56,8 @@ add_library(latibot_core STATIC
     src/util/env.cpp
     src/util/log.cpp
     src/util/match.cpp
+    src/util/process.cpp
+    ${core_platform_sources}
     src/util/text.cpp
     src/util/url_scan.cpp
     src/version.cpp

@@ -1,0 +1,9 @@
+# The same as tests/.clang-tidy, which explains each line: a module's tests
+# are under src/, so they need their own copy.
+
+InheritParentConfig: true
+Checks: >
+  -bugprone-unchecked-optional-access,
+  -readability-function-cognitive-complexity
+ExtraArgs:
+  - -Wno-missing-designated-field-initializers

@@ -23,6 +23,21 @@ struct member_names {
     std::string username;
 };
 
+/// A channel's webhook, which posts under any name and avatar it is given
+/// (src/modules/llm/docs/Language_Model.md §3.9).
+struct webhook {
+    dpp::snowflake id;
+    dpp::snowflake channel_id;
+    std::string name;
+
+    /// What lets it post. Discord gives it only to whoever may manage the
+    /// channel's webhooks; empty otherwise.
+    std::string token;
+
+    /// The user who made it: the bot, for the bot's own.
+    dpp::snowflake created_by;
+};
+
 /// The Discord calls our features make.
 ///
 /// Deliberately small: it covers what features need today and grows as they
@@ -72,6 +87,20 @@ public:
 
     virtual auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<result<void>> = 0;
 
+    /// A channel's webhooks. Needs Manage Webhooks.
+    virtual auto channel_webhooks(dpp::snowflake channel_id) -> dpp::task<result<std::vector<webhook>>> = 0;
+
+    /// Makes a webhook in a channel, which a thread cannot have: its parent
+    /// channel's serves it. Needs Manage Webhooks.
+    virtual auto create_webhook(dpp::snowflake channel_id, std::string name) -> dpp::task<result<webhook>> = 0;
+
+    /// Posts `message` through `hook`, shown as `username` with the image at
+    /// `avatar_url`, or the webhook's own when that is empty. `thread` is the
+    /// thread to post in, 0 for the webhook's channel. Gives back the posted
+    /// message. A webhook message cannot be a reply.
+    virtual auto execute_webhook(const webhook& hook, dpp::message message, std::string username, std::string avatar_url,
+                                 dpp::snowflake thread) -> dpp::task<result<dpp::message>> = 0;
+
     /// What the bot's cache says a member is called, without asking
     /// Discord. Nothing when the cache has not seen them.
     [[nodiscard]] virtual auto member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const
@@ -82,6 +111,10 @@ public:
 
     /// A channel's name, from the cache. Nothing when it is not there.
     [[nodiscard]] virtual auto channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> = 0;
+
+    /// The channel a thread belongs to, from the cache. Nothing for a
+    /// channel that is not a thread, or that the cache does not know.
+    [[nodiscard]] virtual auto thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> = 0;
 };
 
 } // namespace latibot::ports

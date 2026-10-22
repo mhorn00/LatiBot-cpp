@@ -4,15 +4,18 @@
 #include "core/db/statement.hpp"
 
 #include <format>
+#include <optional>
 
 namespace latibot::llm {
 
-auto usage_store::record(dpp::snowflake guild_id, const model_info& model, const usage& used, std::chrono::sys_seconds at) -> double {
+auto usage_store::record(dpp::snowflake guild_id, const model_info& model, const usage& used, std::chrono::sys_seconds at,
+                         std::int64_t persona_id) -> double {
     const double cost = cost_usd(model, used);
     db_->prepare(
-           "INSERT INTO llm_usage (guild_id, model, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, cost_usd, at) "
-           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-           guild_id, model.id, used.input_tokens, used.output_tokens, used.cache_write_tokens, used.cache_read_tokens, cost, at)
+           "INSERT INTO llm_usage (guild_id, model, input_tokens, output_tokens, cache_write_tokens, cache_read_tokens, cost_usd, at, "
+           "persona_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           guild_id, model.id, used.input_tokens, used.output_tokens, used.cache_write_tokens, used.cache_read_tokens, cost, at,
+           persona_id == 0 ? std::optional<std::int64_t>{} : std::optional<std::int64_t>(persona_id))
         .run();
     return cost;
 }
@@ -25,6 +28,12 @@ auto usage_store::spent_between(std::chrono::sys_seconds from, std::chrono::sys_
 auto usage_store::spent_between(dpp::snowflake guild_id, std::chrono::sys_seconds from, std::chrono::sys_seconds to) const -> double {
     auto query =
         db_->prepare("SELECT COALESCE(SUM(cost_usd), 0) FROM llm_usage WHERE guild_id = ? AND at >= ? AND at < ?", guild_id, from, to);
+    return query.step() ? query.get<double>(0) : 0.0;
+}
+
+auto usage_store::spent_by_persona(std::int64_t persona_id, std::chrono::sys_seconds from, std::chrono::sys_seconds to) const -> double {
+    auto query =
+        db_->prepare("SELECT COALESCE(SUM(cost_usd), 0) FROM llm_usage WHERE persona_id = ? AND at >= ? AND at < ?", persona_id, from, to);
     return query.step() ? query.get<double>(0) : 0.0;
 }
 

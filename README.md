@@ -23,11 +23,11 @@ powershell -ExecutionPolicy Bypass -File tools\DevEnvSetup.ps1
 [tools/DevEnvSetup.ps1](tools/DevEnvSetup.ps1) does steps 1 to 5 below, up
 to configuring (building too with `-Build`), and checks each thing before
 doing it, so anything already there is left alone.
-It installs CMake, PowerShell 7 and Conan with winget, and installs the
+It installs CMake, PowerShell 7 and Python with winget, and installs the
 Visual Studio 2026 Build Tools, or adds whatever components an existing
-install lacks. It checks out the submodules and creates a Conan profile if
-there is none. A profile naming a compiler that is not installed is pointed
-at VS 2026. Finally it installs the dependencies for Debug, Release and
+install lacks. It checks out the submodules, makes `.venv` and installs
+Conan into it with pip, and creates a Conan profile if there is none. A
+profile naming a compiler that is not installed is pointed at VS 2026. Finally it installs the dependencies for Debug, Release and
 clang-tidy, configures `build\`, and copies `.env.example` to `.env`.
 
 - **Timing and prompts.** On a fresh machine the Build Tools download is
@@ -56,7 +56,8 @@ The steps below are what it does, for reference or to do by hand.
 | MSVC Build Tools | VS 2026 (v145 toolset, MSVC 14.51) | C++ compiler, installed via winget below. Matches what GitHub's `windows-latest` runner ships, so CI and local builds use the same compiler. VS 2022 also works: no preset pins a Visual Studio version |
 | [Git](https://git-scm.com/) | any recent | needed for the submodules (and by DPP's CMake) |
 | [CMake](https://cmake.org/) | >= 3.21 | required for the `TARGET_RUNTIME_DLLS` generator expression |
-| [Conan](https://conan.io/) | 2.x | dependency manager |
+| [Python](https://www.python.org/) | 3.8 or newer | makes `.venv`, the repo's own Python environment, which Conan is installed into (step 3) |
+| [Conan](https://conan.io/) | 2.x, pinned in `requirements.txt` | dependency manager, installed into `.venv` in step 3 rather than system-wide |
 | [PowerShell](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows) | 7.x (`pwsh`) | runs the scripts in `tools/` and VS Code's tasks. Windows' built-in PowerShell 5.1 is not enough: the scripts use .NET APIs it does not have |
 
 If any are missing:
@@ -65,7 +66,7 @@ If any are missing:
 winget install Git.Git
 winget install Kitware.CMake
 winget install Microsoft.PowerShell
-winget install --id Conan.Conan   # or, with Python installed: pip install conan
+winget install Python.Python.3.13
 ```
 
 Open a new terminal afterwards, so the tools are on `PATH`.
@@ -116,9 +117,26 @@ This should print the BuildTools install path. If you add components later,
 run the installer **elevated**: `--passive` and `--quiet` refuse to prompt for
 elevation and exit with code 5007 instead.
 
-## 3. Set up the Conan profile
+## 3. Install Conan and set up its profile
 
-Once per machine, if you have never used Conan on it:
+Conan is a Python program. It is installed into `.venv`, a Python
+environment of the repo's own, at the version `requirements.txt` pins, so
+every machine and CI build with the same one:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\Activate.ps1
+```
+
+Activating puts `.venv\Scripts` first on `PATH` in that terminal, so the
+`conan` in the commands below is this one. Do it in each new terminal you
+run Conan from, or call `.venv\Scripts\conan` by its path. The scripts in
+`tools\` and the VS Code tasks use it by its path, and need no activating.
+To move to a newer Conan, change the pin and run the `pip install` line
+again. `.venv` is git-ignored; delete it to start over.
+
+Then, once per machine, if you have never used Conan on it:
 
 ```powershell
 conan profile detect
@@ -198,7 +216,7 @@ Every test should pass.
 
 Each feature module can be left out of the build, with
 `-DLATIBOT_WITH_<NAME>=OFF` when configuring: `DECTALK`, `MUSIC`, `LLM`,
-`TRIGGERS`, `NICKNAMES`, `MIDNIGHT`, `LINKS` and `LINKSTATS`. A module left
+`TRIGGERS`, `NICKNAMES`, `MIDNIGHT`, `LINKS`, `LINKSTATS` and `SOUNDBOARD`. A module left
 out takes its commands, tables and config section with it, and the modules
 that require it: no links, no linkstats. Voice has no switch: it is built
 when dectalk or music is. A database keeps a left-out module's tables, so
@@ -232,11 +250,11 @@ Linux; CI builds and tests both. On Debian 13, or Ubuntu 24.04 with `gcc-14`:
 
 ```sh
 sudo apt install build-essential cmake ninja-build git python3-venv
-python3 -m venv ~/conan && ~/conan/bin/pip install "conan>=2.0"   # or pipx install conan
-export PATH="$HOME/conan/bin:$PATH"
 
 git clone --recursive https://github.com/mhorn00/LatiBot-cpp.git
 cd LatiBot-cpp
+python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
+source .venv/bin/activate             # conan on PATH, in this shell
 conan profile detect                  # should say compiler=gcc, compiler.version=14
 conan export conan/dpp
 conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
@@ -428,6 +446,7 @@ put your own user ID in `trusted_users`:
 | `music.deno_path` | text | empty | where `deno.exe` is, which yt-dlp needs for YouTube; likewise |
 | `music.pot_provider_path` | text | empty | bgutil's PO token provider's `server` folder, which the bot runs ([Music.md §4.10](src/modules/music/docs/Music.md#410-po-tokens)); empty looks for `bgutil-ytdlp-pot-provider\server` beside the bot |
 | `music.pot_provider_port` | number | `4416` | the port the provider listens on, on this machine only; 1 to 65535 |
+| `soundboard.ffmpeg_path` | text | empty | where `ffmpeg.exe` is, for [`/soundboard`](src/modules/soundboard/docs/Soundboard.md); empty looks beside the bot, then on `PATH` |
 
 IDs are written as strings, `["123456789012345678"]`, because a JSON number
 cannot hold a Discord ID exactly; a number, or text that is not exactly an ID,
@@ -545,6 +564,7 @@ it is built, and what was decided and why.
 | Command | What it does |
 |---|---|
 | `/ping` | round trip and gateway latency |
+| `/version` | which version of the bot is running |
 | `/say` | post as the bot, optionally as a reply |
 | `/status` | set the bot's presence |
 | `/join`, `/leave` | voice channel, following you or a named user |
@@ -552,6 +572,7 @@ it is built, and what was decided and why.
 | `/tts` | `stop`, `skip`, `limits` — speech, and how long it may run |
 | `/voice` | `start`, `stop`, `grace`, `lab`, `list`, `delete` — voice sessions and custom voices |
 | `/chat` | say something as a voice message |
+| `/soundboard` | send a soundboard sound as a voice message |
 | `/music`, `/m` | play music from a link, with a queue; speech pauses it |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |
@@ -564,7 +585,7 @@ it is built, and what was decided and why.
 | `/links` | `enable`, `disable`, `list`, `set`, `remove`, `test`, `panel` — which links get a working preview |
 | `/urltoggle` | have your own links left alone, or not |
 | `/linkstats` | `top`, `user`, `reactions`, `duplicates`, `alias`, `recompute`, `images` — reactions on replaced links, and on images where counted |
-| `/llm` | `status`, `on`, `off`, `model`, `settings`, and groups for the `personality`, `system` and `style` documents, advanced `trigger`s and the `blacklist` — the language model |
+| `/llm` | `status`, `on`, `off`, `model`, `settings`, and groups for the `personality`, `system` and `style` documents, advanced `trigger`s, the `blacklist` and `persona`s — the language model |
 | `/memory` | `list`, `forget`, `clear` — what the language model remembers |
 
 Without being asked: an administrator saying the goodbye phrase stops the bot,

@@ -7,6 +7,7 @@
 #include "guards.hpp"
 #include "llm_config.hpp"
 #include "models.hpp"
+#include "personas.hpp"
 #include "responder.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
@@ -14,7 +15,9 @@
 #include <chrono>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string_view>
+#include <vector>
 
 namespace latibot::config {
 class guild_settings;
@@ -49,6 +52,12 @@ using stage_result = events::own_stage_result<ask_llm>;
 /// such as a reply to a link replacement.
 [[nodiscard]] auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts = true) -> bool;
 
+/// The persona a message starts with the name of, as LatiBot is addressed
+/// by its name: the longest name that fits, so "Claude Opus, hi" is for
+/// Claude Opus rather than Claude. Null when it names none of them
+/// (src/modules/llm/docs/Language_Model.md §2.11).
+[[nodiscard]] auto addressed_persona(std::string_view content, std::span<const persona> personas) -> const persona*;
+
 /// What the bot says, once per guild per day or month, when a spend cap
 /// stops it answering (src/modules/llm/docs/Language_Model.md §2.2).
 [[nodiscard]] auto spend_cap_reply(const spend_status& status) -> std::string;
@@ -60,6 +69,10 @@ struct stage_services {
     const blacklist_store* blacklist = nullptr;
     const advanced_trigger_store* triggers = nullptr;
     const usage_store* usage = nullptr;
+
+    /// The guild's personas, and which of the messages they posted. Null
+    /// leaves them out (src/modules/llm/docs/Language_Model.md §2.11).
+    const persona_store* personas = nullptr;
     /// Whether a channel's replies are spoken, when DECtalk is built in;
     /// null otherwise, and then none is.
     const capabilities::speech* speech = nullptr;
@@ -113,9 +126,16 @@ private:
     };
 
     /// How a message nobody addressed reaches the model, if at all: an
-    /// advanced trigger, which it sets `fired` to, or conversation mode.
+    /// advanced trigger, which it sets `fired` to, or conversation mode. A
+    /// trigger that belongs to a persona fires only while the persona is
+    /// one of `personas`, the enabled ones.
     [[nodiscard]] auto unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
-                                   std::optional<advanced_trigger>& fired) -> std::optional<route>;
+                                   std::span<const persona> personas, std::optional<advanced_trigger>& fired) -> std::optional<route>;
+
+    /// The enabled persona a person's message is for: it starts with the
+    /// persona's name, or replies to one of its messages. A bot's message is
+    /// for none of them.
+    [[nodiscard]] auto spoken_to(const events::incoming_message& message, std::span<const persona> personas) const -> const persona*;
 
     /// Whether conversation mode takes up a message nobody addressed: it
     /// names the bot, or a conversation is open and nothing says the message

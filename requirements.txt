@@ -1,0 +1,3 @@
+# Installed into .venv (tools/DevEnvSetup.ps1, README.md step 3), and by CI,
+# so every machine builds with the same Conan.
+conan==2.33.0

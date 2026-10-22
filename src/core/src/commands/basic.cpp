@@ -5,6 +5,7 @@
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
+#include "core/version.hpp"
 #include "events/goodbye.hpp"
 
 #include <dpp/cache.h>
@@ -57,6 +58,11 @@ auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::act
     return {type, text, "", ""};
 }
 
+auto describe_version(std::string_view version, bool debug) -> std::string {
+    if (debug) return std::format("LatiBot {} (Debug build)", version);
+    return std::format("LatiBot {}", version);
+}
+
 namespace {
 
 constexpr std::string_view status_text_key = "status_text";
@@ -107,6 +113,24 @@ auto ping_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> 
 
     co_await event.co_edit_original_response(
         result(event, std::format("Pong! ({} ms round trip, {} ms gateway)", round_trip.count(), gateway)));
+}
+
+// --------------------------------------------------------------------------
+// /version
+// --------------------------------------------------------------------------
+
+version_command::version_command()
+    : info_{.name = "version",
+            .description = "Which version of the bot is running.",
+            .aliases = {},
+            .required_bot_permissions = 0,
+            .default_member_permissions = std::nullopt,
+            .guild_only = false,
+            .responses = {.result = dpp::m_ephemeral, .refusal = dpp::m_ephemeral, .post = 0},
+            .subcommand_responses = {}} {}
+
+auto version_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    co_await event.co_reply(result(event, describe_version(version_string(), debug_build)));
 }
 
 // --------------------------------------------------------------------------
@@ -301,6 +325,7 @@ auto goodbye_command::execute(const dpp::slashcommand_t& event) -> dpp::task<voi
 auto add_basic_commands(registry& into, dpp::cluster& cluster, ports::clock& clock, config::guild_settings& settings,
                         std::function<void()> request_shutdown) -> void {
     into.add(std::make_unique<ping_command>(clock));
+    into.add(std::make_unique<version_command>());
     into.add(std::make_unique<say_command>(cluster));
     into.add(std::make_unique<status_command>(cluster, settings));
     into.add(std::make_unique<shutdown_command>(std::move(request_shutdown)));

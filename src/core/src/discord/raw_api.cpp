@@ -4,7 +4,10 @@
 #include <dpp/discordclient.h>
 #include <dpp/json.h>
 
+#include <format>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace latibot::discord {
 namespace {
@@ -39,15 +42,46 @@ auto to_result(const rest_reply& reply) -> ports::result<nlohmann::json> {
     if (http.status >= 400) {
         // Discord explains itself in the body; a bare status is rarely enough
         // to tell what went wrong with a hand-built request.
-        std::string message = "Discord returned " + std::to_string(http.status);
-        if (body.contains("message") && body["message"].is_string()) message += ": " + body["message"].get<std::string>();
-        return std::unexpected(ports::api_error{.http_status = http.status, .message = message});
+        return std::unexpected(ports::api_error{.http_status = http.status, .message = describe_refusal(http.status, body)});
     }
 
     return body;
 }
 
+/// Each field `errors` names, as `path: message`, depth first. Discord
+/// nests them by field, and each field's own are in `_errors`. Recursive,
+/// as deep as Discord's nesting, which is a handful of levels.
+// NOLINTNEXTLINE(misc-no-recursion)
+auto field_errors(const nlohmann::json& errors, const std::string& path, std::vector<std::string>& found) -> void {
+    if (!errors.is_object()) return;
+    for (const auto& [key, value] : errors.items()) {
+        if (key == "_errors" && value.is_array()) {
+            for (const nlohmann::json& each : value) {
+                if (each.is_object() && each.contains("message") && each["message"].is_string()) {
+                    found.push_back(std::format("{}: {}", path.empty() ? std::string("(body)") : path, each["message"].get<std::string>()));
+                }
+            }
+            continue;
+        }
+        field_errors(value, path.empty() ? key : std::format("{}.{}", path, key), found);
+    }
+}
+
 } // namespace
+
+auto describe_refusal(int status, const nlohmann::json& body) -> std::string {
+    std::string message = "Discord returned " + std::to_string(status);
+    if (!body.is_object()) return message;
+    if (body.contains("message") && body["message"].is_string()) message += ": " + body["message"].get<std::string>();
+    if (const auto errors = body.find("errors"); errors != body.end()) {
+        std::vector<std::string> found;
+        field_errors(*errors, {}, found);
+        for (const std::string& each : found) {
+            message += "; " + each;
+        }
+    }
+    return message;
+}
 
 auto build_endpoint(std::string_view path) -> std::string {
     std::string endpoint(path);

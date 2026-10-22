@@ -7,16 +7,18 @@
     Does what the README's setup steps describe, in order, checking each thing
     before doing it:
 
-      1. Git, CMake, PowerShell 7 and Conan, installed with winget if missing.
+      1. Git, CMake, PowerShell 7 and Python, installed with winget if missing.
       2. The Visual Studio 2026 C++ Build Tools with every component this repo
          uses, installed if missing, or modified to add what an existing
          install lacks.
       3. The git submodules (DPP and DECtalk).
-      4. A Conan profile, detected if there is none, and pointed at an
+      4. Conan, at the version requirements.txt pins, installed with pip into
+         .venv, which is made first if it is not there.
+      5. A Conan profile, detected if there is none, and pointed at an
          installed compiler if it names one that is not installed.
-      5. DPP's recipe, then the dependencies for Debug and Release, into
+      6. DPP's recipe, then the dependencies for Debug and Release, into
          build\conan.
-      6. `cmake --preset default`, and a `.env` copied from `.env.example`.
+      7. `cmake --preset default`, and a `.env` copied from `.env.example`.
 
     Run it from Windows PowerShell or PowerShell 7. It works in either, since
     a fresh machine only has the first, and the execution policy there blocks
@@ -59,6 +61,13 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 # What this repo is built with (README "Prerequisites" and step 2). CI uses
 # the same compiler, VS 2026's v145 toolset, which Conan calls version 195.
 $minimumCMake = [version] '3.21'
+$minimumPython = [version] '3.8'
+
+# Conan lives in .venv, never on PATH, so every call below names it.
+$venv = Join-Path $repo '.venv'
+$venvPython = Join-Path $venv 'Scripts\python.exe'
+$conan = Join-Path $venv 'Scripts\conan.exe'
+$requirements = Join-Path $repo 'requirements.txt'
 $vsVersionRange = '[18.0,19.0)'
 $vsComponents = @(
     'Microsoft.VisualStudio.Workload.VCTools',
@@ -184,8 +193,10 @@ function Install-WithWinget([string] $Verb, [string] $Id, [string] $Name, [strin
 # 1. Command-line tools
 # --------------------------------------------------------------------------
 
-function Get-ToolVersion([string] $Command, [string] $Pattern) {
-    $output = Get-NativeOutput $Command @('--version')
+# Its version, or nothing when it reports none. $Prefix goes before
+# --version: `py -3 --version`.
+function Get-ToolVersion([string] $Command, [string] $Pattern, [string[]] $Prefix = @()) {
+    $output = Get-NativeOutput $Command ($Prefix + @('--version'))
     $match = [regex]::Match($output.Text, $Pattern)
     if ($match.Success) { return [version] $match.Groups[1].Value }
     $null
@@ -235,8 +246,80 @@ function Initialize-Tools {
         -VersionPattern 'cmake version (\d+\.\d+\.\d+)' -Minimum $minimumCMake -Why 'the build'
     Initialize-Tool -Name 'PowerShell 7' -Command 'pwsh' -WingetId 'Microsoft.PowerShell' `
         -VersionPattern '(\d+\.\d+\.\d+)' -Why 'the scripts in tools\ and the VS Code tasks'
-    Initialize-Tool -Name 'Conan' -Command 'conan' -WingetId 'Conan.Conan' `
-        -VersionPattern 'Conan version (\d+\.\d+\.\d+)' -Minimum ([version] '2.0') -Why 'the dependencies'
+}
+
+# The Python to make .venv with, as a command, the arguments that go before
+# its own, and its version; nothing when none new enough is installed. The py
+# launcher first, since it finds an install that is not on PATH. The
+# python.exe Windows puts in WindowsApps only offers to open the Store, and
+# has no version to report, so it is passed over.
+function Find-Python {
+    $candidates = @(
+        @{ Command = 'py'; Prefix = @('-3') },
+        @{ Command = 'python'; Prefix = @() }
+    )
+    foreach ($candidate in $candidates) {
+        if (-not (Test-Command $candidate.Command)) { continue }
+        $version = Get-ToolVersion $candidate.Command 'Python (\d+\.\d+\.\d+)' $candidate.Prefix
+        if (-not $version -or $version -lt $minimumPython) { continue }
+        return [pscustomobject] @{ Command = $candidate.Command; Prefix = $candidate.Prefix; Version = $version }
+    }
+    $null
+}
+
+function Initialize-Python {
+    $python = Find-Python
+    if (-not $python) {
+        if (-not (Request-Change "install Python $minimumPython or newer (for .venv, which Conan is installed into)")) { return $null }
+        Install-WithWinget 'install' 'Python.Python.3.13' 'Python'
+        $python = Find-Python
+        if (-not $python) {
+            throw 'Python was installed but is still not found. Open a new terminal and run this again.'
+        }
+    }
+    Write-Ok "Python $($python.Version)"
+    $python
+}
+
+# --------------------------------------------------------------------------
+# 4. Conan, in .venv
+# --------------------------------------------------------------------------
+
+# The Conan version requirements.txt pins.
+function Get-PinnedConanVersion {
+    $line = Select-String -Path $requirements -Pattern '^\s*conan==(\S+)' | Select-Object -First 1
+    if (-not $line) { throw "$requirements does not pin Conan as conan==<version>." }
+    [version] $line.Matches[0].Groups[1].Value
+}
+
+function Initialize-Conan($Python) {
+    Write-Section 'Conan, in .venv'
+    $pinned = Get-PinnedConanVersion
+
+    # A .venv points at the Python that made it, so uninstalling or upgrading
+    # that Python leaves one that cannot start.
+    if ((Test-Path $venvPython) -and (Get-NativeOutput $venvPython @('--version')).ExitCode -ne 0) {
+        if (-not (Request-Change 'make .venv again: the Python it was made with is gone')) { return }
+        Remove-Item -Recurse -Force -LiteralPath $venv
+    }
+    if (-not (Test-Path $venvPython)) {
+        if (-not $Python) { Write-Note 'skipped until Python is installed'; return }
+        if (-not (Request-Change "create .venv with Python $($Python.Version)")) { return }
+        Invoke-Native $Python.Command ($Python.Prefix + @('-m', 'venv', $venv))
+    }
+
+    $installed = $null
+    if (Test-Path $conan) { $installed = Get-ToolVersion $conan 'Conan version (\d+\.\d+\.\d+)' }
+    if ($installed -eq $pinned) {
+        Write-Ok "Conan $installed, in .venv"
+        return
+    }
+
+    $what = "install Conan $pinned into .venv"
+    if ($installed) { $what = "change Conan $installed in .venv to $pinned, the version requirements.txt pins" }
+    if (-not (Request-Change $what)) { return }
+    Invoke-Native $venvPython @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '-r', $requirements)
+    Write-Ok "Conan $pinned, in .venv"
 }
 
 # --------------------------------------------------------------------------
@@ -332,12 +415,12 @@ function Initialize-Submodules {
 }
 
 # --------------------------------------------------------------------------
-# 4. Conan profile
+# 5. Conan profile
 # --------------------------------------------------------------------------
 
 # The default profile's path, or nothing when there is none.
 function Get-ConanProfilePath {
-    $output = Get-NativeOutput conan @('profile', 'path', 'default')
+    $output = Get-NativeOutput $conan @('profile', 'path', 'default')
     if ($output.ExitCode -ne 0) { return $null }
     $path = ($output.Text -split "`n" | Select-Object -Last 1).Trim()
     if (Test-Path $path) { return $path }
@@ -353,12 +436,12 @@ function Get-ProfileSetting([string] $Path, [string] $Name) {
 # The compiler.version the profile builds with, once it is right.
 function Initialize-ConanProfile {
     Write-Section 'Conan profile'
-    if (-not (Test-Command 'conan')) { Write-Note 'skipped until Conan is installed'; return $null }
+    if (-not (Test-Path $conan)) { Write-Note 'skipped until Conan is installed'; return $null }
 
     $path = Get-ConanProfilePath
     if (-not $path) {
         if (-not (Request-Change 'create the default Conan profile (conan profile detect)')) { return '195' }
-        Invoke-Native conan @('profile', 'detect')
+        Invoke-Native $conan @('profile', 'detect')
         $path = Get-ConanProfilePath
     }
 
@@ -391,7 +474,7 @@ function Initialize-ConanProfile {
 }
 
 # --------------------------------------------------------------------------
-# 5. Dependencies
+# 6. Dependencies
 # --------------------------------------------------------------------------
 
 # A build folder remembers the compiler it was first configured with: with
@@ -403,7 +486,10 @@ function Confirm-BuildToolset([string] $ProfileVersion) {
     if (-not $ProfileVersion -or -not (Test-Path $cache)) { return }
 
     $wanted = $conanVersions[$ProfileVersion]
-    $line = Select-String -Path $cache -Pattern '^CMAKE_CXX_COMPILER:[A-Z]+=(.*)$' | Select-Object -First 1
+    # The linker rather than the compiler: the presets name the compiler as
+    # plain `cl`, which the cache keeps as given, while the linker is always
+    # recorded by its full path, inside the Visual Studio it belongs to.
+    $line = Select-String -Path $cache -Pattern '^CMAKE_LINKER:[A-Z]+=(.*)$' | Select-Object -First 1
     if (-not $line) { return }
     $had = $line.Matches[0].Groups[1].Value.Trim()
     if ($had -match "Microsoft Visual Studio[\\/]$([regex]::Escape($wanted.Folder))[\\/]") { return }
@@ -420,12 +506,12 @@ function Confirm-BuildToolset([string] $ProfileVersion) {
 function Invoke-ConanInstall([string] $BuildType, [string[]] $Extra = @()) {
     $arguments = @('install', $repo, '--build=missing', '-s', "build_type=$BuildType", '-s', 'compiler.cppstd=20',
                    '--lockfile-partial') + $Extra
-    Invoke-Native conan $arguments
+    Invoke-Native $conan $arguments
 }
 
 function Initialize-Dependencies([string] $ProfileVersion) {
     Write-Section 'Dependencies'
-    if (-not (Test-Command 'conan') -or -not $ProfileVersion) { Write-Note 'skipped until Conan is set up'; return }
+    if (-not (Test-Path $conan) -or -not $ProfileVersion) { Write-Note 'skipped until Conan is set up'; return }
 
     Confirm-BuildToolset $ProfileVersion
 
@@ -442,7 +528,7 @@ function Initialize-Dependencies([string] $ProfileVersion) {
     # DPP is a package built from the submodule (conan/dpp), which Conan
     # must know of before the install can ask for it.
     Write-Doing 'conan export conan/dpp'
-    Invoke-Native conan @('export', (Join-Path $repo 'conan\dpp'))
+    Invoke-Native $conan @('export', (Join-Path $repo 'conan\dpp'))
 
     Write-Doing 'conan install, Release and Debug (seconds when cached, ten minutes each when not)'
     Invoke-ConanInstall 'Release'
@@ -451,7 +537,7 @@ function Initialize-Dependencies([string] $ProfileVersion) {
 }
 
 # --------------------------------------------------------------------------
-# 6. Configure, .env, and optionally build
+# 7. Configure, .env, and optionally build
 # --------------------------------------------------------------------------
 
 function Repair-UserPresets {
@@ -535,8 +621,10 @@ function Invoke-BuildAndTest {
 # --------------------------------------------------------------------------
 
 Initialize-Tools
+$python = Initialize-Python
 Initialize-BuildTools
 Initialize-Submodules
+Initialize-Conan $python
 $profileVersion = Initialize-ConanProfile
 Initialize-Dependencies $profileVersion
 Initialize-Configure

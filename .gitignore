@@ -5,6 +5,9 @@ out/
 CMakeUserPresets.json
 *.user
 
+# Conan, installed from requirements.txt (README.md, step 3)
+.venv/
+
 # secrets
 .env
 token.txt

@@ -192,10 +192,14 @@
       // DPP's recipe first, then both configurations into build/conan, which
       // every build folder shares. Needed after editing conanfile.py or
       // moving the DPP submodule; the first run builds the dependencies.
+      // With the Conan in .venv, which tools/DevEnvSetup.ps1 installs.
       "label": "Conan: install dependencies",
       "type": "shell",
       "command": "conan export conan/dpp && conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial && conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial",
-      "options": { "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] } },
+      "options": {
+        "env": { "PATH": "${workspaceFolder}/.venv/Scripts;${env:PATH}" },
+        "shell": { "executable": "pwsh.exe", "args": ["-NoProfile", "-Command"] }
+      },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "shared", "clear": true }
     },

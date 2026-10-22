@@ -35,6 +35,11 @@ struct context_message {
     bool from_bot = false;
 
     std::string content;
+
+    /// Who wrote it, by name, for a bot that is shown by name rather than an
+    /// alias: a persona, wherever it is read, and LatiBot when a persona
+    /// reads it (src/modules/llm/docs/Language_Model.md §3.9).
+    std::string speaker;
 };
 
 /// What goes into the cached part of the instructions
@@ -54,6 +59,11 @@ struct instruction_parts {
     /// capability tells the model about speaking; empty otherwise
     /// (src/modules/llm/docs/Language_Model.md §2.5).
     std::string speaking_guide;
+
+    /// The persona answering, by name; empty for LatiBot. A persona has
+    /// fixed rules of its own, and `system_document` and `personality` are
+    /// its own documents (src/modules/llm/docs/Language_Model.md §2.11).
+    std::string persona_name;
 };
 
 /// The instructions every request starts with, in the fixed order of
@@ -64,12 +74,15 @@ struct instruction_parts {
 
 /// The part that changes per message: the memories that matched, by the
 /// alias of whom they are about, and the time. Everyone they are about must
-/// have been met.
-[[nodiscard]] auto varying_instructions(std::span<const memory> memories, std::chrono::sys_seconds now, people& cast) -> std::string;
+/// have been met. Without `with_memories`, for a persona, which has no
+/// memory, only the time.
+[[nodiscard]] auto varying_instructions(std::span<const memory> memories, std::chrono::sys_seconds now, people& cast,
+                                        bool with_memories = true) -> std::string;
 
 /// One message as a line of the transcript: "alias: text", or "Name (you)"
-/// for the bot, its content sanitized by `cast`, and anything longer than a
-/// message's worth cut short (src/modules/llm/docs/Language_Model.md §3.8).
+/// for whoever is answering, "Name (a bot)" for a bot shown by name, its
+/// content sanitized by `cast`, and anything longer than a message's worth
+/// cut short (src/modules/llm/docs/Language_Model.md §3.8, §3.9).
 [[nodiscard]] auto transcript_line(const context_message& message, people& cast) -> std::string;
 
 /// What the model is asked: the recent conversation, oldest first, then the

@@ -26,9 +26,14 @@ public:
     auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override;
     auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> override;
     auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> override;
+    auto channel_webhooks(dpp::snowflake channel_id) -> dpp::task<ports::result<std::vector<ports::webhook>>> override;
+    auto create_webhook(dpp::snowflake channel_id, std::string name) -> dpp::task<ports::result<ports::webhook>> override;
+    auto execute_webhook(const ports::webhook& hook, dpp::message message, std::string username, std::string avatar_url,
+                         dpp::snowflake thread) -> dpp::task<ports::result<dpp::message>> override;
     [[nodiscard]] auto member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> override;
     [[nodiscard]] auto role_name(dpp::snowflake role_id) const -> std::optional<std::string> override;
     [[nodiscard]] auto channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> override;
+    [[nodiscard]] auto thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> override;
 
 private:
     dpp::cluster* cluster_;

@@ -3,6 +3,7 @@
 #include "ask.hpp"
 #include "llm_config.hpp"
 #include "models.hpp"
+#include "personas.hpp"
 #include "prompt.hpp"
 #include "provider.hpp"
 #include "settings.hpp"
@@ -36,6 +37,7 @@ class alias_store;
 class document_store;
 class memory_store;
 class people;
+class persona_webhooks;
 class tool_registry;
 class usage_store;
 
@@ -68,6 +70,12 @@ struct responder_services {
     /// Saying replies aloud, when DECtalk is built in
     /// (docs/modules/Module_Plan_Final.md §5.3).
     capabilities::speech* speech = nullptr;
+
+    /// The personas, and posting as them
+    /// (src/modules/llm/docs/Language_Model.md §2.11). Without them an ask
+    /// for a persona is not answered.
+    persona_store* personas = nullptr;
+    persona_webhooks* webhooks = nullptr;
 };
 
 /// How many memories are put in front of the model before it answers.
@@ -137,6 +145,11 @@ private:
     [[nodiscard]] auto recent_messages(const llm::ask_llm& ask, int wanted, dpp::snowflake bot_id, people& cast) const
         -> dpp::task<std::vector<context_message>>;
 
+    /// A fetched message as the transcript shows it to whoever answers
+    /// `ask`: a persona's by its name, and the bot's own as LatiBot's when a
+    /// persona is answering (src/modules/llm/docs/Language_Model.md §3.9).
+    [[nodiscard]] auto shown(const dpp::message& message, const llm::ask_llm& ask, dpp::snowflake bot_id) const -> context_message;
+
     /// The message the one being answered replies to: from `history` when it
     /// is there, fetched when not, and nothing when it is not a reply or the
     /// message is gone. Its author, and whom it mentions, are met in `cast`.
@@ -144,17 +157,24 @@ private:
                                        people& cast) const -> dpp::task<std::optional<context_message>>;
 
     /// The first request: the instructions, the memories and the question,
-    /// with everyone in them as aliases.
+    /// with everyone in them as aliases. For a persona, its own documents,
+    /// and no memories or tools.
     [[nodiscard]] auto build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
                                      const std::vector<context_message>& history, const context_message* replied_to,
-                                     std::chrono::sys_seconds now, people& cast) const -> request;
+                                     std::chrono::sys_seconds now, const persona* as, people& cast) const -> request;
 
-    /// Tells whoever addressed the bot that the model could not answer.
-    auto apologise(const llm::ask_llm& ask, const ports::api_error& error) const -> dpp::task<void>;
+    /// Tells whoever addressed the bot, or the persona, that the model could
+    /// not answer.
+    auto apologise(const llm::ask_llm& ask, const ports::api_error& error, const persona* as) const -> dpp::task<void>;
 
     /// Posts the reply's parts, the first as a reply, recording each in
-    /// `report` and stopping at the first that fails.
-    auto post(const llm::ask_llm& ask, const std::vector<std::string>& parts, answer_report& report) const -> dpp::task<void>;
+    /// `report` and stopping at the first that fails. A persona's go through
+    /// its webhook, and are not replies, which a webhook cannot send.
+    auto post(const llm::ask_llm& ask, const std::vector<std::string>& parts, const persona* as, answer_report& report) const
+        -> dpp::task<void>;
+
+    /// Posts one message as the persona, and notes that it did.
+    auto post_as(const persona& as, dpp::message message) const -> dpp::task<ports::result<dpp::message>>;
 
     responder_services services_;
     std::function<bot_identity()> me_;

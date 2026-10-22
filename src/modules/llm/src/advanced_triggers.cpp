@@ -7,12 +7,14 @@
 
 #include <format>
 #include <memory>
+#include <optional>
 #include <random>
 
 namespace latibot::llm {
 namespace {
 
-constexpr std::string_view columns = "id, guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by";
+constexpr std::string_view columns =
+    "id, guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by, persona_id";
 
 auto read_trigger(db::statement& row) -> advanced_trigger {
     return {.id = row.get<std::int64_t>(0),
@@ -23,7 +25,14 @@ auto read_trigger(db::statement& row) -> advanced_trigger {
             .probability = row.get<double>(5),
             .cooldown = std::chrono::seconds{row.get<std::int64_t>(6)},
             .enabled = row.get<bool>(7),
-            .created_by = row.get<dpp::snowflake>(8)};
+            .created_by = row.get<dpp::snowflake>(8),
+            .persona_id = row.get<std::optional<std::int64_t>>(9).value_or(0)};
+}
+
+/// LatiBot's own are stored without a persona.
+auto persona_or_null(const advanced_trigger& entry) -> std::optional<std::int64_t> {
+    if (entry.persona_id == 0) return std::nullopt;
+    return entry.persona_id;
 }
 
 auto default_roll() -> std::function<double()> {
@@ -51,10 +60,10 @@ auto advanced_trigger_store::find(std::int64_t id, dpp::snowflake guild_id) cons
 auto advanced_trigger_store::add(const advanced_trigger& entry) -> std::int64_t {
     const auto guard = db_->lock();
     db_->prepare(
-           "INSERT INTO llm_triggers (guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by) "
-           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+           "INSERT INTO llm_triggers (guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by, "
+           "persona_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
            entry.guild_id, entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(),
-           entry.enabled, entry.created_by)
+           entry.enabled, entry.created_by, persona_or_null(entry))
         .run();
     return db_->last_insert_rowid();
 }
@@ -62,10 +71,10 @@ auto advanced_trigger_store::add(const advanced_trigger& entry) -> std::int64_t 
 auto advanced_trigger_store::update(const advanced_trigger& entry) -> bool {
     const auto guard = db_->lock();
     db_->prepare(
-           "UPDATE llm_triggers SET pattern = ?, match_mode = ?, context_prompt = ?, probability = ?, cooldown_s = ?, enabled = ? "
-           "WHERE id = ? AND guild_id = ?",
+           "UPDATE llm_triggers SET pattern = ?, match_mode = ?, context_prompt = ?, probability = ?, cooldown_s = ?, enabled = ?, "
+           "persona_id = ? WHERE id = ? AND guild_id = ?",
            entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(), entry.enabled,
-           entry.id, entry.guild_id)
+           persona_or_null(entry), entry.id, entry.guild_id)
         .run();
     return db_->changes() > 0;
 }

@@ -2,7 +2,7 @@
 
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
-#include "core/discord/raw_api.hpp"
+#include "core/discord/voice_message.hpp"
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 #include "dectalk_sanitizer.hpp"
@@ -12,28 +12,15 @@
 
 #include <dpp/cluster.h>
 #include <dpp/dispatcher.h>
-#include <dpp/json.h>
 
+#include <cstdint>
 #include <format>
+#include <string>
 #include <utility>
-#include <vector>
 
 namespace latibot::commands {
 
-auto voice_message_response(std::uint64_t flags, std::chrono::milliseconds duration, std::string_view waveform) -> std::string {
-    constexpr int channel_message_with_source = 4;
-    const nlohmann::json payload{
-        {"type", channel_message_with_source},
-        {"data",
-         {{"flags", flags | voice_message_flag},
-          {"attachments", nlohmann::json::array({{{"id", 0},
-                                                  {"filename", voice_message_file},
-                                                  {"duration_secs", static_cast<double>(duration.count()) / 1000.0},
-                                                  {"waveform", waveform}}})}}}};
-    return payload.dump();
-}
-
-chat_command::chat_command(speech_services services, discord::raw_api& raw)
+chat_command::chat_command(speech_services services, ports::http_client& http)
     : info_{.name = "chat",
             .description = "Say something as a voice message.",
             .aliases = {},
@@ -45,7 +32,7 @@ chat_command::chat_command(speech_services services, discord::raw_api& raw)
             .responses = {.result = dpp::m_suppress_notifications, .refusal = dpp::m_ephemeral, .post = 0},
             .subcommand_responses = {}},
       services_(services),
-      raw_(&raw) {}
+      http_(&http) {}
 
 auto chat_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
@@ -100,13 +87,13 @@ auto chat_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> 
     }
 
     const ports::pcm_audio& pcm = spoken.value();
-    std::vector<dpp::message_file_data> files{{.name = std::string(voice_message_file),
-                                               .content = audio::wav_file(pcm.samples, pcm.sample_rate, pcm.channels),
-                                               .mimetype = "audio/wav"}};
     const auto flags = static_cast<std::uint64_t>(responses_for(event).result);
-    const auto sent = co_await raw_->multipart(
-        ports::http_method::post, std::format("/interactions/{}/{}/callback", event.command.id.str(), event.command.token),
-        voice_message_response(flags, pcm.duration(), audio::waveform_base64(pcm.samples)), std::move(files));
+    const auto sent = co_await discord::answer_with_voice_message(*http_, event, flags,
+                                                                  {.file = audio::wav_file(pcm.samples, pcm.sample_rate, pcm.channels),
+                                                                   .filename = std::string(voice_message_file),
+                                                                   .mimetype = "audio/wav",
+                                                                   .duration = pcm.duration(),
+                                                                   .waveform = discord::waveform_base64(pcm.samples)});
     if (!sent.has_value()) {
         // Nothing answered the interaction, so a refusal still can.
         util::log().error("/chat in guild {} could not send its voice message: {}", guild, sent.error().message);

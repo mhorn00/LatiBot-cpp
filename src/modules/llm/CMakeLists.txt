@@ -14,6 +14,8 @@ latibot_module(llm CONFIG
         src/models.cpp
         src/module.cpp
         src/openai.cpp
+        src/persona_webhooks.cpp
+        src/personas.cpp
         src/prompt.cpp
         src/responder.cpp
         src/settings.cpp
@@ -28,6 +30,7 @@ latibot_module(llm CONFIG
         tests/llm_guards_test.cpp
         tests/llm_module_test.cpp
         tests/llm_panel_test.cpp
+        tests/llm_persona_test.cpp
         tests/llm_provider_test.cpp
         tests/llm_store_test.cpp
         tests/llm_tools_test.cpp

@@ -1,10 +1,5 @@
 #include "wav.hpp"
 
-#include <dpp/discordevents.h>
-
-#include <algorithm>
-#include <cstdlib>
-
 namespace latibot::audio {
 namespace {
 
@@ -46,34 +41,6 @@ auto wav_file(std::span<const std::int16_t> samples, std::uint32_t sample_rate, 
         put_u16(out, static_cast<std::uint16_t>(sample));
     }
     return out;
-}
-
-auto waveform(std::span<const std::int16_t> samples, std::size_t buckets) -> std::vector<std::uint8_t> {
-    if (samples.empty() || buckets == 0) return {};
-    buckets = std::min(buckets, samples.size());
-
-    std::vector<int> peaks(buckets, 0);
-    for (std::size_t bucket = 0; bucket < buckets; ++bucket) {
-        // Integer bounds, so every sample lands in exactly one bucket.
-        const std::size_t begin = bucket * samples.size() / buckets;
-        const std::size_t end = (bucket + 1) * samples.size() / buckets;
-        for (std::size_t i = begin; i < end; ++i) {
-            peaks[bucket] = std::max(peaks[bucket], std::abs(static_cast<int>(samples[i])));
-        }
-    }
-
-    const int loudest = *std::ranges::max_element(peaks);
-    std::vector<std::uint8_t> shape(buckets, 0);
-    if (loudest == 0) return shape;
-    for (std::size_t bucket = 0; bucket < buckets; ++bucket) {
-        shape[bucket] = static_cast<std::uint8_t>(peaks[bucket] * 255 / loudest);
-    }
-    return shape;
-}
-
-auto waveform_base64(std::span<const std::int16_t> samples) -> std::string {
-    const std::vector<std::uint8_t> shape = waveform(samples);
-    return dpp::base64_encode(shape.data(), static_cast<unsigned int>(shape.size()));
 }
 
 } // namespace latibot::audio

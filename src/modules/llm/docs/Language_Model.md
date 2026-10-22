@@ -18,10 +18,10 @@ with every reply.
 | **Module** | `llm`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/src/discord/dpp_http_client.*` |
 | **Tests** | `src/modules/llm/tests/` (`latibot_llm_tests`, with `mock_llm.hpp`); `tests/mocks/{mock_http,mock_speech}.hpp` |
-| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); settings as `llm_*` rows in `guild_settings` |
+| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); `llm_personas` and `llm_persona_posts`, version 2; settings as `llm_*` rows in `guild_settings` |
 | **Config** | the `llm` section of `config.json`: `provider`, `model`, `check_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
 | **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
-| **Status** | Built in phase 5 (2026-09-28). **Never called a real API or run in Discord**: see §5 |
+| **Status** | Built in phase 5 (2026-09-28); personas added 2026-10-20. **Never called a real API or run in Discord**: see §5 |
 
 ## Contents
 
@@ -229,6 +229,7 @@ default permissions are per command, not per subcommand.
 | `personality`, `system`, `style` | The documents (§3.5) |
 | `trigger` | Advanced triggers (§2.6) |
 | `blacklist add \| remove \| list` | A `user` or a `role` it never answers here |
+| `persona` | [Personas](#211-personas): `add`, `edit`, `remove`, `list`, `view`, `document` |
 
 **Settings**, per server, each checked against its range. A form with any
 value out of range changes nothing, and names the value. Stored values are
@@ -291,6 +292,52 @@ messages nobody addressed it in.
 
 The bot watches who is typing through Discord's typing events, which need
 the `GUILD_MESSAGE_TYPING` intent. It is not privileged.
+
+### 2.11 Personas
+
+A **persona** is someone else the model answers as: a name, a picture, a
+model, and instructions of its own. Its messages are posted through a
+webhook, so they show under its name and picture, with Discord's APP tag
+beside them. The first in mind was a "Claude" who answers when someone says
+"claude"; nothing about Claude is built in, and the name, picture and
+instructions are the server's.
+
+It answers, once the server has run `/llm on`, through the same guards as
+LatiBot (§2.2):
+
+- a message that **starts with its name**, as LatiBot's own (§2.1): `claude,
+  hi` and `Claude what's up`, but not `claudes` or `hey claude`. Of two names
+  that fit, the longer wins, so `Claude Opus, hi` is for Claude Opus;
+- a **reply** to one of its messages;
+- one of its **advanced triggers** (§2.6), a trigger given a `persona`.
+
+LatiBot addressed wins: a message that mentions the bot is LatiBot's, even if
+it starts with a persona's name. A persona is never @mentioned, since a
+webhook is not a member.
+
+How it answers differs from LatiBot:
+
+- **It is not a reply.** A webhook cannot send one, so the answer is posted
+  after the question, and notifies nobody.
+- **No *typing…***: Discord would show LatiBot typing.
+- **Its own instructions only**: the fixed rules under its name, then its
+  **system** document ("Who you are", Manage Server to read and edit), then
+  its **personality** (open to everyone, and limited by the same `editors`
+  role as LatiBot's). The server's own documents, the trigger style
+  included, are LatiBot's and are not sent.
+- **Its own model**, or the server's when it has none. A persona on a model
+  with no API key does not answer.
+- **No memory**: no memories shown, no tools.
+- **It never answers a bot**, another persona, or LatiBot, and its messages
+  set off nothing: they come from a webhook, which the pipeline does not hear
+  (Message_Pipeline.md §2.1).
+- **It is never spoken**, and opens no conversation (§2.10).
+
+At most **10** per server. A name is at most 80 characters, not LatiBot's,
+and holds neither "clyde" nor "discord", which Discord refuses in a
+webhook's name; the picture is an `https://` link, since an attachment's link
+expires. The bot needs **Manage Webhooks** in a channel to post as a persona
+there.
 
 ## 3. How it works
 
@@ -497,6 +544,34 @@ word, "Will", is taken for the person wherever it is a whole word, and comes
 back as their name in the reply. The documents keep their names. A memory
 saved before 2026-10-02 may hold a name the model wrote then.
 
+### 3.9 How personas post
+
+`persona_store` keeps `llm_personas(id, guild_id, name, avatar_url, model,
+enabled, created_by, created_at)`, the name unique per server without regard
+to case, and `llm_persona_posts(message_id, persona_id, guild_id, channel_id,
+posted_at)`, every message a persona posted. A reply to one of those is a
+reply to the persona, and a transcript shows it by the persona's name.
+`llm_triggers.persona_id` and `llm_usage.persona_id` say whose a trigger and
+a call are, NULL for LatiBot's. A persona's documents are `llm_documents`
+rows of kind `persona.<id>.system` and `persona.<id>.personality`, so they
+have versions, history, diff and revert like the server's. Removing a persona
+removes its documents, triggers and posts; its messages stay in Discord.
+
+`llm_stage` takes the guild's enabled personas after checking whether
+LatiBot is addressed, and its `ask_llm` carries `persona_id`. The responder
+looks the persona up again, since it may have gone since, and then:
+
+- the **transcript** shows a persona's post as `Claude (a bot)`, or
+  `Claude (you)` to Claude itself, and LatiBot's as `LatiBot (a bot)` to a
+  persona. A persona is shown by name and never met as a person, so its name
+  typed in a message is left as typed rather than made a marker (§3.8);
+- **posting** goes through `persona_webhooks`. It finds the bot's own webhook
+  in the channel, named "LatiBot personas" and made by the bot, or makes
+  one, and keeps it in memory: the token is never stored, and is masked in
+  the log channel. A thread posts through its parent channel's webhook, with
+  the thread's id. A 404 or 401, a webhook someone deleted, empties the cache
+  and tries once more.
+
 ## 4. Decisions
 
 | Date | Decision | Why |
@@ -535,6 +610,10 @@ saved before 2026-10-02 may hold a name the model wrote then.
 | 2026-10-07 | Joining in is told the check judged the message to be for it, and to stay silent only when it plainly is not | In the first live run it chose `[silent]` for a message clearly aimed at it |
 | 2026-10-07 | No two-person shortcut: every unaddressed message in a window goes to the check | The owner judged it would answer wrongly |
 | 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
+| 2026-10-20 | Personas: another name and picture through a webhook, answering to its name, replies, and triggers of its own; managed with `/llm persona` | The owner's idea (docs/ideas/claude_webhook_llm_facade.md); a group under `/llm` was the owner's choice over a command of its own |
+| 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
+| 2026-10-20 | A persona's instructions are its own system document and personality, not the server's | A persona is someone else; the server's documents describe LatiBot |
+| 2026-10-20 | One webhook per channel serves every persona, kept in memory only | Discord takes the name and picture per message; a token written down is one more secret to keep |
 
 ## 5. Limits, and what is still to check
 
@@ -566,6 +645,10 @@ saved before 2026-10-02 may hold a name the model wrote then.
     `history` shows one, and `revert` restores it.
 - Pacing and rate limits live in memory, so a restart resets them, and so
   do conversations and who is typing.
+- **Personas have never run in Discord.** Still to see: that a webhook's
+  message really cannot be a reply, that the APP tag shows, how threads and
+  voice channels' text chats take a webhook, and that a real model keeps to
+  the persona and writes markers under its rules.
 - **Conversation mode has never run.** Still to see in Discord: how often
   the check says yes when it should not, and the other way round; whether
   the windows' defaults suit the server; and whether the model uses

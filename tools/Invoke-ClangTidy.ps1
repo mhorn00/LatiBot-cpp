@@ -41,11 +41,12 @@ $conanbuild = Join-Path $repo 'build\conan\conanbuild.bat'
 
 if (-not (Test-Path $toolchain)) {
     throw @"
-The dependencies are not installed. Run these once (the first time builds them from source, so allow several minutes):
+The dependencies are not installed. Run these once (the first time builds them from source, so allow several minutes),
+with the Conan tools\DevEnvSetup.ps1 installs into .venv:
 
-  conan export conan/dpp
-  conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial
-  conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
+  .venv\Scripts\conan export conan/dpp
+  .venv\Scripts\conan install . --build=missing -s build_type=Debug -s compiler.cppstd=20 --lockfile-partial
+  .venv\Scripts\conan install . --build=missing -s build_type=Release -s compiler.cppstd=20 --lockfile-partial
 "@
 }
 

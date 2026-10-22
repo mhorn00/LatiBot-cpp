@@ -25,5 +25,8 @@
   },
   "linkstats": {
     "emoji_copy_min_uses": 1
+  },
+  "soundboard": {
+    "ffmpeg_path": ""
   }
 }

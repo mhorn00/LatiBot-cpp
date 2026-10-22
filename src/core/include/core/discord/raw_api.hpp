@@ -21,6 +21,11 @@ namespace latibot::discord {
 /// trimming a trailing slash. Exposed for testing.
 [[nodiscard]] auto build_endpoint(std::string_view path) -> std::string;
 
+/// What Discord said about a refused request, for the log: "Discord
+/// returned 400: Invalid Form Body", then each field it named and why, as
+/// `data.attachments.0: ...`. A bare status when the body says nothing.
+[[nodiscard]] auto describe_refusal(int status, const nlohmann::json& body) -> std::string;
+
 /// Calls Discord endpoints DPP does not wrap (src/modules/dectalk/docs/Speech.md §4.4,
 /// src/modules/links/docs/Url_Replacement.md §3.2).
 ///
@@ -48,7 +53,9 @@ public:
     auto request(ports::http_method method, std::string path, std::string body = {}) -> dpp::task<ports::result<nlohmann::json>>;
 
     /// Multipart form upload, for endpoints that take `payload_json` plus
-    /// files: voice messages, attachments (src/modules/dectalk/docs/Speech.md §4.4).
+    /// files. DPP builds the form, and names a single file's part `file`
+    /// rather than `files[0]`, so `payload_json` cannot describe it as an
+    /// attachment: voice messages go through `answer_with_voice_message`.
     auto multipart(ports::http_method method, std::string path, std::string payload_json, std::vector<dpp::message_file_data> files)
         -> dpp::task<ports::result<nlohmann::json>>;
 

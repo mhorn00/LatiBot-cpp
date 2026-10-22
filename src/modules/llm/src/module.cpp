@@ -23,6 +23,8 @@
 #include "memory.hpp"
 #include "memory_tools.hpp"
 #include "openai.hpp"
+#include "persona_webhooks.hpp"
+#include "personas.hpp"
 #include "provider.hpp"
 #include "responder.hpp"
 #include "settings.hpp"
@@ -53,7 +55,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 1> llm_steps{{
+constexpr std::array<db::migration, 2> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -158,6 +160,41 @@ constexpr std::array<db::migration, 1> llm_steps{{
             UNIQUE (guild_id, alias)
         ) WITHOUT ROWID;
      )sql"},
+    {.version = 2, .name = "personas", .sql = R"sql(
+        -- Someone else the model answers as, posting through a webhook
+        -- (src/modules/llm/docs/Language_Model.md 2.11). Its documents are
+        -- llm_documents rows of kind persona.<id>.system and
+        -- persona.<id>.personality. model is NULL for the server's.
+        CREATE TABLE llm_personas (
+            id         INTEGER PRIMARY KEY,
+            guild_id   INTEGER NOT NULL,
+            name       TEXT    NOT NULL COLLATE NOCASE,
+            avatar_url TEXT    NOT NULL DEFAULT '',
+            model      TEXT,
+            enabled    INTEGER NOT NULL DEFAULT 1,
+            created_by INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,     -- Unix seconds
+            UNIQUE (guild_id, name)
+        );
+
+        -- What each persona posted, so a reply to one of its messages is a
+        -- reply to it, and a transcript shows it by name.
+        CREATE TABLE llm_persona_posts (
+            message_id INTEGER PRIMARY KEY,
+            persona_id INTEGER NOT NULL,
+            guild_id   INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            posted_at  INTEGER NOT NULL       -- Unix seconds
+        ) WITHOUT ROWID;
+
+        CREATE INDEX llm_persona_posts_by_persona ON llm_persona_posts (persona_id);
+
+        -- An advanced trigger a persona answers; NULL is LatiBot's.
+        ALTER TABLE llm_triggers ADD COLUMN persona_id INTEGER;
+
+        -- Which persona a call was made for; NULL is LatiBot.
+        ALTER TABLE llm_usage ADD COLUMN persona_id INTEGER;
+     )sql"},
 }};
 
 constexpr std::string_view module_name = "llm";
@@ -174,6 +211,7 @@ public:
           aliases_(bot.database()),
           blacklist_(bot.database()),
           triggers_(bot.database()),
+          personas_(bot.database()),
           windows_(bot.clock()),
           activity_(bot.clock()),
           anthropic_(keys_.anthropic ? std::make_unique<anthropic_provider>(bot.http(), *keys_.anthropic) : nullptr),
@@ -212,6 +250,12 @@ public:
         // Replies to link replacements left alone, when links is built in.
         const auto* replacements = bot.capabilities().find<capabilities::link_replacements>();
 
+        // Personas post through a webhook in each channel, whose token is a
+        // sign-in like the keys (src/modules/llm/docs/Language_Model.md §3.9).
+        webhooks_ = std::make_unique<persona_webhooks>(
+            bot.gateway(), [this] { return bot_->me().id; }, [this](std::string token) { bot_->secret(std::move(token)); });
+        bot.permission(dpp::p_manage_webhooks, "posting as the language model's personas");
+
         const auto me = [this] { return bot_identity{.id = bot_->me().id, .name = bot_->me().username}; };
         responder_ =
             std::make_unique<responder>(responder_services{.discord = &bot.gateway(),
@@ -224,7 +268,9 @@ public:
                                                            .tools = &tools_,
                                                            .aliases = &aliases_,
                                                            .provider_for = [this](provider_kind kind) { return provider_for(kind); },
-                                                           .speech = speech},
+                                                           .speech = speech,
+                                                           .personas = &personas_,
+                                                           .webhooks = webhooks_.get()},
                                         me);
         stage_ =
             std::make_unique<llm_stage>(stage_services{.settings = &bot.settings(),
@@ -232,6 +278,7 @@ public:
                                                        .blacklist = &blacklist_,
                                                        .triggers = &triggers_,
                                                        .usage = &usage_,
+                                                       .personas = &personas_,
                                                        .speech = speech,
                                                        .replacements = replacements,
                                                        .windows = &windows_,
@@ -288,6 +335,7 @@ private:
                 .documents = &documents_,
                 .triggers = &triggers_,
                 .blacklist = &blacklist_,
+                .personas = &personas_,
                 .memories = &memories_,
                 .aliases = &aliases_,
                 .usage = &usage_,
@@ -343,7 +391,9 @@ private:
         if (ask.how == approach::joined_in) {
             windows_.joined_in(ask.channel_id);
             util::log().trace("llm: the conversation in channel {} goes on", ask.channel_id);
-        } else if (spoke_to_bot(ask)) {
+        } else if (spoke_to_bot(ask) && ask.persona_id == 0) {
+            // A persona's answer opens no conversation: conversation mode is
+            // LatiBot's (src/modules/llm/docs/Language_Model.md §2.11).
             windows_.opened(ask.channel_id);
             util::log().trace("llm: a conversation is open in channel {}", ask.channel_id);
         }
@@ -372,6 +422,7 @@ private:
     alias_store aliases_;
     blacklist_store blacklist_;
     advanced_trigger_store triggers_;
+    persona_store personas_;
     conversation_windows windows_;
     channel_activity activity_;
     tool_registry tools_;
@@ -381,6 +432,7 @@ private:
     std::unique_ptr<provider> openai_;
     commands::llm_panels panels_;
     // Made in start, once the speech capability can be looked up.
+    std::unique_ptr<persona_webhooks> webhooks_;
     std::unique_ptr<responder> responder_;
     std::unique_ptr<llm_stage> stage_;
 };

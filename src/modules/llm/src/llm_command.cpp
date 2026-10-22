@@ -39,7 +39,14 @@ constexpr std::uint32_t document_file_limit = llm::document_length_limit * 4;
 constexpr std::uint32_t trigger_pattern_limit = 200;
 constexpr std::int64_t cooldown_limit = 86400;
 
-auto label_of(llm::document_kind kind) -> std::string_view {
+/// Discord's longest modal title.
+constexpr std::size_t form_title_limit = 45;
+
+/// What to put in the persona option to mean LatiBot itself, for a trigger
+/// moved back from a persona.
+constexpr std::string_view latibot_choice = "LatiBot";
+
+auto kind_label(llm::document_kind kind) -> std::string_view {
     switch (kind) {
     case llm::document_kind::personality:
         return "personality";
@@ -49,6 +56,12 @@ auto label_of(llm::document_kind kind) -> std::string_view {
         break;
     }
     return "trigger style";
+}
+
+/// For a label that starts a sentence: "The personality".
+auto capitalised(std::string text) -> std::string {
+    if (!text.empty() && text.front() >= 'a' && text.front() <= 'z') text.front() = static_cast<char>(text.front() - 'a' + 'A');
+    return text;
 }
 
 auto seconds_now(const ports::clock& clock) -> std::chrono::sys_seconds {
@@ -66,10 +79,13 @@ auto group_title(std::string_view group) -> std::string_view {
     return "Talking to other bots";
 }
 
-auto describe_trigger(const llm::advanced_trigger& entry) -> std::string {
+/// One trigger, in a line; `persona` is the name of the persona that
+/// answers it, empty for LatiBot.
+auto describe_trigger(const llm::advanced_trigger& entry, std::string_view persona = {}) -> std::string {
     std::string line = std::format("`{}` **{}** ({}, {:.0f}%, ", entry.id, entry.pattern,
                                    entry.mode == util::match_mode::substring ? "anywhere" : "whole word", entry.probability * 100);
     line += entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s cooldown", entry.cooldown.count());
+    if (!persona.empty()) line += std::format(", as {}", persona);
     if (!entry.enabled) line += ", disabled";
     line += std::format(") -> {}", util::truncate(entry.context_prompt, 120));
     return line;
@@ -101,6 +117,23 @@ auto document_group(std::string_view name, std::string_view description, bool pe
         group.add_option(editors);
     }
     return group;
+}
+
+/// The models a persona can use: their names alone, to keep /llm within
+/// Discord's size for a command.
+auto persona_model_option(std::string_view description) -> dpp::command_option {
+    dpp::command_option which(dpp::co_string, "model", std::string(description), false);
+    for (const llm::model_info& known : llm::known_models()) {
+        which.add_choice(dpp::command_option_choice(std::string(known.label), std::string(known.id)));
+    }
+    return which;
+}
+
+/// A persona option, completed from the server's personas.
+auto persona_option(std::string_view description, bool required) -> dpp::command_option {
+    return dpp::command_option(dpp::co_string, "persona", std::string(description), required)
+        .set_auto_complete(true)
+        .set_max_length(static_cast<std::int64_t>(llm::persona_name_limit));
 }
 
 auto match_mode_option() -> dpp::command_option {
@@ -185,14 +218,18 @@ auto join_document_parts(std::span<const std::string> parts) -> std::string {
     return text;
 }
 
-auto document_form(llm::document_kind kind, std::string_view current) -> std::optional<dpp::interaction_modal_response> {
+auto document_label(const document_target& target) -> std::string {
+    if (target.ref.persona == 0) return std::format("the {}", kind_label(target.ref.kind));
+    return std::format("{}'s {}", target.persona_name, kind_label(target.ref.kind));
+}
+
+auto document_form(const document_target& target, std::string_view current) -> std::optional<dpp::interaction_modal_response> {
     const auto parts = document_parts(current);
     if (!parts) return std::nullopt;
 
-    const auto custom_id =
-        ui::encode({.view = std::string(llm_document_form_view), .page = 0, .argument = std::string(llm::to_string(kind))});
+    const auto custom_id = ui::encode({.view = std::string(llm_document_form_view), .page = 0, .argument = llm::to_string(target.ref)});
     dpp::interaction_modal_response form(custom_id.value_or(std::string(llm_document_form_view)),
-                                         std::format("Edit the {}", label_of(kind)));
+                                         util::truncate(std::format("Edit {}", document_label(target)), form_title_limit));
 
     for (std::size_t index = 0; index < form_parts; ++index) {
         if (index > 0) form.add_row();
@@ -208,23 +245,24 @@ auto document_form(llm::document_kind kind, std::string_view current) -> std::op
     return form;
 }
 
-auto render_document(llm::document_kind kind, const llm::document_version& shown, bool is_default) -> dpp::message {
-    const std::string heading = is_default ? std::format("The {} is the default:", label_of(kind))
-                                           : std::format("The {}, version {}:", label_of(kind), shown.version);
-    if (util::is_blank(shown.content)) return dpp::message(std::format("The {} is empty.", label_of(kind)));
+auto render_document(const document_target& target, const llm::document_version& shown, bool is_default) -> dpp::message {
+    const std::string label = capitalised(document_label(target));
+    const std::string heading =
+        is_default ? std::format("{} is the default:", label) : std::format("{}, version {}:", label, shown.version);
+    if (util::is_blank(shown.content)) return dpp::message(std::format("{} is empty.", label));
 
     if (util::character_count(shown.content) <= inline_limit && !shown.content.contains("```")) {
         return dpp::message(std::format("{}\n```\n{}\n```", heading, shown.content));
     }
     dpp::message message(std::format("{} (attached, it is too long to show here)", heading));
-    message.add_file(std::format("{}.md", llm::to_string(kind)), shown.content, "text/markdown");
+    message.add_file(std::format("{}.md", llm::to_string(target.ref)), shown.content, "text/markdown");
     return message;
 }
 
-auto render_history(llm::document_kind kind, std::span<const llm::document_version> versions) -> std::string {
-    if (versions.empty()) return std::format("Nobody has edited the {} here; it is the default (version 0).", label_of(kind));
+auto render_history(const document_target& target, std::span<const llm::document_version> versions) -> std::string {
+    if (versions.empty()) return std::format("Nobody has edited {} here; it is the default (version 0).", document_label(target));
 
-    std::string text = std::format("**Versions of the {}**, newest first:\n", label_of(kind));
+    std::string text = std::format("**Versions of {}**, newest first:\n", document_label(target));
     for (std::size_t index = 0; index < versions.size() && index < history_shown; ++index) {
         const llm::document_version& version = versions[index];
         text += std::format("`v{}` <t:{}:f> by <@{}>, {} characters", version.version, version.edited_at.time_since_epoch().count(),
@@ -237,9 +275,9 @@ auto render_history(llm::document_kind kind, std::span<const llm::document_versi
     return text;
 }
 
-auto describe_saved(llm::document_kind kind, int version, std::string_view content) -> std::string {
+auto describe_saved(const document_target& target, int version, std::string_view content) -> std::string {
     const std::size_t tokens = llm::estimate_tokens(content);
-    std::string text = std::format("saved the {} as version {} (about {} tokens)", label_of(kind), version, tokens);
+    std::string text = std::format("saved {} as version {} (about {} tokens)", document_label(target), version, tokens);
     if (tokens > llm::large_document_tokens) {
         text += std::format(
             "; that's long, and it's sent with every message the model answers, so it costs on every one. Under {} "
@@ -247,6 +285,37 @@ auto describe_saved(llm::document_kind kind, int version, std::string_view conte
             llm::large_document_tokens);
     }
     return text;
+}
+
+auto render_personas(std::span<const llm::persona> personas) -> std::string {
+    if (personas.empty()) return "No personas here yet. Make one with `/llm persona add`.";
+
+    std::string text = "**Personas**: each answers when a message starts with its name, or replies to it.\n";
+    for (const llm::persona& who : personas) {
+        text += std::format("- **{}**{}{}\n", who.name, who.model.empty() ? std::string{} : std::format(", on {}", who.model),
+                            who.enabled ? "" : " (off)");
+    }
+    return util::truncate(text, 2000);
+}
+
+auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
+                    double spent_this_month) -> std::string {
+    const llm::model_info* model = llm::find_model(llm::answering_model(who, server_model));
+    std::string text = std::format("**{}** is {}, and answers with {}{}.\n", who.name, who.enabled ? "on" : "off",
+                                   model == nullptr ? std::string(llm::answering_model(who, server_model)) : std::string(model->label),
+                                   who.model.empty() ? ", the server's model" : "");
+    text +=
+        who.avatar_url.empty() ? std::string("Its picture is the webhook's own.\n") : std::format("Its picture: <{}>\n", who.avatar_url);
+    text += std::format("Spent this month: ${:.2f}.\n", spent_this_month);
+    if (triggers.empty()) {
+        text += "No advanced triggers of its own; `/llm trigger add persona:` gives it one.";
+    } else {
+        text += "**Its advanced triggers**\n";
+        for (const llm::advanced_trigger& entry : triggers) {
+            text += describe_trigger(entry) + "\n";
+        }
+    }
+    return util::truncate(text, 2000);
 }
 
 auto render_llm_settings(const std::map<std::string, std::int64_t, std::less<>>& values, bool enabled, bool conversation) -> dpp::message {
@@ -425,6 +494,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
                        .set_min_value(0)
                        .set_max_value(cooldown_limit));
     add.add_option(match_mode_option());
+    add.add_option(persona_option("A persona to answer it, rather than LatiBot.", false));
     trigger.add_option(add);
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change one.");
@@ -437,6 +507,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds.", false).set_min_value(0).set_max_value(cooldown_limit));
     edit.add_option(match_mode_option());
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
+    edit.add_option(persona_option("Who answers it: a persona, or LatiBot.", false));
     trigger.add_option(edit);
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete one.");
@@ -456,7 +527,69 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     blacklist.add_option(dpp::command_option(dpp::co_sub_command, "list", "Show it."));
     payload.add_option(blacklist);
 
+    dpp::command_option persona(dpp::co_sub_command_group, "persona", "Others the model answers as, under their own name.");
+    dpp::command_option create(dpp::co_sub_command, "add", "Make one (Manage Server).");
+    create.add_option(dpp::command_option(dpp::co_string, "name", "What it is called, and answers to.", true)
+                          .set_min_length(1)
+                          .set_max_length(static_cast<std::int64_t>(llm::persona_name_limit)));
+    create.add_option(dpp::command_option(dpp::co_string, "avatar", "An https:// link to its picture.", false)
+                          .set_max_length(static_cast<std::int64_t>(llm::avatar_url_limit)));
+    create.add_option(persona_model_option("Its model. The server's by default."));
+    persona.add_option(create);
+
+    dpp::command_option change(dpp::co_sub_command, "edit", "Change one (Manage Server).");
+    change.add_option(persona_option("Which.", true));
+    change.add_option(dpp::command_option(dpp::co_string, "name", "A new name.", false)
+                          .set_max_length(static_cast<std::int64_t>(llm::persona_name_limit)));
+    change.add_option(dpp::command_option(dpp::co_string, "avatar", "A new picture link, or none.", false)
+                          .set_max_length(static_cast<std::int64_t>(llm::avatar_url_limit)));
+    change.add_option(persona_model_option("A model of its own."));
+    change.add_option(dpp::command_option(dpp::co_boolean, "server_model", "Go back to the server's model.", false));
+    change.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
+    persona.add_option(change);
+
+    dpp::command_option drop(dpp::co_sub_command, "remove", "Delete one, its documents and triggers (Manage Server).");
+    drop.add_option(persona_option("Which.", true));
+    persona.add_option(drop);
+
+    persona.add_option(dpp::command_option(dpp::co_sub_command, "list", "Every persona here."));
+    dpp::command_option view(dpp::co_sub_command, "view", "One persona: its model, picture and triggers.");
+    view.add_option(persona_option("Which.", true));
+    persona.add_option(view);
+
+    dpp::command_option document(dpp::co_sub_command, "document", "Its system instructions or personality.");
+    document.add_option(persona_option("Whose.", true));
+    dpp::command_option which_document(dpp::co_string, "which", "Which document.", true);
+    which_document.add_choice(dpp::command_option_choice("System instructions (Manage Server)", std::string("system")));
+    which_document.add_choice(dpp::command_option_choice("Personality", std::string("personality")));
+    document.add_option(which_document);
+    dpp::command_option action(dpp::co_string, "action", "What to do. View by default.", false);
+    for (const char* each : {"view", "edit", "history", "diff", "revert"}) {
+        action.add_choice(dpp::command_option_choice(each, std::string(each)));
+    }
+    document.add_option(action);
+    document.add_option(dpp::command_option(dpp::co_attachment, "file", "edit: a .txt or .md file to replace it with.", false));
+    document.add_option(dpp::command_option(dpp::co_integer, "version", "revert: from history; 0 is empty.", false).set_min_value(0));
+    document.add_option(dpp::command_option(dpp::co_integer, "from", "diff: the older version.", false).set_min_value(0));
+    document.add_option(dpp::command_option(dpp::co_integer, "to", "diff: the newer version.", false).set_min_value(0));
+    persona.add_option(document);
+    payload.add_option(persona);
+
     return payload;
+}
+
+auto llm_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
+    const dpp::command_option* focused = focused_option(event.options);
+    if (focused == nullptr || focused->name != "persona" || event.owner == nullptr || services_.personas == nullptr) return;
+
+    const auto* typed = std::get_if<std::string>(&focused->value);
+    const std::string wanted = typed == nullptr ? std::string{} : util::to_lower(util::trim(*typed));
+    dpp::interaction_response reply(dpp::ir_autocomplete_reply);
+    for (const llm::persona& who : services_.personas->for_guild(event.command.guild_id)) {
+        if (wanted.empty() || util::to_lower(who.name).contains(wanted))
+            reply.add_autocomplete_choice(dpp::command_option_choice(who.name, who.name));
+    }
+    event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
 
 auto llm_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -470,6 +603,10 @@ auto llm_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void> {
     }
     if (path == "personality editors") {
         co_await editors(event);
+        co_return;
+    }
+    if (group == "persona") {
+        co_await persona(event, action);
         co_return;
     }
     if (const auto kind = llm::document_kind_from_string(group); kind && !action.empty()) {
@@ -578,99 +715,102 @@ auto llm_command::model(const dpp::slashcommand_t& event) -> dpp::task<void> {
     co_await event.co_reply(result(event, std::format("ok, this server now uses {}", chosen->label)));
 }
 
-auto llm_command::may_change(const dpp::slashcommand_t& event, llm::document_kind kind) const -> bool {
+auto llm_command::may_change(const dpp::slashcommand_t& event, const document_target& target) const -> bool {
     const bool admin = manages_server(event);
-    if (kind != llm::document_kind::personality) return admin;
+    if (target.ref.kind != llm::document_kind::personality) return admin;
     const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, event.command.guild_id, *services_.section);
     return may_edit_personality(admin, event.command.guild_id, settings.personality_role, event.command.member.get_roles());
 }
 
-auto llm_command::document(const dpp::slashcommand_t& event, llm::document_kind kind, std::string_view action) -> dpp::task<void> {
+auto llm_command::document(const dpp::slashcommand_t& event, const document_target& target, std::string_view action) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
-    const bool personality = kind == llm::document_kind::personality;
+    const bool personality = target.ref.kind == llm::document_kind::personality;
 
     // The personality is for everyone to read; the other two are admins'
     // business, since they can hold rules better kept out of sight.
     const bool reading = action == "view" || action == "history" || action == "diff";
-    if (reading ? !(personality || manages_server(event)) : !may_change(event, kind)) {
-        co_await event.co_reply(refusal(event, personality ? "you can't edit the personality here" : "that needs Manage Server"));
+    if (reading ? !(personality || manages_server(event)) : !may_change(event, target)) {
+        co_await event.co_reply(
+            refusal(event, personality ? std::format("you can't edit {} here", document_label(target)) : "that needs Manage Server"));
         co_return;
     }
 
     if (action == "view") {
-        const auto current = services_.documents->current(guild, kind);
+        const auto current = services_.documents->current(guild, target.ref);
         const llm::document_version shown = current.value_or(llm::document_version{
-            .version = 0, .content = std::string(llm::default_document(kind)), .edited_by = {}, .edited_at = {}, .note = {}});
-        co_await event.co_reply(result(event, render_document(kind, shown, !current)));
+            .version = 0, .content = std::string(llm::default_document(target.ref)), .edited_by = {}, .edited_at = {}, .note = {}});
+        co_await event.co_reply(result(event, render_document(target, shown, !current)));
     } else if (action == "edit") {
-        co_await edit_document(event, kind);
+        co_await edit_document(event, target);
     } else if (action == "history") {
-        co_await event.co_reply(result(event, render_history(kind, services_.documents->history(guild, kind))));
+        co_await event.co_reply(result(event, render_history(target, services_.documents->history(guild, target.ref))));
     } else if (action == "diff") {
-        co_await diff_document(event, kind);
+        co_await diff_document(event, target);
     } else if (action == "revert") {
-        co_await revert_document(event, kind);
+        co_await revert_document(event, target);
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
 }
 
-auto llm_command::edit_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void> {
+auto llm_command::edit_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void> {
     if (const auto file = snowflake_option(event, "file")) {
-        co_await edit_from_file(event, kind, *file);
+        co_await edit_from_file(event, target, *file);
         co_return;
     }
-    const auto form = document_form(kind, services_.documents->text(event.command.guild_id, kind));
+    const auto form = document_form(target, services_.documents->text(event.command.guild_id, target.ref));
     if (!form) {
         co_await event.co_reply(refusal(event, "it's too long to edit in a form; attach it as a .txt or .md file with `file:`"));
         co_return;
     }
     const auto opened = co_await event.co_dialog(*form);
-    if (opened.is_error()) util::log().warn("could not open the {} form: {}", label_of(kind), opened.get_error().message);
+    if (opened.is_error()) util::log().warn("could not open the form for {}: {}", document_label(target), opened.get_error().message);
 }
 
-auto llm_command::diff_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void> {
+auto llm_command::diff_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
-    const auto current = services_.documents->current(guild, kind);
+    const auto current = services_.documents->current(guild, target.ref);
     const int newest = current ? current->version : 0;
     const int to = static_cast<int>(int_option(event, "to").value_or(newest));
     const int from = static_cast<int>(int_option(event, "from").value_or(std::max(0, to - 1)));
-    const auto older = services_.documents->version(guild, kind, from);
-    const auto newer = services_.documents->version(guild, kind, to);
+    const auto older = services_.documents->version(guild, target.ref, from);
+    const auto newer = services_.documents->version(guild, target.ref, to);
     if (!older || !newer) {
-        co_await event.co_reply(refusal(event, std::format("there's no version {} of the {}", !older ? from : to, label_of(kind))));
+        co_await event.co_reply(refusal(event, std::format("there's no version {} of {}", !older ? from : to, document_label(target))));
         co_return;
     }
 
     const std::string diff = llm::diff_lines(older->content, newer->content);
-    const std::string heading = std::format("The {} from version {} to {}:", label_of(kind), from, to);
+    const std::string heading = std::format("{} from version {} to {}:", capitalised(document_label(target)), from, to);
     if (diff.empty()) {
         co_await event.co_reply(result(event, std::format("{} no change", heading)));
     } else if (util::character_count(diff) <= inline_limit && !diff.contains("```")) {
         co_await event.co_reply(result(event, std::format("{}\n```diff\n{}```", heading, diff)));
     } else {
         dpp::message message(std::format("{} (attached, it is too long to show here)", heading));
-        message.add_file(std::format("{}-v{}-v{}.diff", llm::to_string(kind), from, to), diff, "text/plain");
+        message.add_file(std::format("{}-v{}-v{}.diff", llm::to_string(target.ref), from, to), diff, "text/plain");
         co_await event.co_reply(result(event, std::move(message)));
     }
 }
 
-auto llm_command::revert_document(const dpp::slashcommand_t& event, llm::document_kind kind) -> dpp::task<void> {
+auto llm_command::revert_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
     const int number = static_cast<int>(int_option(event, "version").value_or(0));
-    const auto saved = services_.documents->revert(guild, kind, number, event.command.get_issuing_user().id, seconds_now(*services_.clock));
+    const auto saved =
+        services_.documents->revert(guild, target.ref, number, event.command.get_issuing_user().id, seconds_now(*services_.clock));
     if (!saved) {
-        co_await event.co_reply(refusal(event, std::format("there's no version {} of the {}", number, label_of(kind))));
+        co_await event.co_reply(refusal(event, std::format("there's no version {} of {}", number, document_label(target))));
         co_return;
     }
     // Edits go to the log, not to the channel
     // (src/modules/llm/docs/Language_Model.md §3.5).
-    util::log().info("the {} in guild {} reverted to version {} by {}, as version {}", label_of(kind), guild, number,
+    util::log().info("{} in guild {} reverted to version {} by {}, as version {}", document_label(target), guild, number,
                      describe_user(event.command.get_issuing_user()), *saved);
-    co_await event.co_reply(result(event, describe_saved(kind, *saved, services_.documents->text(guild, kind))));
+    co_await event.co_reply(result(event, describe_saved(target, *saved, services_.documents->text(guild, target.ref))));
 }
 
-auto llm_command::edit_from_file(const dpp::slashcommand_t& event, llm::document_kind kind, dpp::snowflake attachment) -> dpp::task<void> {
+auto llm_command::edit_from_file(const dpp::slashcommand_t& event, const document_target& target, dpp::snowflake attachment)
+    -> dpp::task<void> {
     const dpp::snowflake guild = event.command.guild_id;
 
     const dpp::attachment* file = nullptr;
@@ -694,7 +834,7 @@ auto llm_command::edit_from_file(const dpp::slashcommand_t& event, llm::document
     const auto downloaded =
         co_await services_.http->send({.url = file->url, .method = ports::http_method::get, .body = {}, .content_type = {}, .headers = {}});
     if (!downloaded.has_value() || downloaded.value().status != 200) {
-        util::log().warn("could not download {} for the {} in guild {}: {}", file->filename, label_of(kind), guild,
+        util::log().warn("could not download {} for {} in guild {}: {}", file->filename, document_label(target), guild,
                          downloaded.has_value() ? std::format("status {}", downloaded.value().status) : downloaded.error().message);
         co_await answer_deferred(event, refusal(event, "i couldn't download that file; try again"));
         co_return;
@@ -707,11 +847,11 @@ auto llm_command::edit_from_file(const dpp::slashcommand_t& event, llm::document
         co_return;
     }
 
-    const int version = services_.documents->save(guild, kind, text, event.command.get_issuing_user().id, seconds_now(*services_.clock),
-                                                  std::format("from {}", file->filename));
-    util::log().info("the {} in guild {} replaced from {} by {}: version {}, {} characters", label_of(kind), guild, file->filename,
+    const int version = services_.documents->save(guild, target.ref, text, event.command.get_issuing_user().id,
+                                                  seconds_now(*services_.clock), std::format("from {}", file->filename));
+    util::log().info("{} in guild {} replaced from {} by {}: version {}, {} characters", document_label(target), guild, file->filename,
                      describe_user(event.command.get_issuing_user()), version, util::character_count(text));
-    co_await answer_deferred(event, result(event, describe_saved(kind, version, text)));
+    co_await answer_deferred(event, result(event, describe_saved(target, version, text)));
 }
 
 auto llm_command::editors(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -743,10 +883,12 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
 
     if (action == "list") {
         const auto all = services_.triggers->for_guild(guild);
+        const auto personas = services_.personas == nullptr ? std::vector<llm::persona>{} : services_.personas->for_guild(guild);
         std::string text = all.empty() ? std::string("No advanced triggers here yet. Add one with `/llm trigger add`.")
                                        : std::string("**Advanced triggers**\n");
         for (const llm::advanced_trigger& entry : all) {
-            text += describe_trigger(entry) + "\n";
+            const auto owner = std::ranges::find(personas, entry.persona_id, &llm::persona::id);
+            text += describe_trigger(entry, owner == personas.end() ? std::string_view{} : std::string_view(owner->name)) + "\n";
         }
         co_await event.co_reply(result(event, util::truncate(text, 2000)));
         co_return;
@@ -789,6 +931,25 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
     if (const auto mode = util::match_mode_from_string(string_option(event, "mode"))) entry.mode = *mode;
     entry.enabled = bool_option(event, "enabled").value_or(entry.enabled);
 
+    // Who answers it: a persona, or LatiBot itself
+    // (src/modules/llm/docs/Language_Model.md §2.11).
+    std::string answered_by;
+    if (const std::string named(util::trim(string_option(event, "persona"))); !named.empty()) {
+        if (util::equals_ignoring_case(named, latibot_choice)) {
+            entry.persona_id = 0;
+        } else {
+            const auto owner = named_persona(event, "persona");
+            if (!owner) {
+                co_await event.co_reply(refusal(event, std::format("there's no persona called \"{}\" here", named)));
+                co_return;
+            }
+            entry.persona_id = owner->id;
+            answered_by = owner->name;
+        }
+    } else if (entry.persona_id != 0 && services_.personas != nullptr) {
+        if (const auto owner = services_.personas->find(entry.persona_id, guild)) answered_by = owner->name;
+    }
+
     if (entry.pattern.empty() || entry.context_prompt.empty()) {
         co_await event.co_reply(refusal(event, "a trigger needs a pattern and a prompt"));
         co_return;
@@ -801,8 +962,9 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
         co_return;
     }
     util::log().info("advanced trigger {} {} in guild {} by {}: {}", entry.id, action == "add" ? "added" : "updated", guild, who,
-                     describe_trigger(entry));
-    co_await event.co_reply(result(event, std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry))));
+                     describe_trigger(entry, answered_by));
+    co_await event.co_reply(
+        result(event, std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by))));
 }
 
 auto llm_command::blacklist(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
@@ -843,6 +1005,156 @@ auto llm_command::blacklist(const dpp::slashcommand_t& event, std::string_view a
         reply = changed ? std::format("ok, i'll answer {} again", named) : std::format("{} wasn't on the list", named);
     }
     co_await event.co_reply(result(event, reply));
+}
+
+auto llm_command::named_persona(const dpp::slashcommand_t& event, const char* option) const -> std::optional<llm::persona> {
+    const std::string name(util::trim(string_option(event, option)));
+    if (name.empty() || services_.personas == nullptr) return std::nullopt;
+    return services_.personas->find_named(event.command.guild_id, name);
+}
+
+auto llm_command::persona(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    if (services_.personas == nullptr) {
+        co_await event.co_reply(refusal(event, "personas aren't available on this bot"));
+        co_return;
+    }
+
+    if (action == "list") {
+        co_await event.co_reply(result(event, render_personas(services_.personas->for_guild(guild))));
+        co_return;
+    }
+    if (action == "add") {
+        if (!manages_server(event)) {
+            co_await event.co_reply(refusal(event, "that needs Manage Server"));
+            co_return;
+        }
+        co_await add_persona(event);
+        co_return;
+    }
+
+    // Everything else is about one of them.
+    const auto who = named_persona(event, "persona");
+    if (!who) {
+        co_await event.co_reply(
+            refusal(event, std::format("there's no persona called \"{}\" here", util::trim(string_option(event, "persona")))));
+        co_return;
+    }
+
+    if (action == "view") {
+        auto triggers = services_.triggers->for_guild(guild);
+        std::erase_if(triggers, [&](const llm::advanced_trigger& entry) { return entry.persona_id != who->id; });
+        const auto now = seconds_now(*services_.clock);
+        const double spent = services_.usage->spent_by_persona(who->id, llm::month_start(now), now + std::chrono::seconds{1});
+        const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
+        co_await event.co_reply(result(event, render_persona(*who, settings.model, triggers, spent)));
+        co_return;
+    }
+    if (action == "document") {
+        // Its documents go the way LatiBot's do, permissions and all.
+        const llm::document_kind kind =
+            string_option(event, "which") == "system" ? llm::document_kind::system : llm::document_kind::personality;
+        const std::string chosen = string_option(event, "action");
+        co_await document(event, document_target(llm::document_ref(kind, who->id), who->name), chosen.empty() ? "view" : chosen);
+        co_return;
+    }
+
+    if (!manages_server(event)) {
+        co_await event.co_reply(refusal(event, "that needs Manage Server"));
+        co_return;
+    }
+    if (action == "edit") {
+        co_await edit_persona(event, *who);
+    } else if (action == "remove") {
+        services_.personas->remove(who->id, guild);
+        util::log().info("persona {} \"{}\" removed from guild {} by {}", who->id, who->name, guild,
+                         describe_user(event.command.get_issuing_user()));
+        co_await event.co_reply(result(event, std::format("removed {}, with its documents and triggers", who->name)));
+    } else {
+        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
+    }
+}
+
+auto llm_command::add_persona(const dpp::slashcommand_t& event) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    if (services_.personas->count(guild) >= llm::persona_limit) {
+        co_await event.co_reply(refusal(event, std::format("a server can have at most {} personas", llm::persona_limit)));
+        co_return;
+    }
+
+    llm::persona made{.id = 0,
+                      .guild_id = guild,
+                      .name = std::string(util::trim(string_option(event, "name"))),
+                      .avatar_url = std::string(util::trim(string_option(event, "avatar"))),
+                      .model = string_option(event, "model"),
+                      .enabled = true,
+                      .created_by = event.command.get_issuing_user().id,
+                      .created_at = seconds_now(*services_.clock)};
+
+    std::optional<std::string> problem = llm::persona_name_problem(made.name);
+    if (!problem) problem = llm::avatar_problem(made.avatar_url);
+    if (!problem && services_.personas->find_named(guild, made.name))
+        problem = std::format("there's already a persona called {}", made.name);
+    if (!problem && !made.model.empty()) {
+        const llm::model_info* model = llm::find_model(made.model);
+        if (model == nullptr) {
+            problem = std::format("i don't know a model called \"{}\"", made.model);
+        } else if (!services_.has_provider(model->provider)) {
+            problem = std::format("there's no {} API key on the bot, so {} can't be used", llm::to_string(model->provider), model->label);
+        }
+    }
+    if (problem) {
+        co_await event.co_reply(refusal(event, *problem));
+        co_return;
+    }
+
+    made.id = services_.personas->add(made);
+    util::log().info("persona {} \"{}\" made in guild {} by {}{}", made.id, made.name, guild,
+                     describe_user(event.command.get_issuing_user()),
+                     made.model.empty() ? std::string{} : std::format(", on {}", made.model));
+
+    std::string reply = std::format(
+        "made {0}: it answers here when a message starts with \"{0}\", or replies to it. Tell it who it is with `/llm persona "
+        "document persona:{0} which:system action:edit`",
+        made.name);
+    if (!llm::load_llm_settings(*services_.settings, guild, *services_.section).enabled) reply += ". The model is off here: /llm on";
+    co_await event.co_reply(result(event, reply));
+}
+
+auto llm_command::edit_persona(const dpp::slashcommand_t& event, llm::persona who) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    std::optional<std::string> problem;
+
+    if (const std::string name(util::trim(string_option(event, "name"))); !name.empty() && name != who.name) {
+        problem = llm::persona_name_problem(name);
+        const auto taken = services_.personas->find_named(guild, name);
+        if (!problem && taken && taken->id != who.id) problem = std::format("there's already a persona called {}", name);
+        who.name = name;
+    }
+    if (const std::string avatar(util::trim(string_option(event, "avatar"))); !avatar.empty()) {
+        const bool none = util::equals_ignoring_case(avatar, "none");
+        if (!problem && !none) problem = llm::avatar_problem(avatar);
+        who.avatar_url = none ? std::string{} : avatar;
+    }
+    if (const std::string model = string_option(event, "model"); !model.empty()) {
+        const llm::model_info* found = llm::find_model(model);
+        if (!problem && found == nullptr) problem = std::format("i don't know a model called \"{}\"", model);
+        if (!problem && !services_.has_provider(found->provider)) {
+            problem = std::format("there's no {} API key on the bot, so {} can't be used", llm::to_string(found->provider), found->label);
+        }
+        who.model = model;
+    }
+    if (bool_option(event, "server_model").value_or(false)) who.model.clear();
+    who.enabled = bool_option(event, "enabled").value_or(who.enabled);
+
+    if (problem) {
+        co_await event.co_reply(refusal(event, *problem));
+        co_return;
+    }
+    services_.personas->update(who);
+    util::log().info("persona {} in guild {} changed by {}: \"{}\", {}, {}", who.id, guild, describe_user(event.command.get_issuing_user()),
+                     who.name, who.model.empty() ? std::string("the server's model") : who.model, who.enabled ? "on" : "off");
+    co_await event.co_reply(result(event, std::format("updated {}", who.name)));
 }
 
 // --------------------------------------------------------------------------
@@ -1032,14 +1344,26 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
     }
 
     if (state.view == llm_document_form_view) {
-        const auto kind = llm::document_kind_from_string(state.argument);
-        if (!kind) return false;
+        const auto ref = llm::document_ref_from_string(state.argument);
+        if (!ref) return false;
+
+        // A persona's document, of a persona removed while the form was
+        // open, has nowhere to go.
+        document_target target(ref->kind);
+        if (ref->persona != 0) {
+            const auto owner = services_.personas == nullptr ? std::nullopt : services_.personas->find(ref->persona, guild);
+            if (!owner) {
+                ui::answer_privately(event, "that persona is gone, so nothing was saved");
+                return true;
+            }
+            target = document_target(*ref, owner->name);
+        }
 
         // Checked again: the form could have been opened before a role was
         // taken away.
         const bool admin = manages_server(event);
         const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
-        const bool allowed = *kind == llm::document_kind::personality
+        const bool allowed = ref->kind == llm::document_kind::personality
                                  ? may_edit_personality(admin, guild, settings.personality_role, event.command.member.get_roles())
                                  : admin;
         if (!allowed) {
@@ -1055,26 +1379,26 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
         for (std::size_t index = 1; index <= form_parts; ++index) {
             const auto found = fields.find(std::format("part{}", index));
             if (found == fields.end()) {
-                util::log().warn("the {} form from {} in guild {} came back without part {}; nothing saved", label_of(*kind), who, guild,
-                                 index);
+                util::log().warn("the form for {} from {} in guild {} came back without part {}; nothing saved", document_label(target),
+                                 who, guild, index);
                 ui::answer_privately(event, "that form came back incomplete, so nothing was saved; try again");
                 return true;
             }
             parts.push_back(found->second);
         }
         const std::string text = join_document_parts(parts);
-        if (text == services_.documents->text(guild, *kind)) {
+        if (text == services_.documents->text(guild, *ref)) {
             ui::answer_privately(event, "nothing changed, so nothing was saved");
             return true;
         }
 
         const int version =
-            services_.documents->save(guild, *kind, text, event.command.get_issuing_user().id, seconds_now(*services_.clock));
+            services_.documents->save(guild, *ref, text, event.command.get_issuing_user().id, seconds_now(*services_.clock));
         // Edits go to the log, not to the channel
         // (src/modules/llm/docs/Language_Model.md §3.5).
-        util::log().info("the {} in guild {} edited by {}: version {}, {} characters", label_of(*kind), guild, who, version,
+        util::log().info("{} in guild {} edited by {}: version {}, {} characters", document_label(target), guild, who, version,
                          util::character_count(text));
-        ui::answer_privately(event, describe_saved(*kind, version, text));
+        ui::answer_privately(event, describe_saved(target, version, text));
         return true;
     }
 

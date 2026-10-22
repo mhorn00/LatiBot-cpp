@@ -147,7 +147,10 @@ YouTube ([Music.md §5](../../modules/music/docs/Music.md#5-dependencies-and-run
 looked for once at startup: at `music.ytdlp_path`, `music.ffmpeg_path` or `music.deno_path` in
 `config.json` if set, else beside `LatiBot.exe`, else on `PATH`. Without
 yt-dlp or ffmpeg the bot starts, warns, and `/music play` says what is
-missing; without Deno it warns, and music plays what it can. Their versions
+missing; without Deno it warns, and music plays what it can. The soundboard
+looks for ffmpeg the same way, at `soundboard.ffmpeg_path` first, and
+without it `/soundboard` says so
+([Soundboard.md §5](../../modules/soundboard/docs/Soundboard.md#5-configuration)). Their versions
 are logged, asked on a thread of its own so startup does not wait. The bot
 also runs bgutil's PO token provider, when it is set up, for as long as it
 runs ([Music.md §4.10](../../modules/music/docs/Music.md#410-po-tokens)).

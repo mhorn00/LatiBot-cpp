@@ -1,4 +1,4 @@
-// WAV files and voice-message waveforms (src/modules/dectalk/docs/Speech.md §4.4).
+// WAV files, which /chat sends (src/modules/dectalk/docs/Speech.md §4.4).
 
 #include "wav.hpp"
 
@@ -9,8 +9,6 @@
 #include <vector>
 
 using latibot::audio::wav_file;
-using latibot::audio::waveform;
-using latibot::audio::waveform_base64;
 
 TEST_CASE("a WAV file has the RIFF header, then the samples little-endian", "[dectalk]") {
     const std::vector<std::int16_t> samples{0x0102, -2};
@@ -44,47 +42,4 @@ TEST_CASE("a stereo WAV file counts both channels in its rates", "[dectalk]") {
     // Bytes a second: 48000 * 2 channels * 2 bytes = 192000 = 0x0002EE00.
     CHECK(file.substr(28, 4) == std::string("\x00\xEE\x02\x00", 4));
     CHECK(file.substr(32, 2) == std::string("\x04\x00", 2)); // 4 bytes a frame
-}
-
-TEST_CASE("the waveform of silence is flat", "[dectalk]") {
-    const auto shape = waveform(std::vector<std::int16_t>(10000, 0));
-
-    REQUIRE(shape.size() == 256);
-    CHECK(shape == std::vector<std::uint8_t>(256, 0));
-}
-
-TEST_CASE("the waveform follows where the sound is", "[dectalk]") {
-    // Silence, then a loud stretch, then a quiet one: the Java version would
-    // have drawn this as flat noise.
-    std::vector<std::int16_t> samples(2560, 0);
-    for (std::size_t i = 1024; i < 2048; ++i) {
-        samples[i] = (i % 2 == 0) ? 20000 : -20000;
-    }
-    for (std::size_t i = 2048; i < 2560; ++i) {
-        samples[i] = (i % 2 == 0) ? 5000 : -5000;
-    }
-
-    const auto shape = waveform(samples);
-
-    REQUIRE(shape.size() == 256);
-    CHECK(shape[0] == 0);
-    CHECK(shape[101] == 0);
-    CHECK(shape[103] == 255);
-    CHECK(shape[203] == 255);
-    CHECK(shape[210] == 63); // 5000 of 20000
-    CHECK(shape[255] == 63);
-}
-
-TEST_CASE("a waveform of fewer samples than bars has one bar per sample", "[dectalk]") {
-    CHECK(waveform(std::vector<std::int16_t>{0, 100, -200}) == std::vector<std::uint8_t>{0, 127, 255});
-    CHECK(waveform({}).empty());
-}
-
-TEST_CASE("the waveform is sent as base64 of its 256 bytes", "[dectalk]") {
-    const std::string encoded = waveform_base64(std::vector<std::int16_t>(10000, 0));
-
-    // 256 bytes encode to 344 characters, padding included, and all-zero
-    // bytes encode to 'A's.
-    REQUIRE(encoded.size() == 344);
-    CHECK(encoded.find_first_not_of("A=") == std::string::npos);
 }

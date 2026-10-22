@@ -40,6 +40,11 @@ TEST_CASE("a status is kept for the next start, and none is kept until one is se
     CHECK(restored.activities[0].name == "the logs");
 }
 
+TEST_CASE("version names the bot and its version, and says when it is a Debug build", "[commands]") {
+    CHECK(latibot::commands::describe_version("1.2.3", false) == "LatiBot 1.2.3");
+    CHECK(latibot::commands::describe_version("1.2.3", true) == "LatiBot 1.2.3 (Debug build)");
+}
+
 TEST_CASE("say refuses a message that is only whitespace", "[commands]") {
     // Discord's own minimum length of 1 counts characters, so "   " reaches
     // us and then fails at the API with nothing useful to show the caller.

@@ -1,8 +1,9 @@
 # Basic commands, and the goodbye phrase
 
-The small commands the Java bot had: `/ping`, `/say`, `/status` and
-`/shutdown`. Also the **goodbye phrase**: an administrator saying
-"say goodbye latibot" stops the bot, and `/goodbye` changes the phrase.
+The small commands: `/ping`, `/say`, `/status` and `/shutdown`, which the
+Java bot had, and `/version`, which it did not. Also the **goodbye phrase**:
+an administrator saying "say goodbye latibot" stops the bot, and `/goodbye`
+changes the phrase.
 `/join` and `/leave` live in the same file, but are part of
 [voice channels](../../modules/voice/docs/Voice_Channels.md).
 
@@ -41,6 +42,7 @@ the cleanup analysis (2026-09-25) asked the owner, and §5 records the answers.
 | Command | Who, by default | Answer | Does |
 |---|---|---|---|
 | `/ping` | everyone | private | `Pong!`, then edits in the round trip and the gateway latency |
+| `/version` | everyone | private | `LatiBot 0.1.0`, with `(Debug build)` after it in one |
 | `/say message [reply]` | Manage Messages | private `ok`, then a public post | Posts as the bot in this channel, optionally as a reply to a message id |
 | `/status status [type]` | Manage Nicknames | private | Sets the bot's presence, everywhere, and keeps it |
 | `/shutdown` | Administrator | public | `ok bye bye!`, then stops |

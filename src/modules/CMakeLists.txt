@@ -45,3 +45,8 @@ option(LATIBOT_WITH_LINKSTATS "Build the linkstats module: /linkstats and reacti
 if(LATIBOT_WITH_LINKSTATS)
     add_subdirectory(linkstats)
 endif()
+
+option(LATIBOT_WITH_SOUNDBOARD "Build the soundboard module: /soundboard, sounds as voice messages" ON)
+if(LATIBOT_WITH_SOUNDBOARD)
+    add_subdirectory(soundboard)
+endif()

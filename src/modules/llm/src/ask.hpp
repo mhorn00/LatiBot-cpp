@@ -62,6 +62,10 @@ struct ask_llm {
     /// How long to wait before answering: bot-to-bot pacing
     /// (src/modules/llm/docs/Language_Model.md §2.7).
     std::chrono::seconds wait{0};
+
+    /// The persona that answers, posting as itself; 0 for LatiBot
+    /// (src/modules/llm/docs/Language_Model.md §2.11).
+    std::int64_t persona_id = 0;
 };
 
 /// The approach as the log names it: "addressed", "named", "joined in",

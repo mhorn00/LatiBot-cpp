@@ -5,6 +5,7 @@
 #include "core/util/text.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <format>
 #include <vector>
 
@@ -58,6 +59,37 @@ auto document_kind_from_string(std::string_view name) -> std::optional<document_
     return std::nullopt;
 }
 
+auto to_string(const document_ref& document) -> std::string {
+    if (document.persona == 0) return std::string(to_string(document.kind));
+    return std::format("persona.{}.{}", document.persona, to_string(document.kind));
+}
+
+auto document_ref_from_string(std::string_view text) -> std::optional<document_ref> {
+    constexpr std::string_view prefix = "persona.";
+    if (!text.starts_with(prefix)) {
+        const auto kind = document_kind_from_string(text);
+        if (!kind) return std::nullopt;
+        return document_ref(*kind);
+    }
+
+    text.remove_prefix(prefix.size());
+    const std::size_t dot = text.find('.');
+    if (dot == std::string_view::npos) return std::nullopt;
+    const std::string_view digits = text.substr(0, dot);
+    std::int64_t id = 0;
+    const auto [end, error] = std::from_chars(digits.data(), digits.data() + digits.size(), id);
+    const auto kind = document_kind_from_string(text.substr(dot + 1));
+    if (error != std::errc{} || end != digits.data() + digits.size() || id <= 0 || !kind || *kind == document_kind::trigger_style) {
+        return std::nullopt;
+    }
+    return document_ref(*kind, id);
+}
+
+auto default_document(const document_ref& document) noexcept -> std::string_view {
+    if (document.persona != 0) return {};
+    return default_document(document.kind);
+}
+
 auto default_document(document_kind kind) noexcept -> std::string_view {
     switch (kind) {
     case document_kind::personality:
@@ -77,34 +109,34 @@ auto estimate_tokens(std::string_view text) noexcept -> std::size_t {
 
 // --------------------------------------------------------------------------
 
-auto document_store::current(dpp::snowflake guild_id, document_kind kind) const -> std::optional<document_version> {
+auto document_store::current(dpp::snowflake guild_id, document_ref document) const -> std::optional<document_version> {
     auto query = db_->prepare(
         "SELECT version, content, edited_by, edited_at, note FROM llm_documents WHERE guild_id = ? AND kind = ? "
         "ORDER BY version DESC LIMIT 1",
-        guild_id, to_string(kind));
+        guild_id, to_string(document));
     if (!query.step()) return std::nullopt;
     return read_version(query);
 }
 
-auto document_store::text(dpp::snowflake guild_id, document_kind kind) const -> std::string {
-    const auto found = current(guild_id, kind);
-    return found ? found->content : std::string(default_document(kind));
+auto document_store::text(dpp::snowflake guild_id, document_ref document) const -> std::string {
+    const auto found = current(guild_id, document);
+    return found ? found->content : std::string(default_document(document));
 }
 
-auto document_store::save(dpp::snowflake guild_id, document_kind kind, std::string_view content, dpp::snowflake edited_by,
+auto document_store::save(dpp::snowflake guild_id, document_ref document, std::string_view content, dpp::snowflake edited_by,
                           std::chrono::sys_seconds at, std::string_view note) -> int {
     // One transaction, so two saves at once cannot both take the same number.
     db::transaction tx(*db_);
 
     int next = 1;
     {
-        auto newest =
-            db_->prepare("SELECT COALESCE(MAX(version), 0) FROM llm_documents WHERE guild_id = ? AND kind = ?", guild_id, to_string(kind));
+        auto newest = db_->prepare("SELECT COALESCE(MAX(version), 0) FROM llm_documents WHERE guild_id = ? AND kind = ?", guild_id,
+                                   to_string(document));
         if (newest.step()) next = newest.get<int>(0) + 1;
     }
 
     db_->prepare("INSERT INTO llm_documents (guild_id, kind, version, content, edited_by, edited_at, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                 guild_id, to_string(kind), next, content, edited_by, at,
+                 guild_id, to_string(document), next, content, edited_by, at,
                  note.empty() ? std::optional<std::string_view>{} : std::optional<std::string_view>(note))
         .run();
 
@@ -112,35 +144,35 @@ auto document_store::save(dpp::snowflake guild_id, document_kind kind, std::stri
     return next;
 }
 
-auto document_store::history(dpp::snowflake guild_id, document_kind kind) const -> std::vector<document_version> {
+auto document_store::history(dpp::snowflake guild_id, document_ref document) const -> std::vector<document_version> {
     std::vector<document_version> versions;
     auto query = db_->prepare(
         "SELECT version, content, edited_by, edited_at, note FROM llm_documents WHERE guild_id = ? AND kind = ? ORDER BY version DESC",
-        guild_id, to_string(kind));
+        guild_id, to_string(document));
     while (query.step()) {
         versions.push_back(read_version(query));
     }
     return versions;
 }
 
-auto document_store::version(dpp::snowflake guild_id, document_kind kind, int number) const -> std::optional<document_version> {
+auto document_store::version(dpp::snowflake guild_id, document_ref document, int number) const -> std::optional<document_version> {
     if (number == 0) {
         return document_version{
-            .version = 0, .content = std::string(default_document(kind)), .edited_by = {}, .edited_at = {}, .note = "the default"};
+            .version = 0, .content = std::string(default_document(document)), .edited_by = {}, .edited_at = {}, .note = "the default"};
     }
 
     auto query = db_->prepare(
         "SELECT version, content, edited_by, edited_at, note FROM llm_documents WHERE guild_id = ? AND kind = ? AND version = ?", guild_id,
-        to_string(kind), number);
+        to_string(document), number);
     if (!query.step()) return std::nullopt;
     return read_version(query);
 }
 
-auto document_store::revert(dpp::snowflake guild_id, document_kind kind, int number, dpp::snowflake edited_by, std::chrono::sys_seconds at)
-    -> std::optional<int> {
-    const auto old = version(guild_id, kind, number);
+auto document_store::revert(dpp::snowflake guild_id, document_ref document, int number, dpp::snowflake edited_by,
+                            std::chrono::sys_seconds at) -> std::optional<int> {
+    const auto old = version(guild_id, document, number);
     if (!old) return std::nullopt;
-    return save(guild_id, kind, old->content, edited_by, at, std::format("reverted to version {}", number));
+    return save(guild_id, document, old->content, edited_by, at, std::format("reverted to version {}", number));
 }
 
 // --------------------------------------------------------------------------

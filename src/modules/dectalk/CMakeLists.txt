@@ -18,7 +18,6 @@ latibot_module(dectalk
         src/wav.cpp
     LINKS dectalk
     TESTS
-        tests/chat_command_test.cpp
         tests/custom_voice_test.cpp
         tests/dectalk_engine_test.cpp
         tests/dectalk_golden_test.cpp

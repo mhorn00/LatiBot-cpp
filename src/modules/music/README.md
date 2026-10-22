@@ -39,6 +39,5 @@ module registers, so this table cannot fall behind the code.
 | `src/music_player.*`, `src/music_queue.*` | playing, per server, and the queue |
 | `src/yt_dlp.*`, `src/media.hpp` | yt-dlp and ffmpeg, behind the media port |
 | `src/cookies.*`, `src/pot_provider.*`, `src/links.*` | signing in, PO tokens, and which links are refused |
-| `src/process.*` | running a program and reading what it says (was `util/process`) |
 | `src/music_command.*` | `/music` and its queue page |
 | `tests/` | `latibot_music_tests`; `mock_media.hpp` stands in for yt-dlp |

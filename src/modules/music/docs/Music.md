@@ -16,7 +16,7 @@ and [Speech.md](../../dectalk/docs/Speech.md).
 | | |
 |---|---|
 | **Module** | `music`, which requires voice: [its README](../README.md) lists what it owns |
-| **Code** | `src/modules/music/src/`: `{music_queue,music_player,yt_dlp,links,cookies,pot_provider,process}.*`, `music_command.*`, `media.hpp`, `module.cpp`; the mixer is voice's (`voice/voice_mixer.hpp`) |
+| **Code** | `src/modules/music/src/`: `{music_queue,music_player,yt_dlp,links,cookies,pot_provider}.*`, `music_command.*`, `media.hpp`, `module.cpp`; the mixer is voice's (`voice/voice_mixer.hpp`) |
 | **Tests** | `src/modules/music/tests/` (`latibot_music_tests`, with `mock_media.hpp`), `tests/mocks/mock_voice.hpp`, `tests/support/test_child.cpp` |
 | **Tables** | none: the queue lives in memory. `music_volume` and `music_track_limit_minutes` per server in `guild_settings` |
 | **Config** | the `music` section of `config.json`: `ytdlp_path`, `ffmpeg_path`, `deno_path`, `pot_provider_path`, `pot_provider_port`; `LATIBOT_YTDLP_FIREFOX_PROFILE` or `LATIBOT_YTDLP_COOKIES` in the environment, to sign in to YouTube (§4.9) |
@@ -342,7 +342,8 @@ found.
 
 ### 4.6 Running programs
 
-`util::process` is a small wrapper over Win32, or over POSIX elsewhere
+`util::process` (`core/util/process.hpp`, which the soundboard runs ffmpeg
+with too) is a small wrapper over Win32, or over POSIX elsewhere
 (`process_windows.cpp`, `process_posix.cpp`; what they share is in
 `process.cpp`):
 

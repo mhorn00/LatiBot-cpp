@@ -20,6 +20,10 @@ auto unwrap(const dpp::confirmation_callback_t& confirmation) -> ports::result<T
     return std::get<T>(confirmation.value);
 }
 
+auto to_webhook(const dpp::webhook& hook) -> ports::webhook {
+    return {.id = hook.id, .channel_id = hook.channel_id, .name = hook.name, .token = hook.token, .created_by = hook.user_obj.id};
+}
+
 } // namespace
 
 auto dpp_gateway::send_message(dpp::message message) -> dpp::task<ports::result<dpp::message>> {
@@ -114,6 +118,39 @@ auto dpp_gateway::delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task
     co_return ports::result<void>{};
 }
 
+auto dpp_gateway::channel_webhooks(dpp::snowflake channel_id) -> dpp::task<ports::result<std::vector<ports::webhook>>> {
+    const auto confirmation = co_await cluster_->co_get_channel_webhooks(channel_id);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
+
+    std::vector<ports::webhook> found;
+    for (const auto& [id, hook] : std::get<dpp::webhook_map>(confirmation.value)) {
+        found.push_back(to_webhook(hook));
+    }
+    co_return found;
+}
+
+auto dpp_gateway::create_webhook(dpp::snowflake channel_id, std::string name) -> dpp::task<ports::result<ports::webhook>> {
+    dpp::webhook wanted;
+    wanted.channel_id = channel_id;
+    wanted.name = std::move(name);
+    const auto confirmation = co_await cluster_->co_create_webhook(wanted);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
+    co_return to_webhook(std::get<dpp::webhook>(confirmation.value));
+}
+
+auto dpp_gateway::execute_webhook(const ports::webhook& hook, dpp::message message, std::string username, std::string avatar_url,
+                                  dpp::snowflake thread) -> dpp::task<ports::result<dpp::message>> {
+    // DPP sends the webhook's name and avatar URL as this message's username
+    // and avatar, so one webhook serves every name.
+    dpp::webhook through(hook.id, hook.token);
+    through.name = std::move(username);
+    through.avatar_url = std::move(avatar_url);
+
+    // Waited on, so Discord sends the message back, and its id with it.
+    const auto confirmation = co_await cluster_->co_execute_webhook(through, message, /*wait=*/true, thread);
+    co_return unwrap<dpp::message>(confirmation);
+}
+
 auto dpp_gateway::member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> {
     ports::member_names names;
     if (const dpp::user* user = dpp::find_user(user_id); user != nullptr) {
@@ -139,6 +176,16 @@ auto dpp_gateway::channel_name(dpp::snowflake channel_id) const -> std::optional
     const dpp::channel* channel = dpp::find_channel(channel_id);
     if (channel == nullptr) return std::nullopt;
     return channel->name;
+}
+
+auto dpp_gateway::thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> {
+    const dpp::channel* channel = dpp::find_channel(channel_id);
+    if (channel == nullptr) return std::nullopt;
+    const dpp::channel_type type = channel->get_type();
+    if (type != dpp::CHANNEL_PUBLIC_THREAD && type != dpp::CHANNEL_PRIVATE_THREAD && type != dpp::CHANNEL_ANNOUNCEMENT_THREAD) {
+        return std::nullopt;
+    }
+    return channel->parent_id;
 }
 
 } // namespace latibot::discord

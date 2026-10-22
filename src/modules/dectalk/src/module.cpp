@@ -74,7 +74,7 @@ public:
     auto start(modules::host& bot) -> void override {
         bot.slash_commands().add(std::make_unique<commands::speak_command>(services()));
         bot.slash_commands().add(std::make_unique<commands::tts_command>(services(), *lab_));
-        bot.slash_commands().add(std::make_unique<commands::chat_command>(services(), bot.raw()));
+        bot.slash_commands().add(std::make_unique<commands::chat_command>(services(), bot.http()));
         bot.panels().add(*lab_,
                          {commands::lab_edit_view, commands::lab_base_view, commands::lab_test_view, commands::lab_save_view,
                           commands::lab_reset_view, commands::lab_form_view, commands::lab_name_view, commands::lab_open_view},

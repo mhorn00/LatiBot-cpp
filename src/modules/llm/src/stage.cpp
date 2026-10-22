@@ -8,6 +8,7 @@
 #include "core/util/text.hpp"
 #include "settings.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <format>
 
@@ -36,6 +37,15 @@ auto starts_with_name(std::string_view content, std::string_view bot_name) -> bo
 auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts) -> bool {
     return message.mentions_bot || (message.replies_to_bot && reply_counts) || starts_with_name(message.content, model_name) ||
            starts_with_name(message.content, bot_name);
+}
+
+auto addressed_persona(std::string_view content, std::span<const persona> personas) -> const persona* {
+    const persona* found = nullptr;
+    for (const persona& each : personas) {
+        if (!starts_with_name(content, each.name)) continue;
+        if (found == nullptr || each.name.size() > found->name.size()) found = &each;
+    }
+    return found;
 }
 
 auto spend_cap_reply(const spend_status& status) -> std::string {
@@ -153,8 +163,26 @@ auto llm_stage::join_in(const events::incoming_message& message, const llm_setti
     return route{.how = approach::joined_in, .check_first = true};
 }
 
+auto llm_stage::spoken_to(const events::incoming_message& message, std::span<const persona> personas) const -> const persona* {
+    // A persona never answers a bot: two models trading replies is the loop
+    // pacing stops, and a webhook is one step from it
+    // (src/modules/llm/docs/Language_Model.md §2.11).
+    if (personas.empty() || message.from_bot) return nullptr;
+    if (const persona* named = addressed_persona(message.content, personas)) {
+        util::log().trace("llm: message {} starts with persona {}'s name", message.message_id, named->id);
+        return named;
+    }
+    if (message.reply_to.empty()) return nullptr;
+    const auto poster = services_.personas->poster(message.reply_to);
+    if (!poster) return nullptr;
+    const auto replied = std::ranges::find(personas, *poster, &persona::id);
+    if (replied == personas.end()) return nullptr;
+    util::log().trace("llm: message {} replies to persona {}", message.message_id, replied->id);
+    return &*replied;
+}
+
 auto llm_stage::unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
-                            std::optional<advanced_trigger>& fired) -> std::optional<route> {
+                            std::span<const persona> personas, std::optional<advanced_trigger>& fired) -> std::optional<route> {
     // A bot has to address LatiBot to be answered: two bots trading
     // unprompted remarks is the loop pacing is there to stop. And a message
     // a simple trigger answered is not answered twice.
@@ -163,7 +191,11 @@ auto llm_stage::unaddressed(const events::incoming_message& message, const llm_s
                           message.from_bot ? "a bot has to address it" : "a simple trigger answered it");
         return std::nullopt;
     }
-    fired = matcher_.fire(services_.triggers->for_guild(message.guild_id), message.channel_id, message.content);
+    std::vector<advanced_trigger> triggers = services_.triggers->for_guild(message.guild_id);
+    std::erase_if(triggers, [&](const advanced_trigger& entry) {
+        return entry.persona_id != 0 && std::ranges::find(personas, entry.persona_id, &persona::id) == personas.end();
+    });
+    fired = matcher_.fire(triggers, message.channel_id, message.content);
     if (fired) {
         util::log().trace("llm: message {} fired advanced trigger {}", message.message_id, fired->id);
         return route{.how = approach::trigger, .check_first = false};
@@ -201,47 +233,63 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
                       message.replies_to_bot, reply_counts ? "" : ", but to a link replacement", model_name, me.name,
                       starts_with_name(message.content, model_name) || starts_with_name(message.content, me.name));
 
+    // The personas that may answer: the enabled ones. LatiBot addressed
+    // wins over a persona named in the same message.
+    std::vector<persona> personas =
+        services_.personas == nullptr ? std::vector<persona>{} : services_.personas->for_guild(message.guild_id);
+    std::erase_if(personas, [](const persona& each) { return !each.enabled; });
+
     route chosen{.how = approach::addressed, .check_first = false};
     std::optional<advanced_trigger> fired;
-    if (!addressed) {
-        const std::optional<route> unprompted = unaddressed(message, settings, me.name, fired);
+    const persona* answering = nullptr;
+    if (!addressed) answering = spoken_to(message, personas);
+    if (!addressed && answering == nullptr) {
+        const std::optional<route> unprompted = unaddressed(message, settings, me.name, personas, fired);
         if (!unprompted) return result;
         chosen = *unprompted;
+        if (fired && fired->persona_id != 0) {
+            const auto owner = std::ranges::find(personas, fired->persona_id, &persona::id);
+            if (owner != personas.end()) answering = &*owner;
+        }
     }
+    const bool to_persona = answering != nullptr && chosen.how == approach::addressed;
 
-    const model_info* model = find_model(settings.model);
+    const std::string_view model_id = answering == nullptr ? std::string_view(settings.model) : answering_model(*answering, settings.model);
+    const model_info* model = find_model(model_id);
     if (model == nullptr || !services_.has_provider(model->provider)) {
-        util::log().debug("guild {} wants {}, which has no API key set; not answering", message.guild_id, settings.model);
+        util::log().debug("guild {} wants {}, which has no API key set; not answering", message.guild_id, model_id);
         return result;
     }
 
     // From here the message is the model's, answered or not.
-    result.consumed = addressed;
+    result.consumed = addressed || to_persona;
 
     // What waits on a check takes its place in the rate limits only once the
     // check agrees, so a "no" leaves room for the next message.
-    const auto wait = admit(message, settings, addressed, !chosen.check_first, result);
+    const auto wait = admit(message, settings, addressed || to_persona, !chosen.check_first, result);
     if (!wait) return result;
 
-    util::log().debug("llm: handing message {} in channel {} to the model ({}{})", message.message_id, message.channel_id,
-                      to_string(chosen.how), chosen.check_first ? ", once the check agrees" : "");
+    util::log().debug("llm: handing message {} in channel {} to the model ({}{}{})", message.message_id, message.channel_id,
+                      to_string(chosen.how), chosen.check_first ? ", once the check agrees" : "",
+                      answering == nullptr ? std::string{} : std::format(", as persona {}", answering->id));
     result.consumed = true;
     result.answered = true;
-    result.actions.emplace_back(
-        llm::ask_llm{.guild_id = message.guild_id,
-                     .channel_id = message.channel_id,
-                     .message_id = message.message_id,
-                     .author_id = message.author_id,
-                     .author_name = message.author_name,
-                     .content = message.content,
-                     .author_is_bot = message.from_bot,
-                     .reply_to = message.reply_to,
-                     .how = chosen.how,
-                     .check_first = chosen.check_first,
-                     .trigger_id = fired ? fired->id : 0,
-                     .context_prompt = fired ? fired->context_prompt : std::string{},
-                     .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
-                     .wait = *wait});
+    result.actions.emplace_back(llm::ask_llm{
+        .guild_id = message.guild_id,
+        .channel_id = message.channel_id,
+        .message_id = message.message_id,
+        .author_id = message.author_id,
+        .author_name = message.author_name,
+        .content = message.content,
+        .author_is_bot = message.from_bot,
+        .reply_to = message.reply_to,
+        .how = chosen.how,
+        .check_first = chosen.check_first,
+        .trigger_id = fired ? fired->id : 0,
+        .context_prompt = fired ? fired->context_prompt : std::string{},
+        .speak = answering == nullptr && services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
+        .wait = *wait,
+        .persona_id = answering == nullptr ? 0 : answering->id});
     return result;
 }
 

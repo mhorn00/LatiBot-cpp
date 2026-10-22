@@ -75,6 +75,10 @@ struct saved_status {
     std::string type;
 };
 
+/// What `/version` answers: `LatiBot 0.1.0`, with `(Debug build)` after it
+/// in one, so a test bot is not mistaken for the real one.
+[[nodiscard]] auto describe_version(std::string_view version, bool debug) -> std::string;
+
 /// Keeps a status, under `config::bot_wide`.
 auto save_status(config::guild_settings& settings, const saved_status& status) -> void;
 
@@ -99,6 +103,18 @@ public:
 private:
     command_info info_;
     ports::clock* clock_;
+};
+
+/// Which version of the bot is running.
+class version_command final : public command {
+public:
+    version_command();
+
+    [[nodiscard]] auto info() const -> const command_info& override { return info_; }
+    auto execute(const dpp::slashcommand_t& event) -> dpp::task<void> override;
+
+private:
+    command_info info_;
 };
 
 /// Posts a message as the bot, optionally as a reply to an existing message.

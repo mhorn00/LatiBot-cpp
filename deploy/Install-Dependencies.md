@@ -174,7 +174,7 @@ first. Running the script once a month keeps ahead of most of it.
 
 ```
 LatiBot.exe, dectalk.dll, dtalk_us.dic             the bot
-yt-dlp.exe, ffmpeg.exe, ffprobe.exe, deno.exe       music's programs
+yt-dlp.exe, ffmpeg.exe, ffprobe.exe, deno.exe       music's programs; the soundboard's ffmpeg
 yt-dlp-plugins\bgutil-ytdlp-pot-provider.zip        the PO token plugin
 bgutil-ytdlp-pot-provider\server\                   the PO token provider
 bgutil-ytdlp-pot-provider\VERSION.txt               its version, for updates

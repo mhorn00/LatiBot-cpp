@@ -44,14 +44,15 @@ if (-not (Test-Path $conanbuild)) {
 # Each module and the modules that require it, which go when it does
 # (src/modules/CMakeLists.txt). Voice has no switch.
 $modules = [ordered]@{
-    'dectalk'   = @()
-    'music'     = @()
-    'llm'       = @()
-    'triggers'  = @()
-    'nicknames' = @()
-    'midnight'  = @()
-    'links'     = @('linkstats')
-    'linkstats' = @()
+    'dectalk'    = @()
+    'music'      = @()
+    'llm'        = @()
+    'triggers'   = @()
+    'nicknames'  = @()
+    'midnight'   = @()
+    'links'      = @('linkstats')
+    'linkstats'  = @()
+    'soundboard' = @()
 }
 
 function Get-Switches([string[]] $off) {

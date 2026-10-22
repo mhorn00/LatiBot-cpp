@@ -9,7 +9,7 @@
     {
       "name": "base",
       "hidden": true,
-      "description": "Ninja Multi-Config with MSVC, its dependencies from Conan in build/conan. Needs the Visual Studio developer environment: VS Code's CMake Tools sets it up for Ninja presets, and a terminal needs the Developer PowerShell. Needs: conan export conan/dpp, then conan install . --build=missing -s build_type=Debug, and again with Release (README.md, step 4).",
+      "description": "Ninja Multi-Config with MSVC, its dependencies from Conan in build/conan. Needs the Visual Studio developer environment: VS Code's CMake Tools sets it up for Ninja presets, and a terminal needs the Developer PowerShell. Needs: Conan in .venv (README.md, step 3), then conan export conan/dpp, then conan install . --build=missing -s build_type=Debug, and again with Release (README.md, step 4).",
       "generator": "Ninja Multi-Config",
       "installDir": "${sourceDir}/out/LatiBot-Release",
       "toolchainFile": "${sourceDir}/build/conan/conan_toolchain.cmake",
@@ -65,7 +65,8 @@
         "LATIBOT_WITH_NICKNAMES": "OFF",
         "LATIBOT_WITH_MIDNIGHT": "OFF",
         "LATIBOT_WITH_LINKS": "OFF",
-        "LATIBOT_WITH_LINKSTATS": "OFF"
+        "LATIBOT_WITH_LINKSTATS": "OFF",
+        "LATIBOT_WITH_SOUNDBOARD": "OFF"
       }
     },
     {
@@ -109,7 +110,8 @@
         "LATIBOT_WITH_NICKNAMES": "OFF",
         "LATIBOT_WITH_MIDNIGHT": "OFF",
         "LATIBOT_WITH_LINKS": "OFF",
-        "LATIBOT_WITH_LINKSTATS": "OFF"
+        "LATIBOT_WITH_LINKSTATS": "OFF",
+        "LATIBOT_WITH_SOUNDBOARD": "OFF"
       }
     }
   ],

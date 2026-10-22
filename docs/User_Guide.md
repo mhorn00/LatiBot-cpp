@@ -20,6 +20,7 @@ stays as the record of how the port was designed.
 | | Feature | What it is for | Module | Spec |
 |---|---|---|---|---|
 | 💬 | [`/ping`](#ping) | Is the bot alive, and how far away is it | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
+| 💬 | [`/version`](#version) | Which version of the bot is running | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 💬 | [`/say`](#say) | Post as the bot, optionally as a reply | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 💬 | [`/status`](#status) | Set the bot's presence | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 🔊 | [`/join`, `/leave`](#join--leave) | Move the bot in and out of a voice channel | [voice](../src/modules/voice/README.md) | [Voice channels](../src/modules/voice/docs/Voice_Channels.md) |
@@ -27,6 +28,7 @@ stays as the record of how the port was designed.
 | 🔊 | [`/tts`](#tts) | Stop or skip speech, set its limits, and keep custom voices from the [voice lab](#voice-lab) | [dectalk](../src/modules/dectalk/README.md) | [Speech](../src/modules/dectalk/docs/Speech.md), [Speech §3](../src/modules/dectalk/docs/Speech.md#3-custom-voices-and-the-voice-lab) |
 | 🔊 | [`/voice`](#voice) | Voice sessions, and how long the bot stays once alone | [voice](../src/modules/voice/README.md) | [Voice channels](../src/modules/voice/docs/Voice_Channels.md) |
 | 🔊 | [`/chat`](#chat) | Say something as a voice message | [dectalk](../src/modules/dectalk/README.md) | [Speech](../src/modules/dectalk/docs/Speech.md) |
+| 🔊 | [`/soundboard`](#soundboard) | Send a soundboard sound as a voice message | [soundboard](../src/modules/soundboard/README.md) | [Soundboard](../src/modules/soundboard/docs/Soundboard.md) |
 | 🎵 | [`/music`, `/m`](#music) | Play music from a link, with a queue | [music](../src/modules/music/README.md) | [Music](../src/modules/music/docs/Music.md) |
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
@@ -94,7 +96,7 @@ as subsections, rather than renumbering.
 
 | Spec | Covers |
 |---|---|
-| [Basic commands](../src/core/docs/Basic_Commands.md) | `/ping`, `/say`, `/status`, `/shutdown`, `/goodbye` and the goodbye phrase |
+| [Basic commands](../src/core/docs/Basic_Commands.md) | `/ping`, `/version`, `/say`, `/status`, `/shutdown`, `/goodbye` and the goodbye phrase |
 | [Message pipeline](../src/core/docs/Message_Pipeline.md) | The stages every message passes through, who is heard, and `/bots` |
 | [Triggers](../src/modules/triggers/docs/Triggers.md) | `/trigger` and its panel, and the replies |
 | [URL replacement](../src/modules/links/docs/Url_Replacement.md) | `/links`, `/urltoggle`, the replacements, watching previews, Retry |
@@ -108,6 +110,7 @@ as subsections, rather than renumbering.
 | [Commands and panels](../src/core/docs/Commands_and_Panels.md) | What every command and panel shares: registration, flags, `custom_id` state, forms, `--unregister-commands` |
 | [Running the bot](../src/core/docs/Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
 | [Music](../src/modules/music/docs/Music.md) | `/music` and `/m`, the queue, yt-dlp and ffmpeg, and the mixer that pauses music for speech |
+| [Soundboard](../src/modules/soundboard/docs/Soundboard.md) | `/soundboard`, the sounds the bot can see, and making them voice messages with ffmpeg |
 
 Features designed but not built are in [Planned.md](Planned.md).
 
@@ -136,6 +139,22 @@ reply itself. **Gateway** is DPP's own websocket heartbeat measurement — the
 latency of the persistent connection the bot receives events on. A healthy
 gateway with a slow round trip means Discord's REST API is congested, not the
 bot.
+
+### `/version`
+
+Which version of the bot is running.
+
+| | |
+|---|---|
+| **Module** | the core |
+| **Options** | none |
+| **Who** | everyone |
+| **Where** | servers and DMs |
+| **Bot needs** | nothing |
+
+Replies `LatiBot 0.1.0`, privately. A Debug build says so:
+`LatiBot 0.1.0 (Debug build)`, so a test bot running beside the real one
+is not mistaken for it.
 
 ### `/say`
 
@@ -412,6 +431,37 @@ Discord refusing the upload.
 The waveform is the audio's own. The Java version averaged the raw bytes of
 the whole file, header included, which comes out close to zero everywhere, so
 the shape it showed meant nothing.
+
+### `/soundboard`
+
+Sends a soundboard sound as a Discord **voice message**, which plays inline,
+rather than as a file to download. No voice channel is involved.
+
+| | |
+|---|---|
+| **Module** | [soundboard](../src/modules/soundboard/README.md) |
+| **Options** | `sound` (required), suggested as you type |
+| **Who** | Use Soundboard, by default |
+| **Where** | servers only |
+| **Bot needs** | nothing; ffmpeg on the machine it runs on |
+
+Any sound the bot can see can be picked: Discord's own, and every server's it
+is in. The suggestions put this server's sounds first, then Discord's, then
+other servers', each from elsewhere naming where it is from:
+`🦆 quack (Discord)`, `airhorn (The Pond)`. A name typed without picking a
+suggestion works too, ignoring case.
+
+The voice message is the answer to the command, public and silent, as
+`/chat`'s is. It carries no text, since Discord refuses a voice message with
+any, so the sound's name is not on it; the line above it reads "*you* used
+/soundboard". A sound added to a server shows up in its suggestions within a
+minute of someone typing into the option.
+
+| When | It says (privately) |
+|---|---|
+| the sound can't be found | `i can't see a soundboard sound called "…"` |
+| ffmpeg is missing, Discord won't give the file, or ffmpeg can't read it | `couldn't make that a voice message: …`, saying which |
+| Discord refuses the upload | `couldn't send the voice message; it's in the log` |
 
 ### `/music`
 
@@ -1099,6 +1149,7 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 | `personality` · `system` · `style` | a subcommand, below | The [documents](#the-documents) |
 | `trigger` | `add` · `edit` · `remove` · `list` | [Advanced triggers](#advanced-triggers) |
 | `blacklist` | `add` · `remove` (`user` or `role`) · `list` | People and roles it never answers here |
+| `persona` | `add` · `edit` · `remove` · `list` · `view` · `document` | [Personas](#personas): others it answers as, under their own name |
 
 It is **off in every server** until someone runs `/llm on` there: every message
 it answers costs money. It also needs an API key in the bot's environment,
@@ -1219,8 +1270,8 @@ the prompt stays short.
 
 | Subcommand | Options |
 |---|---|
-| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` |
-| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays |
+| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` · `persona` (a [persona](#personas) to answer it, rather than LatiBot) |
+| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays. `persona:LatiBot` gives it back to LatiBot |
 | `remove` | `id` |
 | `list` | none |
 
@@ -1241,6 +1292,47 @@ member, or anyone with that role, here. It still reads what they write, as part
 of the conversation. `remove` undoes it and `list` shows it. Give one of `user`
 and `role`, not both. Replies: `ok, i won't answer @name`, `ok, i'll answer
 @name again`, or that they were already on (or not on) the list.
+
+#### Personas
+
+A persona is someone else the model answers as: its own name and picture,
+posted through a webhook so its messages show as its own, with Discord's
+**APP** tag. It answers when a message **starts with its name** (as LatiBot
+does, so `claude, hi` but not `hey claude`), when someone **replies** to one
+of its messages, and when one of its advanced triggers fires. A message that
+@mentions LatiBot stays LatiBot's.
+
+| Subcommand | Options | Who | Effect |
+|---|---|---|---|
+| `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` | Manage Server | Makes one; at most 10 per server |
+| `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` | Manage Server | Changes it; what is left out stays |
+| `remove` | `persona` | Manage Server | Deletes it with its documents and triggers; its messages stay |
+| `list` | none | everyone | Every persona here, on or off |
+| `view` | `persona` | everyone | Its model, picture, triggers, and what it spent this month |
+| `document` | `persona` · `which` (system or personality) · `action` (`view` by default, or `edit`, `history`, `diff`, `revert`) · `file` · `version` · `from` · `to` | as for [the documents](#the-documents) | Its **system instructions**, who it is (Manage Server), and its **personality** (everyone, unless `personality editors` says otherwise) |
+
+The `persona` option completes from this server's personas.
+
+- **Its own instructions.** It is told who it is by its system instructions
+  and personality, and not by the server's, which are LatiBot's.
+- **Its own model**, or the server's. It counts against the same spending
+  limits.
+- **No memory**, no conversation mode, and it is never spoken. It never
+  answers another bot, another persona, or LatiBot.
+- **It is not a reply.** A webhook cannot send one, so the answer is posted
+  after the question and notifies nobody.
+- **The bot needs Manage Webhooks** in the channel. The first answer in a
+  channel makes a webhook called "LatiBot personas" there.
+
+| Situation | Reply |
+|---|---|
+| `add` | `made Claude: it answers here when a message starts with "Claude", or replies to it. …`, and `The model is off here: /llm on` when it is |
+| A name that is taken, LatiBot's own, or holds "clyde" or "discord" | `there's already a persona called Claude`, `that's my own name`, ``Discord doesn't allow "discord" in the name`` |
+| A picture that is not an `https://` link | `the avatar has to be an https:// link to an image` |
+| An eleventh | `a server can have at most 10 personas` |
+| A persona that does not exist | `there's no persona called "Zed" here` |
+| `remove` | `removed Claude, with its documents and triggers` |
+| A document saved | `saved Claude's system instructions as version 2 (about 40 tokens)` |
 
 ### `/memory`
 

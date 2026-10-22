@@ -152,10 +152,14 @@ TEST_CASE("every module's version 1 is exactly what migrations 1 to 15 built", "
     // The comparison test (§7.3). An adopted database and a new one must be
     // the same database, or a module's later steps would meet different
     // tables depending on how old the install is. Remove after: you say so,
-    // with the old migrations.
+    // with the old migrations. Each module's version 1 only: what came
+    // after the old migrations has nothing in them to compare with.
     test_host flattened;
-    const module_list modules = latibot::modules::start_modules(latibot::modules::enabled_modules, flattened, flattened.offered);
+    const module_list modules = latibot::modules::enabled_modules(flattened);
     if (!every_module_built(modules)) SKIP("this build leaves out a module the old migrations made tables for");
+    for (const auto& each : modules) {
+        if (!each->schema().empty()) latibot::db::apply_schema(flattened.data, {.module = each->name(), .steps = each->schema().first(1)});
+    }
 
     database legacy{std::filesystem::path(database::in_memory)};
     REQUIRE(latibot::db::migrate(legacy) == 15);
@@ -202,7 +206,8 @@ TEST_CASE("an old database is brought to migration 15, then adopted with its dat
     }
 
     // The core's and every module's schema find their version 1 recorded,
-    // and create nothing.
+    // and create nothing. Later versions are what any database gains, and
+    // are not adoption's.
     for (const module_schema& schema : latibot::db::builtin_schemas()) {
         CHECK(latibot::db::apply_schema(old, schema) == 1);
     }
@@ -210,7 +215,7 @@ TEST_CASE("an old database is brought to migration 15, then adopted with its dat
     const module_list modules = latibot::modules::enabled_modules(on_old);
     for (const auto& each : modules) {
         if (each->schema().empty()) continue;
-        CHECK(latibot::db::apply_schema(old, {.module = each->name(), .steps = each->schema()}) == 1);
+        CHECK(latibot::db::apply_schema(old, {.module = each->name(), .steps = each->schema().first(1)}) == 1);
     }
 
     CHECK(count_rows(old, "triggers") == 1);

@@ -40,10 +40,11 @@ TEST_CASE("every command's response flags pass registration", "[commands]") {
     latibot::commands::registry commands;
 
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::ping_command>(all.clock)));
+    CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::version_command>()));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::shutdown_command>([] {})));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::goodbye_command>(all.settings)));
     CHECK_NOTHROW(commands.add(std::make_unique<latibot::commands::bots_command>(all.allowlist)));
-    CHECK(commands.size() == 4);
+    CHECK(commands.size() == 5);
 }
 
 TEST_CASE("the views meant for the room are public and the rest are private", "[commands]") {

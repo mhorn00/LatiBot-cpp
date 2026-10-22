@@ -2,8 +2,8 @@
 // and a process group per pipeline (src/modules/music/docs/Music.md §4.6).
 // What is the same on every system is in process.cpp.
 
-#include "process.hpp"
-#include "process_lines.hpp"
+#include "core/util/process.hpp"
+#include "util/process_lines.hpp"
 
 #include <algorithm>
 #include <cerrno>

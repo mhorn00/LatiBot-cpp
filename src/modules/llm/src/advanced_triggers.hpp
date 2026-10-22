@@ -48,6 +48,10 @@ struct advanced_trigger {
 
     bool enabled = true;
     dpp::snowflake created_by;
+
+    /// The persona that answers it; 0 for LatiBot
+    /// (src/modules/llm/docs/Language_Model.md §2.11).
+    std::int64_t persona_id = 0;
 };
 
 /// A new trigger's cooldown: longer than a simple trigger's, since each one

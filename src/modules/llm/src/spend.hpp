@@ -6,6 +6,7 @@
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <set>
 #include <string>
@@ -22,8 +23,10 @@ class usage_store {
 public:
     explicit usage_store(db::database& db) : db_(&db) {}
 
-    /// Writes down one call. Returns what it cost.
-    auto record(dpp::snowflake guild_id, const model_info& model, const usage& used, std::chrono::sys_seconds at) -> double;
+    /// Writes down one call, made for `persona_id`, or 0 for LatiBot.
+    /// Returns what it cost.
+    auto record(dpp::snowflake guild_id, const model_info& model, const usage& used, std::chrono::sys_seconds at,
+                std::int64_t persona_id = 0) -> double;
 
     /// Dollars spent from `from` up to but not including `to`, across every
     /// guild: the money is one account's, whichever server spent it.
@@ -31,6 +34,10 @@ public:
 
     /// What one guild spent in that time, for `/llm status`.
     [[nodiscard]] auto spent_between(dpp::snowflake guild_id, std::chrono::sys_seconds from, std::chrono::sys_seconds to) const -> double;
+
+    /// What one persona spent in that time, for `/llm persona view`.
+    [[nodiscard]] auto spent_by_persona(std::int64_t persona_id, std::chrono::sys_seconds from, std::chrono::sys_seconds to) const
+        -> double;
 
 private:
     db::database* db_;
