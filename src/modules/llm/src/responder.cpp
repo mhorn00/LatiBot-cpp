@@ -71,7 +71,8 @@ auto latest_of(const llm::ask_llm& ask) -> context_message {
             .author_name = ask.author_name,
             .from_me = false,
             .from_bot = ask.author_is_bot,
-            .content = ask.content};
+            .content = ask.content,
+            .speaker = {}};
 }
 
 auto joined(const std::vector<std::string>& names) -> std::string {
@@ -91,7 +92,8 @@ auto to_context(const dpp::message& message, dpp::snowflake bot_id) -> context_m
             .author_name = message.author.global_name.empty() ? message.author.username : message.author.global_name,
             .from_me = message.author.id == bot_id,
             .from_bot = message.author.is_bot(),
-            .content = message.content};
+            .content = message.content,
+            .speaker = {}};
 }
 
 auto failure_reply(const ports::api_error& error) -> std::string {

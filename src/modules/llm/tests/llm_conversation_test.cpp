@@ -45,7 +45,8 @@ auto line(std::uint64_t id, dpp::snowflake author, std::string content, bool fro
             .author_name = from_me ? "LatiBot" : "someone",
             .from_me = from_me,
             .from_bot = from_me,
-            .content = std::move(content)};
+            .content = std::move(content),
+            .speaker = {}};
 }
 
 /// The aliases, over an in-memory database.
