@@ -281,6 +281,12 @@ messages nobody addressed it in.
 - **Its name anywhere** in a message, `thanks latibot` as much as
   `latibot, ...`, is answered at once during a conversation. Outside one it
   could be people talking *about* the bot, so the **check** decides.
+- **Each persona has conversations of its own** (§2.11), opened when it
+  answers someone who addressed or named it, with the same limits, kept
+  apart from LatiBot's. A persona's name anywhere is heard as LatiBot's is,
+  the longest name first; LatiBot named wins. A message nobody named goes to
+  whoever of them, LatiBot or a persona, **replied last** among those with a
+  conversation open in the channel.
 - **During a conversation**, any other message from a person may be for
   it, and the check decides. Some are left without a check, since they are
   plainly for someone else: a reply to anybody but the bot (or to its
@@ -290,7 +296,10 @@ messages nobody addressed it in.
 - **The check** is one short call to `llm.check_model` (Claude Haiku 4.5
   by default) with fixed instructions, the last 8 messages (about 1,500
   tokens at most), what the message replies to, and the message, asking
-  whether the bot should reply: yes or no, in at most 8 tokens. People are
+  whether the bot, or the persona whose conversation it is, should reply:
+  yes or no, in at most 8 tokens. It leans towards yes: a short reaction
+  right after the bot spoke, "lol" or "wait really?", is usually for it, and
+  a close call is a yes, since joining in can still end in `[silent]`. People are
   aliases, as everywhere (§3.8). It costs about $0.0006 on Haiku, counts
   toward the spend caps, and a failure is a no. A message waiting on the
   check takes its place in the rate limits only once the check says yes.
@@ -347,7 +356,9 @@ How it answers differs from LatiBot:
   and other personas' triggers with `bots` on. The language model is the one
   stage that hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it
   tells which persona wrote a message by the name it was posted under.
-- **It is never spoken**, and opens no conversation (§2.10).
+- **It is never spoken.** It has **conversations of its own** (§2.10) while
+  the server has conversation mode on: it answers its name anywhere, and
+  joins in where the check, asked about it by name, says yes.
 
 At most **10** per server. A name is at most 80 characters, not LatiBot's,
 and holds neither "clyde" nor "discord", which Discord refuses in a
@@ -544,7 +555,9 @@ name. Before the reply is posted:
 - `username` the username;
 - `mention` a mention, `<@id>`, which notifies nobody (§2.3); in a spoken
   reply, the name;
-- a bare alias, or `@u7kx3q`, the name;
+- a bare alias, or `@u7kx3q`, the name; and a marker written without its
+  brackets, `u7kx3q:name`, as the marker, so nothing of it is left beside
+  the name;
 - a marker for an alias that is nobody's, "someone".
 
 **Memories** are written by the model with markers, and saved as written;
@@ -628,6 +641,9 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
 | 2026-10-20 | Personas: another name and picture through a webhook, answering to its name, replies, and triggers of its own; managed with `/llm persona` | The owner's idea (docs/ideas/claude_webhook_llm_facade.md); a group under `/llm` was the owner's choice over a command of its own |
 | 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
+| 2026-10-27 | Personas join conversation mode, each with windows of its own; an unnamed message goes to whoever replied last | The owner's request. A window per speaker keeps each one's limits its own; the last to reply is who people are most likely answering |
+| 2026-10-27 | The check leans towards yes, short reactions included | The owner's request: it let short replies to the bot go unanswered. Joining in can still answer `[silent]` |
+| 2026-10-27 | A marker written without its brackets, `u7kx3q:name`, is restored whole | Taken as a bare alias, `u7kx3q:name` was posted as `Alice:name`; a persona was seen writing about a user identifier with a name in it |
 | 2026-10-20 | A persona's instructions are its own system document and personality, not the server's | A persona is someone else; the server's documents describe LatiBot |
 | 2026-10-20 | One webhook per channel serves every persona, kept in memory only | Discord takes the name and picture per message; a token written down is one more secret to keep |
 | 2026-10-27 | An advanced trigger with `bots` on is set off by allowed bots, LatiBot and the personas, never by whoever answers it; only the model's stage hears LatiBot's own messages and webhooks' | The owner's request: personas and LatiBot answering each other. Bot pacing already bounds the exchange, and only a trigger, not a name or a reply, starts one |

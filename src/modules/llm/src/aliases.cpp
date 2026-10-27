@@ -79,8 +79,16 @@ auto rewrite(std::string_view text, OnTag on_tag, OnText on_text) -> std::string
     return out;
 }
 
-/// `text` with every bare alias handed to `on_alias`, which gives what it
-/// becomes or nothing to leave it.
+/// The kinds of marker the model is told to write.
+auto is_written_kind(std::string_view kind) -> bool {
+    return kind == "name" || kind == "username" || kind == "mention";
+}
+
+/// `text` with every bare alias handed to `on_alias` with its kind, which
+/// gives what it becomes or nothing to leave it. A marker the model wrote
+/// without its brackets, `u7kx3q:name`, is one too, kind and all: left as
+/// it was, the alias would become the name and the ":name" would stay
+/// beside it. A bare alias is of kind "name".
 template <typename OnAlias>
 auto rewrite_bare_aliases(std::string_view text, OnAlias on_alias) -> std::string {
     std::string out;
@@ -89,9 +97,22 @@ auto rewrite_bare_aliases(std::string_view text, OnAlias on_alias) -> std::strin
         const bool starts_word = at == 0 || !is_word_byte(text[at - 1]);
         const bool ends_word = at + alias_length >= text.size() || !is_word_byte(text[at + alias_length]);
         if (starts_word && ends_word && at + alias_length <= text.size() && is_alias(text.substr(at, alias_length))) {
-            if (std::optional<std::string> made = on_alias(text.substr(at, alias_length))) {
+            std::string_view kind = "name";
+            std::size_t length = alias_length;
+            if (at + alias_length < text.size() && text[at + alias_length] == ':') {
+                std::size_t end = at + alias_length + 1;
+                while (end < text.size() && is_word_byte(text[end])) {
+                    ++end;
+                }
+                const std::string_view written = text.substr(at + alias_length + 1, end - at - alias_length - 1);
+                if (is_written_kind(written)) {
+                    kind = written;
+                    length = end - at;
+                }
+            }
+            if (std::optional<std::string> made = on_alias(text.substr(at, alias_length), kind)) {
                 out += *made;
-                at += alias_length;
+                at += length;
                 continue;
             }
         }
@@ -376,15 +397,16 @@ auto people::restore(std::string_view text, bool for_speech) const -> std::strin
             return restore_marker(marker->first, marker->second, for_speech);
         },
         [this, for_speech](std::string_view plain) {
-            return rewrite_bare_aliases(plain, [this, for_speech](std::string_view alias) -> std::optional<std::string> {
-                if (find(alias) == nullptr && !aliases_->user_for(guild_id_, alias)) return std::nullopt;
-                return restore_marker(alias, "name", for_speech);
-            });
+            return rewrite_bare_aliases(plain,
+                                        [this, for_speech](std::string_view alias, std::string_view kind) -> std::optional<std::string> {
+                                            if (find(alias) == nullptr && !aliases_->user_for(guild_id_, alias)) return std::nullopt;
+                                            return restore_marker(alias, kind, for_speech);
+                                        });
         });
 }
 
 auto aliases_as_mentions(std::string_view text, dpp::snowflake guild_id, const alias_store& aliases) -> std::string {
-    const auto as_mention = [&](std::string_view alias) -> std::optional<std::string> {
+    const auto as_mention = [&](std::string_view alias, std::string_view = {}) -> std::optional<std::string> {
         const auto user = aliases.user_for(guild_id, alias);
         if (!user) return std::nullopt;
         return std::format("<@{}>", *user);

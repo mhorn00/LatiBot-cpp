@@ -37,6 +37,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <format>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -398,15 +399,20 @@ private:
                               report.failure.empty() ? "no reason given" : report.failure);
             co_return;
         }
+        // Each speaker has its own conversation, LatiBot and every persona
+        // (src/modules/llm/docs/Language_Model.md §2.11).
         if (ask.how == approach::joined_in) {
-            windows_.joined_in(ask.channel_id);
-            util::log().trace("llm: the conversation in channel {} goes on", ask.channel_id);
-        } else if (spoke_to_bot(ask) && ask.persona_id == 0) {
-            // A persona's answer opens no conversation: conversation mode is
-            // LatiBot's (src/modules/llm/docs/Language_Model.md §2.11).
-            windows_.opened(ask.channel_id);
-            util::log().trace("llm: a conversation is open in channel {}", ask.channel_id);
+            windows_.joined_in(ask.channel_id, ask.persona_id);
+            util::log().trace("llm: the conversation in channel {} goes on{}", ask.channel_id, with_whom(ask));
+        } else if (spoke_to_bot(ask)) {
+            windows_.opened(ask.channel_id, ask.persona_id);
+            util::log().trace("llm: a conversation is open in channel {}{}", ask.channel_id, with_whom(ask));
         }
+    }
+
+    /// Who a conversation is with, for the log: nothing for LatiBot.
+    static auto with_whom(const ask_llm& ask) -> std::string {
+        return ask.persona_id == 0 ? std::string{} : std::format(", with persona {}", ask.persona_id);
     }
 
     /// Waits while anyone in the channel is typing, a second at a time, up

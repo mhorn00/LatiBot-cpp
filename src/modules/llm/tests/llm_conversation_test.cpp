@@ -99,6 +99,32 @@ TEST_CASE("a conversation opens when the bot answers, and closes after a quiet s
     }
 }
 
+TEST_CASE("LatiBot and each persona have their own window in a channel", "[llm][conversation]") {
+    latibot::testing::mock_clock clock;
+    latibot::llm::conversation_windows windows{clock};
+    const std::vector<std::int64_t> everyone{0, 7, 8};
+
+    CHECK_FALSE(windows.latest_open(channel, rules_on(), everyone).has_value());
+
+    windows.opened(channel, 7);
+    CHECK(windows.open(channel, rules_on(), 7));
+    CHECK_FALSE(windows.open(channel, rules_on()));
+    CHECK(windows.latest_open(channel, rules_on(), everyone) == 7);
+    CHECK_FALSE(windows.latest_open(other_channel, rules_on(), everyone).has_value());
+
+    clock.advance(10s);
+    windows.opened(channel);
+    CHECK(windows.latest_open(channel, rules_on(), everyone) == 0);
+
+    // Only those asked about count, and only with conversation mode on.
+    CHECK(windows.latest_open(channel, rules_on(), std::vector<std::int64_t>{7, 8}) == 7);
+    CHECK_FALSE(windows.latest_open(channel, latibot::llm::conversation_rules{}, everyone).has_value());
+
+    // Each closes on its own.
+    clock.advance(175s);
+    CHECK(windows.latest_open(channel, rules_on(), everyone) == 0);
+}
+
 TEST_CASE("a conversation closes after so many unaddressed replies, or at its longest", "[llm][conversation]") {
     latibot::testing::mock_clock clock;
     conversation_windows windows(clock);
@@ -189,6 +215,9 @@ TEST_CASE("the check is asked yes or no about the latest message, with aliases o
     CHECK(latibot::llm::check_question(history, latest, &replied, 1500, cast)
               .contains("The latest message replies to this one:\nLatiBot (you): i did!\n\n"));
     CHECK(latibot::llm::check_instructions().contains("Answer with one word: yes or no."));
+    // Short reactions to the bot are for it, and a close call is a yes.
+    CHECK(latibot::llm::check_instructions().contains("A short message right after LatiBot spoke"));
+    CHECK(latibot::llm::check_instructions().contains("When it is a close call, answer yes."));
 }
 
 TEST_CASE("only a yes from the check is a yes", "[llm][conversation]") {

@@ -3,8 +3,11 @@
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <mutex>
+#include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 
@@ -15,8 +18,9 @@ class clock;
 namespace latibot::llm {
 
 // Conversation mode (src/modules/llm/docs/Language_Model.md §2.10): once
-// the bot has answered someone, it keeps an ear on the channel for a while,
-// and joins in where a cheap check says a message is for it.
+// the bot, or one of its personas, has answered someone, it keeps an ear on
+// the channel for a while, and joins in where a cheap check says a message
+// is for it.
 
 /// A guild's conversation settings, from `llm_settings`.
 struct conversation_rules {
@@ -40,23 +44,30 @@ struct conversation_rules {
 /// and "what do you think, LatiBot?", but not "latibots".
 [[nodiscard]] auto names_bot(std::string_view text, std::string_view bot_name) -> bool;
 
-/// The bot's conversations, at most one per channel. Thread-safe.
+/// The conversations, at most one per channel for each speaker: LatiBot,
+/// `persona` 0, and each persona by its id (src/modules/llm/docs/Language_Model.md
+/// §2.11). Each keeps its own limits. Thread-safe.
 class conversation_windows {
 public:
     explicit conversation_windows(ports::clock& clock) : clock_(&clock) {}
 
-    /// The bot answered someone who addressed it, or named it: a fresh
+    /// The speaker answered someone who addressed it, or named it: a fresh
     /// window, whatever was open before.
-    auto opened(dpp::snowflake channel) -> void;
+    auto opened(dpp::snowflake channel, std::int64_t persona = 0) -> void;
 
-    /// The bot joined in without being addressed: the window stays open
+    /// The speaker joined in without being addressed: the window stays open
     /// longer, and is one reply nearer its cap.
-    auto joined_in(dpp::snowflake channel) -> void;
+    auto joined_in(dpp::snowflake channel, std::int64_t persona = 0) -> void;
 
-    /// Whether a window is open in `channel`: the guild has conversation
-    /// mode on, the bot replied there recently enough, and neither of the
-    /// window's limits is reached.
-    [[nodiscard]] auto open(dpp::snowflake channel, const conversation_rules& rules) const -> bool;
+    /// Whether the speaker's window is open in `channel`: the guild has
+    /// conversation mode on, the speaker replied there recently enough, and
+    /// neither of the window's limits is reached.
+    [[nodiscard]] auto open(dpp::snowflake channel, const conversation_rules& rules, std::int64_t persona = 0) const -> bool;
+
+    /// Of `speakers` whose windows are open in `channel`, the one that
+    /// replied last: who a message nobody named is most likely for.
+    [[nodiscard]] auto latest_open(dpp::snowflake channel, const conversation_rules& rules, std::span<const std::int64_t> speakers) const
+        -> std::optional<std::int64_t>;
 
 private:
     struct window {
@@ -65,9 +76,12 @@ private:
         int unprompted = 0;
     };
 
+    [[nodiscard]] static auto still_open(const window& open, std::chrono::steady_clock::time_point now, const conversation_rules& rules)
+        -> bool;
+
     ports::clock* clock_;
     mutable std::mutex mutex_;
-    std::map<dpp::snowflake, window> windows_;
+    std::map<std::pair<dpp::snowflake, std::int64_t>, window> windows_;
 };
 
 /// Who is typing in each channel, and each person's latest message there.

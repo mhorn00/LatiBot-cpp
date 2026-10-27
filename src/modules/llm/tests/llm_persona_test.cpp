@@ -4,6 +4,7 @@
 
 #include "advanced_triggers.hpp"
 #include "aliases.hpp"
+#include "conversation.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "documents.hpp"
@@ -80,6 +81,7 @@ struct fixture {
     double roll = 0.0;
 
     latibot::llm::persona_webhooks webhooks{discord, [] { return bot_id; }, [this](std::string token) { secrets.push_back(token); }};
+    latibot::llm::conversation_windows windows{clock};
 
     latibot::llm::llm_stage stage{
         {.settings = &settings,
@@ -90,7 +92,7 @@ struct fixture {
          .personas = &personas,
          .speech = &speech,
          .replacements = nullptr,
-         .windows = nullptr,
+         .windows = &windows,
          .activity = nullptr,
          .has_provider =
              [this](latibot::llm::provider_kind kind) { return kind == latibot::llm::provider_kind::openai ? openai_key : anthropic_key; },
@@ -532,6 +534,90 @@ TEST_CASE("in a channel the model ignores, nobody's message reaches it", "[llm][
     // Elsewhere, the same messages are answered.
     CHECK(asked(test.stage(from_alice("latibot, pizza?"))) != nullptr);
     CHECK(asked(test.stage(from_latibot("pizza"))) != nullptr);
+}
+
+TEST_CASE("each persona has conversations of its own, and the one that replied last is joined", "[llm][persona][conversation]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    persona gemini = test.make("Gemini");
+    test.settings.set_bool(guild, latibot::llm::conversation_key, true);
+
+    // Nobody is talking yet: an unnamed message is left alone.
+    CHECK(asked(test.stage(from_alice("that's wild"))) == nullptr);
+
+    test.windows.opened(channel, claude.id);
+    const auto with_claude = test.stage(from_alice("that's wild"));
+    REQUIRE(asked(with_claude) != nullptr);
+    CHECK(asked(with_claude)->how == approach::joined_in);
+    CHECK(asked(with_claude)->check_first);
+    CHECK(asked(with_claude)->persona_id == claude.id);
+
+    // LatiBot replied since: the message is more likely for it.
+    test.clock.advance(1s);
+    test.windows.opened(channel);
+    CHECK(asked(test.stage(from_alice("that's wild")))->persona_id == 0);
+
+    SECTION("a persona named anywhere is answered at once in its own conversation, and checked outside one") {
+        const auto named_claude = test.stage(from_alice("thanks claude"));
+        REQUIRE(asked(named_claude) != nullptr);
+        CHECK(asked(named_claude)->how == approach::named);
+        CHECK(asked(named_claude)->persona_id == claude.id);
+        CHECK_FALSE(asked(named_claude)->check_first);
+
+        const auto named_gemini = test.stage(from_alice("i think gemini would disagree"));
+        REQUIRE(asked(named_gemini) != nullptr);
+        CHECK(asked(named_gemini)->persona_id == gemini.id);
+        CHECK(asked(named_gemini)->check_first);
+
+        // LatiBot named wins, as LatiBot addressed does.
+        CHECK(asked(test.stage(from_alice("latibot and claude, thoughts?")))->persona_id == 0);
+    }
+
+    SECTION("a persona that is off has no conversation") {
+        test.clock.advance(1s);
+        test.windows.opened(channel, gemini.id);
+        gemini.enabled = false;
+        test.personas.update(gemini);
+        CHECK(asked(test.stage(from_alice("that's wild")))->persona_id == 0);
+        // Named, it is just a word, and the message goes to LatiBot's
+        // conversation like any other.
+        CHECK(asked(test.stage(from_alice("thanks gemini")))->persona_id == 0);
+        CHECK(asked(test.stage(from_alice("thanks gemini")))->how == approach::joined_in);
+    }
+
+    SECTION("every window keeps its own limits") {
+        test.clock.advance(170s);
+        test.windows.opened(channel, claude.id);
+        test.clock.advance(20s);
+        // LatiBot's went quiet; Claude's is still open.
+        CHECK(asked(test.stage(from_alice("that's wild")))->persona_id == claude.id);
+    }
+}
+
+TEST_CASE("the check is asked about the persona whose conversation it is", "[llm][persona][conversation][coro]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    test.personas.record_post(dpp::snowflake{4002}, claude.id, guild, channel, noon);
+    dpp::message from_claude = history_message(4002, persona_hook, "Claude", "I'm Claude.");
+    from_claude.webhook_id = persona_hook;
+    from_claude.author.flags |= dpp::u_bot;
+    test.discord.message_pages.emplace_back(std::vector<dpp::message>{from_claude});
+
+    ask_llm ask = ask_as(claude.id, "and what do you think");
+    ask.how = approach::joined_in;
+    ask.check_first = true;
+    test.model.answer("yes");
+    const auto report = test.responder.check(ask).sync_wait_for(2s);
+    REQUIRE(report.has_value());
+    CHECK(report->yes);
+
+    const latibot::llm::request& sent = test.model.requests.back();
+    CHECK(sent.stable_system == latibot::llm::check_instructions("Claude"));
+    CHECK(sent.stable_system.contains("You decide whether Claude, a bot"));
+    CHECK_FALSE(sent.stable_system.contains("LatiBot"));
+    CHECK(sent.conversation.at(0).text.contains("Claude (you): I'm Claude."));
+    CHECK(sent.conversation.at(0).text.ends_with("Should Claude reply to it? Answer yes or no."));
+    CHECK(test.usage.spent_by_persona(claude.id, noon - 1h, noon + 1h) > 0);
 }
 
 TEST_CASE("a persona on a model with no key is not answered", "[llm][persona]") {

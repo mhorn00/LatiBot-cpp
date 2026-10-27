@@ -142,6 +142,23 @@ TEST_CASE("what the model writes gets its names back", "[llm]") {
     CHECK(test.cast.restore("the uncle came") == "the uncle came");
 }
 
+TEST_CASE("a marker written without its brackets still becomes the name, and nothing of the marker is left", "[llm]") {
+    // A model sometimes drops the brackets, in a code span or a list. Taken
+    // as a bare alias, "u7kx3q:name" became "Alice:name".
+    fixture test;
+    test.discord.members[{guild, bob}] = {.nickname = "Big Bob", .display_name = "Bobby", .username = "bob_99"};
+    const std::string alice_alias = test.cast.meet(alice, "Alice");
+    const std::string bob_alias = test.cast.meet(bob);
+
+    CHECK(test.cast.restore(std::format("hi {}:name!", alice_alias)) == "hi Alice!");
+    CHECK(test.cast.restore(std::format("`{}:username`", bob_alias)) == "`bob_99`");
+    CHECK(test.cast.restore(std::format("ping {}:mention", bob_alias)) == "ping <@12>");
+    // Anything else after a colon is the model's own words.
+    CHECK(test.cast.restore(std::format("{}: hello", alice_alias)) == "Alice: hello");
+    CHECK(test.cast.restore(std::format("{}:nickname", alice_alias)) == "Alice:nickname");
+    CHECK(aliases_as_mentions(std::format("{}:name likes tea", alice_alias), guild, test.aliases) == "<@11> likes tea");
+}
+
 TEST_CASE("someone known from before, not in this request, still gets their name", "[llm]") {
     fixture test;
     const std::string bob_alias = test.aliases.alias_for(guild, bob);

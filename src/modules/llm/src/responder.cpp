@@ -235,6 +235,20 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
         co_return report;
     }
 
+    // Asked about whoever would answer: LatiBot, or the persona whose
+    // conversation it is (src/modules/llm/docs/Language_Model.md §2.11). One
+    // removed since the stage decided does not answer at all.
+    std::string answerer(model_name);
+    if (ask.persona_id != 0) {
+        const auto as = services_.personas == nullptr ? std::nullopt : services_.personas->find(ask.persona_id, ask.guild_id);
+        if (!as) {
+            report.failure = std::format("persona {} is gone", ask.persona_id);
+            util::log().debug("not checking message {}: {}", ask.message_id, report.failure);
+            co_return report;
+        }
+        answerer = as->name;
+    }
+
     // The same aliases as the answer, never an id or a name
     // (src/modules/llm/docs/Language_Model.md §3.8).
     const bot_identity me = me_();
@@ -246,10 +260,10 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
 
     request call;
     call.model = std::string(model->id);
-    call.stable_system = std::string(check_instructions());
+    call.stable_system = check_instructions(answerer);
     call.conversation.push_back(
         {.from = speaker::user,
-         .text = check_question(history, latest_of(ask), replied_to ? &*replied_to : nullptr, check_context_tokens, cast),
+         .text = check_question(history, latest_of(ask), replied_to ? &*replied_to : nullptr, check_context_tokens, cast, answerer),
          .calls = {},
          .results = {},
          .raw = {}});
@@ -263,7 +277,7 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
         co_return report;
     }
     report.used = outcome.value().used;
-    report.cost = services_.usage->record(ask.guild_id, *model, report.used, seconds_now(*services_.clock));
+    report.cost = services_.usage->record(ask.guild_id, *model, report.used, seconds_now(*services_.clock), ask.persona_id);
     report.yes = check_says_yes(outcome.value().reply.text);
     util::log().trace("llm: the check on message {} answered \"{}\" ({})", ask.message_id, util::trim(outcome.value().reply.text),
                       to_string(outcome.value().stop));
