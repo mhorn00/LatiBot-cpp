@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/capabilities/bot_status.hpp"
 #include "core/commands/registry.hpp"
 
 #include <dpp/presence.h>
@@ -87,6 +88,19 @@ auto save_status(config::guild_settings& settings, const saved_status& status) -
 
 /// The presence a status sets.
 [[nodiscard]] auto presence_for(const saved_status& status) -> dpp::presence;
+
+/// Sets the status as `/status` does, and keeps it, for whoever asks through
+/// the `bot_status` capability.
+class status_keeper final : public capabilities::bot_status {
+public:
+    status_keeper(dpp::cluster& cluster, config::guild_settings& settings) : cluster_(&cluster), settings_(&settings) {}
+
+    auto set(std::string type, std::string text) -> void override;
+
+private:
+    dpp::cluster* cluster_;
+    config::guild_settings* settings_;
+};
 
 // --------------------------------------------------------------------------
 // Commands

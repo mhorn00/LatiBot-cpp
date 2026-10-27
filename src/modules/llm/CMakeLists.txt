@@ -6,6 +6,7 @@ latibot_module(llm CONFIG
         src/anthropic.cpp
         src/config_check.cpp
         src/conversation.cpp
+        src/discord_tools.cpp
         src/documents.cpp
         src/guards.cpp
         src/llm_command.cpp
@@ -17,16 +18,19 @@ latibot_module(llm CONFIG
         src/persona_webhooks.cpp
         src/personas.cpp
         src/prompt.cpp
+        src/reminders.cpp
         src/responder.cpp
         src/settings.cpp
         src/spend.cpp
         src/stage.cpp
+        src/tool_switches.cpp
         src/tools.cpp
     TESTS
         tests/llm_aliases_test.cpp
         tests/llm_answer_test.cpp
         tests/llm_command_test.cpp
         tests/llm_conversation_test.cpp
+        tests/llm_discord_tools_test.cpp
         tests/llm_guards_test.cpp
         tests/llm_module_test.cpp
         tests/llm_panel_test.cpp

@@ -55,7 +55,7 @@ TEST_CASE("the llm section reads its defaults, and the spend caps cannot be nega
     CHECK(defaults.model == "claude-haiku-4-5");
     CHECK(defaults.spend_cap_daily_usd == 2.0);
     CHECK(defaults.spend_cap_monthly_usd == 20.0);
-    CHECK(defaults.tool_rounds == 4);
+    CHECK(defaults.tool_rounds == 8);
 
     CHECK_THROWS_AS(section.read(nlohmann::json::parse(R"({"spend_cap_daily_usd": -1})")), latibot::config::config_error);
     CHECK_THROWS_AS(section.read(nlohmann::json::parse(R"({"spend_cap_monthly_usd": -1})")), latibot::config::config_error);
@@ -136,6 +136,9 @@ TEST_CASE("the llm README lists what the module registers", "[llm]") {
 
     CHECK(latibot::testing::readme_row(readme(), "Discord events") == std::set<std::string>(bot.listeners.begin(), bot.listeners.end()));
     CHECK(bot.wanted_intents == dpp::i_guild_message_typing);
-    CHECK(latibot::testing::readme_row(readme(), "Timers").empty());
-    CHECK(bot.timers.empty());
+    std::set<std::string> timers;
+    for (const auto& each : bot.timers) {
+        timers.insert(each.name);
+    }
+    CHECK(latibot::testing::readme_row(readme(), "Timers") == timers);
 }

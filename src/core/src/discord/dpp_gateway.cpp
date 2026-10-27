@@ -4,6 +4,8 @@
 #include <dpp/cluster.h>
 
 #include <algorithm>
+#include <chrono>
+#include <format>
 #include <utility>
 
 namespace latibot::discord {
@@ -18,6 +20,71 @@ template <typename T>
 auto unwrap(const dpp::confirmation_callback_t& confirmation) -> ports::result<T> {
     if (confirmation.is_error()) return std::unexpected(to_error(confirmation));
     return std::get<T>(confirmation.value);
+}
+
+auto done(const dpp::confirmation_callback_t& confirmation) -> ports::result<void> {
+    if (confirmation.is_error()) return std::unexpected(to_error(confirmation));
+    return {};
+}
+
+auto seconds(double unix_time) -> std::chrono::sys_seconds {
+    return std::chrono::sys_seconds{std::chrono::seconds{static_cast<std::int64_t>(unix_time)}};
+}
+
+/// Role names, highest first: by position, then by id, as Discord orders
+/// two roles at one position.
+auto role_names(const std::vector<dpp::snowflake>& ids) -> std::vector<std::string> {
+    std::vector<const dpp::role*> found;
+    for (const dpp::snowflake id : ids) {
+        if (const dpp::role* role = dpp::find_role(id); role != nullptr) found.push_back(role);
+    }
+    std::ranges::sort(found, [](const dpp::role* left, const dpp::role* right) {
+        return left->position != right->position ? left->position > right->position : left->id < right->id;
+    });
+    std::vector<std::string> names;
+    names.reserve(found.size());
+    for (const dpp::role* role : found) {
+        names.push_back(role->name);
+    }
+    return names;
+}
+
+auto kind_of(dpp::channel_type type) -> std::string {
+    switch (type) {
+    case dpp::CHANNEL_TEXT:
+        return "text";
+    case dpp::CHANNEL_VOICE:
+        return "voice";
+    case dpp::CHANNEL_ANNOUNCEMENT:
+        return "announcement";
+    case dpp::CHANNEL_FORUM:
+    case dpp::CHANNEL_MEDIA:
+        return "forum";
+    case dpp::CHANNEL_STAGE:
+        return "stage";
+    case dpp::CHANNEL_PUBLIC_THREAD:
+    case dpp::CHANNEL_PRIVATE_THREAD:
+    case dpp::CHANNEL_ANNOUNCEMENT_THREAD:
+        return "thread";
+    case dpp::CHANNEL_CATEGORY:
+        return "category";
+    default:
+        return "other";
+    }
+}
+
+auto describe_channel(const dpp::channel& channel) -> ports::channel_details {
+    std::string parent;
+    if (const dpp::channel* above = channel.parent_id.empty() ? nullptr : dpp::find_channel(channel.parent_id); above != nullptr) {
+        parent = above->name;
+    }
+    return {.id = channel.id,
+            .guild_id = channel.guild_id,
+            .name = channel.name,
+            .kind = kind_of(channel.get_type()),
+            .topic = channel.topic,
+            .age_restricted = channel.is_nsfw(),
+            .parent = parent};
 }
 
 auto to_webhook(const dpp::webhook& hook) -> ports::webhook {
@@ -149,6 +216,82 @@ auto dpp_gateway::execute_webhook(const ports::webhook& hook, dpp::message messa
     // Waited on, so Discord sends the message back, and its id with it.
     const auto confirmation = co_await cluster_->co_execute_webhook(through, message, /*wait=*/true, thread);
     co_return unwrap<dpp::message>(confirmation);
+}
+
+auto dpp_gateway::add_reaction(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji) -> dpp::task<ports::result<void>> {
+    const auto confirmation = co_await cluster_->co_message_add_reaction(message_id, channel_id, emoji);
+    co_return done(confirmation);
+}
+
+auto dpp_gateway::set_pinned(dpp::snowflake channel_id, dpp::snowflake message_id, bool pinned) -> dpp::task<ports::result<void>> {
+    const auto confirmation =
+        pinned ? co_await cluster_->co_message_pin(channel_id, message_id) : co_await cluster_->co_message_unpin(channel_id, message_id);
+    co_return done(confirmation);
+}
+
+auto dpp_gateway::set_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, std::optional<std::string> nickname)
+    -> dpp::task<ports::result<void>> {
+    dpp::guild_member member;
+    member.guild_id = guild_id;
+    member.user_id = user_id;
+    member.set_nickname(nickname.value_or(std::string{}));
+    const auto confirmation = co_await cluster_->co_guild_edit_member(member);
+    co_return done(confirmation);
+}
+
+auto dpp_gateway::member_details(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_details> {
+    const dpp::guild* guild = dpp::find_guild(guild_id);
+    if (guild == nullptr) return std::nullopt;
+    const auto member = guild->members.find(user_id);
+    if (member == guild->members.end()) return std::nullopt;
+
+    const dpp::user* user = dpp::find_user(user_id);
+    ports::member_details details{.joined_at = std::nullopt,
+                                  .created_at = seconds(user_id.get_creation_time()),
+                                  .roles = role_names(member->second.get_roles()),
+                                  .is_bot = user != nullptr && user->is_bot(),
+                                  .owns_server = guild->owner_id == user_id,
+                                  .boosting_since = std::nullopt};
+    if (member->second.joined_at > 0) details.joined_at = seconds(static_cast<double>(member->second.joined_at));
+    if (member->second.premium_since > 0) details.boosting_since = seconds(static_cast<double>(member->second.premium_since));
+    return details;
+}
+
+auto dpp_gateway::server_details(dpp::snowflake guild_id) const -> std::optional<ports::server_details> {
+    const dpp::guild* guild = dpp::find_guild(guild_id);
+    if (guild == nullptr) return std::nullopt;
+
+    ports::server_details details{.name = guild->name,
+                                  .created_at = seconds(guild->get_creation_time()),
+                                  .member_count = guild->member_count,
+                                  .boost_tier = static_cast<int>(guild->premium_tier),
+                                  .boosts = guild->premium_subscription_count,
+                                  .channels = {},
+                                  .roles = role_names(guild->roles),
+                                  .emoji = {}};
+    for (const dpp::snowflake id : guild->channels) {
+        if (const dpp::channel* channel = dpp::find_channel(id); channel != nullptr) details.channels.push_back(describe_channel(*channel));
+    }
+    for (const dpp::snowflake id : guild->emojis) {
+        if (const dpp::emoji* emoji = dpp::find_emoji(id); emoji != nullptr) details.emoji.push_back(std::format("{}:{}", emoji->name, id));
+    }
+    return details;
+}
+
+auto dpp_gateway::channel_details(dpp::snowflake channel_id) const -> std::optional<ports::channel_details> {
+    const dpp::channel* channel = dpp::find_channel(channel_id);
+    if (channel == nullptr) return std::nullopt;
+    return describe_channel(*channel);
+}
+
+auto dpp_gateway::member_permissions(dpp::snowflake guild_id, dpp::snowflake channel_id, dpp::snowflake user_id) const
+    -> std::optional<std::uint64_t> {
+    const dpp::guild* guild = dpp::find_guild(guild_id);
+    const dpp::channel* channel = dpp::find_channel(channel_id);
+    if (guild == nullptr || channel == nullptr) return std::nullopt;
+    const auto member = guild->members.find(user_id);
+    if (member == guild->members.end()) return std::nullopt;
+    return static_cast<std::uint64_t>(guild->permission_overwrites(member->second, *channel));
 }
 
 auto dpp_gateway::member_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> {

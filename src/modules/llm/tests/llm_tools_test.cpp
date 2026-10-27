@@ -51,11 +51,11 @@ TEST_CASE("an unknown tool, or one that throws, is an error the model reads", "[
     tools.add({.name = "broken", .description = {}, .input_schema = {}},
               [](const json&, const tool_context&) -> tool_outcome { throw std::runtime_error("disk on fire"); });
 
-    const auto missing = tools.run({.id = "a", .name = "nope", .input = {}}, asked_by);
+    const auto missing = latibot::testing::ran(tools.run({.id = "a", .name = "nope", .input = {}}, asked_by));
     CHECK(missing.is_error);
     CHECK(missing.call_id == "a");
 
-    const auto broken = tools.run({.id = "b", .name = "broken", .input = {}}, asked_by);
+    const auto broken = latibot::testing::ran(tools.run({.id = "b", .name = "broken", .input = {}}, asked_by));
     CHECK(broken.is_error);
     // What went wrong stays in the log; the model only learns that it did.
     CHECK_FALSE(broken.content.contains("disk"));

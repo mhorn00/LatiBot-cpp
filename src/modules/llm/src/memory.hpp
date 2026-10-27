@@ -31,7 +31,15 @@ struct memory {
     std::optional<dpp::snowflake> created_by;
 
     std::chrono::sys_seconds created_at;
+
+    /// Whose it is: nothing when LatiBot and every persona share it, 0 when
+    /// it is LatiBot's own, and a persona's id when it is that persona's.
+    std::optional<std::int64_t> owner;
 };
+
+/// Whether `viewer`, a persona or 0 for LatiBot, may see and use `entry`:
+/// a shared one, or its own.
+[[nodiscard]] auto visible_to(const memory& entry, std::int64_t viewer) -> bool;
 
 /// The longest memory kept, and how many a guild may hold. The model is
 /// told both, and `remember` refuses past them rather than quietly
@@ -55,13 +63,16 @@ public:
 
     [[nodiscard]] auto find(std::int64_t id, dpp::snowflake guild_id) const -> std::optional<memory>;
 
-    /// The guild's memories that best match `text`, best first. Nothing when
-    /// the text has no words worth searching for.
-    [[nodiscard]] auto search(dpp::snowflake guild_id, std::string_view text, std::size_t limit) const -> std::vector<memory>;
+    /// The guild's memories that best match `text`, best first, or only
+    /// those `viewer` may see. Nothing when the text has no words worth
+    /// searching for.
+    [[nodiscard]] auto search(dpp::snowflake guild_id, std::string_view text, std::size_t limit,
+                              std::optional<std::int64_t> viewer = std::nullopt) const -> std::vector<memory>;
 
-    /// Newest first, optionally only those about one person.
-    [[nodiscard]] auto list(dpp::snowflake guild_id, std::optional<dpp::snowflake> subject, std::size_t offset, std::size_t limit) const
-        -> std::vector<memory>;
+    /// Newest first, optionally only those about one person, or only those
+    /// `viewer` may see.
+    [[nodiscard]] auto list(dpp::snowflake guild_id, std::optional<dpp::snowflake> subject, std::size_t offset, std::size_t limit,
+                            std::optional<std::int64_t> viewer = std::nullopt) const -> std::vector<memory>;
 
     [[nodiscard]] auto count(dpp::snowflake guild_id, std::optional<dpp::snowflake> subject = std::nullopt) const -> std::size_t;
 
@@ -77,9 +88,9 @@ private:
 
 /// What the model is shown before it answers: memories about whoever it is
 /// answering, then the ones that match what they said, without repeats, at
-/// most `limit` (src/modules/llm/docs/Language_Model.md §3.4). Common facts then
-/// need no tool call.
+/// most `limit` (src/modules/llm/docs/Language_Model.md §3.4), of those `viewer`
+/// may see. Common facts then need no tool call.
 [[nodiscard]] auto relevant_memories(const memory_store& store, dpp::snowflake guild_id, dpp::snowflake author, std::string_view text,
-                                     std::size_t limit) -> std::vector<memory>;
+                                     std::size_t limit, std::int64_t viewer = 0) -> std::vector<memory>;
 
 } // namespace latibot::llm

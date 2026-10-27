@@ -1188,6 +1188,7 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 | `trigger` | `add` · `edit` · `remove` · `list` | [Advanced triggers](#advanced-triggers) |
 | `blacklist` | `add` · `remove` (`user` or `role`) · `list` | People and roles it never answers here |
 | `names` | `add` · `remove` (`user` and `name`) · `list` (`user` optional) | More names someone goes by, which the model never sees (see [Names](#names-the-model-never-sees)) |
+| `tools` | `list` · `on` · `off` (`tool`) | What the model may look up and do here (see [What the model can do](#what-the-model-can-do)) |
 | `persona` | `add` · `edit` · `remove` · `list` · `view` · `document` | [Personas](#personas): others it answers as, under their own name |
 
 It is **off in every server** until someone runs `/llm on` there: every message
@@ -1329,6 +1330,35 @@ the prompt stays short.
 - Its reply is posted silently, as a simple trigger's is, and reads the last
   five messages rather than fifteen (the setting above).
 
+#### What the model can do
+
+Besides answering, the model (LatiBot, and every persona) can use tools: it
+decides when, and says what it did.
+
+| Tool | Does | Refused when |
+|---|---|---|
+| `get_message` | Reads a message by id, here, or by a link into this server: who, when, text, attachments, reactions | a link to another server or a DM |
+| `search_messages` | Searches a channel's last 500 messages at most, by text, author alias, or UTC dates | Discord gives bots no real search, so nothing older |
+| `user_info` | A member: when they joined and made their account, roles, bot, owner, booster. By alias, never a name | they are not in the cache |
+| `server_info` | The server: made when, members, boosts, channels, roles, custom emoji | |
+| `channel_info` | A channel: kind, category, topic, age-restricted | another server's channel |
+| `current_time` | The time now, in UTC or a named zone | an unknown zone |
+| `set_nickname` | Changes anyone's nickname, or clears it, recorded by the nicknames module as asked for by whoever the model answers | the bot lacks Manage Nicknames, or the role order; the server owner |
+| `set_status` | LatiBot's status, in every server | the server is not in `trusted_guilds`; never offered to a persona |
+| `add_reaction` | Reacts to the message answered, or one named, with Unicode or one of the server's emoji | |
+| `pin_message` | Pins or unpins | whoever asked lacks Manage Messages there |
+| `create_poll` | Posts a Discord poll, as LatiBot or the persona | |
+| `set_reminder` | Reminds someone here later, posted by whoever set it and mentioning them; at most 100 waiting per server, a year ahead | |
+
+The six that change something refuse any message from a bot, LatiBot's own
+and its personas' included, so one model cannot talk another into acting.
+Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
+and every persona; the model is then neither shown it nor able to run it.
+All are on until then.
+
+`/llm tools list` shows which are on here, and `/llm tools off tool` and `on`
+change that (Manage Server). The model's `/memory` tools are in the list too.
+
 #### Names the model never sees
 
 The model never sees anyone's name: everyone is shown to it by a random
@@ -1377,7 +1407,10 @@ The `persona` option completes from this server's personas.
   and personality, and not by the server's, which are LatiBot's.
 - **Its own model**, or the server's. It counts against the same spending
   limits.
-- **No memory**, and it is never spoken. With
+- **Memory and tools**: it remembers as LatiBot does, sharing LatiBot's
+  memories and keeping personal ones of its own, and it has the same
+  [tools](#what-the-model-can-do) except setting the status. It is never
+  spoken. With
   [conversation mode](#conversation-mode) on, it keeps talking as LatiBot
   does, in conversations of its own.
 - **LatiBot and the personas talk to each other by name**, as people talk to

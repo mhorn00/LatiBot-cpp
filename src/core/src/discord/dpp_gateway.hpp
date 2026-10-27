@@ -23,6 +23,10 @@ public:
         -> dpp::task<ports::result<std::vector<dpp::message>>> override;
     auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                             std::uint64_t limit) -> dpp::task<ports::result<std::vector<dpp::snowflake>>> override;
+    auto add_reaction(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji) -> dpp::task<ports::result<void>> override;
+    auto set_pinned(dpp::snowflake channel_id, dpp::snowflake message_id, bool pinned) -> dpp::task<ports::result<void>> override;
+    auto set_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, std::optional<std::string> nickname)
+        -> dpp::task<ports::result<void>> override;
     auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override;
     auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> override;
     auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> override;
@@ -34,6 +38,12 @@ public:
     [[nodiscard]] auto role_name(dpp::snowflake role_id) const -> std::optional<std::string> override;
     [[nodiscard]] auto channel_name(dpp::snowflake channel_id) const -> std::optional<std::string> override;
     [[nodiscard]] auto thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> override;
+    [[nodiscard]] auto member_details(dpp::snowflake guild_id, dpp::snowflake user_id) const
+        -> std::optional<ports::member_details> override;
+    [[nodiscard]] auto server_details(dpp::snowflake guild_id) const -> std::optional<ports::server_details> override;
+    [[nodiscard]] auto channel_details(dpp::snowflake channel_id) const -> std::optional<ports::channel_details> override;
+    [[nodiscard]] auto member_permissions(dpp::snowflake guild_id, dpp::snowflake channel_id, dpp::snowflake user_id) const
+        -> std::optional<std::uint64_t> override;
 
 private:
     dpp::cluster* cluster_;

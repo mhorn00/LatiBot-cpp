@@ -135,6 +135,46 @@ public:
     }
 
     /// Channels a typing indicator was started in, in order.
+    struct reaction_added {
+        dpp::snowflake channel_id;
+        dpp::snowflake message_id;
+        std::string emoji;
+    };
+    std::vector<reaction_added> reactions_added;
+    std::deque<ports::result<void>> reaction_results;
+
+    auto add_reaction(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji) -> dpp::task<ports::result<void>> override {
+        reactions_added.push_back({.channel_id = channel_id, .message_id = message_id, .emoji = emoji});
+        co_return next_of(reaction_results);
+    }
+
+    struct pin_change {
+        dpp::snowflake channel_id;
+        dpp::snowflake message_id;
+        bool pinned;
+    };
+    std::vector<pin_change> pins;
+    std::deque<ports::result<void>> pin_results;
+
+    auto set_pinned(dpp::snowflake channel_id, dpp::snowflake message_id, bool pinned) -> dpp::task<ports::result<void>> override {
+        pins.push_back({.channel_id = channel_id, .message_id = message_id, .pinned = pinned});
+        co_return next_of(pin_results);
+    }
+
+    struct nickname_set {
+        dpp::snowflake guild_id;
+        dpp::snowflake user_id;
+        std::optional<std::string> nickname;
+    };
+    std::vector<nickname_set> nicknames_set;
+    std::deque<ports::result<void>> nickname_results;
+
+    auto set_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, std::optional<std::string> nickname)
+        -> dpp::task<ports::result<void>> override {
+        nicknames_set.push_back({.guild_id = guild_id, .user_id = user_id, .nickname = nickname});
+        co_return next_of(nickname_results);
+    }
+
     std::vector<dpp::snowflake> typing;
 
     auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override {
@@ -241,6 +281,37 @@ public:
     }
 
     /// What the cache knows: members by (guild, user), roles and channels.
+    std::map<std::pair<dpp::snowflake, dpp::snowflake>, ports::member_details> member_info;
+    std::map<dpp::snowflake, ports::server_details> servers;
+    std::map<dpp::snowflake, ports::channel_details> channel_info;
+    /// A member's permissions in every channel; anyone not listed has none.
+    std::map<std::pair<dpp::snowflake, dpp::snowflake>, std::uint64_t> permissions;
+
+    [[nodiscard]] auto member_details(dpp::snowflake guild_id, dpp::snowflake user_id) const
+        -> std::optional<ports::member_details> override {
+        const auto found = member_info.find({guild_id, user_id});
+        if (found == member_info.end()) return std::nullopt;
+        return found->second;
+    }
+
+    [[nodiscard]] auto server_details(dpp::snowflake guild_id) const -> std::optional<ports::server_details> override {
+        const auto found = servers.find(guild_id);
+        if (found == servers.end()) return std::nullopt;
+        return found->second;
+    }
+
+    [[nodiscard]] auto channel_details(dpp::snowflake channel_id) const -> std::optional<ports::channel_details> override {
+        const auto found = channel_info.find(channel_id);
+        if (found == channel_info.end()) return std::nullopt;
+        return found->second;
+    }
+
+    [[nodiscard]] auto member_permissions(dpp::snowflake guild_id, dpp::snowflake /*channel_id*/, dpp::snowflake user_id) const
+        -> std::optional<std::uint64_t> override {
+        const auto found = permissions.find({guild_id, user_id});
+        return found == permissions.end() ? std::uint64_t{0} : found->second;
+    }
+
     std::map<std::pair<dpp::snowflake, dpp::snowflake>, ports::member_names> members;
     std::map<dpp::snowflake, std::string> roles;
     std::map<dpp::snowflake, std::string> channels;
@@ -265,6 +336,14 @@ public:
 
 private:
     auto next_id() -> dpp::snowflake { return dpp::snowflake{++last_id_}; }
+
+    /// The next scripted outcome, or success.
+    static auto next_of(std::deque<ports::result<void>>& scripted) -> ports::result<void> {
+        if (scripted.empty()) return {};
+        auto first = std::move(scripted.front());
+        scripted.pop_front();
+        return first;
+    }
 
     std::uint64_t last_id_ = 1000;
 };

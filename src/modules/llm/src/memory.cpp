@@ -41,12 +41,20 @@ auto read_memory(db::statement& row) -> memory {
             .subject = row.get<std::optional<dpp::snowflake>>(2),
             .content = row.get<std::string>(3),
             .created_by = row.get<std::optional<dpp::snowflake>>(4),
-            .created_at = row.get<std::chrono::sys_seconds>(5)};
+            .created_at = row.get<std::chrono::sys_seconds>(5),
+            .owner = row.get<std::optional<std::int64_t>>(6)};
 }
 
-constexpr std::string_view columns = "m.id, m.guild_id, m.subject_user_id, m.content, m.created_by, m.created_at";
+constexpr std::string_view columns = "m.id, m.guild_id, m.subject_user_id, m.content, m.created_by, m.created_at, m.owner";
+
+/// The rows `viewer` may see, when there is a viewer: shared, or its own.
+constexpr std::string_view visible = "(?1 IS NULL OR m.owner IS NULL OR m.owner = ?1)";
 
 } // namespace
+
+auto visible_to(const memory& entry, std::int64_t viewer) -> bool {
+    return !entry.owner || *entry.owner == viewer;
+}
 
 auto search_query(std::string_view text) -> std::string {
     std::set<std::string> seen;
@@ -76,8 +84,8 @@ auto search_query(std::string_view text) -> std::string {
 
 auto memory_store::add(const memory& entry) -> std::int64_t {
     const auto guard = db_->lock();
-    db_->prepare("INSERT INTO llm_memory (guild_id, subject_user_id, content, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
-                 entry.guild_id, entry.subject, entry.content, entry.created_by, entry.created_at)
+    db_->prepare("INSERT INTO llm_memory (guild_id, subject_user_id, content, created_by, created_at, owner) VALUES (?, ?, ?, ?, ?, ?)",
+                 entry.guild_id, entry.subject, entry.content, entry.created_by, entry.created_at, entry.owner)
         .run();
     return db_->last_insert_rowid();
 }
@@ -88,28 +96,31 @@ auto memory_store::find(std::int64_t id, dpp::snowflake guild_id) const -> std::
     return read_memory(query);
 }
 
-auto memory_store::search(dpp::snowflake guild_id, std::string_view text, std::size_t limit) const -> std::vector<memory> {
+auto memory_store::search(dpp::snowflake guild_id, std::string_view text, std::size_t limit, std::optional<std::int64_t> viewer) const
+    -> std::vector<memory> {
     std::vector<memory> found;
     const std::string query_text = search_query(text);
     if (query_text.empty() || limit == 0) return found;
 
     auto query = db_->prepare(std::format("SELECT {} FROM llm_memory_search s JOIN llm_memory m ON m.id = s.rowid "
-                                          "WHERE llm_memory_search MATCH ? AND m.guild_id = ? ORDER BY bm25(llm_memory_search) LIMIT ?",
-                                          columns),
-                              query_text, guild_id, static_cast<std::int64_t>(limit));
+                                          "WHERE {} AND llm_memory_search MATCH ?2 AND m.guild_id = ?3 "
+                                          "ORDER BY bm25(llm_memory_search) LIMIT ?4",
+                                          columns, visible),
+                              viewer, query_text, guild_id, static_cast<std::int64_t>(limit));
     while (query.step()) {
         found.push_back(read_memory(query));
     }
     return found;
 }
 
-auto memory_store::list(dpp::snowflake guild_id, std::optional<dpp::snowflake> subject, std::size_t offset, std::size_t limit) const
-    -> std::vector<memory> {
+auto memory_store::list(dpp::snowflake guild_id, std::optional<dpp::snowflake> subject, std::size_t offset, std::size_t limit,
+                        std::optional<std::int64_t> viewer) const -> std::vector<memory> {
     std::vector<memory> found;
-    auto query = db_->prepare(std::format("SELECT {} FROM llm_memory m WHERE m.guild_id = ? AND (? IS NULL OR m.subject_user_id = ?) "
-                                          "ORDER BY m.created_at DESC, m.id DESC LIMIT ? OFFSET ?",
-                                          columns),
-                              guild_id, subject, subject, static_cast<std::int64_t>(limit), static_cast<std::int64_t>(offset));
+    auto query =
+        db_->prepare(std::format("SELECT {} FROM llm_memory m WHERE {} AND m.guild_id = ?2 AND (?3 IS NULL OR m.subject_user_id = ?3) "
+                                 "ORDER BY m.created_at DESC, m.id DESC LIMIT ?4 OFFSET ?5",
+                                 columns, visible),
+                     viewer, guild_id, subject, static_cast<std::int64_t>(limit), static_cast<std::int64_t>(offset));
     while (query.step()) {
         found.push_back(read_memory(query));
     }
@@ -134,10 +145,10 @@ auto memory_store::clear(dpp::snowflake guild_id, std::optional<dpp::snowflake> 
     return db_->changes();
 }
 
-auto relevant_memories(const memory_store& store, dpp::snowflake guild_id, dpp::snowflake author, std::string_view text, std::size_t limit)
-    -> std::vector<memory> {
-    std::vector<memory> chosen = store.list(guild_id, author, 0, limit / 2);
-    for (memory& match : store.search(guild_id, text, limit)) {
+auto relevant_memories(const memory_store& store, dpp::snowflake guild_id, dpp::snowflake author, std::string_view text, std::size_t limit,
+                       std::int64_t viewer) -> std::vector<memory> {
+    std::vector<memory> chosen = store.list(guild_id, author, 0, limit / 2, viewer);
+    for (memory& match : store.search(guild_id, text, limit, viewer)) {
         if (chosen.size() >= limit) break;
         if (std::ranges::none_of(chosen, [&](const memory& already) { return already.id == match.id; })) chosen.push_back(std::move(match));
     }

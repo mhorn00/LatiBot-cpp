@@ -58,6 +58,12 @@ auto make_activity(dpp::activity_type type, const std::string& text) -> dpp::act
     return {type, text, "", ""};
 }
 
+auto status_keeper::set(std::string type, std::string text) -> void {
+    const saved_status status{.text = std::move(text), .type = std::move(type)};
+    cluster_->set_presence(presence_for(status));
+    save_status(*settings_, status);
+}
+
 auto describe_version(std::string_view version, bool debug) -> std::string {
     if (debug) return std::format("LatiBot {} (Debug build)", version);
     return std::format("LatiBot {}", version);

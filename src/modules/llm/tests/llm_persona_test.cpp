@@ -30,6 +30,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -694,25 +695,40 @@ TEST_CASE("a persona on a model with no key is not answered", "[llm][persona]") 
     CHECK(asked(test.stage(from_alice("zed, hi"))) != nullptr);
 }
 
-TEST_CASE("a persona answers as itself: through the webhook, with its own instructions and no memory", "[llm][persona][coro]") {
+TEST_CASE("a persona answers as itself: through the webhook, with its own instructions, the tools and its memories",
+          "[llm][persona][coro]") {
     fixture test;
     const persona claude = test.make("Claude", "claude-sonnet-5-5");
+    test.memories.add(
+        {.id = 0, .guild_id = guild, .subject = {}, .content = "the server has a cat", .created_by = alice, .created_at = noon});
+    test.memories.add(
+        {.id = 0, .guild_id = guild, .subject = {}, .content = "LatiBot's cat plan", .created_by = alice, .created_at = noon, .owner = 0});
+    test.memories.add({.id = 0,
+                       .guild_id = guild,
+                       .subject = {},
+                       .content = "Claude's cat opinion",
+                       .created_by = alice,
+                       .created_at = noon,
+                       .owner = claude.id});
     test.documents.save(guild, document_ref(document_kind::system, claude.id), "You are Claude, made by Anthropic.", alice, noon);
     test.documents.save(guild, document_kind::personality, "Talk like a pirate.", alice, noon);
     test.model.answer("Four.");
 
-    const auto report = test.answer(ask_as(claude.id, "claude, what's 2+2"));
+    const auto report = test.answer(ask_as(claude.id, "claude, what's 2+2, and how is the cat"));
     CHECK(report.posted == std::vector<std::string>{"Four."});
 
-    // The request: its rules, its documents, no tools, no memories.
+    // The request: its rules, its documents, the tools, the shared memories
+    // and its own, never LatiBot's own.
     REQUIRE(test.model.requests.size() == 1);
     const latibot::llm::request& sent = test.model.requests[0];
     CHECK(sent.model == "claude-sonnet-5-5");
     CHECK(sent.stable_system.starts_with("You are Claude, a character"));
     CHECK(sent.stable_system.contains("## Who you are\nYou are Claude, made by Anthropic."));
     CHECK_FALSE(sent.stable_system.contains("pirate"));
-    CHECK(sent.tools.empty());
-    CHECK_FALSE(sent.varying_system.contains("remember"));
+    CHECK(std::ranges::any_of(sent.tools, [](const auto& tool) { return tool.name == "remember"; }));
+    CHECK(sent.varying_system.contains("the server has a cat"));
+    CHECK(sent.varying_system.contains("(yours only): Claude's cat opinion"));
+    CHECK_FALSE(sent.varying_system.contains("LatiBot's cat plan"));
 
     // Posted through the bot's webhook, made once, as Claude, and not as a
     // reply, which a webhook cannot send.

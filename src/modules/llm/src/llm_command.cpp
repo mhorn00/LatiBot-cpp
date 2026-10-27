@@ -10,6 +10,7 @@
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 #include "guards.hpp"
+#include "tool_switches.hpp"
 
 #include <dpp/cluster.h>
 
@@ -147,6 +148,16 @@ auto match_mode_option() -> dpp::command_option {
 /// Memories with the people they name as mentions, which Discord shows as
 /// names, rather than the aliases the model wrote
 /// (src/modules/llm/docs/Language_Model.md §3.8).
+/// The guild's personas' names, by id, to say whose a personal memory is.
+auto persona_names(const llm::persona_store* personas, dpp::snowflake guild) -> std::map<std::int64_t, std::string> {
+    std::map<std::int64_t, std::string> names;
+    if (personas == nullptr) return names;
+    for (const llm::persona& each : personas->for_guild(guild)) {
+        names.emplace(each.id, each.name);
+    }
+    return names;
+}
+
 auto named(std::vector<llm::memory> memories, dpp::snowflake guild, const llm::alias_store* aliases) -> std::vector<llm::memory> {
     if (aliases == nullptr) return memories;
     for (llm::memory& entry : memories) {
@@ -414,14 +425,20 @@ auto read_llm_settings_form(std::string_view group, const std::map<std::string, 
     return changes;
 }
 
-auto render_memories(std::span<const llm::memory> memories, std::size_t total, int page, std::optional<dpp::snowflake> subject)
-    -> dpp::message {
+auto render_memories(std::span<const llm::memory> memories, std::size_t total, int page, std::optional<dpp::snowflake> subject,
+                     const std::map<std::int64_t, std::string>& owners) -> dpp::message {
     const int current = ui::clamp_page(page, total, memories_per_page);
     std::string body = subject ? std::format("**What I remember about <@{}>**\n", *subject) : std::string("**What I remember here**\n");
     if (memories.empty()) body += "\nNothing yet.";
     for (const llm::memory& entry : memories) {
         body += std::format("`#{}` ", entry.id);
         if (entry.subject && !subject) body += std::format("(<@{}>) ", *entry.subject);
+        if (entry.owner) {
+            const auto owner = owners.find(*entry.owner);
+            body += *entry.owner == 0       ? std::string("[LatiBot's own] ")
+                    : owner != owners.end() ? std::format("[{}'s own] ", owner->second)
+                                            : std::string("[a persona's own] ");
+        }
         body += util::truncate(entry.content, 200);
         body += '\n';
     }
@@ -545,6 +562,24 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     names.add_option(list_names);
     payload.add_option(names);
 
+    // The tools, by name, as choices: Discord takes 25 at most.
+    dpp::command_option tool_group(dpp::co_sub_command_group, "tools", "What the model may look up and do here (Manage Server).");
+    tool_group.add_option(dpp::command_option(dpp::co_sub_command, "list", "Show every tool, and whether it is on here."));
+    for (const auto& [verb, what] : std::array<std::pair<const char*, const char*>, 2>{
+             {{"on", "Let the model use a tool here."}, {"off", "Stop the model using a tool here."}}}) {
+        dpp::command_option change(dpp::co_sub_command, verb, what);
+        dpp::command_option chosen_tool(dpp::co_string, "tool", "Which tool.", true);
+        if (services_.tools != nullptr) {
+            const std::vector<std::string> all = services_.tools->names();
+            for (std::size_t index = 0; index < all.size() && index < 25; ++index) {
+                chosen_tool.add_choice(dpp::command_option_choice(all[index], all[index]));
+            }
+        }
+        change.add_option(chosen_tool);
+        tool_group.add_option(change);
+    }
+    payload.add_option(tool_group);
+
     dpp::command_option persona(dpp::co_sub_command_group, "persona", "Others the model answers as, under their own name.");
     dpp::command_option create(dpp::co_sub_command, "add", "Make one (Manage Server).");
     create.add_option(dpp::command_option(dpp::co_string, "name", "What it is called, and answers to.", true)
@@ -657,6 +692,8 @@ auto llm_command::manage(const dpp::slashcommand_t& event, std::string_view path
         co_await blacklist(event, action);
     } else if (group == "names") {
         co_await names(event, action);
+    } else if (group == "tools") {
+        co_await tools(event, action);
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
@@ -988,6 +1025,46 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
         result(event, std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by))));
 }
 
+auto render_tools(const std::vector<llm::tool_definition>& tools, const std::set<std::string, std::less<>>& off) -> std::string {
+    std::string text = "**What the model may use here**\n";
+    for (const llm::tool_definition& tool : tools) {
+        const std::size_t stop = tool.description.find(". ");
+        const std::string_view first =
+            std::string_view(tool.description).substr(0, stop == std::string::npos ? std::string::npos : stop + 1);
+        const bool latibot_only = std::ranges::find(llm::latibot_only_tools, tool.name) != llm::latibot_only_tools.end();
+        text += std::format("{} `{}`{}: {}\n", off.contains(tool.name) ? "⛔" : "✅", tool.name, latibot_only ? " (LatiBot only)" : "",
+                            util::truncate(first, 110));
+    }
+    text += "\n_`/llm tools off` turns one off for LatiBot and every persona here._";
+    return util::truncate(text, 2000);
+}
+
+auto llm_command::tools(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    if (services_.tools == nullptr) {
+        co_await event.co_reply(refusal(event, "the model has no tools in this build"));
+        co_return;
+    }
+    if (action == "list") {
+        co_await event.co_reply(result(event, render_tools(services_.tools->definitions(), llm::tools_off(*services_.settings, guild))));
+        co_return;
+    }
+
+    const std::string name = string_option(event, "tool");
+    if (!services_.tools->contains(name)) {
+        co_await event.co_reply(refusal(event, std::format("there is no tool called `{}`", name)));
+        co_return;
+    }
+    const bool on = action == "on";
+    const bool changed = llm::switch_tool(*services_.settings, guild, name, on);
+    if (changed) {
+        util::log().info("{} turned the model's {} tool {} in guild {}", describe_user(event.command.get_issuing_user()), name,
+                         on ? "on" : "off", guild);
+    }
+    co_await event.co_reply(result(event, changed ? std::format("ok, `{}` is {} here", name, on ? "on" : "off")
+                                                  : std::format("`{}` was already {} here", name, on ? "on" : "off")));
+}
+
 auto render_alias_names(const std::map<dpp::snowflake, std::vector<std::string>>& names, dpp::snowflake only) -> std::string {
     std::string text;
     for (const auto& [user, theirs] : names) {
@@ -1294,7 +1371,8 @@ auto memory_command::execute(const dpp::slashcommand_t& event) -> dpp::task<void
             co_return;
         }
         const auto shown = named(services_.memories->list(guild, subject, 0, memories_per_page), guild, services_.aliases);
-        co_await event.co_reply(result(event, render_memories(shown, services_.memories->count(guild, subject), 0, subject)));
+        co_await event.co_reply(result(event, render_memories(shown, services_.memories->count(guild, subject), 0, subject,
+                                                              persona_names(services_.personas, guild))));
     } else if (action == "forget") {
         const std::int64_t id = int_option(event, "id").value_or(0);
         const auto entry = services_.memories->find(id, guild);
@@ -1373,7 +1451,7 @@ auto llm_panels::on_component(const dpp::interaction_create_t& event, const ui::
         const auto shown =
             named(services_.memories->list(guild, subject, static_cast<std::size_t>(page) * memories_per_page, memories_per_page), guild,
                   services_.aliases);
-        ui::update_panel(event, render_memories(shown, total, page, subject));
+        ui::update_panel(event, render_memories(shown, total, page, subject, persona_names(services_.personas, guild)));
         return true;
     }
 

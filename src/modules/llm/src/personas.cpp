@@ -117,6 +117,7 @@ auto persona_store::remove(std::int64_t id, dpp::snowflake guild_id) -> bool {
     db_->prepare("DELETE FROM llm_documents WHERE guild_id = ? AND kind LIKE ?", guild_id, std::format("persona.{}.%", id)).run();
     db_->prepare("DELETE FROM llm_triggers WHERE guild_id = ? AND persona_id = ?", guild_id, id).run();
     db_->prepare("DELETE FROM llm_persona_posts WHERE persona_id = ?", id).run();
+    db_->prepare("DELETE FROM llm_memory WHERE guild_id = ? AND owner = ?", guild_id, id).run();
     tx.commit();
     return true;
 }

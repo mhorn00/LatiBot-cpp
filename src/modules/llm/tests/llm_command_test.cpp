@@ -202,6 +202,17 @@ TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[ll
     CHECK(everyone.content.contains("(<@7>)"));
 }
 
+TEST_CASE("the memory list says whose a personal memory is", "[llm]") {
+    const std::vector<latibot::llm::memory> page{
+        {.id = 1, .guild_id = {}, .subject = {}, .content = "shared", .created_by = {}, .created_at = {}, .owner = std::nullopt},
+        {.id = 2, .guild_id = {}, .subject = {}, .content = "mine", .created_by = {}, .created_at = {}, .owner = 0},
+        {.id = 3, .guild_id = {}, .subject = {}, .content = "claude's", .created_by = {}, .created_at = {}, .owner = 7}};
+    const std::string body = latibot::commands::render_memories(page, 3, 0, std::nullopt, {{7, "Claude"}}).content;
+    CHECK(body.contains("`#1` shared"));
+    CHECK(body.contains("`#2` [LatiBot's own] mine"));
+    CHECK(body.contains("`#3` [Claude's own] claude's"));
+}
+
 TEST_CASE("the names list shows each person's names, or says there are none", "[llm]") {
     const std::map<dpp::snowflake, std::vector<std::string>> names{{dpp::snowflake{11}, {"Robert", "Stupit Dog"}},
                                                                    {dpp::snowflake{12}, {"Ally"}}};

@@ -30,7 +30,7 @@ module registers, so this table cannot fall behind the code.
 | Permissions | View Audit Log, for naming who made a change, only while tracking | |
 | Environment | none | |
 | Files | `nicknames.json` beside the database, the Java bot's history, imported at startup | |
-| Capabilities | offers none, uses none | |
+| Capabilities | offers nickname_changes, which the language model's `set_nickname` uses so its changes are recorded as `/nickname`'s are; uses none | |
 | Requires | the core | |
 
 ## Files

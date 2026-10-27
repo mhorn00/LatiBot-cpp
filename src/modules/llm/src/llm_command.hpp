@@ -9,6 +9,7 @@
 #include "personas.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
+#include "tools.hpp"
 
 #include <dpp/appcommand.h>
 #include <dpp/dispatcher.h>
@@ -18,6 +19,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -139,8 +141,10 @@ struct document_target {
     -> std::variant<std::vector<std::pair<std::string_view, std::int64_t>>, std::string>;
 
 /// One page of `/memory list`: whose, or everyone's when `subject` is empty.
+/// A personal memory says whose it is, by `owners`, persona ids to names.
 [[nodiscard]] auto render_memories(std::span<const llm::memory> memories, std::size_t total, int page,
-                                   std::optional<dpp::snowflake> subject) -> dpp::message;
+                                   std::optional<dpp::snowflake> subject, const std::map<std::int64_t, std::string>& owners = {})
+    -> dpp::message;
 
 /// How many memories one page shows.
 inline constexpr std::size_t memories_per_page = 10;
@@ -171,6 +175,9 @@ struct llm_command_services {
     /// `/llm names`.
     llm::alias_store* aliases = nullptr;
     const llm::usage_store* usage = nullptr;
+
+    /// The model's tools, for `/llm tools`.
+    const llm::tool_registry* tools = nullptr;
 
     /// For documents attached as files.
     ports::http_client* http = nullptr;
@@ -220,6 +227,10 @@ private:
     /// §3.8).
     auto names(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
 
+    /// `/llm tools list | on | off` (src/modules/llm/docs/Language_Model.md
+    /// §3.4).
+    auto tools(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
+
     /// `/llm persona …` (src/modules/llm/docs/Language_Model.md §2.11).
     /// `list`, `view` and reading a personality are open to everyone, and
     /// the rest needs Manage Server, as for LatiBot's own.
@@ -236,6 +247,11 @@ private:
     command_info info_;
     llm_command_services services_;
 };
+
+/// The body of `/llm tools list`: each tool, on or off here, with the first
+/// sentence of what it does.
+[[nodiscard]] auto render_tools(const std::vector<llm::tool_definition>& tools, const std::set<std::string, std::less<>>& off)
+    -> std::string;
 
 /// The body of `/llm names list`: everyone with names set by hand here, or
 /// only `only` when it is not 0.

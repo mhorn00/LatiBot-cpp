@@ -4,9 +4,14 @@
 
 #include <dpp/snowflake.h>
 
+#include <dpp/coro/task.h>
+
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -27,6 +32,25 @@ struct tool_context {
     /// (src/modules/llm/docs/Language_Model.md §3.8). Null in a tool's own tests,
     /// where nobody is named.
     people* cast = nullptr;
+
+    /// The message being answered.
+    dpp::snowflake message_id;
+
+    /// Who is answering: a persona, or 0 for LatiBot. A persona's own
+    /// memories are its own (src/modules/llm/docs/Language_Model.md §3.4).
+    std::int64_t persona_id = 0;
+
+    /// The message being answered is a bot's, LatiBot's own and its
+    /// personas' included: a tool that changes something refuses it.
+    bool asker_is_bot = false;
+
+    /// The tools this request may call; nothing for every one. The model is
+    /// only shown these, and a call to any other is refused.
+    std::optional<std::vector<std::string>> allowed;
+
+    [[nodiscard]] auto allows(std::string_view name) const -> bool {
+        return !allowed || std::ranges::find(*allowed, name) != allowed->end();
+    }
 };
 
 /// What a tool handed back: text for the model, and whether it failed.
@@ -36,6 +60,10 @@ struct tool_outcome {
 };
 
 using tool_handler = std::function<tool_outcome(const nlohmann::json& input, const tool_context& context)>;
+
+/// A tool that waits on Discord. It is handed copies, since it outlives the
+/// call that started it.
+using async_tool_handler = std::function<dpp::task<tool_outcome>(nlohmann::json input, tool_context context)>;
 
 /// The tools the model may call: a name, a JSON schema and a handler each
 /// (src/modules/llm/docs/Language_Model.md §3.4).
@@ -47,20 +75,27 @@ public:
     /// Throws std::invalid_argument when the name is taken: always a
     /// programming error, caught at startup.
     auto add(tool_definition definition, tool_handler handler) -> void;
+    auto add_async(tool_definition definition, async_tool_handler handler) -> void;
 
+    /// Every tool, or only those `context` allows.
     [[nodiscard]] auto definitions() const -> std::vector<tool_definition>;
+    [[nodiscard]] auto definitions(const tool_context& context) const -> std::vector<tool_definition>;
 
-    /// Runs one call. A tool that does not exist, or that throws, is an
-    /// error for the model to read rather than an exception: the model can
-    /// recover from a failed tool, and a reply should not be lost to one.
-    [[nodiscard]] auto run(const tool_call& call, const tool_context& context) const -> tool_result;
+    [[nodiscard]] auto names() const -> std::vector<std::string>;
+    [[nodiscard]] auto contains(std::string_view name) const -> bool;
+
+    /// Runs one call. A tool that does not exist, is not allowed here, or
+    /// throws, is an error for the model to read rather than an exception:
+    /// the model can recover from a failed tool, and a reply should not be
+    /// lost to one.
+    [[nodiscard]] auto run(tool_call call, tool_context context) const -> dpp::task<tool_result>;
 
     [[nodiscard]] auto size() const noexcept -> std::size_t { return tools_.size(); }
 
 private:
     struct entry {
         tool_definition definition;
-        tool_handler handler;
+        async_tool_handler handler;
     };
 
     std::vector<entry> tools_;
