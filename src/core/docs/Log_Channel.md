@@ -72,6 +72,10 @@ trusts, not by any server's administrators.
   anything posted, in case anything ever logs one.
 - **Backticks.** Runs of backticks in a line are broken up, so no line can
   close its code block.
+- **Nothing answers it.** Bots' messages there, its own lines included, reach
+  no trigger and no model, as if the channel had `/channels ignore what:bots`
+  ([Message_Pipeline.md §2.4](Message_Pipeline.md#24-channels)): its lines are
+  full of the words triggers look for. People there are heard as anywhere.
 - **Restarts.** The setting is kept. What was logged while starting up is
   posted once the bot has connected. Lines from the last moments before a
   shutdown may not make it.
@@ -108,6 +112,7 @@ with Discord's reason, and the old setting is kept.
 | 2026-09-27 | Keep the oldest 1,000 lines in a flood, and count the rest | The start of a flood is usually the part worth reading |
 | 2026-09-27 | Mask the token and API keys | A channel is far more public than a console |
 | 2026-09-27 | `set` posts before it changes anything | A channel the bot cannot post in is refused, and the old one kept |
+| 2026-10-27 | Bots' messages in the log channel are ignored by every stage | A persona answered trigger words in the bot's own log lines |
 
 ## 5. Limits
 

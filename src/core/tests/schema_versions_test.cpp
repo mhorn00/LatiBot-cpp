@@ -47,10 +47,15 @@ auto versions_of(database& db) -> std::map<std::string, int> {
     return versions;
 }
 
-auto every_module_at_one() -> std::map<std::string, int> {
+/// The version a schema's last step brings it to.
+auto latest(const module_schema& schema) -> int {
+    return schema.steps.back().version;
+}
+
+auto every_module_at_latest() -> std::map<std::string, int> {
     std::map<std::string, int> versions;
     for (const module_schema& schema : latibot::testing::all_schemas()) {
-        versions.emplace(std::string(schema.module), 1);
+        versions.emplace(std::string(schema.module), latest(schema));
     }
     return versions;
 }
@@ -62,16 +67,16 @@ constexpr std::array<migration, 2> widget_steps{{
 
 } // namespace
 
-TEST_CASE("a new database gets schema_versions, and every module its version 1", "[db]") {
+TEST_CASE("a new database gets schema_versions, and every module its latest version", "[db]") {
     memory_database fixture;
     database& db = fixture.db;
 
     CHECK(latibot::db::prepare_schema_versions(db) == schema_origin::fresh);
     for (const module_schema& schema : latibot::testing::all_schemas()) {
-        CHECK(latibot::db::apply_schema(db, schema) == 1);
+        CHECK(latibot::db::apply_schema(db, schema) == latest(schema));
     }
 
-    CHECK(versions_of(db) == every_module_at_one());
+    CHECK(versions_of(db) == every_module_at_latest());
     CHECK(table_exists(db, "guild_settings"));
     // The old numbering is never used.
     CHECK(db.user_version() == 0);
@@ -86,7 +91,7 @@ TEST_CASE("starting again changes nothing", "[db]") {
     const latibot::testing::capture_log captured(latibot::util::log_level::info);
     latibot::testing::create_schema(db);
 
-    CHECK(versions_of(db) == every_module_at_one());
+    CHECK(versions_of(db) == every_module_at_latest());
     CHECK_FALSE(captured.contains(latibot::util::log_level::info, "applied"));
 }
 
@@ -110,7 +115,7 @@ TEST_CASE("an old database is brought to migration 15, then adopted", "[db]") {
     }
     CHECK(versions_of(db) == expected);
     for (const module_schema& schema : latibot::db::builtin_schemas()) {
-        CHECK(latibot::db::apply_schema(db, schema) == 1);
+        CHECK(latibot::db::apply_schema(db, schema) == latest(schema));
     }
 }
 

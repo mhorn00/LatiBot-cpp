@@ -69,6 +69,7 @@ latibot_test_executable(latibot_core_tests PRIVATE_INCLUDES "${PROJECT_SOURCE_DI
     ${core_tests_dir}/bootstrap_test.cpp
     ${core_tests_dir}/bot_allowlist_test.cpp
     ${core_tests_dir}/bots_command_test.cpp
+    ${core_tests_dir}/channels_test.cpp
     ${core_tests_dir}/ca_certificates_test.cpp
     ${core_tests_dir}/command_line_test.cpp
     ${core_tests_dir}/command_log_test.cpp

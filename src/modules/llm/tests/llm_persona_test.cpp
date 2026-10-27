@@ -515,6 +515,25 @@ TEST_CASE("only LatiBot's own webhook speaks for a persona, and what it says add
     CHECK(asked(test.stage(from_latibot("claude, what do you think?"))) == nullptr);
 }
 
+TEST_CASE("in a channel the model ignores, nobody's message reaches it", "[llm][persona]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    test.triggers.add(pizza_trigger(claude.id, true));
+
+    incoming_message person = from_alice("latibot, pizza?");
+    person.channel_ignores.model = true;
+    CHECK(test.stage(person).actions.empty());
+    CHECK_FALSE(test.stage(person).consumed);
+
+    incoming_message ours = from_latibot("pizza");
+    ours.channel_ignores.model = true;
+    CHECK(asked(test.stage(ours)) == nullptr);
+
+    // Elsewhere, the same messages are answered.
+    CHECK(asked(test.stage(from_alice("latibot, pizza?"))) != nullptr);
+    CHECK(asked(test.stage(from_latibot("pizza"))) != nullptr);
+}
+
 TEST_CASE("a persona on a model with no key is not answered", "[llm][persona]") {
     fixture test;
     test.make("Zed", "gpt-6-luna");

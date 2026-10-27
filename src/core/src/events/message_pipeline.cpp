@@ -23,6 +23,17 @@ auto pipeline::add(int position, std::string name, stage_fn handler, hears heard
 auto pipeline::run(const incoming_message& message) const -> std::vector<action> {
     std::vector<action> actions;
 
+    // A channel left out, entirely or for bots, is left out for every stage
+    // (src/core/docs/Message_Pipeline.md §2.4).
+    if (message.channel_ignores.everything) {
+        util::log().trace("message {} is in channel {}, which is ignored", message.message_id, message.channel_id);
+        return actions;
+    }
+    if (message.channel_ignores.bots && (message.from_self || message.from_bot || !message.webhook_id.empty())) {
+        util::log().trace("message {} is a bot's, in channel {}, where bots are ignored", message.message_id, message.channel_id);
+        return actions;
+    }
+
     // Answering ourselves is a loop with no exit. Answering another bot is
     // one too, unless this guild has said it wants that
     // (src/core/docs/Message_Pipeline.md §2.1). Our own messages and

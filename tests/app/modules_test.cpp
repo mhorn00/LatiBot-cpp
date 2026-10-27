@@ -154,18 +154,25 @@ TEST_CASE("every module's version 1 is exactly what migrations 1 to 15 built", "
     // tables depending on how old the install is. Remove after: you say so,
     // with the old migrations. Each module's version 1 only: what came
     // after the old migrations has nothing in them to compare with.
-    test_host flattened;
-    const module_list modules = latibot::modules::enabled_modules(flattened);
+    test_host host;
+    const module_list modules = latibot::modules::enabled_modules(host);
     if (!every_module_built(modules)) SKIP("this build leaves out a module the old migrations made tables for");
+
+    // The core's version 1 too: the host's own database has its later ones.
+    database flattened{std::filesystem::path(database::in_memory)};
+    latibot::db::prepare_schema_versions(flattened);
+    for (const module_schema& schema : latibot::db::builtin_schemas()) {
+        latibot::db::apply_schema(flattened, {.module = schema.module, .steps = schema.steps.first(1)});
+    }
     for (const auto& each : modules) {
-        if (!each->schema().empty()) latibot::db::apply_schema(flattened.data, {.module = each->name(), .steps = each->schema().first(1)});
+        if (!each->schema().empty()) latibot::db::apply_schema(flattened, {.module = each->name(), .steps = each->schema().first(1)});
     }
 
     database legacy{std::filesystem::path(database::in_memory)};
     REQUIRE(latibot::db::migrate(legacy) == 15);
 
     const auto before = describe(legacy);
-    const auto after = describe(flattened.data);
+    const auto after = describe(flattened);
 
     std::set<std::string> names;
     for (const auto& [name, text] : before) {
@@ -209,7 +216,7 @@ TEST_CASE("an old database is brought to migration 15, then adopted with its dat
     // and create nothing. Later versions are what any database gains, and
     // are not adoption's.
     for (const module_schema& schema : latibot::db::builtin_schemas()) {
-        CHECK(latibot::db::apply_schema(old, schema) == 1);
+        CHECK(latibot::db::apply_schema(old, {.module = schema.module, .steps = schema.steps.first(1)}) == 1);
     }
     test_host on_old;
     const module_list modules = latibot::modules::enabled_modules(on_old);

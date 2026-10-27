@@ -236,6 +236,13 @@ auto llm_stage::own_writer_of(const events::incoming_message& message) const -> 
 auto llm_stage::operator()(const events::incoming_message& message) -> stage_result {
     stage_result result;
 
+    // A channel the server keeps the model out of, it does not even read
+    // (src/core/docs/Message_Pipeline.md §2.4).
+    if (message.channel_ignores.model) {
+        util::log().trace("llm: message {} is in channel {}, which the language model ignores", message.message_id, message.channel_id);
+        return result;
+    }
+
     // LatiBot's own messages, and webhooks', reach this stage too, so that
     // LatiBot and its personas can set off each other's advanced triggers
     // (src/modules/llm/docs/Language_Model.md §2.11). Any other is a bot

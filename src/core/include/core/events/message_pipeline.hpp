@@ -17,6 +17,21 @@
 
 namespace latibot::events {
 
+/// What a channel's rules leave out (src/core/docs/Message_Pipeline.md §2.4):
+/// `/channels ignore`, and the bot's log channel, which ignores bots. A thread
+/// follows its parent channel too.
+struct channel_rules {
+    /// Every message: no stage sees it.
+    bool everything = false;
+
+    /// The language model stands back: it neither answers nor reads along.
+    bool model = false;
+
+    /// Every bot's message, LatiBot's own and webhooks' included: no stage
+    /// sees one. A log channel's lines are full of trigger words.
+    bool bots = false;
+};
+
 /// A message, reduced to what a stage needs in order to decide.
 ///
 /// Deliberately not `dpp::message`: a stage that takes plain data can be
@@ -80,6 +95,9 @@ struct incoming_message {
     /// stage can stand back: the simple trigger wins over an advanced one
     /// (src/core/docs/Message_Pipeline.md §2.2).
     bool answered = false;
+
+    /// What this channel's rules leave out, resolved by the shell.
+    channel_rules channel_ignores;
 };
 
 /// Post a message in a channel.
