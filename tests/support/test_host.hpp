@@ -101,8 +101,9 @@ public:
     [[nodiscard]] auto slash_commands() -> commands::registry& override { return registry; }
     [[nodiscard]] auto panels() -> ui::panel_routes& override { return routes; }
 
-    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void override {
-        stages.add(position, std::move(name), std::move(stage));
+    using modules::host::add_stage;
+    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage, events::hears heard) -> void override {
+        stages.add(position, std::move(name), std::move(stage), heard);
     }
     auto every(std::chrono::seconds interval, std::string name, std::function<void()> work) -> void override {
         timers.push_back({.interval = interval, .name = std::move(name), .work = std::move(work), .repeats = true});

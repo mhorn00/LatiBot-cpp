@@ -265,11 +265,14 @@ TEST_CASE("advanced triggers are stored per guild and edited in place", "[llm]")
     CHECK(found->mode == latibot::util::match_mode::substring);
     CHECK(found->probability == Catch::Approx(0.5));
     CHECK(found->cooldown == 600s);
+    CHECK_FALSE(found->respond_to_bots);
     CHECK_FALSE(triggers.find(entry.id, other_guild).has_value());
 
     entry.enabled = false;
+    entry.respond_to_bots = true;
     CHECK(triggers.update(entry));
     CHECK_FALSE(triggers.for_guild(guild)[0].enabled);
+    CHECK(triggers.for_guild(guild)[0].respond_to_bots);
 
     entry.guild_id = other_guild;
     CHECK_FALSE(triggers.update(entry));

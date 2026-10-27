@@ -86,6 +86,7 @@ auto describe_trigger(const llm::advanced_trigger& entry, std::string_view perso
                                    entry.mode == util::match_mode::substring ? "anywhere" : "whole word", entry.probability * 100);
     line += entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s cooldown", entry.cooldown.count());
     if (!persona.empty()) line += std::format(", as {}", persona);
+    if (entry.respond_to_bots) line += ", answers bots";
     if (!entry.enabled) line += ", disabled";
     line += std::format(") -> {}", util::truncate(entry.context_prompt, 120));
     return line;
@@ -495,6 +496,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
                        .set_max_value(cooldown_limit));
     add.add_option(match_mode_option());
     add.add_option(persona_option("A persona to answer it, rather than LatiBot.", false));
+    add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots, LatiBot and other personas.", false));
     trigger.add_option(add);
 
     dpp::command_option edit(dpp::co_sub_command, "edit", "Change one.");
@@ -508,6 +510,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     edit.add_option(match_mode_option());
     edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
     edit.add_option(persona_option("Who answers it: a persona, or LatiBot.", false));
+    edit.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots, LatiBot and other personas.", false));
     trigger.add_option(edit);
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Delete one.");
@@ -930,6 +933,7 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
     if (const auto cooldown = int_option(event, "cooldown")) entry.cooldown = std::chrono::seconds{*cooldown};
     if (const auto mode = util::match_mode_from_string(string_option(event, "mode"))) entry.mode = *mode;
     entry.enabled = bool_option(event, "enabled").value_or(entry.enabled);
+    entry.respond_to_bots = bool_option(event, "bots").value_or(entry.respond_to_bots);
 
     // Who answers it: a persona, or LatiBot itself
     // (src/modules/llm/docs/Language_Model.md §2.11).

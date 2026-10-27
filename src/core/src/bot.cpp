@@ -346,6 +346,7 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     described.from_self = message.author.id == cluster_.me.id;
     described.from_bot = message.author.is_bot();
     described.author_is_allowed_bot = described.from_bot && bot_allowlist_.contains(message.guild_id, message.author.id);
+    described.webhook_id = message.webhook_id;
     described.message_id = message.id;
     described.embeds_suppressed = (message.flags & dpp::m_suppress_embeds) != 0;
     described.content = message.content;
@@ -393,6 +394,8 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     std::string_view author;
     if (described.from_self) {
         author = ", the bot's own";
+    } else if (!described.webhook_id.empty()) {
+        author = ", from a webhook";
     } else if (described.from_bot) {
         author = described.author_is_allowed_bot ? ", from an allowed bot" : ", from a bot not allowed here";
     }
@@ -412,8 +415,8 @@ auto bot::detach(dpp::task<void> work, std::string what) -> void {
     ui::detach(std::move(work), std::move(what));
 }
 
-auto bot::add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void {
-    pipeline_.add(position, std::move(name), std::move(stage));
+auto bot::add_stage(int position, std::string name, events::pipeline::stage_fn stage, events::hears heard) -> void {
+    pipeline_.add(position, std::move(name), std::move(stage), heard);
 }
 
 auto bot::section(std::string_view name) -> const nlohmann::json& {

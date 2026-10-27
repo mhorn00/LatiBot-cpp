@@ -44,9 +44,17 @@ that bot, since two bots answering each other is a loop nobody asked for.
 
 | Author | Reaches the stages |
 |---|---|
-| LatiBot itself | never, and no setting changes that |
+| LatiBot itself | only the language model's, and no setting changes that |
+| A webhook | only the language model's, unless this server allowed it |
 | Another bot | only if this server allowed that bot with `/bots allow` |
 | A person | always |
+
+A stage added with `hears::own_too` is given LatiBot's own messages and
+webhooks' as well, which every other stage is spared. Only the language model
+asks for them: its personas post through LatiBot's own webhook, and it lets
+them and LatiBot set off each other's advanced triggers. It leaves every
+other webhook alone, and never answers a message with a trigger of whoever
+wrote it.
 
 Reaching the stages is only permission to be considered. Each stage decides
 for itself whether it answers a bot:
@@ -54,9 +62,11 @@ for itself whether it answers a bot:
 - **URL replacement** never replaces a bot's links.
 - **A simple trigger** answers a bot only if that trigger has `bots:true`
   ([Triggers.md](../../modules/triggers/docs/Triggers.md)).
-- **The language model** answers a bot only when the bot addresses it, and
-  paces itself ([Language_Model.md](../../modules/llm/docs/Language_Model.md)). No bot sets off an
-  advanced trigger.
+- **The language model** answers a bot when the bot addresses it, or sets
+  off an advanced trigger with `bots:true`, and paces itself
+  ([Language_Model.md](../../modules/llm/docs/Language_Model.md)). LatiBot's
+  own messages and its personas' only ever set off such a trigger, and never
+  one of their own.
 - **The goodbye phrase** needs Administrator, which a bot could in principle
   have.
 

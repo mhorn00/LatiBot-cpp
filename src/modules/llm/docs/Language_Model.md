@@ -178,6 +178,12 @@ so the prompt stays short.
 - `chance`: how often a match gets a reply, 100 % by default. A match that
   loses its roll does not start the cooldown.
 - `cooldown`: per trigger, per channel, 300 s by default.
+- `bots`: off by default, when only people set it off. On, so do the bots
+  the server [allows](../../../core/docs/Message_Pipeline.md#23-bots),
+  LatiBot itself, and the personas (§2.11), so LatiBot and its personas can
+  answer each other. **Never its own writer**: a trigger LatiBot answers is
+  not set off by LatiBot, nor a persona's by that persona. Every reply to a
+  bot is paced (§2.7), which is what ends two of them answering each other.
 - It reads the last **5** messages rather than 15, and its reply is posted
   silently.
 - **A simple trigger wins**: a message one answered sets off no advanced
@@ -192,7 +198,9 @@ copy if one is ever wanted.
 ### 2.7 Other bots
 
 It answers a bot only if the server [allows that bot](../../../core/docs/Message_Pipeline.md#23-bots),
-and only when the bot **addresses** it. Then, per channel:
+and only when the bot **addresses** it or sets off an advanced trigger with
+`bots` on (§2.6). LatiBot and its personas count as bots here, and set off
+nothing but such a trigger. Then, per channel:
 
 - at most **6** replies to bots in a row, before a person has to say
   something; any person speaking resets the count, whether or not the model
@@ -328,9 +336,12 @@ How it answers differs from LatiBot:
 - **Its own model**, or the server's when it has none. A persona on a model
   with no API key does not answer.
 - **No memory**: no memories shown, no tools.
-- **It never answers a bot**, another persona, or LatiBot, and its messages
-  set off nothing: they come from a webhook, which the pipeline does not hear
-  (Message_Pipeline.md §2.1).
+- **It answers a bot**, another persona, or LatiBot **only with a trigger
+  that has `bots` on** (§2.6), and never its own messages; naming it or
+  replying to it is not enough. Its messages likewise set off only LatiBot's
+  and other personas' triggers with `bots` on. The language model is the one
+  stage that hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it
+  tells which persona wrote a message by the name it was posted under.
 - **It is never spoken**, and opens no conversation (§2.10).
 
 At most **10** per server. A name is at most 80 characters, not LatiBot's,
@@ -614,6 +625,7 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
 | 2026-10-20 | A persona's instructions are its own system document and personality, not the server's | A persona is someone else; the server's documents describe LatiBot |
 | 2026-10-20 | One webhook per channel serves every persona, kept in memory only | Discord takes the name and picture per message; a token written down is one more secret to keep |
+| 2026-10-27 | An advanced trigger with `bots` on is set off by allowed bots, LatiBot and the personas, never by whoever answers it; only the model's stage hears LatiBot's own messages and webhooks' | The owner's request: personas and LatiBot answering each other. Bot pacing already bounds the exchange, and only a trigger, not a name or a reply, starts one |
 
 ## 5. Limits, and what is still to check
 

@@ -93,8 +93,14 @@ public:
     [[nodiscard]] virtual auto slash_commands() -> latibot::commands::registry& = 0;
     [[nodiscard]] virtual auto panels() -> ui::panel_routes& = 0;
 
-    /// A message stage, at one of `events::stage_order`'s positions.
-    virtual auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void = 0;
+    /// A message stage, at one of `events::stage_order`'s positions, given
+    /// the messages `heard` says (src/core/docs/Message_Pipeline.md §2.1).
+    virtual auto add_stage(int position, std::string name, events::pipeline::stage_fn stage, events::hears heard) -> void = 0;
+
+    /// A message stage that hears people and the bots a guild allows.
+    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void {
+        add_stage(position, std::move(name), std::move(stage), events::hears::others);
+    }
 
     /// Listens to a DPP event, such as `cluster().on_message_reaction_add`.
     /// What `listener` throws is logged under `name` rather than reaching

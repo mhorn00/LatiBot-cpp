@@ -13,9 +13,11 @@
 #include "spend.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -91,6 +93,10 @@ struct stage_services {
     std::function<bool(provider_kind)> has_provider;
 
     std::function<bot_identity()> me;
+
+    /// Whether a webhook is one the personas post through, so that a message
+    /// from it is a persona's. Null: none is.
+    std::function<bool(dpp::snowflake)> persona_webhook;
 };
 
 /// The pipeline's last stage: decides whether the model answers a message,
@@ -106,6 +112,12 @@ struct stage_services {
 /// and what it refuses when addressed, so nothing after it sees a message
 /// meant for the model.
 ///
+/// It hears LatiBot's own messages and webhooks' too
+/// (`events::hears::own_too`), and of those answers only LatiBot's and its
+/// personas', and only with an advanced trigger that answers bots and that
+/// their writer does not answer (src/modules/llm/docs/Language_Model.md
+/// §2.11).
+///
 /// Safe to call from several threads at once.
 class llm_stage {
 public:
@@ -119,6 +131,20 @@ public:
     auto claim_reply(const ask_llm& ask) -> bool;
 
 private:
+    /// Who of LatiBot's own wrote a message: LatiBot, or one of its personas.
+    struct own_writer {
+        /// 0 for LatiBot.
+        std::int64_t persona_id = 0;
+
+        /// How the model is shown them.
+        std::string name;
+    };
+
+    /// Who of LatiBot's own wrote a message that only the stages hearing
+    /// their own are given: nothing for someone else's webhook, or a bot
+    /// nobody allowed, or a persona since renamed or removed.
+    [[nodiscard]] auto own_writer_of(const events::incoming_message& message) const -> std::optional<own_writer>;
+
     /// How a message nobody addressed reaches the model.
     struct route {
         approach how = approach::addressed;
@@ -128,9 +154,12 @@ private:
     /// How a message nobody addressed reaches the model, if at all: an
     /// advanced trigger, which it sets `fired` to, or conversation mode. A
     /// trigger that belongs to a persona fires only while the persona is
-    /// one of `personas`, the enabled ones.
+    /// one of `personas`, the enabled ones. A bot's message, `by_bot`, sets
+    /// off only a trigger that answers bots, and none that `writer`, the
+    /// persona who wrote it or 0 for LatiBot, answers.
     [[nodiscard]] auto unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
-                                   std::span<const persona> personas, std::optional<advanced_trigger>& fired) -> std::optional<route>;
+                                   std::span<const persona> personas, bool by_bot, std::optional<std::int64_t> writer,
+                                   std::optional<advanced_trigger>& fired) -> std::optional<route>;
 
     /// The enabled persona a person's message is for: it starts with the
     /// persona's name, or replies to one of its messages. A bot's message is
@@ -145,10 +174,10 @@ private:
 
     /// The guards after the switch and the address, in order: the blacklist,
     /// the spend caps, the rate limits unless `take_rate` is false, and for a
-    /// bot the pacing. The wait before answering when all of them let it
-    /// through, nothing when one did not.
-    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate, stage_result& result)
-        -> std::optional<std::chrono::seconds>;
+    /// bot, `by_bot`, the pacing. The wait before answering when all of them
+    /// let it through, nothing when one did not.
+    auto admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate, bool by_bot,
+               stage_result& result) -> std::optional<std::chrono::seconds>;
 
     /// One reply from the author's and the channel's per-minute limits.
     auto take_rate_limits(dpp::snowflake guild, dpp::snowflake channel, dpp::snowflake author, const llm_settings& settings) -> bool;

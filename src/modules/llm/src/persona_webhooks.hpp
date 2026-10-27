@@ -33,6 +33,11 @@ public:
     auto post(dpp::snowflake channel, dpp::message message, std::string username, std::string avatar_url)
         -> dpp::task<ports::result<dpp::message>>;
 
+    /// Whether `webhook_id` is one the personas post through: a message
+    /// from it is a persona's. Only webhooks posted through since the bot
+    /// started are known, which covers every message it hears from them.
+    [[nodiscard]] auto owns(dpp::snowflake webhook_id) -> bool;
+
 private:
     /// The bot's webhook in `channel`, from the cache, the channel's list,
     /// or made.

@@ -66,7 +66,8 @@ public:
     [[nodiscard]] auto capabilities() const -> const modules::capability_registry& override { return capabilities_; }
     [[nodiscard]] auto slash_commands() -> commands::registry& override { return commands_; }
     [[nodiscard]] auto panels() -> ui::panel_routes& override { return panels_; }
-    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage) -> void override;
+    using modules::host::add_stage;
+    auto add_stage(int position, std::string name, events::pipeline::stage_fn stage, events::hears heard) -> void override;
     auto every(std::chrono::seconds interval, std::string name, std::function<void()> work) -> void override;
     auto after(std::chrono::seconds delay, std::string name, std::function<void()> work) -> void override;
     auto intents(std::uint32_t wanted) -> void override { module_intents_ |= wanted; }
