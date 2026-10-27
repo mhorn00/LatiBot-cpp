@@ -511,7 +511,7 @@ TEST_CASE("a command's response is not LatiBot talking, and sets off no trigger"
     CHECK(asked(test.stage(from_latibot("pizza is a vegetable"))) != nullptr);
 }
 
-TEST_CASE("only LatiBot's own webhook speaks for a persona, and what it says addresses nobody", "[llm][persona]") {
+TEST_CASE("only LatiBot's own webhook speaks for a persona", "[llm][persona]") {
     fixture test;
     test.make("Claude");
     test.triggers.add(pizza_trigger(0, true));
@@ -520,14 +520,66 @@ TEST_CASE("only LatiBot's own webhook speaks for a persona, and what it says add
     // has could be anyone's.
     CHECK(asked(test.stage(from_persona("Claude", "pizza", dpp::snowflake{8501}))) == nullptr);
     CHECK(asked(test.stage(from_persona("Mallory", "pizza"))) == nullptr);
+    CHECK(asked(test.stage(from_persona("Claude", "pizza"))) != nullptr);
+}
 
-    // Only a trigger answers LatiBot or a persona: naming or mentioning
-    // LatiBot, or starting with a persona's name, does not.
-    CHECK(asked(test.stage(from_persona("Claude", "latibot, what do you think?"))) == nullptr);
-    incoming_message mention = from_persona("Claude", "what do you think?");
-    mention.mentions_bot = true;
-    CHECK(asked(test.stage(mention)) == nullptr);
-    CHECK(asked(test.stage(from_latibot("claude, what do you think?"))) == nullptr);
+TEST_CASE("LatiBot and the personas speak to each other by name, never to themselves, and never by a reply", "[llm][persona]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    const persona gemini = test.make("Gemini");
+
+    SECTION("starting with a name, or a mention, is answered at once") {
+        const auto to_latibot = test.stage(from_persona("Claude", "LatiBot, what do you think?"));
+        REQUIRE(asked(to_latibot) != nullptr);
+        CHECK(asked(to_latibot)->how == approach::addressed);
+        CHECK(asked(to_latibot)->persona_id == 0);
+        CHECK(asked(to_latibot)->speaker == "Claude");
+        CHECK_FALSE(asked(to_latibot)->check_first);
+
+        incoming_message mention = from_persona("Gemini", "what do you think?");
+        mention.mentions_bot = true;
+        CHECK(asked(test.stage(mention))->persona_id == 0);
+
+        const auto to_claude = test.stage(from_latibot("claude, what do you think?"));
+        REQUIRE(asked(to_claude) != nullptr);
+        CHECK(asked(to_claude)->persona_id == claude.id);
+        CHECK(asked(to_claude)->how == approach::addressed);
+
+        CHECK(asked(test.stage(from_persona("Claude", "gemini, your turn")))->persona_id == gemini.id);
+    }
+
+    SECTION("nobody answers being named by themselves") {
+        CHECK(asked(test.stage(from_persona("Claude", "claude here, hello"))) == nullptr);
+        CHECK(asked(test.stage(from_latibot("LatiBot here, hello"))) == nullptr);
+    }
+
+    SECTION("a reply is not speaking to anyone, since LatiBot answers with one") {
+        test.personas.record_post(dpp::snowflake{7001}, claude.id, guild, channel, noon);
+        incoming_message reply = from_latibot("fair point");
+        reply.reply_to = dpp::snowflake{7001};
+        CHECK(asked(test.stage(reply)) == nullptr);
+    }
+
+    SECTION("named in passing, it goes to the check, with conversation mode on") {
+        CHECK(asked(test.stage(from_persona("Claude", "hey LatiBot, you there?"))) == nullptr);
+
+        test.settings.set_bool(guild, latibot::llm::conversation_key, true);
+        const auto checked = test.stage(from_persona("Claude", "hey LatiBot, you there?"));
+        REQUIRE(asked(checked) != nullptr);
+        CHECK(asked(checked)->how == approach::named);
+        CHECK(asked(checked)->persona_id == 0);
+        CHECK(asked(checked)->check_first);
+
+        // During their conversation, at once.
+        test.windows.opened(channel, gemini.id);
+        const auto talking = test.stage(from_latibot("i bet gemini disagrees"));
+        REQUIRE(asked(talking) != nullptr);
+        CHECK(asked(talking)->persona_id == gemini.id);
+        CHECK_FALSE(asked(talking)->check_first);
+
+        // Unnamed, nothing: they never join each other's conversations.
+        CHECK(asked(test.stage(from_latibot("that's wild"))) == nullptr);
+    }
 }
 
 TEST_CASE("in a channel the model ignores, nobody's message reaches it", "[llm][persona]") {

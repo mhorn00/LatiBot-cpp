@@ -171,6 +171,15 @@ private:
                                    std::span<const persona> personas, bool by_bot, std::optional<std::int64_t> writer,
                                    std::optional<advanced_trigger>& fired) -> std::optional<route>;
 
+    /// Whom of LatiBot and the personas a message of `writer`'s, one of
+    /// them, speaks to by name: one it starts with, or @mentions, is
+    /// answered as addressed; one named in passing goes, with conversation
+    /// mode on, to the check, unless that one is talking here already. Never
+    /// its writer, and never by a reply, since LatiBot answers with one
+    /// (src/modules/llm/docs/Language_Model.md §2.11).
+    [[nodiscard]] auto spoken_between(const events::incoming_message& message, const own_writer& writer, const llm_settings& settings,
+                                      std::string_view bot_name, std::span<const persona> personas) const -> std::optional<route>;
+
     /// The enabled persona a person's message is for: it starts with the
     /// persona's name, or replies to one of its messages. A bot's message is
     /// for none of them.
