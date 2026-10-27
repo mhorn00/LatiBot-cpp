@@ -219,7 +219,7 @@ TEST_CASE("an ignored channel reaches no stage, and a log channel no bot's messa
         CHECK(sent(stages.run(person)) == std::vector<std::string>{"others", "own too"});
     }
 
-    SECTION("the model's rule leaves the pipeline to the model") {
+    SECTION("the model's rule, which the log channel has too, leaves the pipeline to the model") {
         auto person = from_human();
         person.channel_ignores.model = true;
         CHECK(sent(stages.run(person)) == std::vector<std::string>{"others", "own too"});

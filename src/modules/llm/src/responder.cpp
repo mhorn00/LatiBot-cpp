@@ -145,6 +145,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     // (src/modules/llm/docs/Language_Model.md §3.8). Met as they are read, so that
     // every name is known before any text is sanitized.
     people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
+    cast.meet_known();
     if (ask.speaker.empty()) cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
 
@@ -253,6 +254,7 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
     // (src/modules/llm/docs/Language_Model.md §3.8).
     const bot_identity me = me_();
     people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
+    cast.meet_known();
     if (ask.speaker.empty()) cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
     const std::vector<context_message> history = co_await recent_messages(ask, check_context_messages, me.id, cast);

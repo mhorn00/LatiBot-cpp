@@ -597,8 +597,9 @@ Posts the bot's own log in one Discord channel, as well as to its console.
 everything above it too. `set` keeps the current level when it is not given,
 and uses `info` the first time.
 
-No trigger or language model answers anything posted there by a bot, the
-bot's own log lines included (see [`/channels`](#channels)).
+No trigger answers anything posted there by a bot, the bot's own log lines
+included, and the language model never answers or reads anything there, since
+the log is full of names and ids (see [`/channels`](#channels)).
 
 There is **one log channel for the whole bot**, not one per server: `set`
 from another server moves it there. That is why only `trusted_users` can use
@@ -771,8 +772,8 @@ Chooses channels the bot leaves out, entirely or in part.
 A channel has one rule, and a new one replaces it. A thread follows its
 channel's rule (and its own, if it has one). Slash commands work everywhere.
 
-**The bot's own [log channel](#logs) always ignores bots**, rule or no rule,
-and `list` shows it. Another bot's log channel needs `/channels ignore
+**The bot's own [log channel](#logs) always ignores bots and the language
+model**, rule or no rule, and `list` shows it. Another bot's log channel needs `/channels ignore
 what:Bots`.
 
 ### `/nickname`

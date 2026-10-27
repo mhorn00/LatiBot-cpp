@@ -159,6 +159,28 @@ TEST_CASE("a marker written without its brackets still becomes the name, and not
     CHECK(aliases_as_mentions(std::format("{}:name likes tea", alice_alias), guild, test.aliases) == "<@11> likes tea");
 }
 
+TEST_CASE("everyone this server has an alias for has their name hidden, in this request or not", "[llm]") {
+    // A post of the bot's carries the names it put back into it, of people
+    // who need not be among the messages read now.
+    fixture test;
+    const std::string bob_alias = test.aliases.alias_for(guild, bob);
+    test.aliases.note_names(guild, bob, "Stupit Dog", "dog_99");
+    (void)test.aliases.alias_for(other_guild, alice);
+    test.aliases.note_names(other_guild, alice, "Alice", "alice_1");
+
+    CHECK(test.cast.sanitize("ha, Stupit Dog said that") == "ha, Stupit Dog said that");
+    test.cast.meet_known();
+    CHECK(test.cast.sanitize("ha, Stupit Dog said that, dog_99 agrees") ==
+          std::format("ha, <{0}:name> said that, <{0}:username> agrees", bob_alias));
+    // Another server's people are not this one's.
+    CHECK(test.cast.sanitize("Alice") == "Alice");
+    // And what the model writes back gets the name, as for anyone met.
+    CHECK(test.cast.restore(std::format("<{}:name>", bob_alias)) == "Stupit Dog");
+
+    // Meeting them in person afterwards keeps the alias.
+    CHECK(test.cast.meet(bob, "Stupit Dog") == bob_alias);
+}
+
 TEST_CASE("someone known from before, not in this request, still gets their name", "[llm]") {
     fixture test;
     const std::string bob_alias = test.aliases.alias_for(guild, bob);

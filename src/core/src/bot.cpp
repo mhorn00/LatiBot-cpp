@@ -359,7 +359,10 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     if (const auto destination = log_channel_.status().destination;
         destination && (destination->channel_id == message.channel_id || (!parent.empty() && destination->channel_id == parent))) {
         described.channel_ignores.bots = true;
+        described.channel_ignores.model = true;
     }
+    described.command_output = !message.interaction_metadata.id.empty() || !message.interaction.id.empty() ||
+                               message.type == dpp::mt_application_command || message.type == dpp::mt_context_menu_command;
     described.message_id = message.id;
     described.embeds_suppressed = (message.flags & dpp::m_suppress_embeds) != 0;
     described.content = message.content;

@@ -102,7 +102,7 @@ TEST_CASE("the channels command says what changed, and lists the log channel as 
     const std::vector<std::pair<dpp::snowflake, channel_scope>> listed{{general, channel_scope::model}};
     const std::string with_log = render_ignored_channels(listed, logs);
     CHECK(with_log.contains("<#3000>: the language model"));
-    CHECK(with_log.contains("<#3001>: bots, LatiBot and its personas (my log channel, always)"));
+    CHECK(with_log.contains("<#3001>: bots, LatiBot and its personas and the language model (my log channel, always)"));
 
     // Listed by hand as well, it is shown once.
     const std::vector<std::pair<dpp::snowflake, channel_scope>> both{{logs, channel_scope::everything}};

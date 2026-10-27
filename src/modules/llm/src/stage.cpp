@@ -241,6 +241,12 @@ auto llm_stage::unaddressed(const events::incoming_message& message, const llm_s
 }
 
 auto llm_stage::own_writer_of(const events::incoming_message& message) const -> std::optional<own_writer> {
+    // A command's response is LatiBot doing as it was asked, and quotes
+    // whatever the command was given: an advanced trigger's pattern, for one.
+    if (message.from_self && message.command_output) {
+        util::log().trace("llm: message {} is a command's response, not LatiBot talking", message.message_id);
+        return std::nullopt;
+    }
     if (message.from_self) return own_writer{.persona_id = 0, .name = std::string(model_name)};
 
     // A persona posts through the bot's own webhook, under its own name,

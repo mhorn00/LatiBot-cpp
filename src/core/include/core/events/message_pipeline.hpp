@@ -18,8 +18,9 @@
 namespace latibot::events {
 
 /// What a channel's rules leave out (src/core/docs/Message_Pipeline.md §2.4):
-/// `/channels ignore`, and the bot's log channel, which ignores bots. A thread
-/// follows its parent channel too.
+/// `/channels ignore`, and the bot's log channel, which ignores bots and
+/// keeps the model out: its lines are full of trigger words, names and ids.
+/// A thread follows its parent channel too.
 struct channel_rules {
     /// Every message: no stage sees it.
     bool everything = false;
@@ -98,6 +99,11 @@ struct incoming_message {
 
     /// What this channel's rules leave out, resolved by the shell.
     channel_rules channel_ignores;
+
+    /// It is a slash command's response, a result or a refusal, rather than
+    /// a message posted in the channel: what LatiBot says when asked to, not
+    /// LatiBot talking.
+    bool command_output = false;
 };
 
 /// Post a message in a channel.
