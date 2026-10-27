@@ -4,16 +4,17 @@ Every message the bot sees passes through one ordered list of **stages**:
 the goodbye phrase, URL replacement, simple triggers and the language model.
 Each stage looks at the message as plain data and says what it wants done.
 The pipeline also decides whose messages are heard at all, which is where
-the per-server **bot allowlist** (`/bots`) comes in.
+the per-server **bot allowlist** (`/bots`) comes in, and in which channels,
+which is where **`/channels`** comes in.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
-and what was decided and why. [The user guide](../../../docs/User_Guide.md#bots) covers `/bots`.
+and what was decided and why. The user guide covers [`/bots`](../../../docs/User_Guide.md#bots) and [`/channels`](../../../docs/User_Guide.md#channels).
 
 | | |
 |---|---|
-| **Code** | `src/core/{include/core,src}/events/message_pipeline.*`, `src/core/src/events/bot_allowlist.*`, `src/core/src/events/replies.*`, `src/core/src/commands/bots.*`; `bot::describe` and `bot::carry_out` in `src/core/src/bot.cpp` |
-| **Tests** | `src/core/tests/message_pipeline_test.cpp`, `src/core/tests/bots_command_test.cpp`, `src/core/tests/bot_allowlist_test.cpp`, `src/core/tests/replies_test.cpp` |
-| **Tables** | `allowed_bots` (migration 3) |
+| **Code** | `src/core/{include/core,src}/events/message_pipeline.*`, `src/core/src/events/bot_allowlist.*`, `src/core/src/events/ignored_channels.*`, `src/core/src/events/replies.*`, `src/core/src/commands/bots.*`, `src/core/src/commands/channels.*`; `bot::describe` and `bot::carry_out` in `src/core/src/bot.cpp` |
+| **Tests** | `src/core/tests/message_pipeline_test.cpp`, `src/core/tests/bots_command_test.cpp`, `src/core/tests/bot_allowlist_test.cpp`, `src/core/tests/channels_test.cpp`, `src/core/tests/replies_test.cpp` |
+| **Tables** | `allowed_bots` (migration 3), `ignored_channels` (the core's version 2) |
 | **Plan** | Replaces plan §5.4 and §11.1 |
 | **Status** | Built in phase 1 (2026-09-21, the allowlist 2026-09-23); the `answered` flag in phase 5 |
 
@@ -55,6 +56,10 @@ asks for them: its personas post through LatiBot's own webhook, and it lets
 them and LatiBot set off each other's advanced triggers. It leaves every
 other webhook alone, and never answers a message with a trigger of whoever
 wrote it.
+
+Before any of that, the channel's rules (§2.4) can leave a message out: in a
+channel ignored entirely, nobody's message reaches a stage, and in a log
+channel no bot's does, LatiBot's own and webhooks' included.
 
 Reaching the stages is only permission to be considered. Each stage decides
 for itself whether it answers a bot:
@@ -106,6 +111,33 @@ already hear everyone else"), since storing one would look like it worked
 while doing nothing, and refuses LatiBot itself. `allow` and `deny` say when
 nothing changed. The empty list says so explicitly, since "no bots allowed"
 and "the feature is off" would otherwise look the same.
+
+### 2.4 `/channels`
+
+Channels the bot leaves out, entirely or in part. One rule per channel; a new
+one replaces the old.
+
+| Subcommand | Does |
+|---|---|
+| `ignore channel [what]` | Leaves the channel out: `everything` (the default), `llm` or `bots` |
+| `hear channel` | Removes its rule |
+| `list` | Every channel with a rule here, and the log channel when it is in this server |
+
+| `what` | Leaves out | So |
+|---|---|---|
+| `everything` | every message | no goodbye, link replacement, trigger or model |
+| `llm` | every message, for the language model only | no answer, no advanced trigger, no conversation mode, and nothing read along; the rest work |
+| `bots` | every bot's message, LatiBot's own, its personas' and allowed bots' included | a log channel's lines set off nothing; people are heard as anywhere else |
+
+- **The log channel** ([Log_Channel.md](Log_Channel.md)) is always treated as
+  `bots`, with or without a rule: its lines are LatiBot's own messages, full
+  of the words triggers look for. `/channels list` shows it as such, and
+  `hear` on it says so. Another bot's log channel needs `ignore what:bots`.
+- **A thread** follows its parent channel's rule, and its own as well when it
+  has one. A forum's posts follow the forum.
+- **Only the pipeline** is affected. Slash commands work everywhere, and the
+  link stats tracker, which is not a stage, still counts.
+- Manage Server, by default. Replies are private.
 
 ## 3. How it works
 
@@ -159,6 +191,13 @@ not a stage: it never answers, and it looks at uploads rather than text.
 **The allowlist** is `allowed_bots(guild_id, bot_id)`, read per message by
 `describe`. It starts empty in every server.
 
+**The channel rules** are `ignored_channels(guild_id, channel_id, what)`, also
+read per message by `describe`, for the channel and a thread's parent, and
+turned into `incoming_message::channel_ignores`. `describe` adds `bots` for
+the log channel. `pipeline::run` drops a message for `everything`, and a
+bot's, ours or a webhook's for `bots`, before any stage; `llm` is the
+language model stage's to read.
+
 ## 4. Decisions
 
 | Date | Decision | Why |
@@ -173,6 +212,7 @@ not a stage: it never answers, and it looks at uploads rather than text.
 | 2026-09-23 | `/bots allow` refuses people and LatiBot itself | Storing a person looks like it worked while doing nothing |
 | 2026-09-28 | Stages can mark a message answered, and later stages see it | The simple trigger wins over an advanced one, without either knowing about the other |
 | 2026-09-28 | The replied-to author is read from the raw frame, and only for replies | DPP reads only the reply's ids; reading the frame for every message would cost for nothing |
+| 2026-10-27 | `/channels`: a channel ignored entirely, by the model only, or for bots; the log channel always ignores bots | The owner's request: a persona answered trigger words in the log channel's lines. A channel list beats asking each feature to know about the log |
 
 ## 5. Limits
 

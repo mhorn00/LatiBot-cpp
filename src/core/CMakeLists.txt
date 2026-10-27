@@ -16,6 +16,7 @@ add_library(latibot_core STATIC
     src/bot.cpp
     src/commands/basic.cpp
     src/commands/bots.cpp
+    src/commands/channels.cpp
     src/commands/logs.cpp
     src/commands/message_options.cpp
     src/commands/options.cpp
@@ -42,6 +43,7 @@ add_library(latibot_core STATIC
     src/discord/unregister_commands.cpp
     src/events/bot_allowlist.cpp
     src/events/goodbye.cpp
+    src/events/ignored_channels.cpp
     src/events/log_channel.cpp
     src/events/message_pipeline.cpp
     src/events/replies.cpp

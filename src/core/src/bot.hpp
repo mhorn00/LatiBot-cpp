@@ -15,6 +15,7 @@
 #include "discord/dpp_gateway.hpp"
 #include "discord/dpp_http_client.hpp"
 #include "events/bot_allowlist.hpp"
+#include "events/ignored_channels.hpp"
 #include "events/log_channel.hpp"
 
 #include <dpp/dpp.h>
@@ -135,6 +136,7 @@ private:
     ports::system_clock clock_;
 
     events::bot_allowlist bot_allowlist_;
+    events::ignored_channels ignored_channels_;
     events::pipeline pipeline_;
 
     /// Where the log is posted (`/logs`). Destroyed before everything above

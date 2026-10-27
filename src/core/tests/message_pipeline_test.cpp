@@ -179,6 +179,55 @@ TEST_CASE("the bot's own messages and webhooks' reach only the stages that hear 
     }
 }
 
+TEST_CASE("an ignored channel reaches no stage, and a log channel no bot's message", "[events]") {
+    // src/core/docs/Message_Pipeline.md §2.4. The language model's own
+    // "llm" rule is its to read; every stage still sees those messages.
+    std::vector<std::string> ran;
+    pipeline stages;
+    stages.add(1, "others", recorder(ran, "others", false, true));
+    stages.add(2, "own too", recorder(ran, "own too", false, true), latibot::events::hears::own_too);
+
+    SECTION("everything") {
+        auto message = from_human();
+        message.channel_ignores.everything = true;
+        CHECK(stages.run(message).empty());
+    }
+
+    SECTION("bots: ours, a webhook's and an allowed bot's") {
+        auto ours = from_human();
+        ours.channel_ignores.bots = true;
+        ours.from_self = true;
+        ours.from_bot = true;
+        CHECK(stages.run(ours).empty());
+
+        auto hook = from_human();
+        hook.channel_ignores.bots = true;
+        hook.from_bot = true;
+        hook.webhook_id = dpp::snowflake{9};
+        CHECK(stages.run(hook).empty());
+
+        auto allowed = from_human();
+        allowed.channel_ignores.bots = true;
+        allowed.from_bot = true;
+        allowed.author_is_allowed_bot = true;
+        CHECK(stages.run(allowed).empty());
+    }
+
+    SECTION("bots, but a person still reaches every stage") {
+        auto person = from_human();
+        person.channel_ignores.bots = true;
+        CHECK(sent(stages.run(person)) == std::vector<std::string>{"others", "own too"});
+    }
+
+    SECTION("the model's rule leaves the pipeline to the model") {
+        auto person = from_human();
+        person.channel_ignores.model = true;
+        CHECK(sent(stages.run(person)) == std::vector<std::string>{"others", "own too"});
+    }
+
+    if (!ran.empty()) CHECK(ran == std::vector<std::string>{"others", "own too"});
+}
+
 TEST_CASE("a stage that throws is logged and the rest still run", "[events]") {
     // A stage escaping into DPP's event thread would take the process down,
     // and one broken feature should not silence every other.

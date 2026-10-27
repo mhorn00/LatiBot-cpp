@@ -78,6 +78,11 @@ Or when an [advanced trigger](#26-advanced-triggers) fires. An addressed
 message is **consumed**, so nothing after it in the
 [pipeline](../../../core/docs/Message_Pipeline.md) runs.
 
+Never in a channel the server set to `/channels ignore what:llm` (or
+`everything`): there it neither answers nor reads along, whoever writes. Nor
+does any bot's message set it off in a log channel, its own and its personas'
+included ([Message_Pipeline.md §2.4](../../../core/docs/Message_Pipeline.md#24-channels)).
+
 ### 2.2 When it stays quiet
 
 Checked in this order, **before anything is spent**:

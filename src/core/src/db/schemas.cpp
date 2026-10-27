@@ -8,7 +8,7 @@ namespace {
 // Append only, as the old migrations were: once a version has shipped, its
 // SQL is never edited, and a change becomes the module's next version.
 
-constexpr std::array<migration, 1> core_steps{{
+constexpr std::array<migration, 2> core_steps{{
     {.version = 1, .name = "guild_settings and allowed_bots", .sql = R"sql(
         CREATE TABLE guild_settings (
             guild_id INTEGER NOT NULL,
@@ -24,6 +24,16 @@ constexpr std::array<migration, 1> core_steps{{
             guild_id INTEGER NOT NULL,
             bot_id   INTEGER NOT NULL,
             PRIMARY KEY (guild_id, bot_id)
+        ) WITHOUT ROWID;
+     )sql"},
+    {.version = 2, .name = "ignored_channels", .sql = R"sql(
+        -- Channels the bot leaves out (src/core/docs/Message_Pipeline.md 2.4):
+        -- what is everything | llm | bots, one rule per channel.
+        CREATE TABLE ignored_channels (
+            guild_id   INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            what       TEXT    NOT NULL,
+            PRIMARY KEY (guild_id, channel_id)
         ) WITHOUT ROWID;
      )sql"},
 }};

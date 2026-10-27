@@ -68,6 +68,9 @@ text, and the only choice is whether it must stand alone as a word.
 - **Bots** reach triggers only where a server allowed them
   ([Message_Pipeline.md §2.1](../../../core/docs/Message_Pipeline.md#21-who-is-heard)), and
   even then a trigger answers one only with `bots:true`, off by default.
+- **Channels** a server set to `/channels ignore` (everything), and the bot's
+  log channel for bots' messages, reach no trigger
+  ([Message_Pipeline.md §2.4](../../../core/docs/Message_Pipeline.md#24-channels)).
 
 ### 2.3 No defaults
 

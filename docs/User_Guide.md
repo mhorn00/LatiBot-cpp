@@ -35,6 +35,7 @@ stays as the record of how the port was designed.
 | 📋 | [`/logs`](#logs) | Post the bot's log in one channel | the core | [Log channel](../src/core/docs/Log_Channel.md) |
 | 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases | [triggers](../src/modules/triggers/README.md) | [Triggers](../src/modules/triggers/docs/Triggers.md) |
 | 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear | the core | [Message pipeline](../src/core/docs/Message_Pipeline.md) |
+| 🙈 | [`/channels`](#channels) | Choose channels the bot ignores, entirely, for the language model, or for bots | the core | [Message pipeline](../src/core/docs/Message_Pipeline.md#24-channels) |
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [nicknames](../src/modules/nicknames/README.md) | [Nicknames](../src/modules/nicknames/docs/Nicknames.md) |
 | 🏷 | [`/nicknames`](#nicknames) | Every nickname somebody has had here | [nicknames](../src/modules/nicknames/README.md) | [Nicknames](../src/modules/nicknames/docs/Nicknames.md) |
 | 🌙 | [`/midnight`](#midnight) | Post a message at midnight | [midnight](../src/modules/midnight/README.md) | [Midnight](../src/modules/midnight/docs/Midnight.md) |
@@ -596,6 +597,9 @@ Posts the bot's own log in one Discord channel, as well as to its console.
 everything above it too. `set` keeps the current level when it is not given,
 and uses `info` the first time.
 
+No trigger or language model answers anything posted there by a bot, the
+bot's own log lines included (see [`/channels`](#channels)).
+
 There is **one log channel for the whole bot**, not one per server: `set`
 from another server moves it there. That is why only `trusted_users` can use
 it, and not the administrators of `trusted_guilds`: the log covers every
@@ -737,6 +741,39 @@ only consulted for messages from bots. It also refuses LatiBot itself.
 `(not in this server any more)` where it is not, so a stale entry can still be
 seen and removed. The empty state says so explicitly, since "no bots" and "bots
 are off" look identical in a list.
+
+### `/channels`
+
+Chooses channels the bot leaves out, entirely or in part.
+
+| | |
+|---|---|
+| **Module** | the core |
+| **Who** | Manage Server, by default |
+| **Where** | servers only |
+| **Bot needs** | Send Messages |
+
+| Subcommand | Options | Reply |
+|---|---|---|
+| `ignore` | `channel` (required) · `what` (`Everything` by default, `The language model`, or `Bots, as in a log channel`) | `ok, i'll ignore everything in #general`, or that it already was |
+| `hear` | `channel` (required) | `ok, i'll hear #general again`, or `i wasn't ignoring #general` |
+| `list` | none | Every channel with a rule here, and what it leaves out |
+
+- **Everything**: no message there sets off anything: no trigger, link
+  replacement, goodbye phrase or language model.
+- **The language model**: it neither answers there nor reads along, advanced
+  triggers and conversation mode included. Simple triggers and link
+  replacement still work.
+- **Bots**: no bot's message there sets off anything, LatiBot's own and its
+  [personas'](#personas) included. People are heard as anywhere else. This is
+  what a log channel wants, since its lines are full of trigger words.
+
+A channel has one rule, and a new one replaces it. A thread follows its
+channel's rule (and its own, if it has one). Slash commands work everywhere.
+
+**The bot's own [log channel](#logs) always ignores bots**, rule or no rule,
+and `list` shows it. Another bot's log channel needs `/channels ignore
+what:Bots`.
 
 ### `/nickname`
 

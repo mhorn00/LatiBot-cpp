@@ -2,6 +2,7 @@
 
 #include "commands/basic.hpp"
 #include "commands/bots.hpp"
+#include "commands/channels.hpp"
 #include "commands/logs.hpp"
 #include "commands/preflight.hpp"
 #include "core/db/schema_versions.hpp"
@@ -77,6 +78,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       http_(cluster_),
       raw_(cluster_),
       bot_allowlist_(database_),
+      ignored_channels_(database_),
       log_destinations_(guild_settings_),
       log_channel_(gateway_, clock_, secrets_of(credentials)) {
     util::log().set_level(settings_.log_level);
@@ -119,6 +121,7 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
 auto bot::register_commands() -> void {
     commands::add_basic_commands(commands_, cluster_, clock_, guild_settings_, [this] { cluster_.shutdown(); });
     commands_.add(std::make_unique<commands::bots_command>(bot_allowlist_));
+    commands_.add(std::make_unique<commands::channels_command>(ignored_channels_, log_channel_));
     commands_.add(std::make_unique<commands::logs_command>(settings_, log_destinations_, log_channel_, gateway_));
 }
 
@@ -347,6 +350,16 @@ auto bot::describe(const dpp::message& message, const std::string& raw_event) co
     described.from_bot = message.author.is_bot();
     described.author_is_allowed_bot = described.from_bot && bot_allowlist_.contains(message.guild_id, message.author.id);
     described.webhook_id = message.webhook_id;
+
+    // What the channel's rules leave out, a thread's parent's included, and
+    // the log channel, whose lines are the bot's own and full of trigger
+    // words (src/core/docs/Message_Pipeline.md §2.4).
+    const dpp::snowflake parent = gateway_.thread_parent(message.channel_id).value_or(dpp::snowflake{});
+    described.channel_ignores = ignored_channels_.rules(message.guild_id, message.channel_id, parent);
+    if (const auto destination = log_channel_.status().destination;
+        destination && (destination->channel_id == message.channel_id || (!parent.empty() && destination->channel_id == parent))) {
+        described.channel_ignores.bots = true;
+    }
     described.message_id = message.id;
     described.embeds_suppressed = (message.flags & dpp::m_suppress_embeds) != 0;
     described.content = message.content;
