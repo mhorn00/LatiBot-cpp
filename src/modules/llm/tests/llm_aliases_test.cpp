@@ -181,6 +181,31 @@ TEST_CASE("everyone this server has an alias for has their name hidden, in this 
     CHECK(test.cast.meet(bob, "Stupit Dog") == bob_alias);
 }
 
+TEST_CASE("names set by hand are hidden behind the person's alias, and stand for one person", "[llm]") {
+    fixture test;
+    CHECK_FALSE(test.aliases.add_name(guild, bob, "Stupit Dog").has_value());
+    CHECK(test.aliases.add_name(guild, bob, "stupit dog") == bob);
+    CHECK(test.aliases.add_name(guild, alice, "Stupit Dog") == bob);
+    CHECK_FALSE(test.aliases.add_name(guild, bob, "Robert").has_value());
+    CHECK(test.aliases.added_names(guild).at(bob) == std::vector<std::string>{"Robert", "Stupit Dog"});
+    CHECK(test.aliases.added_names(other_guild).empty());
+
+    // Even someone the model never met is hidden, and comes back by name.
+    people cast{test.aliases, test.discord, guild, bot_id, "LatiBot"};
+    const std::string bob_alias = test.aliases.alias_for(guild, bob);
+    cast.meet_known();
+    CHECK(cast.sanitize("robert and STUPIT DOG") == std::format("<{0}:name> and <{0}:name>", bob_alias));
+
+    // And met in person, their own names and the added ones both are.
+    people again{test.aliases, test.discord, guild, bot_id, "LatiBot"};
+    (void)again.meet(bob, "Bob");
+    CHECK(again.sanitize("Bob, Robert") == std::format("<{0}:name>, <{0}:name>", bob_alias));
+
+    CHECK(test.aliases.remove_name(guild, bob, "ROBERT"));
+    CHECK_FALSE(test.aliases.remove_name(guild, alice, "Stupit Dog"));
+    CHECK(test.aliases.added_names(guild).at(bob) == std::vector<std::string>{"Stupit Dog"});
+}
+
 TEST_CASE("someone known from before, not in this request, still gets their name", "[llm]") {
     fixture test;
     const std::string bob_alias = test.aliases.alias_for(guild, bob);

@@ -599,7 +599,7 @@ TEST_CASE("each persona has conversations of its own, and the one that replied l
     }
 
     SECTION("every window keeps its own limits") {
-        test.clock.advance(170s);
+        test.clock.advance(590s);
         test.windows.opened(channel, claude.id);
         test.clock.advance(20s);
         // LatiBot's went quiet; Claude's is still open.

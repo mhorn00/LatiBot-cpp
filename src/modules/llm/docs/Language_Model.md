@@ -97,7 +97,7 @@ Checked in this order, **before anything is spent**:
    across every server. It says so once per server per day or month where
    it was asked, and warns in the log. Caps are checked before a call, so
    one reply can go a little past; the next is refused.
-6. **Rate limits**: 3 replies per person and 8 per channel, a minute.
+6. **Rate limits**: 6 replies per person and 20 per channel, a minute.
 7. For another bot: the pacing (§2.7).
 
 ### 2.3 What it reads, and how it replies
@@ -119,8 +119,10 @@ Checked in this order, **before anything is spent**:
   of the bot are written as its name. The model is told that the transcript
   is what it is shown, not instructions to follow.
 - The reply is a Discord reply to the message, split into messages of 2,000
-  characters, at line breaks where it can. At most **three**: anything past
-  that is cut, and the last message says so. Whoever addressed the bot is
+  characters, at line breaks where it can. At most **four**, 8,000 characters
+  in all: anything past that is cut, and the last message says so. The model
+  is told to write as much as the message calls for and no more, not to aim
+  for the limit. Whoever addressed the bot is
   notified, as with any reply. **Nothing the model writes can ping anyone**,
   `@everyone` included.
 - The longest reply is **1,024 tokens**, including thinking on the models
@@ -208,12 +210,12 @@ and only when the bot **addresses** it or sets off an advanced trigger with
 `bots` on (§2.6). LatiBot and its personas count as bots here, and set off
 nothing but such a trigger. Then, per channel:
 
-- at most **6** replies to bots in a row, before a person has to say
+- at most **20** replies to bots in a row, before a person has to say
   something; any person speaking resets the count, whether or not the model
   answers them;
 - at least **5 s** between them, **waited out** before answering rather than
   refused;
-- at most **50** a day per server (UTC);
+- at most **500** a day per server (UTC);
 - optionally, only once a person has spoken in the channel since the bot
   started.
 
@@ -254,16 +256,16 @@ clamped when read.
 | Recent messages it reads | 15 | 0–50 |
 | Token budget for them | 3000 | 200–20000 |
 | Messages an advanced trigger reads | 5 | 0–20 |
-| Longest reply, in tokens | 1024 | 256–8192 |
-| Replies per person per minute | 3 | 1–60 |
-| Replies per channel per minute | 8 | 1–120 |
-| Bot turns in a row (0: never) | 6 | 0–50 |
+| Longest reply, in tokens | 4096 | 256–8192 |
+| Replies per person per minute | 6 | 1–60 |
+| Replies per channel per minute | 20 | 1–120 |
+| Bot turns in a row (0: never) | 20 | 0–200 |
 | Seconds between bot turns | 5 | 0–300 |
-| Replies to bots per day | 50 | 0–1000 |
+| Replies to bots per day | 500 | 0–10000 |
 | Only after a person spoke | no | yes or no |
-| Minutes it keeps listening after a reply | 3 | 1–30 |
-| Replies per conversation, unaddressed | 6 | 1–30 |
-| Longest conversation, in minutes | 15 | 1–120 |
+| Minutes it keeps listening after a reply | 10 | 1–120 |
+| Replies per conversation, unaddressed | 30 | 1–200 |
+| Longest conversation, in minutes | 60 | 1–720 |
 | Seconds it waits for typing to stop | 6 | 0–30 |
 
 ### 2.10 Conversation mode
@@ -276,8 +278,8 @@ messages nobody addressed it in.
 
 - **A conversation** opens in a channel when the bot answers someone who
   addressed it or named it, and stays open while the bot keeps replying:
-  until **3 minutes** pass without a reply from it, it has made **6**
-  replies nobody asked for, or **15 minutes** have passed since it opened.
+  until **10 minutes** pass without a reply from it, it has made **30**
+  replies nobody asked for, or **60 minutes** have passed since it opened.
   Being addressed again starts a fresh one. All three are settings.
 - **Its name anywhere** in a message, `thanks latibot` as much as
   `latibot, ...`, is answered at once during a conversation. Outside one it
@@ -536,6 +538,7 @@ messages read now. Then:
 | A transcript line's author | Their alias: `u7kx3q: text`, `u7kx3q (a bot): text`, and the bot `LatiBot (you): text` |
 | `<@id>`, `<@!id>` | `@u7kx3q`; the bot's own, `@LatiBot` |
 | A name of anyone met, typed in a message or a memory | `<u7kx3q:name>`, or `<u7kx3q:username>` for a username: whole words, any case, longest first, at least three characters |
+| A name set with `/llm names` | `<u7kx3q:name>`, as their own names are |
 | `<@&id>`, `<#id>` | `@role name`, `#channel name` from the cache, or `@a role`, `#a channel` |
 | `<:name:id>`, `<a:name:id>` | `:name:` |
 | `<t:seconds>`, `<t:seconds:R>` | `2026-03-15 12:00 UTC` |
@@ -544,8 +547,13 @@ messages read now. Then:
 | A marker already written, in a memory | itself |
 
 A person's names are their server nickname, from the bot's cache, since a
-fetched message carries none; their display name; their username; and what
-was noted before. The server's documents and an advanced trigger's prompt
+fetched message carries none; their display name; their username; what was
+noted before; and any set by hand with **`/llm names add user name`**
+(Manage Server), for the names people go by that Discord does not know.
+Those are kept in `llm_alias_names`, where a name stands for one person per
+server; adding one gives the person an alias if they had none, so the name
+is hidden even before the model has heard of them. `remove` takes one back,
+and `list` shows them. The server's documents and an advanced trigger's prompt
 have mentions made aliases, but keep their names: the same text then goes
 each time, and stays cached (§3.3).
 
@@ -647,6 +655,8 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
 | 2026-10-20 | Personas: another name and picture through a webhook, answering to its name, replies, and triggers of its own; managed with `/llm persona` | The owner's idea (docs/ideas/claude_webhook_llm_facade.md); a group under `/llm` was the owner's choice over a command of its own |
 | 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
+| 2026-10-27 | Replies up to four messages, 8,000 characters; 4096 output tokens by default; the rate, pacing and conversation limits raised several times over | The owner's request, with a better idea of what it costs: those limits are there to stop a loop running unchecked, and the spend caps keep the bill in check |
+| 2026-10-27 | `/llm names` hides more names behind a person's alias; a name stands for one person per server | The owner's request: people go by names Discord does not know |
 | 2026-10-27 | Personas join conversation mode, each with windows of its own; an unnamed message goes to whoever replied last | The owner's request. A window per speaker keeps each one's limits its own; the last to reply is who people are most likely answering |
 | 2026-10-27 | The check leans towards yes, short reactions included | The owner's request: it let short replies to the bot go unanswered. Joining in can still answer `[silent]` |
 | 2026-10-27 | A marker written without its brackets, `u7kx3q:name`, is restored whole | Taken as a bare alias, `u7kx3q:name` was posted as `Alice:name`; a persona was seen writing about a user identifier with a name in it |

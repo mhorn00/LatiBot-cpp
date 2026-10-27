@@ -4,6 +4,7 @@
 
 #include <dpp/snowflake.h>
 
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <string>
@@ -37,8 +38,16 @@ struct known_person {
     std::string username;
 };
 
+/// The shortest name looked for in what people write: shorter ones are
+/// mostly words.
+inline constexpr std::size_t shortest_name = 3;
+
+/// The longest name `/llm names add` takes.
+inline constexpr std::size_t alias_name_limit = 100;
+
 /// `llm_aliases`: each person's alias in each server, and what they were
-/// last seen called there.
+/// last seen called there. And `llm_alias_names`: more names a person goes
+/// by, set by hand, hidden the same way.
 class alias_store {
 public:
     explicit alias_store(db::database& db) : db_(&db) {}
@@ -59,6 +68,17 @@ public:
 
     /// Everyone with an alias in this server.
     [[nodiscard]] auto known(dpp::snowflake guild_id) const -> std::vector<known_person>;
+
+    /// Makes `name` one of `user_id`'s here, giving them an alias if they had
+    /// none. Nothing when it was added; who already has it otherwise, them
+    /// included.
+    auto add_name(dpp::snowflake guild_id, dpp::snowflake user_id, std::string_view name) -> std::optional<dpp::snowflake>;
+
+    /// False when it was not theirs.
+    auto remove_name(dpp::snowflake guild_id, dpp::snowflake user_id, std::string_view name) -> bool;
+
+    /// Every name set by hand here, by person, each person's in order.
+    [[nodiscard]] auto added_names(dpp::snowflake guild_id) const -> std::map<dpp::snowflake, std::vector<std::string>>;
 
 private:
     db::database* db_;
@@ -124,11 +144,17 @@ private:
     /// What a marker, or a bare alias with `kind` "name", becomes.
     [[nodiscard]] auto restore_marker(std::string_view alias, std::string_view kind, bool for_speech) const -> std::string;
 
+    /// Adds the names set by hand for `who`.
+    auto add_added_names(person& who) const -> void;
+
     alias_store* aliases_;
     const ports::discord_gateway* discord_;
     dpp::snowflake guild_id_;
     dpp::snowflake bot_id_;
     std::string bot_name_;
+
+    /// `/llm names`, read once per request, when first needed.
+    mutable std::optional<std::map<dpp::snowflake, std::vector<std::string>>> added_names_;
 
     std::map<dpp::snowflake, person> met_;
     std::map<std::string, dpp::snowflake, std::less<>> by_alias_;

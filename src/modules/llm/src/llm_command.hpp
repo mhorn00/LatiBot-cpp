@@ -167,8 +167,9 @@ struct llm_command_services {
     llm::blacklist_store* blacklist = nullptr;
     llm::persona_store* personas = nullptr;
     llm::memory_store* memories = nullptr;
-    /// To show the people a memory names as mentions, not aliases.
-    const llm::alias_store* aliases = nullptr;
+    /// To show the people a memory names as mentions, not aliases, and for
+    /// `/llm names`.
+    llm::alias_store* aliases = nullptr;
     const llm::usage_store* usage = nullptr;
 
     /// For documents attached as files.
@@ -215,6 +216,10 @@ private:
     auto trigger(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
     auto blacklist(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
 
+    /// `/llm names add | remove | list` (src/modules/llm/docs/Language_Model.md
+    /// §3.8).
+    auto names(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
+
     /// `/llm persona …` (src/modules/llm/docs/Language_Model.md §2.11).
     /// `list`, `view` and reading a personality are open to everyone, and
     /// the rest needs Manage Server, as for LatiBot's own.
@@ -231,6 +236,10 @@ private:
     command_info info_;
     llm_command_services services_;
 };
+
+/// The body of `/llm names list`: everyone with names set by hand here, or
+/// only `only` when it is not 0.
+[[nodiscard]] auto render_alias_names(const std::map<dpp::snowflake, std::vector<std::string>>& names, dpp::snowflake only) -> std::string;
 
 /// `/memory list | forget | clear` (src/modules/llm/docs/Language_Model.md §2.4).
 /// Admins see and remove everything; anyone else sees and removes what is

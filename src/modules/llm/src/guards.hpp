@@ -81,13 +81,13 @@ private:
 struct pacing_rules {
     /// Replies to bots in a row in one channel before waiting for a human.
     /// Zero never answers a bot.
-    int turns = 6;
+    int turns = 20;
 
     /// The least time between two of those replies in one channel.
     std::chrono::seconds delay{5};
 
     /// Replies to bots per guild per UTC day.
-    int daily_cap = 50;
+    int daily_cap = 500;
 
     /// Answer a bot only once a person has spoken in the channel since the
     /// bot started.

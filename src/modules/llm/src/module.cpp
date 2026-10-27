@@ -56,7 +56,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 3> llm_steps{{
+constexpr std::array<db::migration, 4> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -201,6 +201,18 @@ constexpr std::array<db::migration, 3> llm_steps{{
         -- LatiBot itself, or a persona, though never whoever answers it
         -- (src/modules/llm/docs/Language_Model.md 2.6). Off, as before.
         ALTER TABLE llm_triggers ADD COLUMN respond_to_bots INTEGER NOT NULL DEFAULT 0;
+     )sql"},
+    {.version = 4, .name = "names the model never sees", .sql = R"sql(
+        -- More names a person goes by, set with /llm names, hidden behind
+        -- their alias as their Discord names are
+        -- (src/modules/llm/docs/Language_Model.md 3.8). A name stands for
+        -- one person in a server, whatever its case.
+        CREATE TABLE llm_alias_names (
+            guild_id INTEGER NOT NULL,
+            name     TEXT    NOT NULL COLLATE NOCASE,
+            user_id  INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, name)
+        ) WITHOUT ROWID;
      )sql"},
 }};
 

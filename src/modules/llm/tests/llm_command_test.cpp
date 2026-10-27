@@ -202,6 +202,17 @@ TEST_CASE("the memory list pages ten at a time, carrying whose list it is", "[ll
     CHECK(everyone.content.contains("(<@7>)"));
 }
 
+TEST_CASE("the names list shows each person's names, or says there are none", "[llm]") {
+    const std::map<dpp::snowflake, std::vector<std::string>> names{{dpp::snowflake{11}, {"Robert", "Stupit Dog"}},
+                                                                   {dpp::snowflake{12}, {"Ally"}}};
+    const std::string all = latibot::commands::render_alias_names(names, {});
+    CHECK(all.contains("- <@11>: `Robert`, `Stupit Dog`"));
+    CHECK(all.contains("- <@12>: `Ally`"));
+    CHECK_FALSE(latibot::commands::render_alias_names(names, dpp::snowflake{12}).contains("<@11>"));
+    CHECK(latibot::commands::render_alias_names({}, {}).contains("No names are set by hand here."));
+    CHECK(latibot::commands::render_alias_names(names, dpp::snowflake{13}).contains("No names are set by hand for <@13>."));
+}
+
 TEST_CASE("the status says what was spent against the caps", "[llm]") {
     latibot::commands::llm_overview overview;
     overview.enabled = true;

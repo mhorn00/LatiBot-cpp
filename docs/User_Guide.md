@@ -1187,6 +1187,7 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 | `personality` · `system` · `style` | a subcommand, below | The [documents](#the-documents) |
 | `trigger` | `add` · `edit` · `remove` · `list` | [Advanced triggers](#advanced-triggers) |
 | `blacklist` | `add` · `remove` (`user` or `role`) · `list` | People and roles it never answers here |
+| `names` | `add` · `remove` (`user` and `name`) · `list` (`user` optional) | More names someone goes by, which the model never sees (see [Names](#names-the-model-never-sees)) |
 | `persona` | `add` · `edit` · `remove` · `list` · `view` · `document` | [Personas](#personas): others it answers as, under their own name |
 
 It is **off in every server** until someone runs `/llm on` there: every message
@@ -1281,16 +1282,16 @@ or off.
 | Recent messages it reads | 15 | 0–50 |
 | Token budget for them | 3000 | 200–20000 |
 | Messages an advanced trigger reads | 5 | 0–20 |
-| Longest reply, in tokens | 1024 | 256–8192 |
-| Replies per person per minute | 3 | 1–60 |
-| Replies per channel per minute | 8 | 1–120 |
-| Bot turns in a row (0: never) | 6 | 0–50 |
+| Longest reply, in tokens | 4096 | 256–8192 |
+| Replies per person per minute | 6 | 1–60 |
+| Replies per channel per minute | 20 | 1–120 |
+| Bot turns in a row (0: never) | 20 | 0–200 |
 | Seconds between bot turns | 5 | 0–300 |
-| Replies to bots per day | 50 | 0–1000 |
+| Replies to bots per day | 500 | 0–10000 |
 | Only after a person spoke | no | yes or no |
-| Minutes it keeps listening after a reply | 3 | 1–30 |
-| Replies per conversation, unaddressed | 6 | 1–30 |
-| Longest conversation, in minutes | 15 | 1–120 |
+| Minutes it keeps listening after a reply | 10 | 1–120 |
+| Replies per conversation, unaddressed | 30 | 1–200 |
+| Longest conversation, in minutes | 60 | 1–720 |
 | Seconds it waits for typing to stop | 6 | 0–30 |
 
 The token budget is a rough count, four characters to a token. The longest
@@ -1327,6 +1328,22 @@ the prompt stays short.
   until a person speaks.
 - Its reply is posted silently, as a simple trigger's is, and reads the last
   five messages rather than fifteen (the setting above).
+
+#### Names the model never sees
+
+The model never sees anyone's name: everyone is shown to it by a random
+alias, and their server nickname, display name and username are hidden behind
+it wherever they are written. People also go by names Discord does not know,
+a nickname from elsewhere or a real name, and `/llm names add user name` hides
+one of those behind the person's alias too (Manage Server).
+
+- A name stands for **one person** here, whatever its case: adding one that
+  is already someone else's is refused, and says whose it is.
+- It needs **at least three characters**, since shorter ones are mostly
+  words. Names are matched as whole words, any case, longest first.
+- The model still writes the name back when it means them: it writes their
+  alias, and the bot puts their server name in before posting.
+- `remove` takes one back; `list` shows them, everyone's or one person's.
 
 #### The blacklist
 
@@ -1762,7 +1779,8 @@ the message is.
 It shows *LatiBot is typing…* while it thinks, then replies to the message.
 Whoever asked is notified of the reply, as with any reply; nothing the model
 writes can ping anyone else, `@everyone` included. A reply too long for one
-message is split, three messages at most.
+message is split, four messages at most, 8,000 characters in all; anything
+past that is cut off.
 
 **What it reads.** The last fifteen messages in the channel, cut to about 3000
 tokens from the oldest end, then the message it is answering; both numbers are
@@ -1814,7 +1832,7 @@ cut at this server's [`/speak` limit](#tts). Whoever asked can stop it with
   `i've hit today's spending limit, so i'm staying quiet until tomorrow (UTC)`
   (or this month's) once per server, and warns in the bot's log. One reply can
   take spending a little past the cap; the next is refused.
-- The author asked more than three times this minute, or the channel had eight
+- The author asked more than six times this minute, or the channel had twenty
   replies this minute.
 - For another bot: see below.
 
@@ -1827,9 +1845,9 @@ busy. An advanced trigger's failure is silent.
 [allows that bot](#bots), and only when the bot addresses it or sets off an
 [advanced trigger](#advanced-triggers) with `bots:true`; LatiBot's own
 messages and its personas' can set off only such a trigger. Because two
-models can talk to each other forever, it paces itself: at most six replies to
+models can talk to each other forever, it paces itself: at most twenty replies to
 bots in a row in a channel before waiting for a person to say something, at
-least five seconds between them, and fifty a day per server. Any person
+least five seconds between them, and 500 a day per server. Any person
 speaking in the channel resets the count. It can also be told to answer bots
 only once a person has spoken in the channel. All of these are
 [settings](#llm-settings).
@@ -1846,8 +1864,8 @@ bot keeps talking once it has answered someone, rather than waiting to be
 addressed every time.
 
 - After it answers someone who addressed it, it **keeps listening** in that
-  channel: until it has been quiet for 3 minutes, has joined in 6 times
-  without being addressed, or 15 minutes have passed. Addressing it again
+  channel: until it has been quiet for 10 minutes, has joined in 30 times
+  without being addressed, or an hour has passed. Addressing it again
   starts over.
 - While it listens, a message that says **latibot anywhere** is answered.
   Outside that time, a message that names it is answered only if a quick
