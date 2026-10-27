@@ -128,9 +128,15 @@ inline constexpr std::string_view silent_reply = "[silent]";
 /// is a no.
 [[nodiscard]] auto check_says_yes(std::string_view answer) -> bool;
 
+/// The most messages one reply is posted as, and so with Discord's 2000
+/// characters each, 8000 characters in all
+/// (src/modules/llm/docs/Language_Model.md §2.3).
+inline constexpr std::size_t reply_messages_limit = 4;
+
 /// A reply cut into Discord messages of at most `limit` characters, on line
 /// breaks where it can, and at most `most` of them; anything after that is
 /// cut, and the last message says so.
-[[nodiscard]] auto split_for_discord(std::string_view text, std::size_t limit = 2000, std::size_t most = 3) -> std::vector<std::string>;
+[[nodiscard]] auto split_for_discord(std::string_view text, std::size_t limit = 2000, std::size_t most = reply_messages_limit)
+    -> std::vector<std::string>;
 
 } // namespace latibot::llm

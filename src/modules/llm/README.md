@@ -21,7 +21,7 @@ registers, so this table cannot fall behind the code.
 | Message stages | `language model`, at the model position, last: it consumes what it answers | ✓ |
 | Discord events | `llm: who is typing` (typing starts), for conversation mode, which waits for people to finish; needs the typing intent, which is not privileged | ✓ |
 | Timers | none | ✓ |
-| Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases`, `llm_personas`, `llm_persona_posts` | ✓ |
+| Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases`, `llm_personas`, `llm_persona_posts`, `llm_alias_names` | ✓ |
 | Per-server settings | the llm_ keys in `src/settings.hpp`, each with its default and range | |
 | Config section | `llm.provider`, `llm.model`, `llm.check_model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
 | Environment | ANTHROPIC_API_KEY, OPENAI_API_KEY; a provider exists only with its key, and the log channel masks both | |

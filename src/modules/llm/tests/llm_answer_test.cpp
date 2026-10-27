@@ -347,7 +347,7 @@ TEST_CASE("during a conversation any message may be for the bot, and is checked"
         CHECK(test.stage(message).actions.empty());
     }
     SECTION("not once the conversation is over") {
-        test.clock.advance(181s);
+        test.clock.advance(601s);
         CHECK(test.stage(message).actions.empty());
     }
 }
@@ -355,6 +355,7 @@ TEST_CASE("during a conversation any message may be for the bot, and is checked"
 TEST_CASE("a message waiting on the check takes its rate limit only once the check agrees", "[llm][conversation]") {
     fixture test;
     test.converse();
+    test.settings.set_int(guild, "llm_user_per_minute", 3);
 
     // Three a minute per person: more than that wait on the check, and the
     // check's yes claims the reply.
@@ -921,6 +922,15 @@ TEST_CASE("the fixed rules come first, then the system document, then the person
 
 TEST_CASE("a reply too long for one message is split on line breaks, three messages at most", "[llm]") {
     CHECK(latibot::llm::split_for_discord("short").size() == 1);
+
+    // At most four messages of 2000 characters: 8000 in all, and the rest cut.
+    const auto longest = latibot::llm::split_for_discord(std::string(9000, 'x'));
+    REQUIRE(longest.size() == 4);
+    for (const std::string& part : longest) {
+        CHECK(latibot::util::character_count(part) <= 2000);
+    }
+    CHECK(longest.back().ends_with("…"));
+    CHECK(latibot::llm::split_for_discord(std::string(7900, 'x')).size() == 4);
     CHECK(latibot::llm::split_for_discord("  ").empty());
 
     const std::string lines = std::string(15, 'a') + "\n" + std::string(15, 'b');

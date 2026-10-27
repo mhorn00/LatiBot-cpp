@@ -530,6 +530,21 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     blacklist.add_option(dpp::command_option(dpp::co_sub_command, "list", "Show it."));
     payload.add_option(blacklist);
 
+    dpp::command_option names(dpp::co_sub_command_group, "names", "More names someone goes by, hidden from the model (Manage Server).");
+    for (const auto& [verb, what] : std::array<std::pair<const char*, const char*>, 2>{
+             {{"add", "Hide another name of theirs behind their alias."}, {"remove", "Stop treating a name as theirs."}}}) {
+        dpp::command_option change(dpp::co_sub_command, verb, what);
+        change.add_option(dpp::command_option(dpp::co_user, "user", "Whose name it is.", true));
+        change.add_option(dpp::command_option(dpp::co_string, "name", "A name they go by.", true)
+                              .set_min_length(static_cast<std::int64_t>(llm::shortest_name))
+                              .set_max_length(static_cast<std::int64_t>(llm::alias_name_limit)));
+        names.add_option(change);
+    }
+    dpp::command_option list_names(dpp::co_sub_command, "list", "Show the names set by hand.");
+    list_names.add_option(dpp::command_option(dpp::co_user, "user", "Only theirs.", false));
+    names.add_option(list_names);
+    payload.add_option(names);
+
     dpp::command_option persona(dpp::co_sub_command_group, "persona", "Others the model answers as, under their own name.");
     dpp::command_option create(dpp::co_sub_command, "add", "Make one (Manage Server).");
     create.add_option(dpp::command_option(dpp::co_string, "name", "What it is called, and answers to.", true)
@@ -640,6 +655,8 @@ auto llm_command::manage(const dpp::slashcommand_t& event, std::string_view path
         co_await trigger(event, action);
     } else if (group == "blacklist") {
         co_await blacklist(event, action);
+    } else if (group == "names") {
+        co_await names(event, action);
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
@@ -969,6 +986,75 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
                      describe_trigger(entry, answered_by));
     co_await event.co_reply(
         result(event, std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by))));
+}
+
+auto render_alias_names(const std::map<dpp::snowflake, std::vector<std::string>>& names, dpp::snowflake only) -> std::string {
+    std::string text;
+    for (const auto& [user, theirs] : names) {
+        if (!only.empty() && user != only) continue;
+        std::string joined;
+        for (const std::string& name : theirs) {
+            if (!joined.empty()) joined += ", ";
+            joined += std::format("`{}`", name);
+        }
+        text += std::format("- <@{}>: {}\n", user, joined);
+    }
+    if (text.empty()) {
+        text = only.empty() ? "No names are set by hand here." : std::format("No names are set by hand for <@{}>.", only);
+    } else {
+        text = "**Names hidden behind each person's alias**\n" + text;
+    }
+    text += "\n_Their server nickname, display name and username are hidden anyway._";
+    return util::truncate(text, 2000);
+}
+
+auto llm_command::names(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
+    const dpp::snowflake guild = event.command.guild_id;
+    const auto user = snowflake_option(event, "user");
+
+    if (action == "list") {
+        co_await event.co_reply(result(event, render_alias_names(services_.aliases->added_names(guild), user.value_or(dpp::snowflake{}))));
+        co_return;
+    }
+
+    const std::string name(util::trim(string_option(event, "name")));
+    if (!user || user->empty() || name.empty()) {
+        co_await event.co_reply(refusal(event, "give a user and a name"));
+        co_return;
+    }
+    // Shorter names are mostly words, and are never looked for.
+    if (util::character_count(name) < llm::shortest_name) {
+        co_await event.co_reply(
+            refusal(event, std::format("a name needs at least {} characters, or it would hide ordinary words", llm::shortest_name)));
+        co_return;
+    }
+    if (*user == event.command.application_id) {
+        co_await event.co_reply(refusal(event, "my own name isn't hidden: the model knows it is me"));
+        co_return;
+    }
+
+    const auto who = describe_user(event.command.get_issuing_user());
+    if (action == "add") {
+        const std::optional<dpp::snowflake> taken = services_.aliases->add_name(guild, *user, name);
+        if (taken && *taken == *user) {
+            co_await event.co_reply(result(event, std::format("`{}` was already <@{}>'s", name, *user)));
+        } else if (taken) {
+            co_await event.co_reply(refusal(event, std::format("`{}` already stands for <@{}>; remove it from them first", name, *taken)));
+        } else {
+            util::log().info("{} hid the name \"{}\" behind {}'s alias in guild {}", who, name, *user, guild);
+            co_await event.co_reply(
+                result(event, std::format("ok, the model will see `{}` as <@{}>'s alias, never the name", name, *user)));
+        }
+        co_return;
+    }
+    if (action == "remove") {
+        const bool removed = services_.aliases->remove_name(guild, *user, name);
+        if (removed) util::log().info("{} stopped hiding the name \"{}\" behind {}'s alias in guild {}", who, name, *user, guild);
+        co_await event.co_reply(result(event, removed ? std::format("ok, `{}` is no longer <@{}>'s", name, *user)
+                                                      : std::format("`{}` wasn't one of <@{}>'s names", name, *user)));
+        co_return;
+    }
+    co_await event.co_reply(refusal(event, "i don't know that subcommand"));
 }
 
 auto llm_command::blacklist(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {

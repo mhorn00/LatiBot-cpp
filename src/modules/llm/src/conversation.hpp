@@ -28,13 +28,13 @@ struct conversation_rules {
     bool enabled = false;
 
     /// How long a window stays open after the bot's latest reply.
-    std::chrono::seconds quiet_after{180};
+    std::chrono::seconds quiet_after{600};
 
     /// The most replies it makes in one window without being addressed.
-    int replies = 6;
+    int replies = 30;
 
     /// How long a window lasts at most, however lively.
-    std::chrono::seconds longest{900};
+    std::chrono::seconds longest{3600};
 
     /// The longest it waits for somebody to stop typing before it checks.
     std::chrono::seconds typing_wait{6};

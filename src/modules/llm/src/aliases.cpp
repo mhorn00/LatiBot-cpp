@@ -24,10 +24,6 @@ constexpr std::size_t alias_length = 7;
 /// shorter.
 constexpr std::size_t longest_tag = 120;
 
-/// The shortest name looked for in what people write: shorter ones are
-/// mostly words.
-constexpr std::size_t shortest_name = 3;
-
 auto all_digits(std::string_view text) -> bool {
     return !text.empty() && std::ranges::all_of(text, [](char letter) { return letter >= '0' && letter <= '9'; });
 }
@@ -241,6 +237,38 @@ auto alias_store::known(dpp::snowflake guild_id) const -> std::vector<known_pers
     return found;
 }
 
+auto alias_store::add_name(dpp::snowflake guild_id, dpp::snowflake user_id, std::string_view name) -> std::optional<dpp::snowflake> {
+    const std::string trimmed(util::trim(name));
+    {
+        db::statement found = db_->prepare("SELECT user_id FROM llm_alias_names WHERE guild_id = ? AND name = ?", guild_id, trimmed);
+        if (found.step()) return found.get<dpp::snowflake>(0);
+    }
+    // Their alias first, so the name has someone to stand for even before
+    // the model has heard of them.
+    (void)alias_for(guild_id, user_id);
+    db::statement added =
+        db_->prepare("INSERT OR IGNORE INTO llm_alias_names (guild_id, name, user_id) VALUES (?, ?, ?)", guild_id, trimmed, user_id);
+    (void)added.step();
+    return std::nullopt;
+}
+
+auto alias_store::remove_name(dpp::snowflake guild_id, dpp::snowflake user_id, std::string_view name) -> bool {
+    db::statement removed = db_->prepare("DELETE FROM llm_alias_names WHERE guild_id = ? AND user_id = ? AND name = ?", guild_id, user_id,
+                                         std::string(util::trim(name)));
+    (void)removed.step();
+    return db_->changes() > 0;
+}
+
+auto alias_store::added_names(dpp::snowflake guild_id) const -> std::map<dpp::snowflake, std::vector<std::string>> {
+    std::map<dpp::snowflake, std::vector<std::string>> found;
+    db::statement query =
+        db_->prepare("SELECT user_id, name FROM llm_alias_names WHERE guild_id = ? ORDER BY user_id, name COLLATE NOCASE", guild_id);
+    while (query.step()) {
+        found[query.get<dpp::snowflake>(0)].push_back(query.get<std::string>(1));
+    }
+    return found;
+}
+
 auto alias_store::noted_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names> {
     db::statement found = db_->prepare("SELECT name, username FROM llm_aliases WHERE guild_id = ? AND user_id = ?", guild_id, user_id);
     if (!found.step()) return std::nullopt;
@@ -254,6 +282,15 @@ auto alias_store::noted_names(dpp::snowflake guild_id, dpp::snowflake user_id) c
 people::people(alias_store& aliases, const ports::discord_gateway& discord, dpp::snowflake guild_id, dpp::snowflake bot_id,
                std::string bot_name)
     : aliases_(&aliases), discord_(&discord), guild_id_(guild_id), bot_id_(bot_id), bot_name_(std::move(bot_name)) {}
+
+auto people::add_added_names(person& who) const -> void {
+    if (!added_names_) added_names_ = aliases_->added_names(guild_id_);
+    const auto found = added_names_->find(who.id);
+    if (found == added_names_->end()) return;
+    for (const std::string& name : found->second) {
+        add_name(who.names, name);
+    }
+}
 
 auto people::meet(dpp::snowflake user_id, std::string_view shown, std::string_view username) -> std::string {
     if (user_id == bot_id_) return bot_name_;
@@ -283,6 +320,7 @@ auto people::meet(dpp::snowflake user_id, std::string_view shown, std::string_vi
          std::initializer_list<std::string_view>{cached.nickname, shown, cached.display_name, noted.display_name, who.username}) {
         add_name(who.names, name);
     }
+    add_added_names(who);
 
     if (who.shown != before_shown || who.username != before_username) aliases_->note_names(guild_id_, user_id, who.shown, who.username);
     return who.alias;
@@ -314,6 +352,7 @@ auto people::meet_known() -> void {
         }
         add_name(who.names, known.name);
         add_name(who.names, known.username);
+        add_added_names(who);
     }
 }
 
