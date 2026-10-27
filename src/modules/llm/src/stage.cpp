@@ -240,6 +240,52 @@ auto llm_stage::unaddressed(const events::incoming_message& message, const llm_s
     return join_in(message, settings, bot_name, personas);
 }
 
+auto llm_stage::spoken_between(const events::incoming_message& message, const own_writer& writer, const llm_settings& settings,
+                               std::string_view bot_name, std::span<const persona> personas) const -> std::optional<route> {
+    std::vector<persona> others;
+    for (const persona& each : personas) {
+        if (each.id != writer.persona_id) others.push_back(each);
+    }
+    const bool to_latibot_allowed = writer.persona_id != 0;
+
+    // Spoken to: the name first, as a person would address it.
+    std::optional<std::int64_t> target;
+    bool at_start = false;
+    if (to_latibot_allowed &&
+        (message.mentions_bot || starts_with_name(message.content, model_name) || starts_with_name(message.content, bot_name))) {
+        target = 0;
+        at_start = true;
+    } else if (const persona* who = addressed_persona(message.content, others)) {
+        target = who->id;
+        at_start = true;
+    } else if (to_latibot_allowed && (names_bot(message.content, model_name) || names_bot(message.content, bot_name))) {
+        target = 0;
+    } else if (const persona* named = named_persona(message.content, others)) {
+        target = named->id;
+    }
+    if (!target) return std::nullopt;
+
+    const std::string whom = *target == 0 ? std::string("LatiBot") : std::format("persona {}", *target);
+    if (at_start) {
+        util::log().trace("llm: message {}, {}'s, speaks to {}", message.message_id, writer.name, whom);
+        return route{.how = approach::addressed, .check_first = false, .persona_id = *target};
+    }
+
+    // Named in passing it may be about them, as when a person does it: with
+    // conversation mode on, the check decides, unless they are talking here.
+    if (!settings.conversation.enabled || services_.windows == nullptr) {
+        util::log().trace("llm: message {}, {}'s, names {} in passing, and conversation mode is off", message.message_id, writer.name,
+                          whom);
+        return std::nullopt;
+    }
+    const model_info* checker = find_model(services_.section->check_model);
+    if (checker == nullptr || !services_.has_provider(checker->provider)) return std::nullopt;
+    const bool open = services_.windows->open(message.channel_id, settings.conversation, *target);
+    util::log().trace("llm: message {}, {}'s, names {} in passing, {}", message.message_id, writer.name, whom,
+                      open ? "during their conversation: answering" : "checking first");
+    return route{.how = approach::named, .check_first = !open, .persona_id = *target};
+}
+
 auto llm_stage::own_writer_of(const events::incoming_message& message) const -> std::optional<own_writer> {
     // A command's response is LatiBot doing as it was asked, and quotes
     // whatever the command was given: an advanced trigger's pattern, for one.
@@ -326,8 +372,14 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const persona* answering = nullptr;
     if (!addressed) answering = spoken_to(message, personas);
     if (!addressed && answering == nullptr) {
-        const std::optional<route> unprompted =
-            unaddressed(message, settings, me.name, personas, by_bot, ours ? std::optional(ours->persona_id) : std::nullopt, fired);
+        // LatiBot and the personas speak to each other by name, before any
+        // trigger, as a person addressing one would.
+        std::optional<route> unprompted;
+        if (ours) unprompted = spoken_between(message, *ours, settings, me.name, personas);
+        if (!unprompted) {
+            unprompted =
+                unaddressed(message, settings, me.name, personas, by_bot, ours ? std::optional(ours->persona_id) : std::nullopt, fired);
+        }
         if (!unprompted) return result;
         chosen = *unprompted;
         // A persona's trigger, or a persona's conversation, is the persona's

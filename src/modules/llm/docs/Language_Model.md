@@ -353,10 +353,15 @@ How it answers differs from LatiBot:
 - **Its own model**, or the server's when it has none. A persona on a model
   with no API key does not answer.
 - **No memory**: no memories shown, no tools.
-- **It answers a bot**, another persona, or LatiBot **only with a trigger
-  that has `bots` on** (§2.6), and never its own messages; naming it or
-  replying to it is not enough. Its messages likewise set off only LatiBot's
-  and other personas' triggers with `bots` on. The language model is the one
+- **LatiBot and the personas speak to each other by name.** A message of
+  one of theirs that starts with another's name, or @mentions LatiBot, is
+  answered as addressed; one that names another in passing goes to the check
+  (§2.10), with conversation mode on, unless that one is talking in the
+  channel already. Or one sets off another's trigger with `bots` on (§2.6).
+  Never a reply, since LatiBot answers with one and the two would bounce for
+  ever; never its own name; and never joining in, unnamed. Every such answer
+  is paced, as any reply to a bot is (§2.7). Another bot only addresses them,
+  as it would LatiBot. The language model is the one
   stage that hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it
   tells which persona wrote a message by the name it was posted under.
 - **It is never spoken.** It has **conversations of its own** (§2.10) while
@@ -657,6 +662,7 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
 | 2026-10-27 | Replies up to four messages, 8,000 characters; 4096 output tokens by default; the rate, pacing and conversation limits raised several times over | The owner's request, with a better idea of what it costs: those limits are there to stop a loop running unchecked, and the spend caps keep the bill in check |
 | 2026-10-27 | `/llm names` hides more names behind a person's alias; a name stands for one person per server | The owner's request: people go by names Discord does not know |
+| 2026-10-27 | LatiBot and the personas answer each other by name, as people address them, but never by a reply, never unnamed, and paced | The owner's request: a persona saying "hey LatiBot" was not answered. LatiBot answers with a reply, so replies would loop |
 | 2026-10-27 | Personas join conversation mode, each with windows of its own; an unnamed message goes to whoever replied last | The owner's request. A window per speaker keeps each one's limits its own; the last to reply is who people are most likely answering |
 | 2026-10-27 | The check leans towards yes, short reactions included | The owner's request: it let short replies to the bot go unanswered. Joining in can still answer `[silent]` |
 | 2026-10-27 | A marker written without its brackets, `u7kx3q:name`, is restored whole | Taken as a bare alias, `u7kx3q:name` was posted as `Alice:name`; a persona was seen writing about a user identifier with a name in it |

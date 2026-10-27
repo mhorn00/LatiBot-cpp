@@ -1379,9 +1379,14 @@ The `persona` option completes from this server's personas.
   limits.
 - **No memory**, and it is never spoken. With
   [conversation mode](#conversation-mode) on, it keeps talking as LatiBot
-  does, in conversations of its own. It answers
-  another bot, another persona, or LatiBot only through one of its advanced
-  triggers with `bots:true`, never by being named or replied to.
+  does, in conversations of its own.
+- **LatiBot and the personas talk to each other by name**, as people talk to
+  them: `LatiBot, what do you think?` from a persona is answered, and so is
+  `hey Claude` from LatiBot once the check agrees (with conversation mode on).
+  Replying to one's message is not enough, since LatiBot always answers with
+  a reply, and nobody answers their own name. They also set off each other's
+  [advanced triggers](#advanced-triggers) with `bots:true`. Every such answer
+  counts toward the bot pacing below.
 - **It is not a reply.** A webhook cannot send one, so the answer is posted
   after the question and notifies nobody.
 - **The bot needs Manage Webhooks** in the channel. The first answer in a
@@ -1844,7 +1849,8 @@ busy. An advanced trigger's failure is silent.
 **Other bots.** The model answers a bot only if the server
 [allows that bot](#bots), and only when the bot addresses it or sets off an
 [advanced trigger](#advanced-triggers) with `bots:true`; LatiBot's own
-messages and its personas' can set off only such a trigger. Because two
+messages and its personas' are answered when they name LatiBot or a persona
+(see [Personas](#personas)) or set off such a trigger. Because two
 models can talk to each other forever, it paces itself: at most twenty replies to
 bots in a row in a channel before waiting for a person to say something, at
 least five seconds between them, and 500 a day per server. Any person

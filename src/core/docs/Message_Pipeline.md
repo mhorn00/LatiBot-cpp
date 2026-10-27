@@ -70,8 +70,8 @@ for itself whether it answers a bot:
 - **The language model** answers a bot when the bot addresses it, or sets
   off an advanced trigger with `bots:true`, and paces itself
   ([Language_Model.md](../../modules/llm/docs/Language_Model.md)). LatiBot's
-  own messages and its personas' only ever set off such a trigger, and never
-  one of their own.
+  own messages and its personas' are answered only when they name another of
+  them or set off such a trigger, and never by one of their own.
 - **The goodbye phrase** needs Administrator, which a bot could in principle
   have.
 
