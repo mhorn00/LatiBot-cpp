@@ -30,28 +30,49 @@ auto names_bot(std::string_view text, std::string_view bot_name) -> bool {
     return false;
 }
 
-auto conversation_windows::opened(dpp::snowflake channel) -> void {
+auto conversation_windows::opened(dpp::snowflake channel, std::int64_t persona) -> void {
     const auto now = clock_->steady_now();
     const std::scoped_lock guard(mutex_);
-    windows_[channel] = {.started = now, .last_reply = now, .unprompted = 0};
+    windows_[{channel, persona}] = {.started = now, .last_reply = now, .unprompted = 0};
 }
 
-auto conversation_windows::joined_in(dpp::snowflake channel) -> void {
+auto conversation_windows::joined_in(dpp::snowflake channel, std::int64_t persona) -> void {
     const auto now = clock_->steady_now();
     const std::scoped_lock guard(mutex_);
-    const auto [entry, added] = windows_.try_emplace(channel, window{.started = now, .last_reply = now, .unprompted = 0});
+    const auto [entry, added] = windows_.try_emplace({channel, persona}, window{.started = now, .last_reply = now, .unprompted = 0});
     entry->second.last_reply = now;
     ++entry->second.unprompted;
 }
 
-auto conversation_windows::open(dpp::snowflake channel, const conversation_rules& rules) const -> bool {
+auto conversation_windows::still_open(const window& open, std::chrono::steady_clock::time_point now, const conversation_rules& rules)
+    -> bool {
+    return now - open.last_reply <= rules.quiet_after && now - open.started <= rules.longest && open.unprompted < rules.replies;
+}
+
+auto conversation_windows::open(dpp::snowflake channel, const conversation_rules& rules, std::int64_t persona) const -> bool {
     if (!rules.enabled) return false;
     const auto now = clock_->steady_now();
     const std::scoped_lock guard(mutex_);
-    const auto found = windows_.find(channel);
-    if (found == windows_.end()) return false;
-    const window& open = found->second;
-    return now - open.last_reply <= rules.quiet_after && now - open.started <= rules.longest && open.unprompted < rules.replies;
+    const auto found = windows_.find({channel, persona});
+    return found != windows_.end() && still_open(found->second, now, rules);
+}
+
+auto conversation_windows::latest_open(dpp::snowflake channel, const conversation_rules& rules,
+                                       std::span<const std::int64_t> speakers) const -> std::optional<std::int64_t> {
+    if (!rules.enabled) return std::nullopt;
+    const auto now = clock_->steady_now();
+    const std::scoped_lock guard(mutex_);
+    std::optional<std::int64_t> latest;
+    std::chrono::steady_clock::time_point latest_reply;
+    for (const std::int64_t speaker : speakers) {
+        const auto found = windows_.find({channel, speaker});
+        if (found == windows_.end() || !still_open(found->second, now, rules)) continue;
+        if (!latest || found->second.last_reply > latest_reply) {
+            latest = speaker;
+            latest_reply = found->second.last_reply;
+        }
+    }
+    return latest;
 }
 
 auto channel_activity::started_typing(dpp::snowflake channel, dpp::snowflake user) -> void {

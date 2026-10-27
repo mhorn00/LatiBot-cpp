@@ -111,15 +111,18 @@ inline constexpr std::string_view silent_reply = "[silent]";
 /// Whether the model chose to say nothing.
 [[nodiscard]] auto is_silence(std::string_view answer) -> bool;
 
-/// The conversation check's instructions: whether the bot should reply to
-/// the latest message, in one word (src/modules/llm/docs/Language_Model.md
-/// §2.10). Fixed, and the same for every server.
-[[nodiscard]] auto check_instructions() noexcept -> std::string_view;
+/// The conversation check's instructions: whether `answerer`, LatiBot or a
+/// persona, should reply to the latest message, in one word
+/// (src/modules/llm/docs/Language_Model.md §2.10). Fixed, and the same for
+/// every server.
+[[nodiscard]] auto check_instructions(std::string_view answerer = model_name) -> std::string;
 
 /// What the check is asked: the recent messages, cut to `token_budget` from
-/// the oldest end, what the latest replies to if anything, and the latest.
+/// the oldest end, what the latest replies to if anything, and the latest,
+/// and whether `answerer` should reply to it.
 [[nodiscard]] auto check_question(std::span<const context_message> history, const context_message& latest,
-                                  const context_message* replied_to, std::size_t token_budget, people& cast) -> std::string;
+                                  const context_message* replied_to, std::size_t token_budget, people& cast,
+                                  std::string_view answerer = model_name) -> std::string;
 
 /// Whether the check's answer is a yes. Anything else, a refusal included,
 /// is a no.

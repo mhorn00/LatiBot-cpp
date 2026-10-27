@@ -60,6 +60,12 @@ using stage_result = events::own_stage_result<ask_llm>;
 /// (src/modules/llm/docs/Language_Model.md §2.11).
 [[nodiscard]] auto addressed_persona(std::string_view content, std::span<const persona> personas) -> const persona*;
 
+/// The persona a message names anywhere, as conversation mode hears LatiBot
+/// named: "thanks claude" as much as "claude, ...". The longest name that
+/// fits wins; null when it names none of them
+/// (src/modules/llm/docs/Language_Model.md §2.10).
+[[nodiscard]] auto named_persona(std::string_view content, std::span<const persona> personas) -> const persona*;
+
 /// What the bot says, once per guild per day or month, when a spend cap
 /// stops it answering (src/modules/llm/docs/Language_Model.md §2.2).
 [[nodiscard]] auto spend_cap_reply(const spend_status& status) -> std::string;
@@ -149,6 +155,10 @@ private:
     struct route {
         approach how = approach::addressed;
         bool check_first = false;
+
+        /// Who answers when conversation mode takes the message up: a
+        /// persona, or 0 for LatiBot.
+        std::int64_t persona_id = 0;
     };
 
     /// How a message nobody addressed reaches the model, if at all: an
@@ -166,11 +176,13 @@ private:
     /// for none of them.
     [[nodiscard]] auto spoken_to(const events::incoming_message& message, std::span<const persona> personas) const -> const persona*;
 
-    /// Whether conversation mode takes up a message nobody addressed: it
-    /// names the bot, or a conversation is open and nothing says the message
-    /// is for someone else (src/modules/llm/docs/Language_Model.md §2.10).
-    [[nodiscard]] auto join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name) const
-        -> std::optional<route>;
+    /// Whether conversation mode takes up a message nobody addressed, and
+    /// for whom: it names LatiBot or one of `personas`, or a conversation is
+    /// open and nothing says the message is for someone else, when it goes
+    /// to whoever of them replied last
+    /// (src/modules/llm/docs/Language_Model.md §2.10, §2.11).
+    [[nodiscard]] auto join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
+                               std::span<const persona> personas) const -> std::optional<route>;
 
     /// The guards after the switch and the address, in order: the blacklist,
     /// the spend caps, the rate limits unless `take_rate` is false, and for a

@@ -1359,7 +1359,9 @@ The `persona` option completes from this server's personas.
   and personality, and not by the server's, which are LatiBot's.
 - **Its own model**, or the server's. It counts against the same spending
   limits.
-- **No memory**, no conversation mode, and it is never spoken. It answers
+- **No memory**, and it is never spoken. With
+  [conversation mode](#conversation-mode) on, it keeps talking as LatiBot
+  does, in conversations of its own. It answers
   another bot, another persona, or LatiBot only through one of its advanced
   triggers with `bots:true`, never by being named or replied to.
 - **It is not a reply.** A webhook cannot send one, so the answer is posted
@@ -1853,6 +1855,11 @@ addressed every time.
   the last few messages and decides; if it says yes, the bot joins in. A
   reply to someone else, a message that @mentions someone else, another bot,
   or a message with no text is never checked.
+- It **leans towards answering**: a short reaction such as "lol" or "wait
+  really?" right after it spoke counts as talking to it.
+- **Personas** have conversations of their own, with the same limits: one
+  opens when a persona answers someone, its name anywhere is answered, and a
+  message nobody named goes to whoever replied last, LatiBot or a persona.
 - It **waits for people to finish typing**, for up to 6 seconds, and answers
   only someone's latest message.
 - Joining in, it may still decide to say nothing. Its reply comes without a
