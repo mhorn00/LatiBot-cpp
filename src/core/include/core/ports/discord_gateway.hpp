@@ -6,6 +6,7 @@
 #include <dpp/message.h>
 #include <dpp/snowflake.h>
 
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -36,6 +37,58 @@ struct webhook {
 
     /// The user who made it: the bot, for the bot's own.
     dpp::snowflake created_by;
+};
+
+/// What the cache knows of a server member, for the language model's
+/// `user_info` (src/modules/llm/docs/Language_Model.md §3.4). No names: the
+/// model is shown people by alias.
+struct member_details {
+    /// When they joined this server, and made their account.
+    std::optional<std::chrono::sys_seconds> joined_at;
+    std::chrono::sys_seconds created_at;
+
+    /// Their roles' names, highest first.
+    std::vector<std::string> roles;
+
+    bool is_bot = false;
+    bool owns_server = false;
+
+    /// Since when they have boosted the server, if they do.
+    std::optional<std::chrono::sys_seconds> boosting_since;
+};
+
+/// A channel, as the cache knows it.
+struct channel_details {
+    dpp::snowflake id;
+    dpp::snowflake guild_id;
+    std::string name;
+
+    /// "text", "voice", "announcement", "forum", "stage", "thread",
+    /// "category" or "other".
+    std::string kind;
+
+    std::string topic;
+    bool age_restricted = false;
+
+    /// The category it is in, or the channel a thread belongs to; empty when
+    /// neither.
+    std::string parent;
+};
+
+/// A server, as the cache knows it.
+struct server_details {
+    std::string name;
+    std::chrono::sys_seconds created_at;
+    std::uint32_t member_count = 0;
+    int boost_tier = 0;
+    std::uint32_t boosts = 0;
+    std::vector<channel_details> channels;
+
+    /// Highest first.
+    std::vector<std::string> roles;
+
+    /// Custom emoji, as `name:id`, the form a reaction takes.
+    std::vector<std::string> emoji;
 };
 
 /// The Discord calls our features make.
@@ -76,6 +129,17 @@ public:
     virtual auto get_reaction_users(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji, dpp::snowflake after,
                                     std::uint64_t limit) -> dpp::task<result<std::vector<dpp::snowflake>>> = 0;
 
+    /// Reacts to a message: a Unicode emoji, or a custom one as `name:id`.
+    virtual auto add_reaction(dpp::snowflake channel_id, dpp::snowflake message_id, std::string emoji) -> dpp::task<result<void>> = 0;
+
+    /// Pins a message, or unpins it. Needs Manage Messages, or Pin Messages.
+    virtual auto set_pinned(dpp::snowflake channel_id, dpp::snowflake message_id, bool pinned) -> dpp::task<result<void>> = 0;
+
+    /// Sets a member's nickname, or clears it. Needs Manage Nicknames, and
+    /// a role above theirs.
+    virtual auto set_nickname(dpp::snowflake guild_id, dpp::snowflake user_id, std::optional<std::string> nickname)
+        -> dpp::task<result<void>> = 0;
+
     /// Shows "LatiBot is typing…" in a channel for ten seconds, or until the
     /// bot posts there (src/modules/llm/docs/Language_Model.md §2.3).
     virtual auto start_typing(dpp::snowflake channel_id) -> dpp::task<result<void>> = 0;
@@ -115,6 +179,17 @@ public:
     /// The channel a thread belongs to, from the cache. Nothing for a
     /// channel that is not a thread, or that the cache does not know.
     [[nodiscard]] virtual auto thread_parent(dpp::snowflake channel_id) const -> std::optional<dpp::snowflake> = 0;
+
+    /// From the cache; nothing when it does not know them.
+    [[nodiscard]] virtual auto member_details(dpp::snowflake guild_id, dpp::snowflake user_id) const
+        -> std::optional<ports::member_details> = 0;
+    [[nodiscard]] virtual auto server_details(dpp::snowflake guild_id) const -> std::optional<ports::server_details> = 0;
+    [[nodiscard]] virtual auto channel_details(dpp::snowflake channel_id) const -> std::optional<ports::channel_details> = 0;
+
+    /// A member's permissions in a channel, overwrites included, from the
+    /// cache. Nothing when it does not know them.
+    [[nodiscard]] virtual auto member_permissions(dpp::snowflake guild_id, dpp::snowflake channel_id, dpp::snowflake user_id) const
+        -> std::optional<std::uint64_t> = 0;
 };
 
 } // namespace latibot::ports

@@ -734,11 +734,12 @@ TEST_CASE("the model may forget only what is about, or was saved for, whoever it
         test.memories.add({.id = 0, .guild_id = guild, .subject = alice, .content = "Alice sings", .created_by = bob, .created_at = noon});
     const latibot::llm::tool_context asked_by_alice{.guild_id = guild, .channel_id = channel, .author_id = alice, .now = noon};
 
-    const auto refused = test.tools.run({.id = "1", .name = "forget", .input = {{"id", about_bob}}}, asked_by_alice);
+    const auto refused = latibot::testing::ran(test.tools.run({.id = "1", .name = "forget", .input = {{"id", about_bob}}}, asked_by_alice));
     CHECK(refused.is_error);
     CHECK(test.memories.find(about_bob, guild).has_value());
 
-    const auto allowed = test.tools.run({.id = "2", .name = "forget", .input = {{"id", about_alice}}}, asked_by_alice);
+    const auto allowed =
+        latibot::testing::ran(test.tools.run({.id = "2", .name = "forget", .input = {{"id", about_alice}}}, asked_by_alice));
     CHECK_FALSE(allowed.is_error);
     CHECK_FALSE(test.memories.find(about_alice, guild).has_value());
 }
@@ -747,12 +748,13 @@ TEST_CASE("remember refuses what is too long, or a server that is full", "[llm]"
     const fixture test;
     const latibot::llm::tool_context context{.guild_id = guild, .channel_id = channel, .author_id = alice, .now = noon};
 
-    const auto too_long = test.tools.run({.id = "1", .name = "remember", .input = {{"content", std::string(501, 'x')}}}, context);
+    const auto too_long =
+        latibot::testing::ran(test.tools.run({.id = "1", .name = "remember", .input = {{"content", std::string(501, 'x')}}}, context));
     CHECK(too_long.is_error);
-    const auto empty = test.tools.run({.id = "2", .name = "remember", .input = json::object()}, context);
+    const auto empty = latibot::testing::ran(test.tools.run({.id = "2", .name = "remember", .input = json::object()}, context));
     CHECK(empty.is_error);
-    const auto saved =
-        test.tools.run({.id = "3", .name = "remember", .input = {{"content", "the server has a cat"}, {"about", "nope"}}}, context);
+    const auto saved = latibot::testing::ran(
+        test.tools.run({.id = "3", .name = "remember", .input = {{"content", "the server has a cat"}, {"about", "nope"}}}, context));
     CHECK_FALSE(saved.is_error);
     CHECK(test.memories.list(guild, std::nullopt, 0, 5).at(0).subject == std::nullopt);
 }

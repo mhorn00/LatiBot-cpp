@@ -7,12 +7,14 @@
 #include "prompt.hpp"
 #include "provider.hpp"
 #include "settings.hpp"
+#include "tools.hpp"
 
 #include <dpp/coro/task.h>
 #include <dpp/message.h>
 #include <dpp/snowflake.h>
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -76,6 +78,10 @@ struct responder_services {
     /// for a persona is not answered.
     persona_store* personas = nullptr;
     persona_webhooks* webhooks = nullptr;
+
+    /// The tools LatiBot, persona 0, or a persona may call in a guild
+    /// (src/modules/llm/docs/Language_Model.md §3.4). Null for every one.
+    std::function<std::vector<std::string>(dpp::snowflake guild, std::int64_t persona)> allowed_tools;
 };
 
 /// How many memories are put in front of the model before it answers.
@@ -161,7 +167,7 @@ private:
     /// and no memories or tools.
     [[nodiscard]] auto build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
                                      const std::vector<context_message>& history, const context_message* replied_to,
-                                     std::chrono::sys_seconds now, const persona* as, people& cast) const -> request;
+                                     const tool_context& tools, const persona* as, people& cast) const -> request;
 
     /// Tells whoever addressed the bot, or the persona, that the model could
     /// not answer.

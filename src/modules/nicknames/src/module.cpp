@@ -1,9 +1,12 @@
 #include "nicknames/module.hpp"
 
+#include "core/capabilities/nickname_changes.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ports/clock.hpp"
+#include "core/ports/discord_gateway.hpp"
 #include "core/ui/interaction.hpp"
 #include "core/ui/panel_routes.hpp"
 #include "core/util/log.hpp"
@@ -113,10 +116,52 @@ private:
     nickname_store* store_;
 };
 
+/// A change asked for elsewhere, such as by the language model, recorded as
+/// `/nickname` records one: against whoever asked, before it is made, and
+/// taken back if Discord refuses (src/modules/nicknames/docs/Nicknames.md §2.2).
+class recorded_changes final : public capabilities::nickname_changes {
+public:
+    recorded_changes(nickname_store& store, pending_nicknames& pending, modules::host& bot)
+        : store_(&store), pending_(&pending), bot_(&bot) {}
+
+    auto change(dpp::snowflake guild_id, dpp::snowflake user_id, std::optional<std::string> nickname, dpp::snowflake asked_by)
+        -> dpp::task<ports::result<void>> override {
+        const auto now = bot_->clock().now();
+        const std::int64_t row = store_->record({.guild_id = guild_id,
+                                                 .user_id = user_id,
+                                                 .nickname = nickname,
+                                                 .changed_at = now,
+                                                 .changed_by = asked_by,
+                                                 .source = nickname_source::command,
+                                                 .imported_raw = {}});
+        pending_->expect(guild_id, user_id, nickname, now);
+
+        auto outcome = co_await bot_->gateway().set_nickname(guild_id, user_id, nickname);
+        if (!outcome.has_value()) {
+            store_->remove(row);
+            pending_->forget(guild_id, user_id, nickname);
+        }
+        co_return outcome;
+    }
+
+private:
+    nickname_store* store_;
+    pending_nicknames* pending_;
+    modules::host* bot_;
+};
+
 class nicknames_module final : public modules::module {
 public:
     explicit nicknames_module(modules::host& bot)
-        : bot_(&bot), config_(nicknames::nicknames_section().read(bot.section(module_name))), store_(bot.database()), panel_(store_) {}
+        : bot_(&bot),
+          config_(nicknames::nicknames_section().read(bot.section(module_name))),
+          store_(bot.database()),
+          panel_(store_),
+          changes_(store_, pending_, bot) {}
+
+    auto offer(modules::capability_registry& offered) -> void override {
+        offered.offer<capabilities::nickname_changes>(changes_, module_name);
+    }
 
     [[nodiscard]] auto name() const -> std::string_view override { return module_name; }
     [[nodiscard]] auto schema() const -> std::span<const db::migration> override { return nicknames_steps; }
@@ -318,6 +363,7 @@ private:
     nickname_store store_;
     pending_nicknames pending_;
     history_panel panel_;
+    recorded_changes changes_;
 };
 
 } // namespace

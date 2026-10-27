@@ -6,15 +6,20 @@
 #include "ask.hpp"
 #include "config_check.hpp"
 #include "conversation.hpp"
+#include "core/capabilities/bot_status.hpp"
 #include "core/capabilities/link_replacements.hpp"
+#include "core/capabilities/nickname_changes.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
+#include "core/config/bootstrap.hpp"
 #include "core/events/stage_order.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
+#include "core/ports/clock.hpp"
 #include "core/ui/panel_routes.hpp"
 #include "core/util/env.hpp"
 #include "core/util/log.hpp"
+#include "discord_tools.hpp"
 #include "documents.hpp"
 #include "guards.hpp"
 #include "llm_command.hpp"
@@ -26,10 +31,12 @@
 #include "persona_webhooks.hpp"
 #include "personas.hpp"
 #include "provider.hpp"
+#include "reminders.hpp"
 #include "responder.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
 #include "stage.hpp"
+#include "tool_switches.hpp"
 #include "tools.hpp"
 
 #include <dpp/dpp.h>
@@ -56,7 +63,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 4> llm_steps{{
+constexpr std::array<db::migration, 6> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -214,9 +221,37 @@ constexpr std::array<db::migration, 4> llm_steps{{
             PRIMARY KEY (guild_id, name)
         ) WITHOUT ROWID;
      )sql"},
+    {.version = 5, .name = "personal memories", .sql = R"sql(
+        -- Whose a memory is (src/modules/llm/docs/Language_Model.md 3.4):
+        -- NULL is shared by LatiBot and every persona, 0 is LatiBot's own,
+        -- and a persona's id that persona's. What was saved before is shared.
+        ALTER TABLE llm_memory ADD COLUMN owner INTEGER;
+     )sql"},
+    {.version = 6, .name = "reminders", .sql = R"sql(
+        -- What the model was asked to say later, with set_reminder
+        -- (src/modules/llm/docs/Language_Model.md 3.4): posted in the channel
+        -- when due, by LatiBot or the persona that set it (persona_id 0 is
+        -- LatiBot), mentioning user_id. due_at is Unix seconds.
+        CREATE TABLE llm_reminders (
+            id         INTEGER PRIMARY KEY,
+            guild_id   INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            user_id    INTEGER NOT NULL,
+            set_by     INTEGER NOT NULL,
+            persona_id INTEGER NOT NULL DEFAULT 0,
+            due_at     INTEGER NOT NULL,
+            text       TEXT    NOT NULL
+        );
+
+        CREATE INDEX llm_reminders_by_time ON llm_reminders (due_at);
+     )sql"},
 }};
 
 constexpr std::string_view module_name = "llm";
+
+/// How often due reminders are looked for: they arrive within this of when
+/// they were set for.
+constexpr std::chrono::seconds reminder_tick{30};
 
 class llm_module final : public modules::module {
 public:
@@ -231,6 +266,7 @@ public:
           blacklist_(bot.database()),
           triggers_(bot.database()),
           personas_(bot.database()),
+          reminders_(bot.database()),
           windows_(bot.clock()),
           activity_(bot.clock()),
           anthropic_(keys_.anthropic ? std::make_unique<anthropic_provider>(bot.http(), *keys_.anthropic) : nullptr),
@@ -275,22 +311,50 @@ public:
             bot.gateway(), [this] { return bot_->me().id; }, [this](std::string token) { bot_->secret(std::move(token)); });
         bot.permission(dpp::p_manage_webhooks, "posting as the language model's personas");
 
+        // What the model may look up and do in Discord
+        // (src/modules/llm/docs/Language_Model.md §3.4). Which a server allows
+        // is its `/llm tools`.
+        discord_tools_ =
+            discord_tool_services{.discord = &bot.gateway(),
+                                  .nicknames = bot.capabilities().find<capabilities::nickname_changes>(),
+                                  .status = bot.capabilities().find<capabilities::bot_status>(),
+                                  .reminders = &reminders_,
+                                  .trusted =
+                                      [this](dpp::snowflake guild) {
+                                          const auto& trusted = bot_->bootstrap().trusted_guilds;
+                                          return std::ranges::find(trusted, guild) != trusted.end();
+                                      },
+                                  .bot_id = [this] { return bot_->me().id; },
+                                  .post = [this](dpp::message message, std::int64_t persona,
+                                                 dpp::snowflake guild) { return post_as(std::move(message), persona, guild); }};
+        add_discord_tools(tools_, discord_tools_);
+        bot.permission(dpp::p_manage_nicknames, "the language model's set_nickname tool");
+        bot.permission(dpp::p_add_reactions, "the language model's add_reaction tool");
+        bot.permission(dpp::p_manage_messages, "the language model's pin_message tool");
+        bot.every(reminder_tick, "the reminder tick", [this] {
+            bot_->detach(deliver_reminders(discord_tools_, std::chrono::floor<std::chrono::seconds>(bot_->clock().now())),
+                         "posting reminders");
+        });
+
         const auto me = [this] { return bot_identity{.id = bot_->me().id, .name = bot_->me().username}; };
-        responder_ =
-            std::make_unique<responder>(responder_services{.discord = &bot.gateway(),
-                                                           .clock = &bot.clock(),
-                                                           .settings = &bot.settings(),
-                                                           .section = &section_,
-                                                           .documents = &documents_,
-                                                           .memories = &memories_,
-                                                           .usage = &usage_,
-                                                           .tools = &tools_,
-                                                           .aliases = &aliases_,
-                                                           .provider_for = [this](provider_kind kind) { return provider_for(kind); },
-                                                           .speech = speech,
-                                                           .personas = &personas_,
-                                                           .webhooks = webhooks_.get()},
-                                        me);
+        responder_ = std::make_unique<responder>(
+            responder_services{
+                .discord = &bot.gateway(),
+                .clock = &bot.clock(),
+                .settings = &bot.settings(),
+                .section = &section_,
+                .documents = &documents_,
+                .memories = &memories_,
+                .usage = &usage_,
+                .tools = &tools_,
+                .aliases = &aliases_,
+                .provider_for = [this](provider_kind kind) { return provider_for(kind); },
+                .speech = speech,
+                .personas = &personas_,
+                .webhooks = webhooks_.get(),
+                .allowed_tools = [this](dpp::snowflake guild,
+                                        std::int64_t persona) { return allowed_tools(tools_, bot_->settings(), guild, persona); }},
+            me);
         stage_ =
             std::make_unique<llm_stage>(stage_services{.settings = &bot.settings(),
                                                        .section = &section_,
@@ -362,6 +426,7 @@ private:
                 .memories = &memories_,
                 .aliases = &aliases_,
                 .usage = &usage_,
+                .tools = &tools_,
                 .http = &bot_->http(),
                 .clock = &bot_->clock(),
                 .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; }};
@@ -422,6 +487,23 @@ private:
         }
     }
 
+    /// Posts as LatiBot, `persona` 0, or as a persona through its webhook;
+    /// as LatiBot when the persona is gone.
+    auto post_as(dpp::message message, std::int64_t persona, dpp::snowflake guild) -> dpp::task<ports::result<dpp::message>> {
+        if (persona != 0 && webhooks_ != nullptr) {
+            if (const auto who = personas_.find(persona, guild)) {
+                const dpp::snowflake channel = message.channel_id;
+                auto posted = co_await webhooks_->post(channel, std::move(message), who->name, who->avatar_url);
+                if (posted.has_value()) {
+                    personas_.record_post(posted.value().id, who->id, guild, channel,
+                                          std::chrono::floor<std::chrono::seconds>(bot_->clock().now()));
+                }
+                co_return posted;
+            }
+        }
+        co_return co_await bot_->gateway().send_message(std::move(message));
+    }
+
     /// Who a conversation is with, for the log: nothing for LatiBot.
     static auto with_whom(const ask_llm& ask) -> std::string {
         return ask.persona_id == 0 ? std::string{} : std::format(", with persona {}", ask.persona_id);
@@ -451,6 +533,8 @@ private:
     blacklist_store blacklist_;
     advanced_trigger_store triggers_;
     persona_store personas_;
+    reminder_store reminders_;
+    discord_tool_services discord_tools_;
     conversation_windows windows_;
     channel_activity activity_;
     tool_registry tools_;

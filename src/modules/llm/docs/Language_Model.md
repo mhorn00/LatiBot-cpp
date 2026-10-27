@@ -131,7 +131,13 @@ Checked in this order, **before anything is spent**:
 ### 2.4 Memory
 
 The model can **remember**, **recall** and **forget** things by itself, as
-tools: when someone tells it something worth keeping, or asks it to.
+tools: when someone tells it something worth keeping, or asks it to. So can
+each persona (§2.11).
+
+- **Shared or personal.** A memory is shared by LatiBot and every persona,
+  unless saved as `personal`: then only whoever saved it sees it, its own
+  opinions or plans. What was saved before personas had memory is shared. A
+  persona's personal memories go when it is removed.
 
 - Before it answers, up to **8** memories are put in front of it: those
   about the author first, then those matching the message's words. So it
@@ -352,7 +358,9 @@ How it answers differs from LatiBot:
   included, are LatiBot's and are not sent.
 - **Its own model**, or the server's when it has none. A persona on a model
   with no API key does not answer.
-- **No memory**: no memories shown, no tools.
+- **Its memory**: the shared memories and its own personal ones (§2.4), and
+  the same tools as LatiBot (§3.4), except `set_status`, since a webhook has
+  no status of its own.
 - **LatiBot and the personas speak to each other by name.** A message of
   one of theirs that starts with another's name, or @mentions LatiBot, is
   answered as addressed; one that names another in passing goes to the check
@@ -394,7 +402,7 @@ The responder:
 2. fetches the recent messages and trims them to the budget;
 3. finds the memories to show;
 4. builds the prompt;
-5. runs the **tool loop**: at most `llm.tool_rounds` (4) rounds, after
+5. runs the **tool loop**: at most `llm.tool_rounds` (8) rounds, after
    which the request forbids tools (`tool_choice: none`) so the model has to
    answer;
 6. writes each call's usage and price to `llm_usage` **as it arrives**, so a
@@ -466,15 +474,49 @@ full swing therefore pays far less for the instructions and documents.
 ### 3.4 Memory and tools
 
 `llm_memory(id, guild_id, subject_user_id NULL, content, created_by NULL,
-created_at)`, with `llm_memory_search`, an FTS5 index over `content`, kept
+created_at, owner NULL)`, with `llm_memory_search`, an FTS5 index over `content`, kept
 in step by three triggers. A search quotes each word, so nothing in a
 message is read as FTS5 syntax. Common and short words are left out, and at
 most 16 words are searched.
 
+`owner` says whose a memory is: NULL shared, 0 LatiBot's own, a persona's id
+its own. `recall`, and the memories put in front of the model, show the
+shared ones and the answerer's own.
+
 The tools are entries in a `tool_registry`: a name, a JSON schema, and a
-handler. A later feature adds a tool without touching the loop. Each is
-handed the request's `people` in its `tool_context`, so it reads the aliases
-the model passes, `remember`'s `about`, and shows people as aliases (§3.8).
+handler, which may wait on Discord. A later feature adds a tool without
+touching the loop. Each is handed the request's `people` in its
+`tool_context`, so it reads the aliases the model passes, `remember`'s
+`about`, and shows people as aliases (§3.8); the context also says who is
+answering, whether the message is a bot's, and which tools are allowed.
+
+Besides the memory tools, the model has these (`discord_tools.*`):
+
+| Tool | Does | Refused when |
+|---|---|---|
+| `get_message` | Reads a message by id, here, or by a link into this server: who, when, text, attachments, reactions | a link to another server or a DM |
+| `search_messages` | Searches a channel's last 500 messages at most, by text, author alias, or UTC dates | Discord gives bots no real search, so nothing older |
+| `user_info` | A member: when they joined and made their account, roles, bot, owner, booster. By alias, never a name | they are not in the cache |
+| `server_info` | The server: made when, members, boosts, channels, roles, custom emoji | |
+| `channel_info` | A channel: kind, category, topic, age-restricted | another server's channel |
+| `current_time` | The time now, in UTC or a named zone | an unknown zone |
+| `set_nickname` | Changes anyone's nickname, or clears it, recorded by the nicknames module as asked for by whoever the model answers | the bot lacks Manage Nicknames, or the role order; the server owner |
+| `set_status` | LatiBot's status, in every server | the server is not in `trusted_guilds`; never offered to a persona |
+| `add_reaction` | Reacts to the message answered, or one named, with Unicode or one of the server's emoji | |
+| `pin_message` | Pins or unpins | whoever asked lacks Manage Messages there |
+| `create_poll` | Posts a Discord poll, as LatiBot or the persona | |
+| `set_reminder` | Reminds someone here later, posted by whoever set it and mentioning them; at most 100 waiting per server, a year ahead | |
+
+The six that change something refuse any message from a bot, LatiBot's own
+and its personas' included, so one model cannot talk another into acting.
+Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
+and every persona; the model is then neither shown it nor able to run it.
+All are on until then.
+
+Reminders are `llm_reminders`, looked through every 30 seconds by `the
+reminder tick`. `set_nickname` goes through the nicknames module's
+`nickname_changes` capability, and `set_status` through the core's
+`bot_status`, which `/status` shares.
 
 ### 3.5 Documents
 
@@ -662,6 +704,9 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
 | 2026-10-27 | Replies up to four messages, 8,000 characters; 4096 output tokens by default; the rate, pacing and conversation limits raised several times over | The owner's request, with a better idea of what it costs: those limits are there to stop a loop running unchecked, and the spend caps keep the bill in check |
 | 2026-10-27 | `/llm names` hides more names behind a person's alias; a name stands for one person per server | The owner's request: people go by names Discord does not know |
+| 2026-10-27 | Discord tools: reading messages, people, the server and channels, the time; nicknames, status, reactions, pins, polls, reminders. All on until `/llm tools off`; the ones that change something refuse bots | The owner's list. Renaming needs no permission from the asker, at the owner's say; pinning does. The status is shared by every server, so only `trusted_guilds` may set it |
+| 2026-10-27 | Personas get memory and tools; memories are shared or personal | The owner's request: shared notes for the whole cast, and each one's own |
+| 2026-10-27 | `llm.tool_rounds` 8 by default | More tools, and more of them needed in one answer |
 | 2026-10-27 | LatiBot and the personas answer each other by name, as people address them, but never by a reply, never unnamed, and paced | The owner's request: a persona saying "hey LatiBot" was not answered. LatiBot answers with a reply, so replies would loop |
 | 2026-10-27 | Personas join conversation mode, each with windows of its own; an unnamed message goes to whoever replied last | The owner's request. A window per speaker keeps each one's limits its own; the last to reply is who people are most likely answering |
 | 2026-10-27 | The check leans towards yes, short reactions included | The owner's request: it let short replies to the bot go unanswered. Joining in can still answer `[silent]` |

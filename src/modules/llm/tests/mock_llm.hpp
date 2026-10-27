@@ -1,7 +1,11 @@
 #pragma once
 
 #include "provider.hpp"
+#include "tools.hpp"
 
+#include <catch2/catch_test_macros.hpp>
+
+#include <chrono>
 #include <deque>
 #include <string>
 #include <vector>
@@ -55,5 +59,12 @@ public:
         co_return next;
     }
 };
+
+/// What a tool call came to, waited for: tools may wait on Discord.
+inline auto ran(dpp::task<llm::tool_result> running) -> llm::tool_result {
+    auto done = std::move(running).sync_wait_for(std::chrono::seconds{2});
+    REQUIRE(done.has_value());
+    return *done;
+}
 
 } // namespace latibot::testing

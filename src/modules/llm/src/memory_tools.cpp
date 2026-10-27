@@ -22,9 +22,10 @@ auto refuse(std::string reason) -> tool_outcome {
 /// text sanitized, since one saved before aliases may name people
 /// (src/modules/llm/docs/Language_Model.md §3.8).
 auto describe(const memory& entry, people* cast) -> std::string {
-    if (cast == nullptr) return std::format("#{}: {}", entry.id, entry.content);
+    const std::string mine = entry.owner ? " (yours only)" : "";
+    if (cast == nullptr) return std::format("#{}{}: {}", entry.id, mine, entry.content);
     const std::string about = entry.subject ? std::format(" (about {})", cast->meet(*entry.subject)) : std::string{};
-    return std::format("#{}{}: {}", entry.id, about, cast->sanitize(entry.content));
+    return std::format("#{}{}{}: {}", entry.id, about, mine, cast->sanitize(entry.content));
 }
 
 /// Whom the alias the model passed stands for.
@@ -52,21 +53,26 @@ auto remember(memory_store& store, const json& input, const tool_context& contex
     // An alias that is nobody's is dropped rather than refused: the memory
     // is still worth having, as one about the server.
     const std::optional<dpp::snowflake> about = person_in(input, "about", context.cast);
+    const auto personal = input.find("personal");
+    const bool own = personal != input.end() && personal->is_boolean() && personal->get<bool>();
     const std::int64_t id = store.add({.id = 0,
                                        .guild_id = context.guild_id,
                                        .subject = about,
                                        .content = text,
                                        .created_by = context.author_id,
-                                       .created_at = context.now});
-    util::log().info("the model remembered #{} in guild {}, asked by {}: \"{}\"", id, context.guild_id, context.author_id, text);
-    return {.content = std::format("saved as #{}", id), .is_error = false};
+                                       .created_at = context.now,
+                                       .owner = own ? std::optional(context.persona_id) : std::nullopt});
+    util::log().info("the model{} remembered #{}{} in guild {}, asked by {}: \"{}\"",
+                     context.persona_id == 0 ? std::string{} : std::format(", as persona {},", context.persona_id), id,
+                     own ? " for itself" : "", context.guild_id, context.author_id, text);
+    return {.content = std::format("saved as #{}{}", id, own ? ", for you only" : ", shared"), .is_error = false};
 }
 
 auto recall(const memory_store& store, const json& input, const tool_context& context) -> tool_outcome {
     const auto query = input.find("query");
     if (query == input.end() || !query->is_string()) return refuse("recall needs a query");
 
-    const std::vector<memory> found = store.search(context.guild_id, query->get<std::string>(), recall_limit);
+    const std::vector<memory> found = store.search(context.guild_id, query->get<std::string>(), recall_limit, context.persona_id);
     if (found.empty()) return {.content = "nothing matches that", .is_error = false};
 
     std::string listed;
@@ -82,7 +88,7 @@ auto forget(memory_store& store, const json& input, const tool_context& context)
     if (id == input.end() || !id->is_number_integer()) return refuse("forget needs the memory's id, a number");
 
     const auto entry = store.find(id->get<std::int64_t>(), context.guild_id);
-    if (!entry) return refuse("there is no memory with that id here");
+    if (!entry || !visible_to(*entry, context.persona_id)) return refuse("there is no memory with that id here");
     if (entry->subject != context.author_id && entry->created_by != context.author_id) {
         return refuse(
             "you may only forget memories about the person you are talking to, or ones they had you save; an admin can "
@@ -98,24 +104,30 @@ auto forget(memory_store& store, const json& input, const tool_context& context)
 } // namespace
 
 auto add_memory_tools(tool_registry& tools, memory_store& store) -> void {
-    tools.add({.name = "remember",
-               .description = std::format("Save a fact worth knowing in later conversations here: something about a person, or about the "
-                                          "server. Keep it short and self-contained, at most {} characters, writing people as markers "
-                                          "like <u7kx3q:name>. When it is about one person, pass their alias as about.",
-                                          memory_length_limit),
-               .input_schema = {{"type", "object"},
-                                {"properties",
-                                 {{"content", {{"type", "string"}, {"description", "The fact, as a sentence."}}},
-                                  {"about", {{"type", "string"}, {"description", "The alias of the person it is about, if one person."}}}}},
-                                {"required", json::array({"content"})}}},
-              [&store](const json& input, const tool_context& context) { return remember(store, input, context); });
+    tools.add(
+        {.name = "remember",
+         .description = std::format("Save a fact worth knowing in later conversations here: something about a person, or about the "
+                                    "server. Keep it short and self-contained, at most {} characters, writing people as markers "
+                                    "like <u7kx3q:name>. When it is about one person, pass their alias as about. Memories are "
+                                    "shared by LatiBot and the server's personas, unless saved as personal, for you alone.",
+                                    memory_length_limit),
+         .input_schema = {{"type", "object"},
+                          {"properties",
+                           {{"content", {{"type", "string"}, {"description", "The fact, as a sentence."}}},
+                            {"about", {{"type", "string"}, {"description", "The alias of the person it is about, if one person."}}},
+                            {"personal",
+                             {{"type", "boolean"},
+                              {"description", "True to keep it to yourself, such as your own opinions or plans; shared otherwise."}}}}},
+                          {"required", json::array({"content"})}}},
+        [&store](const json& input, const tool_context& context) { return remember(store, input, context); });
 
-    tools.add({.name = "recall",
-               .description = "Search this server's saved memories by keywords. Returns each match with its id.",
-               .input_schema = {{"type", "object"},
-                                {"properties", {{"query", {{"type", "string"}, {"description", "Words to look for."}}}}},
-                                {"required", json::array({"query"})}}},
-              [&store](const json& input, const tool_context& context) { return recall(store, input, context); });
+    tools.add(
+        {.name = "recall",
+         .description = "Search the saved memories you can see here, shared and your own, by keywords. Returns each match with its id.",
+         .input_schema = {{"type", "object"},
+                          {"properties", {{"query", {{"type", "string"}, {"description", "Words to look for."}}}}},
+                          {"required", json::array({"query"})}}},
+        [&store](const json& input, const tool_context& context) { return recall(store, input, context); });
 
     tools.add({.name = "forget",
                .description = "Delete a saved memory by its id: one about the person you are talking to, or one they had you save.",

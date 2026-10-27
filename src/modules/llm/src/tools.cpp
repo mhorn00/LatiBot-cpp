@@ -12,34 +12,60 @@
 namespace latibot::llm {
 
 auto tool_registry::add(tool_definition definition, tool_handler handler) -> void {
-    if (std::ranges::any_of(tools_, [&](const entry& existing) { return existing.definition.name == definition.name; })) {
-        throw std::invalid_argument(std::format("the tool \"{}\" is registered twice", definition.name));
-    }
+    add_async(std::move(definition), [handler = std::move(handler)](nlohmann::json input, tool_context context) -> dpp::task<tool_outcome> {
+        co_return handler(input, context);
+    });
+}
+
+auto tool_registry::add_async(tool_definition definition, async_tool_handler handler) -> void {
+    if (contains(definition.name)) throw std::invalid_argument(std::format("the tool \"{}\" is registered twice", definition.name));
     tools_.push_back({.definition = std::move(definition), .handler = std::move(handler)});
 }
 
 auto tool_registry::definitions() const -> std::vector<tool_definition> {
-    std::vector<tool_definition> all;
+    return definitions(tool_context{});
+}
+
+auto tool_registry::definitions(const tool_context& context) const -> std::vector<tool_definition> {
+    std::vector<tool_definition> chosen;
+    chosen.reserve(tools_.size());
+    for (const entry& tool : tools_) {
+        if (context.allows(tool.definition.name)) chosen.push_back(tool.definition);
+    }
+    return chosen;
+}
+
+auto tool_registry::names() const -> std::vector<std::string> {
+    std::vector<std::string> all;
     all.reserve(tools_.size());
     for (const entry& tool : tools_) {
-        all.push_back(tool.definition);
+        all.push_back(tool.definition.name);
     }
     return all;
 }
 
-auto tool_registry::run(const tool_call& call, const tool_context& context) const -> tool_result {
+auto tool_registry::contains(std::string_view name) const -> bool {
+    return std::ranges::any_of(tools_, [&](const entry& tool) { return tool.definition.name == name; });
+}
+
+auto tool_registry::run(tool_call call, tool_context context) const -> dpp::task<tool_result> {
     const auto found = std::ranges::find_if(tools_, [&](const entry& tool) { return tool.definition.name == call.name; });
     if (found == tools_.end()) {
-        return {.call_id = call.id, .content = std::format("there is no tool called \"{}\"", call.name), .is_error = true};
+        co_return tool_result{.call_id = call.id, .content = std::format("there is no tool called \"{}\"", call.name), .is_error = true};
+    }
+    if (!context.allows(call.name)) {
+        co_return tool_result{.call_id = call.id, .content = std::format("the {} tool is turned off here", call.name), .is_error = true};
     }
 
+    std::string failure;
     try {
-        tool_outcome outcome = found->handler(call.input, context);
-        return {.call_id = call.id, .content = std::move(outcome.content), .is_error = outcome.is_error};
+        tool_outcome outcome = co_await found->handler(call.input, context);
+        co_return tool_result{.call_id = call.id, .content = std::move(outcome.content), .is_error = outcome.is_error};
     } catch (const std::exception& error) {
-        util::log().error("the {} tool threw in guild {}: {}", call.name, context.guild_id, error.what());
-        return {.call_id = call.id, .content = "that tool failed; try something else", .is_error = true};
+        failure = error.what();
     }
+    util::log().error("the {} tool threw in guild {}: {}", call.name, context.guild_id, failure);
+    co_return tool_result{.call_id = call.id, .content = "that tool failed; try something else", .is_error = true};
 }
 
 auto run_tool_loop(provider& model, request call, const tool_registry& tools, const tool_context& context, int tool_rounds,
@@ -75,7 +101,7 @@ auto run_tool_loop(provider& model, request call, const tool_registry& tools, co
         turn results{.from = speaker::user, .text = {}, .calls = {}, .results = {}, .raw = {}};
         for (const tool_call& wanted : reply.reply.calls) {
             outcome.tools_run.push_back(wanted.name);
-            results.results.push_back(tools.run(wanted, context));
+            results.results.push_back(co_await tools.run(wanted, context));
             util::log().trace("llm: tool {} {}", wanted.name, results.results.back().is_error ? "failed" : "ran");
         }
         call.conversation.push_back(std::move(reply.reply));

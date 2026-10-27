@@ -153,19 +153,28 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     const std::vector<context_message> history = co_await recent_messages(ask, wanted, me.id, cast);
     const std::optional<context_message> replied_to = co_await replied_message(ask, history, me.id, cast);
 
-    const auto now = seconds_now(*services_.clock);
-    request call = build_request(ask, settings, *model, history, replied_to ? &*replied_to : nullptr, now, answering_as, cast);
+    // Whom the tools act for, and which they may use here
+    // (src/modules/llm/docs/Language_Model.md §3.4).
+    tool_context context{.guild_id = ask.guild_id,
+                         .channel_id = ask.channel_id,
+                         .author_id = ask.author_id,
+                         .now = seconds_now(*services_.clock),
+                         .cast = &cast,
+                         .message_id = ask.message_id,
+                         .persona_id = ask.persona_id,
+                         .asker_is_bot = ask.author_is_bot,
+                         .allowed = {}};
+    if (services_.allowed_tools) context.allowed = services_.allowed_tools(ask.guild_id, ask.persona_id);
+
+    request call = build_request(ask, settings, *model, history, replied_to ? &*replied_to : nullptr, context, answering_as, cast);
     util::log().trace(
         "llm: asking {} about message {}: {} character(s) of instructions, {} of memories and time, {} of conversation, "
         "{} tool(s), at most {} token(s) back",
         call.model, ask.message_id, call.stable_system.size(), call.varying_system.size(),
         call.conversation.empty() ? 0 : call.conversation.front().text.size(), call.tools.size(), call.max_output_tokens);
 
-    const tool_context context{
-        .guild_id = ask.guild_id, .channel_id = ask.channel_id, .author_id = ask.author_id, .now = now, .cast = &cast};
-    // A persona has no memory, so no tools: one round, and it answers.
     auto outcome = co_await run_tool_loop(
-        *answering, std::move(call), *services_.tools, context, as ? 0 : services_.section->tool_rounds, [&](const usage& used) {
+        *answering, std::move(call), *services_.tools, context, services_.section->tool_rounds, [&](const usage& used) {
             report.used += used;
             report.cost += services_.usage->record(ask.guild_id, *model, used, seconds_now(*services_.clock), ask.persona_id);
         });
@@ -356,16 +365,16 @@ auto responder::shown(const dpp::message& message, const llm::ask_llm& ask, dpp:
 }
 
 auto responder::build_request(const llm::ask_llm& ask, const llm_settings& settings, const model_info& model,
-                              const std::vector<context_message>& history, const context_message* replied_to, std::chrono::sys_seconds now,
+                              const std::vector<context_message>& history, const context_message* replied_to, const tool_context& tools,
                               const persona* as, people& cast) const -> request {
     const context_message latest = latest_of(ask);
+    const std::chrono::sys_seconds now = tools.now;
 
     // Searched with what the model will see, since memories name people by
-    // alias; whom they are about are met before any text is sanitized. A
-    // persona has no memory.
+    // alias; whom they are about are met before any text is sanitized. The
+    // shared ones, and the answerer's own.
     const std::vector<memory> memories =
-        as != nullptr ? std::vector<memory>{}
-                      : relevant_memories(*services_.memories, ask.guild_id, ask.author_id, cast.sanitize(ask.content), memories_shown);
+        relevant_memories(*services_.memories, ask.guild_id, ask.author_id, cast.sanitize(ask.content), memories_shown, ask.persona_id);
     for (const memory& entry : memories) {
         if (entry.subject) cast.meet(*entry.subject);
     }
@@ -385,14 +394,14 @@ auto responder::build_request(const llm::ask_llm& ask, const llm_settings& setti
                               : cast.sanitize(services_.documents->text(ask.guild_id, document_kind::trigger_style), false),
          .speaking_guide = ask.speak && services_.speech != nullptr ? services_.speech->guide_for_model() : std::string{},
          .persona_name = as != nullptr ? as->name : std::string{}});
-    call.varying_system = varying_instructions(memories, now, cast, as == nullptr);
+    call.varying_system = varying_instructions(memories, now, cast, true);
     call.conversation.push_back({.from = speaker::user,
                                  .text = question_for(history, latest, replied_to, ask.how, ask.context_prompt,
                                                       static_cast<std::size_t>(settings.context_tokens), cast),
                                  .calls = {},
                                  .results = {},
                                  .raw = {}});
-    if (as == nullptr) call.tools = services_.tools->definitions();
+    call.tools = services_.tools->definitions(tools);
     call.max_output_tokens = settings.max_output_tokens;
     return call;
 }

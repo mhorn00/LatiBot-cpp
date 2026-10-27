@@ -15,7 +15,7 @@ struct llm_config {
     std::string check_model{"claude-haiku-4-5"};
     double spend_cap_daily_usd = 2.0;
     double spend_cap_monthly_usd = 20.0;
-    int tool_rounds = 4;
+    int tool_rounds = 8;
 };
 
 /// Its keys (docs/modules/Module_Plan_Final.md §8.2).

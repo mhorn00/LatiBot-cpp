@@ -20,13 +20,13 @@ registers, so this table cannot fall behind the code.
 | Panels | `llmset`, `llmsetpick`, `llmsetform`, `llmswitch`, `llmdoc`, `memlist` | ✓ |
 | Message stages | `language model`, at the model position, last: it consumes what it answers | ✓ |
 | Discord events | `llm: who is typing` (typing starts), for conversation mode, which waits for people to finish; needs the typing intent, which is not privileged | ✓ |
-| Timers | none | ✓ |
-| Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases`, `llm_personas`, `llm_persona_posts`, `llm_alias_names` | ✓ |
+| Timers | `the reminder tick`, every 30 seconds: posts the reminders the model set that are due | ✓ |
+| Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases`, `llm_personas`, `llm_persona_posts`, `llm_alias_names`, `llm_reminders` | ✓ |
 | Per-server settings | the llm_ keys in `src/settings.hpp`, each with its default and range | |
 | Config section | `llm.provider`, `llm.model`, `llm.check_model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
 | Environment | ANTHROPIC_API_KEY, OPENAI_API_KEY; a provider exists only with its key, and the log channel masks both | |
-| Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. | |
-| Permissions | Manage Webhooks, for posting as a persona; warned about per server when missing | |
+| Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. Uses nickname_changes, when offered (nicknames): `set_nickname` is recorded in the nickname history; without it the change is made but not recorded. Uses bot_status, which the core offers, for `set_status`. | |
+| Permissions | Manage Webhooks, for posting as a persona; Manage Nicknames, Add Reactions and Manage Messages, for the tools; warned about per server when missing | |
 | Requires | the core | |
 
 ## Files

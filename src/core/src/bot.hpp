@@ -1,5 +1,6 @@
 #pragma once
 
+#include "commands/basic.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
@@ -144,6 +145,9 @@ private:
     /// the rest shuts down reaches the console and nothing else.
     events::log_destination_store log_destinations_;
     events::log_channel log_channel_;
+
+    /// The status, as the language model may set it.
+    commands::status_keeper status_;
 
     // What the modules registered (docs/modules/Module_Plan_Final.md §4.2).
     // The routes and the capabilities point into the modules, which are

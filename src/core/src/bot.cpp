@@ -5,6 +5,7 @@
 #include "commands/channels.hpp"
 #include "commands/logs.hpp"
 #include "commands/preflight.hpp"
+#include "core/capabilities/bot_status.hpp"
 #include "core/db/schema_versions.hpp"
 #include "core/db/schemas.hpp"
 #include "core/discord/message_flags.hpp"
@@ -80,7 +81,8 @@ bot::bot(config::bootstrap settings, const config::secrets& credentials, const m
       bot_allowlist_(database_),
       ignored_channels_(database_),
       log_destinations_(guild_settings_),
-      log_channel_(gateway_, clock_, secrets_of(credentials)) {
+      log_channel_(gateway_, clock_, secrets_of(credentials)),
+      status_(cluster_, guild_settings_) {
     util::log().set_level(settings_.log_level);
 
     util::log().info("LatiBot {} starting", version_string());
@@ -447,6 +449,8 @@ auto bot::permission(std::uint64_t bits, std::string purpose) -> void {
 }
 
 auto bot::start_modules(const modules::module_factory& make_modules) -> void {
+    // The core's own, before any module's.
+    capabilities_.offer<capabilities::bot_status>(status_, "core");
     modules_ = modules::start_modules(make_modules, *this, capabilities_);
     // Before connecting, which is when DPP reads them.
     cluster_.intents |= module_intents_;
