@@ -12,12 +12,12 @@
 
 namespace latibot::events {
 
-auto pipeline::add(int position, std::string name, stage_fn handler) -> void {
+auto pipeline::add(int position, std::string name, stage_fn handler, hears heard) -> void {
     const auto later = std::ranges::find_if(stages_, [position](const stage& entry) { return entry.position >= position; });
     if (later != stages_.end() && later->position == position) {
         throw std::logic_error(std::format(R"(message stages "{}" and "{}" both claim position {})", later->name, name, position));
     }
-    stages_.insert(later, {.position = position, .name = std::move(name), .handler = std::move(handler)});
+    stages_.insert(later, {.position = position, .name = std::move(name), .handler = std::move(handler), .heard = heard});
 }
 
 auto pipeline::run(const incoming_message& message) const -> std::vector<action> {
@@ -25,16 +25,27 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
 
     // Answering ourselves is a loop with no exit. Answering another bot is
     // one too, unless this guild has said it wants that
-    // (src/core/docs/Message_Pipeline.md §2.1).
-    if (message.from_self) {
-        util::log().trace("message {} is the bot's own; no stage sees it", message.message_id);
+    // (src/core/docs/Message_Pipeline.md §2.1). Our own messages and
+    // webhooks' still reach a stage that hears them, which keeps its own
+    // loops in check: the language model's personas answer each other.
+    const bool heard_by_all = !message.from_self && (!message.from_bot || message.author_is_allowed_bot);
+    const bool own_or_webhook = message.from_self || !message.webhook_id.empty();
+    const bool heard_by_some =
+        own_or_webhook && std::ranges::any_of(stages_, [](const stage& entry) { return entry.heard == hears::own_too; });
+    if (!heard_by_all && !heard_by_some) {
+        if (message.from_self) {
+            util::log().trace("message {} is the bot's own; no stage sees it", message.message_id);
+        } else {
+            // Debug rather than trace: "why did the bot ignore the other bot"
+            // is a question worth being able to answer without raising the
+            // level twice.
+            util::log().debug("ignoring a message from bot {}, which guild {} has not allowed", message.author_id, message.guild_id);
+        }
         return actions;
     }
-    if (message.from_bot && !message.author_is_allowed_bot) {
-        // Debug rather than trace: "why did the bot ignore the other bot" is a
-        // question worth being able to answer without raising the level twice.
-        util::log().debug("ignoring a message from bot {}, which guild {} has not allowed", message.author_id, message.guild_id);
-        return actions;
+    if (!heard_by_all) {
+        util::log().trace("message {} is {}; only the stages that hear their own see it", message.message_id,
+                          message.from_self ? "the bot's own" : "a webhook's");
     }
 
     util::log().trace("message {} from {}{} in channel {}: \"{}\"", message.message_id, message.from_bot ? "bot " : "", message.author_id,
@@ -45,6 +56,8 @@ auto pipeline::run(const incoming_message& message) const -> std::vector<action>
     std::string_view consumed_by;
 
     for (const stage& entry : stages_) {
+        if (!heard_by_all && entry.heard == hears::others) continue;
+
         stage_result result;
         try {
             result = entry.handler(current);

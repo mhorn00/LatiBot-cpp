@@ -143,6 +143,42 @@ TEST_CASE("an allowed bot reaches the stages", "[events]") {
     CHECK(ran == std::vector<std::string>{"only"});
 }
 
+TEST_CASE("the bot's own messages and webhooks' reach only the stages that hear their own", "[events]") {
+    // The language model tells its personas' posts apart, and answers some
+    // of them; nothing else hears them (src/core/docs/Message_Pipeline.md §2.1).
+    std::vector<std::string> ran;
+    pipeline stages;
+    stages.add(1, "others", recorder(ran, "others", false, true));
+    stages.add(2, "own too", recorder(ran, "own too", false, true), latibot::events::hears::own_too);
+
+    SECTION("our own message") {
+        auto message = from_human();
+        message.from_self = true;
+        message.from_bot = true;
+        CHECK(sent(stages.run(message)) == std::vector<std::string>{"own too"});
+        CHECK(ran == std::vector<std::string>{"own too"});
+    }
+
+    SECTION("a webhook's") {
+        auto message = from_human();
+        message.from_bot = true;
+        message.webhook_id = dpp::snowflake{9};
+        CHECK(sent(stages.run(message)) == std::vector<std::string>{"own too"});
+        CHECK(ran == std::vector<std::string>{"own too"});
+    }
+
+    SECTION("a bot nobody allowed, which is no webhook") {
+        auto message = from_human();
+        message.from_bot = true;
+        CHECK(stages.run(message).empty());
+        CHECK(ran.empty());
+    }
+
+    SECTION("a person's, which every stage hears") {
+        CHECK(sent(stages.run(from_human())) == std::vector<std::string>{"others", "own too"});
+    }
+}
+
 TEST_CASE("a stage that throws is logged and the rest still run", "[events]") {
     // A stage escaping into DPP's event thread would take the process down,
     // and one broken feature should not silence every other.

@@ -49,6 +49,9 @@ constexpr dpp::snowflake bot_id{42};
 constexpr dpp::snowflake alice{11};
 constexpr dpp::snowflake other_bot{99};
 
+/// The webhook the personas post through.
+constexpr dpp::snowflake persona_hook{8500};
+
 /// Noon on 2026-03-15, UTC.
 constexpr std::chrono::sys_seconds noon{std::chrono::sys_days{std::chrono::year{2026} / 3 / 15} + 12h};
 
@@ -91,7 +94,8 @@ struct fixture {
          .activity = nullptr,
          .has_provider =
              [this](latibot::llm::provider_kind kind) { return kind == latibot::llm::provider_kind::openai ? openai_key : anthropic_key; },
-         .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; }},
+         .me = [] { return latibot::llm::bot_identity{.id = bot_id, .name = "LatiBot"}; },
+         .persona_webhook = [](dpp::snowflake id) { return id == persona_hook; }},
         clock,
         [this] { return roll; }};
 
@@ -147,6 +151,42 @@ auto from_alice(std::string content) -> incoming_message {
     message.author_name = "Alice";
     message.content = std::move(content);
     return message;
+}
+
+/// LatiBot's own message, which the pipeline gives the stage as it gives it
+/// any other.
+auto from_latibot(std::string content) -> incoming_message {
+    incoming_message message = from_alice(std::move(content));
+    message.author_id = bot_id;
+    message.author_name = "LatiBot";
+    message.from_self = true;
+    message.from_bot = true;
+    return message;
+}
+
+/// A persona's message, as it arrives from the webhook: under its name.
+auto from_persona(std::string name, std::string content, dpp::snowflake hook = persona_hook) -> incoming_message {
+    incoming_message message = from_alice(std::move(content));
+    message.author_id = hook;
+    message.author_name = std::move(name);
+    message.from_bot = true;
+    message.webhook_id = hook;
+    return message;
+}
+
+/// A trigger on "pizza" that `persona_id` answers, 0 for LatiBot.
+auto pizza_trigger(std::int64_t persona_id, bool respond_to_bots) -> latibot::llm::advanced_trigger {
+    return {.id = 0,
+            .guild_id = guild,
+            .pattern = "pizza",
+            .mode = latibot::util::match_mode::whole_word,
+            .context_prompt = "Have an opinion about pizza.",
+            .probability = 1.0,
+            .cooldown = 0s,
+            .enabled = true,
+            .created_by = alice,
+            .persona_id = persona_id,
+            .respond_to_bots = respond_to_bots};
 }
 
 auto asked(const latibot::llm::stage_result& result) -> const ask_llm* {
@@ -383,6 +423,98 @@ TEST_CASE("a persona's trigger is answered by the persona, and only while it is 
     CHECK(asked(test.stage(from_alice("i read about anthropic today"))) == nullptr);
 }
 
+TEST_CASE("LatiBot and the personas set off each other's triggers that answer bots, never their own", "[llm][persona]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    const persona gemini = test.make("Gemini");
+
+    SECTION("LatiBot's message, for a persona's trigger") {
+        test.triggers.add(pizza_trigger(0, true));
+        test.triggers.add(pizza_trigger(claude.id, true));
+        const auto result = test.stage(from_latibot("pizza is a vegetable"));
+        REQUIRE(asked(result) != nullptr);
+        CHECK(asked(result)->how == approach::trigger);
+        CHECK(asked(result)->persona_id == claude.id);
+        CHECK(asked(result)->author_is_bot);
+        CHECK(asked(result)->speaker == "LatiBot");
+    }
+
+    SECTION("a persona's message, for LatiBot's trigger") {
+        test.triggers.add(pizza_trigger(claude.id, true));
+        test.triggers.add(pizza_trigger(0, true));
+        const auto result = test.stage(from_persona("Claude", "pizza is a vegetable"));
+        REQUIRE(asked(result) != nullptr);
+        CHECK(asked(result)->persona_id == 0);
+        CHECK(asked(result)->speaker == "Claude");
+    }
+
+    SECTION("a persona's message, for another persona's trigger, whatever case its name is shown in") {
+        test.triggers.add(pizza_trigger(claude.id, true));
+        test.triggers.add(pizza_trigger(gemini.id, true));
+        const auto result = test.stage(from_persona("claude", "pizza is a vegetable"));
+        REQUIRE(asked(result) != nullptr);
+        CHECK(asked(result)->persona_id == gemini.id);
+    }
+
+    SECTION("nobody answers themselves") {
+        const std::int64_t latibots = test.triggers.add(pizza_trigger(0, true));
+        test.triggers.add(pizza_trigger(claude.id, true));
+        CHECK(asked(test.stage(from_latibot("pizza, again"))) != nullptr);
+        CHECK(asked(test.stage(from_latibot("pizza, again")))->persona_id == claude.id);
+        CHECK(asked(test.stage(from_persona("Claude", "pizza, again")))->persona_id == 0);
+
+        test.triggers.remove(latibots, guild);
+        CHECK(asked(test.stage(from_persona("Claude", "pizza, again"))) == nullptr);
+    }
+
+    SECTION("a trigger that does not answer bots answers only people") {
+        test.triggers.add(pizza_trigger(0, false));
+        test.triggers.add(pizza_trigger(claude.id, false));
+        CHECK(asked(test.stage(from_latibot("pizza"))) == nullptr);
+        CHECK(asked(test.stage(from_persona("Gemini", "pizza"))) == nullptr);
+        CHECK(asked(test.stage(from_alice("pizza"))) != nullptr);
+    }
+}
+
+TEST_CASE("an allowed bot sets off a trigger only when it answers bots", "[llm][persona]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    incoming_message message = from_alice("pizza");
+    message.author_id = other_bot;
+    message.from_bot = true;
+    message.author_is_allowed_bot = true;
+
+    const std::int64_t quiet = test.triggers.add(pizza_trigger(claude.id, false));
+    CHECK(asked(test.stage(message)) == nullptr);
+
+    auto answers_bots = pizza_trigger(claude.id, true);
+    answers_bots.id = quiet;
+    REQUIRE(test.triggers.update(answers_bots));
+    const auto result = test.stage(message);
+    REQUIRE(asked(result) != nullptr);
+    CHECK(asked(result)->persona_id == claude.id);
+    CHECK(asked(result)->speaker.empty());
+}
+
+TEST_CASE("only LatiBot's own webhook speaks for a persona, and what it says addresses nobody", "[llm][persona]") {
+    fixture test;
+    test.make("Claude");
+    test.triggers.add(pizza_trigger(0, true));
+
+    // Someone else's webhook is a bot nobody allowed, and a name no persona
+    // has could be anyone's.
+    CHECK(asked(test.stage(from_persona("Claude", "pizza", dpp::snowflake{8501}))) == nullptr);
+    CHECK(asked(test.stage(from_persona("Mallory", "pizza"))) == nullptr);
+
+    // Only a trigger answers LatiBot or a persona: naming or mentioning
+    // LatiBot, or starting with a persona's name, does not.
+    CHECK(asked(test.stage(from_persona("Claude", "latibot, what do you think?"))) == nullptr);
+    incoming_message mention = from_persona("Claude", "what do you think?");
+    mention.mentions_bot = true;
+    CHECK(asked(test.stage(mention)) == nullptr);
+    CHECK(asked(test.stage(from_latibot("claude, what do you think?"))) == nullptr);
+}
+
 TEST_CASE("a persona on a model with no key is not answered", "[llm][persona]") {
     fixture test;
     test.make("Zed", "gpt-6-luna");
@@ -462,6 +594,32 @@ TEST_CASE("a persona reads itself as you, and LatiBot as a bot; LatiBot reads th
     CHECK(as_latibot.contains("LatiBot (you): And I'm LatiBot."));
 }
 
+TEST_CASE("the message a trigger answers shows LatiBot or a persona by name", "[llm][persona][coro]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+
+    ask_llm ask = ask_as(claude.id, "pizza is a vegetable");
+    ask.author_id = bot_id;
+    ask.author_name = "LatiBot";
+    ask.author_is_bot = true;
+    ask.how = approach::trigger;
+    ask.context_prompt = "Have an opinion about pizza.";
+    ask.speaker = "LatiBot";
+    test.model.answer("It is not.");
+    test.answer(ask);
+    CHECK(test.model.requests.back().conversation.at(0).text.contains("LatiBot (a bot): pizza is a vegetable"));
+
+    ask = ask_as(0, "pizza is a vegetable");
+    ask.author_id = persona_hook;
+    ask.author_name = "Claude";
+    ask.author_is_bot = true;
+    ask.how = approach::trigger;
+    ask.speaker = "Claude";
+    test.model.answer("It is not.");
+    test.answer(ask);
+    CHECK(test.model.requests.back().conversation.at(0).text.contains("Claude (a bot): pizza is a vegetable"));
+}
+
 TEST_CASE("the persona webhook is found, kept, and made again when it is gone", "[llm][persona][coro]") {
     fixture test;
     const persona claude = test.make("Claude");
@@ -482,6 +640,10 @@ TEST_CASE("the persona webhook is found, kept, and made again when it is gone", 
         REQUIRE(test.discord.webhook_posts.size() == 2);
         CHECK(test.discord.webhook_posts[0].hook.id == dpp::snowflake{8001});
         CHECK(test.discord.webhook_posts[1].hook.id == dpp::snowflake{8001});
+
+        // Its messages are the personas'; the other webhook's are not.
+        CHECK(test.webhooks.owns(dpp::snowflake{8001}));
+        CHECK_FALSE(test.webhooks.owns(dpp::snowflake{8000}));
     }
 
     SECTION("one deleted since is made again, once") {

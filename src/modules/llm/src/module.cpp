@@ -55,7 +55,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 2> llm_steps{{
+constexpr std::array<db::migration, 3> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -195,6 +195,12 @@ constexpr std::array<db::migration, 2> llm_steps{{
         -- Which persona a call was made for; NULL is LatiBot.
         ALTER TABLE llm_usage ADD COLUMN persona_id INTEGER;
      )sql"},
+    {.version = 3, .name = "advanced triggers that answer bots", .sql = R"sql(
+        -- Whether a bot's message sets the trigger off too: an allowed bot,
+        -- LatiBot itself, or a persona, though never whoever answers it
+        -- (src/modules/llm/docs/Language_Model.md 2.6). Off, as before.
+        ALTER TABLE llm_triggers ADD COLUMN respond_to_bots INTEGER NOT NULL DEFAULT 0;
+     )sql"},
 }};
 
 constexpr std::string_view module_name = "llm";
@@ -284,7 +290,8 @@ public:
                                                        .windows = &windows_,
                                                        .activity = &activity_,
                                                        .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; },
-                                                       .me = me},
+                                                       .me = me,
+                                                       .persona_webhook = [this](dpp::snowflake id) { return webhooks_->owns(id); }},
                                         bot.clock());
 
         bot.slash_commands().add(std::make_unique<commands::llm_command>(services()));
@@ -306,11 +313,14 @@ public:
 
         // Last: it consumes what it answers, and a simple trigger's reply
         // before it keeps an advanced trigger quiet
-        // (src/core/docs/Message_Pipeline.md §2.2).
+        // (src/core/docs/Message_Pipeline.md §2.2). It hears LatiBot's own
+        // messages and its personas', which can set off each other's
+        // advanced triggers (src/modules/llm/docs/Language_Model.md §2.11).
         bot.add_stage(
             events::stage_order::model, "language model",
             events::carried_out_by<ask_llm>([this](const events::incoming_message& message) { return (*stage_)(message); },
-                                            "answering with the language model", [this](ask_llm ask) { return answer(std::move(ask)); }));
+                                            "answering with the language model", [this](ask_llm ask) { return answer(std::move(ask)); }),
+            events::hears::own_too);
     }
 
 private:

@@ -36,6 +36,10 @@ struct incoming_message {
     /// `from_bot`; resolved by the shell from `bot_allowlist`.
     bool author_is_allowed_bot = false;
 
+    /// The webhook that posted it, 0 for anything else. A webhook's message
+    /// is also `from_bot`, and its author id is the webhook's.
+    dpp::snowflake webhook_id;
+
     /// Whether the author has Administrator in this guild. Resolved by the
     /// shell, since it depends on roles and overwrites.
     bool author_is_administrator = false;
@@ -175,6 +179,18 @@ template <typename Own, typename Stage, typename CarryOut>
     };
 }
 
+/// Whose messages a stage is given (src/core/docs/Message_Pipeline.md §2.1).
+enum class hears : std::uint8_t {
+    /// People's, and those of the bots this guild allows.
+    others,
+
+    /// Those, and also the bot's own messages and every webhook's, which no
+    /// other stage sees: for a stage that can tell its own posts apart and
+    /// answers some of them, as the language model's personas answer each
+    /// other. Such a stage decides for itself what to leave alone.
+    own_too,
+};
+
 /// The ordered stages a message passes through.
 ///
 /// Each stage runs at a position, lowest first, rather than in the order it
@@ -188,12 +204,14 @@ public:
     /// logging and for reading the order back in a test. Throws
     /// std::logic_error when another stage holds the position: which of two
     /// would run first is exactly what the positions exist to say.
-    auto add(int position, std::string name, stage_fn handler) -> void;
+    auto add(int position, std::string name, stage_fn handler, hears heard = hears::others) -> void;
 
     /// Everything the stages asked for, in order.
     ///
-    /// Our own messages produce nothing, and so do other bots' unless this
-    /// guild allows that one (src/core/docs/Message_Pipeline.md §2.1).
+    /// Our own messages, and other bots' unless this guild allows that one,
+    /// reach only the stages that hear `own_too`, and only when they are our
+    /// own or a webhook's; anything else from a bot produces nothing
+    /// (src/core/docs/Message_Pipeline.md §2.1).
     /// Reaching the stages is only permission to be considered: a stage still
     /// decides for itself whether it answers a bot.
     [[nodiscard]] auto run(const incoming_message& message) const -> std::vector<action>;
@@ -206,6 +224,7 @@ private:
         int position = 0;
         std::string name;
         stage_fn handler;
+        hears heard = hears::others;
     };
 
     std::vector<stage> stages_;

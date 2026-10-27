@@ -72,7 +72,7 @@ auto latest_of(const llm::ask_llm& ask) -> context_message {
             .from_me = false,
             .from_bot = ask.author_is_bot,
             .content = ask.content,
-            .speaker = {}};
+            .speaker = ask.speaker};
 }
 
 auto joined(const std::vector<std::string>& names) -> std::string {
@@ -145,7 +145,7 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
     // (src/modules/llm/docs/Language_Model.md §3.8). Met as they are read, so that
     // every name is known before any text is sanitized.
     people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
-    cast.meet(ask.author_id, ask.author_name);
+    if (ask.speaker.empty()) cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
 
     const int wanted = ask.how == approach::trigger ? settings.trigger_context : settings.context_messages;
@@ -239,7 +239,7 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
     // (src/modules/llm/docs/Language_Model.md §3.8).
     const bot_identity me = me_();
     people cast(*services_.aliases, *services_.discord, ask.guild_id, me.id, std::string(model_name));
-    cast.meet(ask.author_id, ask.author_name);
+    if (ask.speaker.empty()) cast.meet(ask.author_id, ask.author_name);
     cast.meet_mentioned(ask.content);
     const std::vector<context_message> history = co_await recent_messages(ask, check_context_messages, me.id, cast);
     const std::optional<context_message> replied_to = co_await replied_message(ask, history, me.id, cast);

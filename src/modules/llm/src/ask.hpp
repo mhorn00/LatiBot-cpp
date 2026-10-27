@@ -66,6 +66,10 @@ struct ask_llm {
     /// The persona that answers, posting as itself; 0 for LatiBot
     /// (src/modules/llm/docs/Language_Model.md §2.11).
     std::int64_t persona_id = 0;
+
+    /// Who wrote the message by name, when it was LatiBot or a persona, who
+    /// are shown by name rather than an alias; empty for anyone else.
+    std::string speaker;
 };
 
 /// The approach as the log names it: "addressed", "named", "joined in",

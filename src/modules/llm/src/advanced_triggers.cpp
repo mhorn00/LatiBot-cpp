@@ -14,7 +14,7 @@ namespace latibot::llm {
 namespace {
 
 constexpr std::string_view columns =
-    "id, guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by, persona_id";
+    "id, guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by, persona_id, respond_to_bots";
 
 auto read_trigger(db::statement& row) -> advanced_trigger {
     return {.id = row.get<std::int64_t>(0),
@@ -26,7 +26,8 @@ auto read_trigger(db::statement& row) -> advanced_trigger {
             .cooldown = std::chrono::seconds{row.get<std::int64_t>(6)},
             .enabled = row.get<bool>(7),
             .created_by = row.get<dpp::snowflake>(8),
-            .persona_id = row.get<std::optional<std::int64_t>>(9).value_or(0)};
+            .persona_id = row.get<std::optional<std::int64_t>>(9).value_or(0),
+            .respond_to_bots = row.get<bool>(10)};
 }
 
 /// LatiBot's own are stored without a persona.
@@ -61,9 +62,9 @@ auto advanced_trigger_store::add(const advanced_trigger& entry) -> std::int64_t 
     const auto guard = db_->lock();
     db_->prepare(
            "INSERT INTO llm_triggers (guild_id, pattern, match_mode, context_prompt, probability, cooldown_s, enabled, created_by, "
-           "persona_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+           "persona_id, respond_to_bots) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
            entry.guild_id, entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(),
-           entry.enabled, entry.created_by, persona_or_null(entry))
+           entry.enabled, entry.created_by, persona_or_null(entry), entry.respond_to_bots)
         .run();
     return db_->last_insert_rowid();
 }
@@ -72,9 +73,9 @@ auto advanced_trigger_store::update(const advanced_trigger& entry) -> bool {
     const auto guard = db_->lock();
     db_->prepare(
            "UPDATE llm_triggers SET pattern = ?, match_mode = ?, context_prompt = ?, probability = ?, cooldown_s = ?, enabled = ?, "
-           "persona_id = ? WHERE id = ? AND guild_id = ?",
+           "persona_id = ?, respond_to_bots = ? WHERE id = ? AND guild_id = ?",
            entry.pattern, util::to_string(entry.mode), entry.context_prompt, entry.probability, entry.cooldown.count(), entry.enabled,
-           persona_or_null(entry), entry.id, entry.guild_id)
+           persona_or_null(entry), entry.respond_to_bots, entry.id, entry.guild_id)
         .run();
     return db_->changes() > 0;
 }

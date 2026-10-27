@@ -1270,7 +1270,7 @@ the prompt stays short.
 
 | Subcommand | Options |
 |---|---|
-| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` · `persona` (a [persona](#personas) to answer it, rather than LatiBot) |
+| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` · `persona` (a [persona](#personas) to answer it, rather than LatiBot) · `bots` (also answer bots, LatiBot and personas; off by default) |
 | `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays. `persona:LatiBot` gives it back to LatiBot |
 | `remove` | `id` |
 | `list` | none |
@@ -1280,8 +1280,13 @@ the prompt stays short.
 - **The cooldown is per trigger, per channel**, as with simple triggers.
 - **A simple trigger wins.** When a message sets off a simple trigger, no
   advanced trigger answers it, and no model call is made.
-- **Other bots never set one off.** A bot has to address the bot to be
-  answered at all.
+- **Bots set one off only with `bots:true`.** That covers the bots the server
+  [allows](#bots), LatiBot itself and the [personas](#personas), so LatiBot
+  and the personas can answer each other. Nobody answers themselves: a
+  trigger LatiBot answers is never set off by LatiBot, nor a persona's by that
+  persona. Replies to bots are paced (see *Other bots* under
+  [talking to the bot](#talking-to-the-bot)), which ends the exchange
+  until a person speaks.
 - Its reply is posted silently, as a simple trigger's is, and reads the last
   five messages rather than fifteen (the setting above).
 
@@ -1317,8 +1322,9 @@ The `persona` option completes from this server's personas.
   and personality, and not by the server's, which are LatiBot's.
 - **Its own model**, or the server's. It counts against the same spending
   limits.
-- **No memory**, no conversation mode, and it is never spoken. It never
-  answers another bot, another persona, or LatiBot.
+- **No memory**, no conversation mode, and it is never spoken. It answers
+  another bot, another persona, or LatiBot only through one of its advanced
+  triggers with `bots:true`, never by being named or replied to.
 - **It is not a reply.** A webhook cannot send one, so the answer is posted
   after the question and notifies nobody.
 - **The bot needs Manage Webhooks** in the channel. The first answer in a
@@ -1433,7 +1439,10 @@ then decides separately whether it answers, with `bots:true`. Hearing and
 answering are deliberately two decisions: a server-wide "I'll listen to DiceBot"
 should not turn every existing trigger loose on it.
 
-The bot never answers itself, and no setting changes that.
+The bot never answers itself, and no setting changes that. The one exception
+is between LatiBot and its [personas](#personas), through
+[advanced triggers](#advanced-triggers) with `bots:true`; even then nobody
+answers their own message.
 
 ### URL replacement
 
@@ -1775,7 +1784,9 @@ If the model itself fails, someone who addressed the bot is told
 busy. An advanced trigger's failure is silent.
 
 **Other bots.** The model answers a bot only if the server
-[allows that bot](#bots), and only when the bot addresses it. Because two
+[allows that bot](#bots), and only when the bot addresses it or sets off an
+[advanced trigger](#advanced-triggers) with `bots:true`; LatiBot's own
+messages and its personas' can set off only such a trigger. Because two
 models can talk to each other forever, it paces itself: at most six replies to
 bots in a row in a channel before waiting for a person to say something, at
 least five seconds between them, and fifty a day per server. Any person

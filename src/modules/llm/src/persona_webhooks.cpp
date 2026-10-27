@@ -60,6 +60,11 @@ auto persona_webhooks::hook_for(dpp::snowflake channel) -> dpp::task<ports::resu
     co_return made.value();
 }
 
+auto persona_webhooks::owns(dpp::snowflake webhook_id) -> bool {
+    const std::scoped_lock lock(mutex_);
+    return std::ranges::any_of(hooks_, [&](const auto& entry) { return entry.second.id == webhook_id; });
+}
+
 auto persona_webhooks::cached(dpp::snowflake channel) -> std::optional<ports::webhook> {
     const std::scoped_lock lock(mutex_);
     const auto found = hooks_.find(channel);

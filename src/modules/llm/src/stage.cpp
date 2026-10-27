@@ -83,7 +83,7 @@ auto llm_stage::over_spend_cap(const events::incoming_message& message, bool add
     return true;
 }
 
-auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate,
+auto llm_stage::admit(const events::incoming_message& message, const llm_settings& settings, bool addressed, bool take_rate, bool by_bot,
                       stage_result& result) -> std::optional<std::chrono::seconds> {
     if (services_.blacklist->blocks(message.guild_id, message.author_id, message.author_roles)) {
         util::log().debug("not answering {} in guild {}: blacklisted", message.author_id, message.guild_id);
@@ -94,7 +94,7 @@ auto llm_stage::admit(const events::incoming_message& message, const llm_setting
 
     if (take_rate && !take_rate_limits(message.guild_id, message.channel_id, message.author_id, settings)) return std::nullopt;
 
-    if (!message.from_bot) return std::chrono::seconds{0};
+    if (!by_bot) return std::chrono::seconds{0};
     const pacing_decision paced = pacing_.claim(message.guild_id, message.channel_id, settings.pacing);
     if (!paced.allowed) {
         util::log().debug("not answering bot {} in channel {}: {}", message.author_id, message.channel_id, paced.reason);
@@ -182,34 +182,76 @@ auto llm_stage::spoken_to(const events::incoming_message& message, std::span<con
 }
 
 auto llm_stage::unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
-                            std::span<const persona> personas, std::optional<advanced_trigger>& fired) -> std::optional<route> {
-    // A bot has to address LatiBot to be answered: two bots trading
-    // unprompted remarks is the loop pacing is there to stop. And a message
-    // a simple trigger answered is not answered twice.
-    if (message.from_bot || message.answered) {
-        util::log().trace("llm: message {} left alone: {}", message.message_id,
-                          message.from_bot ? "a bot has to address it" : "a simple trigger answered it");
+                            std::span<const persona> personas, bool by_bot, std::optional<std::int64_t> writer,
+                            std::optional<advanced_trigger>& fired) -> std::optional<route> {
+    // A message a simple trigger answered is not answered twice.
+    if (message.answered) {
+        util::log().trace("llm: message {} left alone: a simple trigger answered it", message.message_id);
         return std::nullopt;
     }
     std::vector<advanced_trigger> triggers = services_.triggers->for_guild(message.guild_id);
     std::erase_if(triggers, [&](const advanced_trigger& entry) {
         return entry.persona_id != 0 && std::ranges::find(personas, entry.persona_id, &persona::id) == personas.end();
     });
+
+    // A bot sets off only the triggers that say they answer bots, and never
+    // one its own writer answers: no persona answers itself, and LatiBot
+    // does not answer LatiBot (src/modules/llm/docs/Language_Model.md §2.6).
+    if (by_bot) {
+        std::erase_if(triggers, [&](const advanced_trigger& entry) { return !entry.respond_to_bots || entry.persona_id == writer; });
+    }
     fired = matcher_.fire(triggers, message.channel_id, message.content);
     if (fired) {
         util::log().trace("llm: message {} fired advanced trigger {}", message.message_id, fired->id);
         return route{.how = approach::trigger, .check_first = false};
     }
+
+    // Otherwise a bot has to address LatiBot to be answered: two bots
+    // trading unprompted remarks is the loop pacing is there to stop.
+    if (by_bot) {
+        util::log().trace("llm: message {} left alone: a bot set off no trigger, and has to address it otherwise", message.message_id);
+        return std::nullopt;
+    }
     return join_in(message, settings, bot_name);
+}
+
+auto llm_stage::own_writer_of(const events::incoming_message& message) const -> std::optional<own_writer> {
+    if (message.from_self) return own_writer{.persona_id = 0, .name = std::string(model_name)};
+
+    // A persona posts through the bot's own webhook, under its own name,
+    // which is unique in its server.
+    if (message.webhook_id.empty() || !services_.persona_webhook || !services_.persona_webhook(message.webhook_id) ||
+        services_.personas == nullptr) {
+        util::log().trace("llm: message {} is from a bot nobody allowed, and not one of LatiBot's personas", message.message_id);
+        return std::nullopt;
+    }
+    for (const persona& each : services_.personas->for_guild(message.guild_id)) {
+        if (util::equals_ignoring_case(each.name, message.author_name)) return own_writer{.persona_id = each.id, .name = each.name};
+    }
+    util::log().trace(R"(llm: message {} is from the persona webhook, but no persona here is called "{}")", message.message_id,
+                      message.author_name);
+    return std::nullopt;
 }
 
 auto llm_stage::operator()(const events::incoming_message& message) -> stage_result {
     stage_result result;
 
-    // Every person speaking resets the bot-to-bot count, whether or not the
-    // model answers them (src/modules/llm/docs/Language_Model.md §2.7).
-    if (!message.from_bot) pacing_.human_spoke(message.channel_id);
-    if (services_.activity != nullptr) services_.activity->posted(message.channel_id, message.author_id, message.message_id);
+    // LatiBot's own messages, and webhooks', reach this stage too, so that
+    // LatiBot and its personas can set off each other's advanced triggers
+    // (src/modules/llm/docs/Language_Model.md §2.11). Any other is a bot
+    // nobody allowed, and is left alone.
+    std::optional<own_writer> ours;
+    if (message.from_self || (message.from_bot && !message.author_is_allowed_bot)) {
+        ours = own_writer_of(message);
+        if (!ours) return result;
+        util::log().trace("llm: message {} is {}'s own", message.message_id, ours->name);
+    } else {
+        // Every person speaking resets the bot-to-bot count, whether or not
+        // the model answers them (src/modules/llm/docs/Language_Model.md §2.7).
+        if (!message.from_bot) pacing_.human_spoke(message.channel_id);
+        if (services_.activity != nullptr) services_.activity->posted(message.channel_id, message.author_id, message.message_id);
+    }
+    const bool by_bot = message.from_bot || ours.has_value();
     if (message.guild_id.empty()) {
         util::log().trace("llm: message {} is not in a server", message.message_id);
         return result;
@@ -226,8 +268,10 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const bool reply_counts =
         !message.replies_to_bot || services_.replacements == nullptr || !services_.replacements->is_replacement(message.reply_to);
 
+    // What LatiBot or a persona says addresses nobody: it can only set off a
+    // trigger.
     const bot_identity me = services_.me();
-    const bool addressed = addresses_bot(message, me.name, reply_counts);
+    const bool addressed = !ours && addresses_bot(message, me.name, reply_counts);
     util::log().trace(R"(llm: message {} {} (mentions the bot: {}, replies to the bot: {}{}, starts with "{}" or "{}": {}))",
                       message.message_id, addressed ? "addresses the bot" : "does not address the bot", message.mentions_bot,
                       message.replies_to_bot, reply_counts ? "" : ", but to a link replacement", model_name, me.name,
@@ -244,7 +288,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     const persona* answering = nullptr;
     if (!addressed) answering = spoken_to(message, personas);
     if (!addressed && answering == nullptr) {
-        const std::optional<route> unprompted = unaddressed(message, settings, me.name, personas, fired);
+        const std::optional<route> unprompted =
+            unaddressed(message, settings, me.name, personas, by_bot, ours ? std::optional(ours->persona_id) : std::nullopt, fired);
         if (!unprompted) return result;
         chosen = *unprompted;
         if (fired && fired->persona_id != 0) {
@@ -266,7 +311,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
 
     // What waits on a check takes its place in the rate limits only once the
     // check agrees, so a "no" leaves room for the next message.
-    const auto wait = admit(message, settings, addressed || to_persona, !chosen.check_first, result);
+    const auto wait = admit(message, settings, addressed || to_persona, !chosen.check_first, by_bot, result);
     if (!wait) return result;
 
     util::log().debug("llm: handing message {} in channel {} to the model ({}{}{})", message.message_id, message.channel_id,
@@ -281,7 +326,7 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
         .author_id = message.author_id,
         .author_name = message.author_name,
         .content = message.content,
-        .author_is_bot = message.from_bot,
+        .author_is_bot = by_bot,
         .reply_to = message.reply_to,
         .how = chosen.how,
         .check_first = chosen.check_first,
@@ -289,7 +334,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
         .context_prompt = fired ? fired->context_prompt : std::string{},
         .speak = answering == nullptr && services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
         .wait = *wait,
-        .persona_id = answering == nullptr ? 0 : answering->id});
+        .persona_id = answering == nullptr ? 0 : answering->id,
+        .speaker = ours ? ours->name : std::string{}});
     return result;
 }
 
