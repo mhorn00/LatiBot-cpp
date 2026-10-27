@@ -130,8 +130,9 @@ one replaces the old.
 | `bots` | every bot's message, LatiBot's own, its personas' and allowed bots' included | a log channel's lines set off nothing; people are heard as anywhere else |
 
 - **The log channel** ([Log_Channel.md](Log_Channel.md)) is always treated as
-  `bots`, with or without a rule: its lines are LatiBot's own messages, full
-  of the words triggers look for. `/channels list` shows it as such, and
+  both `bots` and `llm`, with or without a rule: its lines are LatiBot's own
+  messages, full of the words triggers look for, and of names and ids the
+  language model must never read. `/channels list` shows it as such, and
   `hear` on it says so. Another bot's log channel needs `ignore what:bots`.
 - **A thread** follows its parent channel's rule, and its own as well when it
   has one. A forum's posts follow the forum.
@@ -193,8 +194,9 @@ not a stage: it never answers, and it looks at uploads rather than text.
 
 **The channel rules** are `ignored_channels(guild_id, channel_id, what)`, also
 read per message by `describe`, for the channel and a thread's parent, and
-turned into `incoming_message::channel_ignores`. `describe` adds `bots` for
-the log channel. `pipeline::run` drops a message for `everything`, and a
+turned into `incoming_message::channel_ignores`. `describe` adds `bots` and `model` for
+the log channel, and marks a slash command's response as `command_output`,
+from its interaction metadata or its message type. `pipeline::run` drops a message for `everything`, and a
 bot's, ours or a webhook's for `bots`, before any stage; `llm` is the
 language model stage's to read.
 
@@ -212,7 +214,8 @@ language model stage's to read.
 | 2026-09-23 | `/bots allow` refuses people and LatiBot itself | Storing a person looks like it worked while doing nothing |
 | 2026-09-28 | Stages can mark a message answered, and later stages see it | The simple trigger wins over an advanced one, without either knowing about the other |
 | 2026-09-28 | The replied-to author is read from the raw frame, and only for replies | DPP reads only the reply's ids; reading the frame for every message would cost for nothing |
-| 2026-10-27 | `/channels`: a channel ignored entirely, by the model only, or for bots; the log channel always ignores bots | The owner's request: a persona answered trigger words in the log channel's lines. A channel list beats asking each feature to know about the log |
+| 2026-10-27 | `/channels`: a channel ignored entirely, by the model only, or for bots; the log channel always ignores bots and keeps the model out | The owner's request: a persona answered trigger words in the log channel's lines, and read the names and ids in them. A channel list beats asking each feature to know about the log |
+| 2026-10-27 | `incoming_message::command_output` marks a slash command's response | LatiBot's answer to `/llm trigger edit` quoted the trigger's pattern and set it off; a command's response is not LatiBot talking |
 
 ## 5. Limits
 

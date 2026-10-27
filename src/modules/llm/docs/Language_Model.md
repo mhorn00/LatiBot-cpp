@@ -185,7 +185,8 @@ so the prompt stays short.
 - `cooldown`: per trigger, per channel, 300 s by default.
 - `bots`: off by default, when only people set it off. On, so do the bots
   the server [allows](../../../core/docs/Message_Pipeline.md#23-bots),
-  LatiBot itself, and the personas (§2.11), so LatiBot and its personas can
+  LatiBot itself (but not a slash command's response, which quotes what the
+  command was given), and the personas (§2.11), so LatiBot and its personas can
   answer each other. **Never its own writer**: a trigger LatiBot answers is
   not set off by LatiBot, nor a persona's by that persona. Every reply to a
   bot is paced (§2.7), which is what ends two of them answering each other.
@@ -523,9 +524,12 @@ to put back into a reply when the bot's cache does not know them; those are
 never sent.
 
 **What the model is sent** (`people::sanitize`). Each answer has a `people`
-of its own. Everyone is met first: whoever is answered, the authors of the
-recent messages and whom they mention, and whom the memories shown are
-about. Then:
+of its own. Everyone is met first: **everyone this server has an alias
+for**, by the names last noted for them, then whoever is answered, the
+authors of the recent messages and whom they mention, and whom the memories
+shown are about. The first matter because the bot's and its personas' posts
+carry the names put back into them, of people who need not be among the
+messages read now. Then:
 
 | In the text | Becomes |
 |---|---|
@@ -629,6 +633,8 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-02 | Every person an alias, names as markers put back only in what is posted; no Discord id or name sent | The owner's request: the provider never gets anything that ties an id, or an alias, to a name (§3.8) |
 | 2026-10-02 | Aliases random, kept per person per server | Memories name people by alias, and must still mean them later; a different alias in each server keeps the servers apart |
 | 2026-10-02 | Names typed in messages found and replaced too, whole words of three characters or more | A name beside an alias would undo it. Shorter names are mostly words |
+| 2026-10-27 | Everyone with an alias in the server is met, so their names are hidden even outside the messages read | A persona read a name from an earlier post of the bot's, whose subject was not among the last five messages, and wrote it as a marker |
+| 2026-10-27 | A slash command's response is not LatiBot talking, and sets off no advanced trigger | `/llm trigger edit`'s answer quoted the pattern and set the trigger off |
 | 2026-10-02 | Documents keep their names; only their mentions become aliases | They are the cached prefix, and must be the same text each time; admins write them |
 | 2026-10-02 | Roles, channels, emoji, timestamps and commands written as names | They carried ids, and their names read better to the model |
 | 2026-10-06 | A reply to a command's result or refusal does not address the bot; a reply's ping is not a mention | The owner's request: replying to `/nicknames` or `/linkstats` output started a conversation nobody asked for |

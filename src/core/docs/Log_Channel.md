@@ -73,9 +73,11 @@ trusts, not by any server's administrators.
 - **Backticks.** Runs of backticks in a line are broken up, so no line can
   close its code block.
 - **Nothing answers it.** Bots' messages there, its own lines included, reach
-  no trigger and no model, as if the channel had `/channels ignore what:bots`
+  no trigger, as if the channel had `/channels ignore what:bots`, and the
+  language model neither answers nor reads anything there
   ([Message_Pipeline.md §2.4](Message_Pipeline.md#24-channels)): its lines are
-  full of the words triggers look for. People there are heard as anywhere.
+  full of the words triggers look for, and of names and ids. People's messages
+  there still reach simple triggers and the rest.
 - **Restarts.** The setting is kept. What was logged while starting up is
   posted once the bot has connected. Lines from the last moments before a
   shutdown may not make it.

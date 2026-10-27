@@ -68,7 +68,8 @@ auto render_ignored_channels(std::span<const std::pair<dpp::snowflake, events::c
     }
     const bool log_listed = std::ranges::any_of(listed, [&](const auto& entry) { return entry.first == log_channel; });
     if (!log_channel.empty() && !log_listed) {
-        body += std::format("<#{}>: {} (my log channel, always)\n", log_channel, what_it_ignores(events::channel_scope::bots));
+        body += std::format("<#{}>: {} and the language model (my log channel, always)\n", log_channel,
+                            what_it_ignores(events::channel_scope::bots));
     }
     body += "\n_A thread follows its channel. Slash commands work everywhere._";
     return body;
@@ -159,7 +160,9 @@ auto channels_command::hear(const dpp::slashcommand_t& event) -> dpp::task<void>
     std::string reply = removed ? std::format("ok, i'll hear <#{}> again", *channel) : std::format("i wasn't ignoring <#{}>", *channel);
     const auto destination = log_->status().destination;
     if (destination && destination->channel_id == *channel) {
-        reply += "\n_It is my log channel, so i still ignore bots there: `/logs off` or another `/logs set` changes that._";
+        reply +=
+            "\n_It is my log channel, so i still ignore bots and the language model there: `/logs off` or another `/logs set` "
+            "changes that._";
     }
     co_await event.co_reply(result(event, reply));
 }

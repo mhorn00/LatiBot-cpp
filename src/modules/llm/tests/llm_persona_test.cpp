@@ -498,6 +498,19 @@ TEST_CASE("an allowed bot sets off a trigger only when it answers bots", "[llm][
     CHECK(asked(result)->speaker.empty());
 }
 
+TEST_CASE("a command's response is not LatiBot talking, and sets off no trigger", "[llm][persona]") {
+    // `/llm trigger edit` answered with the trigger's own pattern, which set
+    // the trigger off.
+    fixture test;
+    const persona claude = test.make("Claude");
+    test.triggers.add(pizza_trigger(claude.id, true));
+
+    incoming_message result = from_latibot("updated `1` **pizza** (as Claude, answers bots)");
+    result.command_output = true;
+    CHECK(asked(test.stage(result)) == nullptr);
+    CHECK(asked(test.stage(from_latibot("pizza is a vegetable"))) != nullptr);
+}
+
 TEST_CASE("only LatiBot's own webhook speaks for a persona, and what it says addresses nobody", "[llm][persona]") {
     fixture test;
     test.make("Claude");

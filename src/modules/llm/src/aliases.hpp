@@ -29,6 +29,14 @@ namespace latibot::llm {
 /// Whether `text` is shaped like an alias.
 [[nodiscard]] auto is_alias(std::string_view text) -> bool;
 
+/// Someone with an alias here, and what they were last noted as.
+struct known_person {
+    dpp::snowflake user_id;
+    std::string alias;
+    std::string name;
+    std::string username;
+};
+
 /// `llm_aliases`: each person's alias in each server, and what they were
 /// last seen called there.
 class alias_store {
@@ -48,6 +56,9 @@ public:
 
     /// What they were last noted as: `display_name` holds the name.
     [[nodiscard]] auto noted_names(dpp::snowflake guild_id, dpp::snowflake user_id) const -> std::optional<ports::member_names>;
+
+    /// Everyone with an alias in this server.
+    [[nodiscard]] auto known(dpp::snowflake guild_id) const -> std::vector<known_person>;
 
 private:
     db::database* db_;
@@ -70,6 +81,12 @@ public:
 
     /// Meets everyone `text` mentions as `<@id>`.
     auto meet_mentioned(std::string_view text) -> void;
+
+    /// Meets everyone with an alias in this server, by what they were last
+    /// noted as, so their names are hidden wherever they are written. The
+    /// bot's and its personas' earlier posts carry the names it put back
+    /// into them, of people who need not be in this request.
+    auto meet_known() -> void;
 
     /// Who an alias is: someone met, or anyone in this server's store.
     [[nodiscard]] auto user_for(std::string_view alias) const -> std::optional<dpp::snowflake>;
