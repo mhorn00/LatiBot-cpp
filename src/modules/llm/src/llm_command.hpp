@@ -26,6 +26,10 @@
 #include <variant>
 #include <vector>
 
+namespace latibot::capabilities {
+class speech;
+}
+
 namespace latibot::config {
 class guild_settings;
 } // namespace latibot::config
@@ -119,9 +123,13 @@ struct document_target {
 [[nodiscard]] auto render_personas(std::span<const llm::persona> personas) -> std::string;
 
 /// `/llm persona view`: one persona, its triggers, and what it spent this
-/// month.
+/// month; and its voice, when the bot `speaks`.
 [[nodiscard]] auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
-                                  double spent_this_month) -> std::string;
+                                  double spent_this_month, bool speaks = false) -> std::string;
+
+/// The voice called `wanted` among `voices`, ignoring case, as `voices`
+/// spells it; nothing when there is none.
+[[nodiscard]] auto find_voice(std::span<const std::string> voices, std::string_view wanted) -> std::optional<std::string>;
 
 /// The settings panel (src/modules/llm/docs/Language_Model.md §2.9): every value, a
 /// menu that opens a group's form, and the switches for the model and for
@@ -178,6 +186,10 @@ struct llm_command_services {
 
     /// The model's tools, for `/llm tools`.
     const llm::tool_registry* tools = nullptr;
+
+    /// The voices a persona can speak in; null without DECtalk, and then
+    /// `/llm persona` has no `voice`.
+    const capabilities::speech* speech = nullptr;
 
     /// For documents attached as files.
     ports::http_client* http = nullptr;
@@ -237,6 +249,10 @@ private:
     auto persona(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
     auto add_persona(const dpp::slashcommand_t& event) -> dpp::task<void>;
     auto edit_persona(const dpp::slashcommand_t& event, llm::persona who) -> dpp::task<void>;
+
+    /// Sets `who`'s voice from the `voice` option, if given; why it cannot,
+    /// or nothing.
+    [[nodiscard]] auto choose_voice(const dpp::slashcommand_t& event, llm::persona& who) const -> std::optional<std::string>;
 
     /// The persona an option names, by name, in this server.
     [[nodiscard]] auto named_persona(const dpp::slashcommand_t& event, const char* option) const -> std::optional<llm::persona>;

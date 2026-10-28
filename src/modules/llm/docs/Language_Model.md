@@ -162,7 +162,7 @@ each persona (§2.11).
 
 A reply in the text channel of the server's
 [voice session](../../voice/docs/Voice_Channels.md#22-voice-sessions) is **spoken as well as
-posted**, in Paul's voice.
+posted**, in Paul's voice, or a persona's own (§2.11).
 
 - The prompt gains a speaking section: short, plain spoken text with no
   markdown, and a short list of inline commands and the built-in voices.
@@ -175,8 +175,8 @@ posted**, in Paul's voice.
 
 All of that is DECtalk's, reached through the `speech` capability
 (`src/core/include/core/capabilities/speech.hpp`), which `audio::dectalk_speech`
-implements: whether a channel is spoken in, preparing the text, saying it,
-and the speaking section. The language model's code knows none of it, and
+implements: whether a channel is spoken in, preparing the text, saying it
+in a voice, the voices there are, and the speaking section. The language model's code knows none of it, and
 without the capability a reply is only posted
 (docs/modules/Module_Plan_Final.md §5.3).
 
@@ -302,14 +302,14 @@ messages nobody addressed it in.
   command output or a link replacement, §2.1), a message that @mentions
   somebody else, one with no text, another bot's, or one a simple trigger
   answered.
-- **The check** is one short call to `llm.check_model` (Claude Haiku 4.5
-  by default) with fixed instructions, the last 8 messages (about 1,500
+- **The check** is one short call to `llm.check_model` (Claude Haiku 5.5
+  by default, with thinking off, §3.2) with fixed instructions, the last 8 messages (about 1,500
   tokens at most), what the message replies to, and the message, asking
   whether the bot, or the persona whose conversation it is, should reply:
   yes or no, in at most 8 tokens. It leans towards yes: a short reaction
   right after the bot spoke, "lol" or "wait really?", is usually for it, and
   a close call is a yes, since joining in can still end in `[silent]`. People are
-  aliases, as everywhere (§3.8). It costs about $0.0006 on Haiku, counts
+  aliases, as everywhere (§3.8). It costs about $0.0002 on Haiku 5.5, counts
   toward the spend caps, and a failure is a no. A message waiting on the
   check takes its place in the rate limits only once the check says yes.
 - **Before the check** it waits while anyone in the channel is typing, up
@@ -376,9 +376,14 @@ How it answers differs from LatiBot:
   set it off as a person would. The language model is the one stage that
   hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it tells which
   persona wrote a message by the name it was posted under.
-- **It is never spoken.** It has **conversations of its own** (§2.10) while
-  the server has conversation mode on, and joins in where the check, asked
-  about it by name, says yes.
+- **It is spoken in a voice of its own**, as LatiBot is (§2.5), when it
+  answers in a voice session's text channel. `/llm persona add | edit
+  voice:` picks one of the speech capability's voices: DECtalk's built-in
+  ones, then the server's custom voices, completed as typed. None, or Paul,
+  is the default voice. A custom voice deleted since is spoken as Paul, and
+  logged. Without DECtalk built in, `voice` is not offered.
+- **Conversations of its own** (§2.10) while the server has conversation
+  mode on: it joins in where the check, asked about it by name, says yes.
 
 At most **10** per server. A name is at most 80 characters, not LatiBot's,
 and holds neither "clyde" nor "discord", which Discord refuses in a
@@ -423,11 +428,13 @@ model, so a server picks a model and `config.json` has the default.
 
 A model is usable only if it is in `llm::known_models`, **with its prices**,
 because the caps are worked out from them. Startup refuses an `llm.model` it
-does not know. Prices, per million tokens, checked in September 2026:
+does not know. Prices, per million tokens, checked in September 2026
+(Claude Haiku 5.5 in October 2026):
 
 | Model | ID | In | Out | Cache write / read | Effort |
 |---|---|---|---|---|---|
-| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 | $5 | $1.25 / $0.10 | no, **the default** |
+| Claude Haiku 5.5 | `claude-haiku-5-5` | $0.10 | $0.50 | $0.125 / $0.01 | yes, **the default** |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | $1 | $5 | $1.25 / $0.10 | no |
 | Claude Sonnet 5 | `claude-sonnet-5` | $2 | $10 | $2.50 / $0.20 | yes |
 | Claude Sonnet 5.5 | `claude-sonnet-5-5` | $2 | $10 | $2.50 / $0.20 | yes |
 | Claude Opus 5.5 | `claude-opus-5-5` | $4 | $20 | $5 / $0.20 | yes |
@@ -436,16 +443,27 @@ does not know. Prices, per million tokens, checked in September 2026:
 | GPT-6 Luna | `gpt-6-luna` | $0.10 | $0.50 | — / $0.01 | reasoning off |
 | GPT-6 Sol | `gpt-6-sol` | $2 | $10 | — / $0.20 | reasoning off |
 
+Claude Haiku 5.5 has a second rate: a call whose prompt (input, cache writes
+and cache reads together) is over 100K tokens costs five times as much for
+all of it, output included. `model_info::long_prompt_tokens` carries the
+limit, and the cost of each call is worked out from it.
+
 **The request is model-aware**, following the providers' documentation of
 September 2026:
 
 - **No `temperature`, ever.** Every current Claude model refuses a
   non-default one.
-- **No `thinking` field.** Each model keeps its own default. On Opus 5.5,
-  thinking cannot be turned off, and `thinking: disabled` is a 400. Models
-  that take an effort setting get `output_config.effort: low`, which keeps
-  thinking short. Haiku 4.5 takes none, and sending one is a 400, so the
-  table says which models take it.
+- **No `thinking` field, except on the check.** Each model keeps its own
+  default. On Opus 5.5, thinking cannot be turned off, and `thinking:
+  disabled` is a 400. Models that take an effort setting get
+  `output_config.effort: low`, which keeps thinking short. Haiku 4.5 takes
+  none, and sending one is a 400, so the table says which models take it.
+- **The conversation check does not think** (§2.10), since its 8 tokens would
+  go on thinking before the yes or no. `model_info::thinking_off` says how
+  each model turns it off: `disabled` on Haiku 5.5, Sonnet 5 and Opus 5,
+  `between_tools` on Sonnet 5.5. Opus 5.5 and Fable 5.1 cannot, so as
+  `llm.check_model` they would think and run out; Haiku 4.5 and OpenAI's
+  models do not think here anyway.
 - **`max_tokens` covers thinking**, hence the reply budget of §2.3.
 - **Thinking blocks go back unchanged.** In a tool loop, the assistant turn
   that called a tool is resent exactly as it came, signatures included,
@@ -516,7 +534,42 @@ The six that change Discord refuse any message from a bot, LatiBot's own
 and its personas' included, so one model cannot talk another into acting.
 Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
 and every persona; the model is then neither shown it nor able to run it.
-All are on until then.
+All are on until then. `tool` completes as typed, since there are more tools
+than Discord's 25 choices, and `/llm tools list` falls back to their names
+alone when describing them all would pass 2,000 characters.
+
+**The other modules' tools** come through the **`model_tools`** capability
+(`core/capabilities/model_tools.hpp`), which this module offers in `offer`;
+each module adds its own in `start` and implements them with its own code,
+so this module knows none of them, and a tool is there only when its module
+is. They join the same registry, so `/llm tools`, the per-persona list and
+the tool loop treat them as the model's own. A module's tool is handed a
+`model_tool_context`: who asked, where, their permissions in that channel,
+the request's people (`user_for`, `shown_as`, `restore`, `sanitize`,
+`hide`), `channel_for`, and `post`, as LatiBot or the persona. One marked
+`changes` is refused for a bot's message here, before it runs, and logged
+when it succeeds, so no module can forget either.
+
+| Module | Tools | The module's spec |
+|---|---|---|
+| voice | `join_voice`, `leave_voice` | Voice_Channels.md §2.4 |
+| dectalk | `speak`, `voice_message`, `stop_speech` | Speech.md §2.6 |
+| soundboard | `play_sound` | Soundboard.md §5 |
+| music | `music_queue`, `play_music`, `music_control` | Music.md §3.6 |
+| nicknames | `nickname_history` | Nicknames.md §2.4 |
+| linkstats | `link_stats` | Link_Stats.md §1.1 |
+| links | `fix_link` | Url_Replacement.md §2.8 |
+| triggers | `list_triggers`, `add_trigger`, `remove_trigger` | Triggers.md §2.6 |
+| midnight | `list_midnight`, `add_midnight`, `edit_midnight` | Midnight.md §2.3 |
+
+This module adds four of its own the same way (`bot_tools.*`):
+
+| Tool | Does | Refused when |
+|---|---|---|
+| `list_advanced_triggers` | The advanced triggers here, with whose each is | |
+| `add_advanced_trigger` | Adds one, for LatiBot or a persona by name, as `/llm trigger add` | whoever asked lacks Manage Server |
+| `post_in_channel` | Posts in another channel, as LatiBot or the persona, mentioning nobody | whoever asked cannot post there; it is this channel |
+| `bot_info` | The version, uptime, servers and gateway latency | |
 
 Reminders are `llm_reminders`, looked through every 30 seconds by `the
 reminder tick`. `set_nickname` goes through the nicknames module's
@@ -637,6 +690,12 @@ word, "Will", is taken for the person wherever it is a whole word, and comes
 back as their name in the reply. The documents keep their names. A memory
 saved before 2026-10-02 may hold a name the model wrote then.
 
+
+**Hidden text** (`people::hide`). A tool that must hand the model a name it
+may use but not read, such as a past nickname, gets a marker for it,
+`<hidden1>`, `<hidden2>`, numbered within the request. `restore` puts the
+text back where the model wrote the marker. The markers mean nothing in
+another request: one saved in a memory is posted as "something".
 ### 3.9 How personas post
 
 `persona_store` keeps `llm_personas(id, guild_id, name, avatar_url, model,
@@ -706,7 +765,7 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-07 | No two-person shortcut: every unaddressed message in a window goes to the check | The owner judged it would answer wrongly |
 | 2026-10-07 | Joining in may answer `[silent]`; it waits up to 6 s for typing to stop, and checks only an author's latest message | A free second opinion after the check; not talking over people; not answering twice |
 | 2026-10-20 | Personas: another name and picture through a webhook, answering to its name, replies, and triggers of its own; managed with `/llm persona` | The owner's idea (docs/ideas/claude_webhook_llm_facade.md); a group under `/llm` was the owner's choice over a command of its own |
-| 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
+| 2026-10-20 | A persona has no memory, joins no conversation, is never spoken, and never answers a bot (since reversed, each but the last) | The owner's choices in the plan (docs/ideas/Llm_Personas.md); a webhook is one step from two models talking for ever |
 | 2026-10-27 | Replies up to four messages, 8,000 characters; 4096 output tokens by default; the rate, pacing and conversation limits raised several times over | The owner's request, with a better idea of what it costs: those limits are there to stop a loop running unchecked, and the spend caps keep the bill in check |
 | 2026-10-27 | `/llm names` hides more names behind a person's alias; a name stands for one person per server | The owner's request: people go by names Discord does not know |
 | 2026-10-27 | Discord tools: reading messages, people, the server and channels, the time; nicknames, status, reactions, pins, polls, reminders. All on until `/llm tools off`; the ones that change something refuse bots | The owner's list. Renaming needs no permission from the asker, at the owner's say; pinning does. The status is shared by every server, so only `trusted_guilds` may set it |
@@ -720,13 +779,19 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-20 | A persona's instructions are its own system document and personality, not the server's | A persona is someone else; the server's documents describe LatiBot |
 | 2026-10-20 | One webhook per channel serves every persona, kept in memory only | Discord takes the name and picture per message; a token written down is one more secret to keep |
 | 2026-10-27 | An advanced trigger with `bots` on is set off by allowed bots, LatiBot and the personas, never by whoever answers it; only the model's stage hears LatiBot's own messages and webhooks' | The owner's request: personas and LatiBot answering each other. Bot pacing already bounds the exchange, and only a trigger, not a name or a reply, starts one |
+| 2026-10-27 | Claude Haiku 5.5 is the default for answers and the check, which runs with thinking off | A tenth of Haiku 4.5's price, and 4.5 is due for retirement; the check's 8 tokens leave no room for thinking |
+| 2026-10-27 | A persona is spoken in a voice session, in a voice of its own; the speech capability says the voices and `say` takes one | The owner's request, reversing 2026-10-20. Its own voice keeps it from being heard as LatiBot; the list stays DECtalk's, so the language model's code knows none of its voices |
+| 2026-10-28 | The other modules give the model tools through one capability, `model_tools`, which llm offers, rather than a bridge library or a capability each | The owner's choice. Eighteen tools across seven modules: each module keeps its tool beside its command, llm knows none of them, and the bot rule is applied once |
+| 2026-10-28 | A name a tool must give the model, such as a past nickname, is hidden text: a marker put back as the reply is posted | §3.8: the provider never receives a name, and the tool would be useless with none |
 
 ## 5. Limits, and what is still to check
 
 - **Claude Haiku 4.5 may be retired from 15 October 2026.** When it goes,
-  every server still on it gets a 404, so `llm.model` in `config.json` has
-  to move before then. Sonnet 5.5 is the likely replacement, at twice the
-  price. **Open: the owner has not decided.**
+  every server still on it gets a 404. The default moved to Haiku 5.5 on
+  27 October 2026, but a server that picked 4.5 with `/llm model`, or a
+  `config.json` that names it, keeps it until it is changed.
+- **Haiku 5.5 counts the same text as about 30% more tokens** than Haiku
+  4.5, so the token budgets of §2.3 hold a little less text.
 - It has never called a real API. The request shapes follow the providers'
   documentation of September 2026, and the first real call is the test that
   settles them:

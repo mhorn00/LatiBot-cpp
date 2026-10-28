@@ -1,11 +1,16 @@
 #include "soundboard/module.hpp"
 
 #include "clips.hpp"
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
+#include "core/discord/raw_api.hpp"
+#include "core/discord/voice_message.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ports/clock.hpp"
 #include "core/util/log.hpp"
 #include "core/util/process.hpp"
+#include "sound_tools.hpp"
 #include "soundboard_command.hpp"
 #include "soundboard_config.hpp"
 #include "sounds.hpp"
@@ -14,6 +19,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -47,6 +53,36 @@ public:
 
     [[nodiscard]] auto name() const -> std::string_view override { return module_name; }
 
+    /// What /soundboard and the model's play_sound work with.
+    [[nodiscard]] auto services() -> commands::soundboard_services {
+        return {.sounds = &catalog_,
+                .clips = &clips_,
+                .http = &bot_->http(),
+                .looked_in = [this](dpp::snowflake guild) { read_if_stale(guild); },
+                .bot_voice_channel = [this](dpp::snowflake guild) { return bot_voice_channel(guild); },
+                .play_in_voice = [this](dpp::snowflake channel, const soundboard::sound& played) -> dpp::task<ports::result<void>> {
+                    const auto sent = co_await bot_->raw().request(ports::http_method::post,
+                                                                   std::format("/channels/{}/send-soundboard-sound", channel.str()),
+                                                                   soundboard::play_request(played).dump());
+                    if (!sent.has_value()) co_return std::unexpected(sent.error());
+                    co_return ports::result<void>{};
+                },
+                .post_voice =
+                    [this](dpp::snowflake channel, discord::voice_message message) {
+                        return discord::post_voice_message(bot_->http(), bot_->cluster().token, channel, dpp::m_suppress_notifications,
+                                                           std::move(message));
+                    }};
+    }
+
+    /// The voice channel the bot is connected to in `guild`, on whichever
+    /// shard has it; 0 for none.
+    [[nodiscard]] auto bot_voice_channel(dpp::snowflake guild) const -> dpp::snowflake {
+        for (const auto& [id, shard] : bot_->cluster().get_shards()) {
+            if (const dpp::voiceconn* connection = shard->get_voice(guild); connection != nullptr) return connection->channel_id;
+        }
+        return {};
+    }
+
     auto start(modules::host& bot) -> void override {
         if (ffmpeg_) {
             util::log().info("the soundboard uses ffmpeg at {}", ffmpeg_->string());
@@ -56,10 +92,13 @@ public:
                 "/soundboard will say so");
         }
 
-        bot.slash_commands().add(std::make_unique<commands::soundboard_command>(commands::soundboard_services{
-            .sounds = &catalog_, .clips = &clips_, .http = &bot.http(), .looked_in = [this](dpp::snowflake guild) {
-                read_if_stale(guild);
-            }}));
+        bot.slash_commands().add(std::make_unique<commands::soundboard_command>(services()));
+        // Discord's soundboard in voice needs its permission, besides
+        // Speak (src/modules/soundboard/docs/Soundboard.md §4).
+        bot.permission(dpp::p_use_soundboard, "playing soundboard sounds in voice");
+
+        // The language model's own /soundboard, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) commands::add_sound_tools(*tools, services());
 
         bot.listen(bot.cluster().on_ready, "soundboard: Discord's own sounds",
                    [this](const dpp::ready_t& /*event*/) { bot_->detach(read_defaults(), "reading Discord's soundboard sounds"); });

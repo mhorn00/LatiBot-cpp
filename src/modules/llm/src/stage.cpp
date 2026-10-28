@@ -389,23 +389,23 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
                       answering == nullptr ? std::string{} : std::format(", as persona {}", answering->id));
     result.consumed = true;
     result.answered = true;
-    result.actions.emplace_back(llm::ask_llm{
-        .guild_id = message.guild_id,
-        .channel_id = message.channel_id,
-        .message_id = message.message_id,
-        .author_id = message.author_id,
-        .author_name = message.author_name,
-        .content = message.content,
-        .author_is_bot = by_bot,
-        .reply_to = message.reply_to,
-        .how = chosen.how,
-        .check_first = chosen.check_first,
-        .trigger_id = fired ? fired->id : 0,
-        .context_prompt = fired ? fired->context_prompt : std::string{},
-        .speak = answering == nullptr && services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
-        .wait = *wait,
-        .persona_id = answering == nullptr ? 0 : answering->id,
-        .speaker = ours ? ours->name : std::string{}});
+    result.actions.emplace_back(
+        llm::ask_llm{.guild_id = message.guild_id,
+                     .channel_id = message.channel_id,
+                     .message_id = message.message_id,
+                     .author_id = message.author_id,
+                     .author_name = message.author_name,
+                     .content = message.content,
+                     .author_is_bot = by_bot,
+                     .reply_to = message.reply_to,
+                     .how = chosen.how,
+                     .check_first = chosen.check_first,
+                     .trigger_id = fired ? fired->id : 0,
+                     .context_prompt = fired ? fired->context_prompt : std::string{},
+                     .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
+                     .wait = *wait,
+                     .persona_id = answering == nullptr ? 0 : answering->id,
+                     .speaker = ours ? ours->name : std::string{}});
     return result;
 }
 

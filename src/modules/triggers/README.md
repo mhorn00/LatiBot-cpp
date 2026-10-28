@@ -23,6 +23,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | none | ✓ |
 | Timers | none | ✓ |
 | Tables | `triggers`, `trigger_responses` | ✓ |
+| Model tools | `list_triggers`, `add_trigger`, `remove_trigger`, the language model's /trigger; adding and removing need Manage Messages of whoever asked; when the llm module is built | ✓ |
 | Per-server settings | none | |
 | Config section | none | ✓ |
 | Environment | none | |

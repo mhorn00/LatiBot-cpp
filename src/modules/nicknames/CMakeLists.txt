@@ -5,6 +5,7 @@ latibot_module(nicknames CONFIG
         src/nicknames.cpp
         src/nickname_import.cpp
         src/nickname_command.cpp
+        src/nickname_tools.cpp
     TESTS
         tests/nicknames_test.cpp
         tests/nickname_command_test.cpp
@@ -12,4 +13,5 @@ latibot_module(nicknames CONFIG
         tests/nickname_store_test.cpp
         tests/nickname_import_store_test.cpp
         tests/nicknames_module_test.cpp
+        tests/nickname_tools_test.cpp
 )

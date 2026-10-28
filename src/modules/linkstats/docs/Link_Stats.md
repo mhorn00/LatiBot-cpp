@@ -57,6 +57,16 @@ with their top three emojis each way. It was removed on 2026-10-01, since
 `reactions user:` lists all of that person's emojis either way, and `top
 by:self` the self-reactions.
 
+### 1.1 The language model's `link_stats`
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, it can read the boards too: people by reactions received, given
+or on their own links, or the emojis, with the same `since`, `until` and
+`domain` filters, an `emoji`, and a `user` for one person's count or
+emojis. It counts what `top` counts when `source` is left out. People are
+shown to it by alias, never by name, and it reads at most 25 places. It
+changes nothing. `/llm tools off link_stats` turns it off in a server.
+
 ## 2. What is stored
 
 ```mermaid

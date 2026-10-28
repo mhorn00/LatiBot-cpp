@@ -6,7 +6,7 @@
 
 namespace latibot::soundboard {
 
-/// The "soundboard" section of config.json (src/modules/soundboard/docs/Soundboard.md §5).
+/// The "soundboard" section of config.json (src/modules/soundboard/docs/Soundboard.md §7).
 struct soundboard_config {
     /// Empty: `ffmpeg` (`.exe` on Windows) beside the bot, then on PATH.
     /// Music has a key of its own, since either module can be left out.

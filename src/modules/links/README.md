@@ -22,6 +22,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | `links: the Java bot's rules, and replacements left unsettled` (servers connecting), `links: previews arriving` (message updates), `links: replacements deleted` | ✓ |
 | Timers | `the preview tracker's tick`, every second | ✓ |
 | Tables | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links` | ✓ |
+| Model tools | `fix_link`, the language model's way to give a link on this server's mirror, read-only; when the llm module is built | ✓ |
 | Per-server settings | url_rules_imported, set once the Java bot's rules were imported | |
 | Config section | none | ✓ |
 | Permissions | Embed Links, for the replacements' previews; Manage Messages, to turn off the original's | |

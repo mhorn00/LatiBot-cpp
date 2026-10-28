@@ -5,6 +5,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace latibot::capabilities {
 
@@ -32,8 +33,13 @@ public:
     [[nodiscard]] virtual auto prepare_for_model(std::string_view text, dpp::snowflake guild) const -> std::string = 0;
 
     /// Says `text` within the server's limits, queued under `for_user` so
-    /// they can stop it.
-    virtual auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text) -> dpp::task<void> = 0;
+    /// they can stop it, in `voice`: one of `voices`, or the default voice
+    /// when it is blank or no longer one of them.
+    virtual auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text, std::string_view voice) -> dpp::task<void> = 0;
+
+    /// The names of the voices `say` can use in `guild`, the default first,
+    /// for a persona's voice (src/modules/llm/docs/Language_Model.md §2.11).
+    [[nodiscard]] virtual auto voices(dpp::snowflake guild) const -> std::vector<std::string> = 0;
 
     /// What the model is told about speaking, as a section of its
     /// instructions: the inline commands and voices it may use.

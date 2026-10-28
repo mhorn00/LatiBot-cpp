@@ -98,6 +98,7 @@ auto anthropic_body(const request& call) -> nlohmann::json {
 
     const model_info* model = find_model(call.model);
     if (model != nullptr && model->takes_effort) body["output_config"] = {{"effort", chat_effort}};
+    if (model != nullptr && !call.think && !model->thinking_off.empty()) body["thinking"] = {{"type", model->thinking_off}};
 
     return body;
 }

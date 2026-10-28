@@ -8,6 +8,7 @@ latibot_module(links
         src/url_replacer.cpp
         src/embed_watch.cpp
         src/links_command.cpp
+        src/link_tools.cpp
     TESTS
         tests/url_rules_test.cpp
         tests/links_command_test.cpp
@@ -16,4 +17,5 @@ latibot_module(links
         tests/replacement_store_test.cpp
         tests/links_panel_test.cpp
         tests/links_module_test.cpp
+        tests/link_tools_test.cpp
 )

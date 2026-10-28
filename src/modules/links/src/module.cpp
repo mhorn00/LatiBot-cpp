@@ -1,6 +1,7 @@
 #include "links/module.hpp"
 
 #include "core/capabilities/link_replacements.hpp"
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/config/guild_settings.hpp"
@@ -11,6 +12,7 @@
 #include "core/ui/panel_routes.hpp"
 #include "core/util/log.hpp"
 #include "embed_watch.hpp"
+#include "link_tools.hpp"
 #include "links/replacements.hpp"
 #include "links/url_rules.hpp"
 #include "links_command.hpp"
@@ -174,6 +176,9 @@ public:
     }
 
     auto start(modules::host& bot) -> void override {
+        // The language model's way to fix a link, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) add_link_tools(*tools, rules_);
+
         // Read before the connection starts, so everything found was cut off
         // by the last run rather than being watched by this one. Each guild's
         // are settled once it connects.

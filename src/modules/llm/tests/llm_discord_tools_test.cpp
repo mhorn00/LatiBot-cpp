@@ -376,3 +376,15 @@ TEST_CASE("a server turns tools off for LatiBot and every persona, and a persona
     CHECK(listed.contains("⛔ `set_nickname`"));
     CHECK(listed.contains("✅ `set_status` (LatiBot only)"));
 }
+
+TEST_CASE("the tool list names every tool, even when they are too many to describe", "[llm]") {
+    std::vector<latibot::llm::tool_definition> many;
+    for (int index = 0; index < 60; ++index) {
+        many.push_back({.name = std::format("tool_{}", index), .description = std::string(100, 'x'), .input_schema = {}});
+    }
+    const std::string listed = latibot::commands::render_tools(many, {"tool_59"});
+    CHECK(listed.size() <= 2000);
+    CHECK(listed.contains("✅ `tool_0`"));
+    CHECK(listed.contains("⛔ `tool_59`"));
+    CHECK(listed.contains("/llm tools off"));
+}

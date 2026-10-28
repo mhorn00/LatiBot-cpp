@@ -7,6 +7,7 @@
 #include "core/modules/module.hpp"
 #include "soundboard_config.hpp"
 
+#include "mocks/mock_model_tools.hpp"
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
@@ -50,7 +51,9 @@ TEST_CASE("the soundboard module adds /soundboard and keeps its sounds up to dat
     CHECK(bot.timers.front().repeats);
     // Servers arrive whatever else the bot asks for, so it needs no intent.
     CHECK(bot.wanted_intents == 0);
-    CHECK(bot.wanted_permissions.empty());
+    // Only for playing in voice: a voice message needs nothing of its own.
+    REQUIRE(bot.wanted_permissions.size() == 1);
+    CHECK(bot.wanted_permissions.front().first == dpp::p_use_soundboard);
 }
 
 TEST_CASE("the soundboard README lists what the module registers", "[soundboard]") {
@@ -82,4 +85,12 @@ TEST_CASE("the soundboard README lists what the module registers", "[soundboard]
     CHECK(bot.routes.views().empty());
     CHECK(latibot::testing::readme_row(readme(), "Message stages").empty());
     CHECK(bot.stages.size() == 0);
+}
+
+TEST_CASE("the soundboard README lists the model's tools, made only when the language model is there", "[soundboard]") {
+    test_host bot;
+    latibot::testing::mock_model_tools tools;
+    bot.offered.offer<latibot::capabilities::model_tools>(tools, "a test");
+    const module_list modules = start_soundboard(bot);
+    CHECK(latibot::testing::readme_row(readme(), "Model tools") == tools.names());
 }

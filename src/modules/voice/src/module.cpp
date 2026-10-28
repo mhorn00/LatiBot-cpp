@@ -1,5 +1,6 @@
 #include "voice/module.hpp"
 
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
@@ -11,6 +12,7 @@
 #include "voice/voice_sessions.hpp"
 #include "voice/voice_state.hpp"
 #include "voice_command.hpp"
+#include "voice_tools.hpp"
 
 #include <dpp/dpp.h>
 
@@ -39,6 +41,29 @@ public:
         bot.slash_commands().add(std::make_unique<commands::join_command>());
         bot.slash_commands().add(std::make_unique<commands::leave_command>());
         bot.slash_commands().add(std::make_unique<commands::voice_command>(sessions_, bot.settings()));
+
+        // The language model's own /join and /leave, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) {
+            commands::add_voice_tools(
+                *tools, {.channel_of = [](dpp::snowflake guild, dpp::snowflake user) { return discord::voice_channel_of(guild, user); },
+                         .bot_channel = [this](dpp::snowflake guild) { return discord::bot_voice_channel(bot_->cluster(), guild); },
+                         .connect =
+                             [this](dpp::snowflake guild, dpp::snowflake channel) {
+                                 dpp::discord_client* shard = discord::shard_for(bot_->cluster(), guild);
+                                 if (shard == nullptr) return false;
+                                 shard->connect_voice(guild, channel);
+                                 util::log().info("joined voice channel {} in guild {} for the language model", channel, guild);
+                                 return true;
+                             },
+                         .disconnect =
+                             [this](dpp::snowflake guild) {
+                                 dpp::discord_client* shard = discord::shard_for(bot_->cluster(), guild);
+                                 if (shard == nullptr) return false;
+                                 shard->disconnect_voice(guild);
+                                 util::log().info("left voice in guild {} for the language model", guild);
+                                 return true;
+                             }});
+        }
 
         // The hooks run after the mixer on both: a new connection has lost
         // what the old one queued, and music's markers are the mixer's to

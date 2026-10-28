@@ -82,6 +82,12 @@ struct request {
     /// the conversation already holds calls to them.
     bool allow_tools = true;
 
+    /// False for a call whose answer is a word or two, such as the
+    /// conversation check: thinking would use up its few tokens before it
+    /// answered. Only the models that can turn thinking off do
+    /// (`model_info::thinking_off`).
+    bool think = true;
+
     /// Thinking included, on the models that think
     /// (src/modules/llm/docs/Language_Model.md §3.2).
     int max_output_tokens = 1024;

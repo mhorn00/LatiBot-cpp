@@ -2,6 +2,7 @@
 
 #include "advanced_triggers.hpp"
 #include "aliases.hpp"
+#include "core/capabilities/speech.hpp"
 #include "core/commands/options.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/ports/clock.hpp"
@@ -136,6 +137,11 @@ auto persona_option(std::string_view description, bool required) -> dpp::command
     return dpp::command_option(dpp::co_string, "persona", std::string(description), required)
         .set_auto_complete(true)
         .set_max_length(static_cast<std::int64_t>(llm::persona_name_limit));
+}
+
+/// A persona's voice, completed from the speech capability's.
+auto voice_option(std::string_view description) -> dpp::command_option {
+    return dpp::command_option(dpp::co_string, "voice", std::string(description), false).set_auto_complete(true);
 }
 
 auto match_mode_option() -> dpp::command_option {
@@ -299,6 +305,13 @@ auto describe_saved(const document_target& target, int version, std::string_view
     return text;
 }
 
+auto find_voice(std::span<const std::string> voices, std::string_view wanted) -> std::optional<std::string> {
+    const auto found =
+        std::ranges::find_if(voices, [&](const std::string& each) { return util::equals_ignoring_case(each, util::trim(wanted)); });
+    if (found == voices.end()) return std::nullopt;
+    return *found;
+}
+
 auto render_personas(std::span<const llm::persona> personas) -> std::string {
     if (personas.empty()) return "No personas here yet. Make one with `/llm persona add`.";
 
@@ -311,7 +324,7 @@ auto render_personas(std::span<const llm::persona> personas) -> std::string {
 }
 
 auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
-                    double spent_this_month) -> std::string {
+                    double spent_this_month, bool speaks) -> std::string {
     const llm::model_info* model = llm::find_model(llm::answering_model(who, server_model));
     std::string text = std::format("**{}** is {}, and answers with {}{}.\n", who.name, who.enabled ? "on" : "off",
                                    model == nullptr ? std::string(llm::answering_model(who, server_model)) : std::string(model->label),
@@ -320,6 +333,10 @@ auto render_persona(const llm::persona& who, std::string_view server_model, std:
         who.avatar_url.empty() ? std::string("Its picture is the webhook's own.\n") : std::format("Its picture: <{}>\n", who.avatar_url);
     text += who.talks ? "It may message LatiBot and the other personas that talk, and they it.\n"
                       : "It does not talk to LatiBot or the other personas; `/llm persona edit talks:true` lets it.\n";
+    if (speaks) {
+        text += who.voice.empty() ? std::string("In a voice session it speaks in the default voice.\n")
+                                  : std::format("In a voice session it speaks as {}.\n", who.voice);
+    }
     text += std::format("Spent this month: ${:.2f}.\n", spent_this_month);
     if (triggers.empty()) {
         text += "No advanced triggers of its own; `/llm trigger add persona:` gives it one.";
@@ -570,14 +587,8 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     for (const auto& [verb, what] : std::array<std::pair<const char*, const char*>, 2>{
              {{"on", "Let the model use a tool here."}, {"off", "Stop the model using a tool here."}}}) {
         dpp::command_option change(dpp::co_sub_command, verb, what);
-        dpp::command_option chosen_tool(dpp::co_string, "tool", "Which tool.", true);
-        if (services_.tools != nullptr) {
-            const std::vector<std::string> all = services_.tools->names();
-            for (std::size_t index = 0; index < all.size() && index < 25; ++index) {
-                chosen_tool.add_choice(dpp::command_option_choice(all[index], all[index]));
-            }
-        }
-        change.add_option(chosen_tool);
+        // Completed as typed: there are more tools than Discord's 25 choices.
+        change.add_option(dpp::command_option(dpp::co_string, "tool", "Which tool.", true).set_auto_complete(true));
         tool_group.add_option(change);
     }
     payload.add_option(tool_group);
@@ -592,6 +603,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     create.add_option(persona_model_option("Its model. The server's by default."));
     create.add_option(
         dpp::command_option(dpp::co_boolean, "talks", "Let it message LatiBot and the other personas. Off by default.", false));
+    if (services_.speech != nullptr) create.add_option(voice_option("The voice it speaks in, in a voice session."));
     persona.add_option(create);
 
     dpp::command_option change(dpp::co_sub_command, "edit", "Change one (Manage Server).");
@@ -604,6 +616,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     change.add_option(dpp::command_option(dpp::co_boolean, "server_model", "Go back to the server's model.", false));
     change.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
     change.add_option(dpp::command_option(dpp::co_boolean, "talks", "Let it message LatiBot and the other personas.", false));
+    if (services_.speech != nullptr) change.add_option(voice_option("The voice it speaks in, in a voice session."));
     persona.add_option(change);
 
     dpp::command_option drop(dpp::co_sub_command, "remove", "Delete one, its documents and triggers (Manage Server).");
@@ -638,14 +651,32 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
 
 auto llm_command::autocomplete(const dpp::autocomplete_t& event) const -> void {
     const dpp::command_option* focused = focused_option(event.options);
-    if (focused == nullptr || focused->name != "persona" || event.owner == nullptr || services_.personas == nullptr) return;
+    if (focused == nullptr || event.owner == nullptr) return;
 
     const auto* typed = std::get_if<std::string>(&focused->value);
     const std::string wanted = typed == nullptr ? std::string{} : util::to_lower(util::trim(*typed));
+    std::vector<std::string> names;
+    if (focused->name == "persona" && services_.personas != nullptr) {
+        for (const llm::persona& who : services_.personas->for_guild(event.command.guild_id)) {
+            names.push_back(who.name);
+        }
+    } else if (focused->name == "voice" && services_.speech != nullptr) {
+        names = services_.speech->voices(event.command.guild_id);
+    } else if (focused->name == "tool" && services_.tools != nullptr) {
+        names = services_.tools->names();
+        std::ranges::sort(names);
+    } else {
+        return;
+    }
+
+    // Discord shows at most 25.
     dpp::interaction_response reply(dpp::ir_autocomplete_reply);
-    for (const llm::persona& who : services_.personas->for_guild(event.command.guild_id)) {
-        if (wanted.empty() || util::to_lower(who.name).contains(wanted))
-            reply.add_autocomplete_choice(dpp::command_option_choice(who.name, who.name));
+    std::size_t offered = 0;
+    for (const std::string& name : names) {
+        if (offered == 25) break;
+        if (!wanted.empty() && !util::to_lower(name).contains(wanted)) continue;
+        reply.add_autocomplete_choice(dpp::command_option_choice(name, name));
+        ++offered;
     }
     event.owner->interaction_response_create(event.command.id, event.command.token, reply);
 }
@@ -1040,8 +1071,17 @@ auto render_tools(const std::vector<llm::tool_definition>& tools, const std::set
         text += std::format("{} `{}`{}: {}\n", off.contains(tool.name) ? "⛔" : "✅", tool.name, latibot_only ? " (LatiBot only)" : "",
                             util::truncate(first, 110));
     }
-    text += "\n_`/llm tools off` turns one off for LatiBot and every persona here._";
-    return util::truncate(text, 2000);
+    constexpr std::string_view footer = "\n_`/llm tools off` turns one off for LatiBot and every persona here._";
+    if (text.size() + footer.size() <= 2000) return text + std::string(footer);
+
+    // Too many to describe in one message: their names, each marked, which
+    // is what turning one off needs.
+    text = "**What the model may use here**\n";
+    for (const llm::tool_definition& tool : tools) {
+        text += std::format("{} `{}`  ", off.contains(tool.name) ? "⛔" : "✅", tool.name);
+    }
+    text += "\n";
+    return util::truncate(text + std::string(footer), 2000);
 }
 
 auto llm_command::tools(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
@@ -1219,7 +1259,7 @@ auto llm_command::persona(const dpp::slashcommand_t& event, std::string_view act
         const auto now = seconds_now(*services_.clock);
         const double spent = services_.usage->spent_by_persona(who->id, llm::month_start(now), now + std::chrono::seconds{1});
         const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
-        co_await event.co_reply(result(event, render_persona(*who, settings.model, triggers, spent)));
+        co_await event.co_reply(result(event, render_persona(*who, settings.model, triggers, spent, services_.speech != nullptr)));
         co_return;
     }
     if (action == "document") {
@@ -1262,9 +1302,11 @@ auto llm_command::add_persona(const dpp::slashcommand_t& event) -> dpp::task<voi
                       .enabled = true,
                       .created_by = event.command.get_issuing_user().id,
                       .created_at = seconds_now(*services_.clock),
-                      .talks = bool_option(event, "talks").value_or(false)};
+                      .talks = bool_option(event, "talks").value_or(false),
+                      .voice = {}};
 
     std::optional<std::string> problem = llm::persona_name_problem(made.name);
+    if (!problem) problem = choose_voice(event, made);
     if (!problem) problem = llm::avatar_problem(made.avatar_url);
     if (!problem && services_.personas->find_named(guild, made.name))
         problem = std::format("there's already a persona called {}", made.name);
@@ -1320,17 +1362,31 @@ auto llm_command::edit_persona(const dpp::slashcommand_t& event, llm::persona wh
     if (bool_option(event, "server_model").value_or(false)) who.model.clear();
     who.enabled = bool_option(event, "enabled").value_or(who.enabled);
     who.talks = bool_option(event, "talks").value_or(who.talks);
+    if (!problem) problem = choose_voice(event, who);
 
     if (problem) {
         co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
     services_.personas->update(who);
-    util::log().info("persona {} in guild {} changed by {}: \"{}\", {}, {}{}", who.id, guild,
-                     describe_user(event.command.get_issuing_user()), who.name,
-                     who.model.empty() ? std::string("the server's model") : who.model, who.enabled ? "on" : "off",
-                     who.talks ? ", talks to the others" : "");
+    util::log().info(
+        "persona {} in guild {} changed by {}: \"{}\", {}, {}{}", who.id, guild, describe_user(event.command.get_issuing_user()), who.name,
+        who.model.empty() ? std::string("the server's model") : who.model, who.enabled ? "on" : "off",
+        who.talks ? ", talks to the others" : "", who.voice.empty() ? std::string{} : std::format(", speaks as {}", who.voice));
     co_await event.co_reply(result(event, std::format("updated {}", who.name)));
+}
+
+auto llm_command::choose_voice(const dpp::slashcommand_t& event, llm::persona& who) const -> std::optional<std::string> {
+    const std::string wanted(util::trim(string_option(event, "voice")));
+    if (wanted.empty() || services_.speech == nullptr) return std::nullopt;
+
+    const std::vector<std::string> voices = services_.speech->voices(event.command.guild_id);
+    const std::optional<std::string> found = find_voice(voices, wanted);
+    if (!found) return std::format("i don't know a voice called \"{}\"", wanted);
+    // The default voice is kept as no choice at all, so it follows the
+    // default should that ever change.
+    who.voice = *found == voices.front() ? std::string{} : *found;
+    return std::nullopt;
 }
 
 // --------------------------------------------------------------------------

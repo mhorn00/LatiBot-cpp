@@ -24,6 +24,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | `nicknames: member updates`, `nicknames: audit log entries`, `nicknames: changes made while offline` (servers connecting), `nicknames: the Server Members intent refused` (DPP's log); only while tracking | ✓ |
 | Timers | `the audit log fallback`, once, 10 seconds after a change no audit entry has named | ✓ |
 | Tables | `nickname_history` | ✓ |
+| Model tools | `nickname_history`, the language model's /nicknames, with the nicknames hidden from it as markers; when the llm module is built | ✓ |
 | Per-server settings | none | |
 | Config section | `nicknames.track_changes`, on by default; before sections it was track_nicknames, which still works | ✓ |
 | Intents | Server Members, only while tracking | |

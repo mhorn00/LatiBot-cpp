@@ -1,10 +1,13 @@
 #include "midnight/module.hpp"
 
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/util/log.hpp"
 #include "midnight.hpp"
 #include "midnight_command.hpp"
+#include "midnight_tools.hpp"
 
 #include <array>
 #include <string_view>
@@ -56,6 +59,8 @@ public:
 
     auto start(modules::host& bot) -> void override {
         bot.slash_commands().add(std::make_unique<commands::midnight_command>(store_, bot.clock()));
+        // The language model's own /midnight, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) add_midnight_tools(*tools, store_);
 
         // Polling the wall clock is the fix for the Java bot's random-fire
         // bug: it computed a delay from the wall clock and then waited on a

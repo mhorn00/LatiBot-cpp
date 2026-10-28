@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,14 +18,15 @@ namespace latibot::testing {
 class mock_speech final : public capabilities::speech {
 public:
     /// Each guild's voice session's text channel.
-    std::map<dpp::snowflake, dpp::snowflake> session_channels;
+    std::map<dpp::snowflake, dpp::snowflake> session_channels{};
 
     struct said {
-        dpp::snowflake guild;
-        dpp::snowflake for_user;
-        std::string text;
+        dpp::snowflake guild{};
+        dpp::snowflake for_user{};
+        std::string text{};
+        std::string voice{};
     };
-    std::vector<said> spoken;
+    std::vector<said> spoken{};
 
     /// What `prepare_for_model` puts in front, so a test can tell prepared
     /// text from what the model wrote.
@@ -39,10 +41,15 @@ public:
         return prepared_mark + std::string(text);
     }
 
-    auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text) -> dpp::task<void> override {
-        spoken.push_back({.guild = guild, .for_user = for_user, .text = std::move(text)});
+    /// What `voices` offers, the default first.
+    std::vector<std::string> voice_names{"paul", "betty", "harry"};
+
+    auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text, std::string_view voice) -> dpp::task<void> override {
+        spoken.push_back({.guild = guild, .for_user = for_user, .text = std::move(text), .voice = std::string(voice)});
         co_return;
     }
+
+    [[nodiscard]] auto voices(dpp::snowflake /*guild*/) const -> std::vector<std::string> override { return voice_names; }
 
     [[nodiscard]] auto guide_for_model() const -> std::string override { return "## Speaking\nSay it plainly."; }
 };

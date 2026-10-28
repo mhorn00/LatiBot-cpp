@@ -40,6 +40,10 @@ struct sound {
     double volume = 1.0;
 };
 
+/// The body that asks Discord to play `played` in a voice channel: its id,
+/// and the server it is from, for one that is not Discord's own.
+[[nodiscard]] auto play_request(const sound& played) -> nlohmann::json;
+
 /// Reads Discord's list of sounds: `{"items": [...]}` from a server, a bare
 /// array for Discord's own. Sounds Discord marks unavailable, which a server
 /// that lost its boosts can have, are left out, and so is anything without

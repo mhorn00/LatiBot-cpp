@@ -3,6 +3,7 @@
 #include "core/ports/result.hpp"
 
 #include <dpp/coro/task.h>
+#include <dpp/snowflake.h>
 
 #include <chrono>
 #include <cstddef>
@@ -65,6 +66,12 @@ struct voice_message {
 [[nodiscard]] auto voice_message_response(std::uint64_t flags, std::chrono::milliseconds duration, std::string_view waveform,
                                           std::string_view filename) -> std::string;
 
+/// The `payload_json` that posts a voice message in a channel: the voice
+/// message flag, `flags` besides, and the one attachment, as
+/// `voice_message_response` has it.
+[[nodiscard]] auto voice_message_post(std::uint64_t flags, std::chrono::milliseconds duration, std::string_view waveform,
+                                      std::string_view filename) -> std::string;
+
 /// A multipart form: its body, and the Content-Type naming its boundary.
 struct form {
     std::string body;
@@ -89,5 +96,12 @@ struct form {
 /// token, not the bot's.
 auto answer_with_voice_message(ports::http_client& http, const dpp::slashcommand_t& event, std::uint64_t flags, voice_message message)
     -> dpp::task<ports::result<void>>;
+
+/// Posts `message` in `channel` as the bot, for a voice message that answers
+/// no interaction, such as one the language model asked for. Sent through
+/// `http` with the bot's token, for the reason `answer_with_voice_message`
+/// is. Gives the message's id.
+auto post_voice_message(ports::http_client& http, std::string_view bot_token, dpp::snowflake channel, std::uint64_t flags,
+                        voice_message message) -> dpp::task<ports::result<dpp::snowflake>>;
 
 } // namespace latibot::discord

@@ -23,10 +23,10 @@ enum class provider_kind : std::uint8_t { anthropic, openai };
 /// pricing page when the entry was added.
 struct model_info {
     /// Exactly as the API takes it.
-    std::string_view id;
+    std::string_view id{};
 
     /// For people: "Claude Haiku 4.5".
-    std::string_view label;
+    std::string_view label{};
 
     provider_kind provider = provider_kind::anthropic;
 
@@ -35,11 +35,24 @@ struct model_info {
     double cache_write_price = 0;
     double cache_read_price = 0;
 
+    /// Some models charge more for a long prompt: past this many prompt
+    /// tokens (input, cache writes and cache reads together), every price
+    /// above is multiplied by `long_prompt_multiplier`. Zero means one rate
+    /// at any length.
+    std::int64_t long_prompt_tokens = 0;
+    double long_prompt_multiplier = 1;
+
     /// Whether requests carry an effort setting. Sent to a model without it,
     /// it is a 400; the thinking models take `low`, which keeps thinking on
     /// but short, rather than switching it off
     /// (src/modules/llm/docs/Language_Model.md §3.2).
     bool takes_effort = false;
+
+    /// The `thinking` type that turns thinking off, for a request that asks
+    /// not to think. Empty for a model that does not think unless asked, or
+    /// one that cannot stop: on those, sending one is a 400
+    /// (src/modules/llm/docs/Language_Model.md §3.2).
+    std::string_view thinking_off{};
 };
 
 /// Every model the bot knows, cheapest first within a provider.

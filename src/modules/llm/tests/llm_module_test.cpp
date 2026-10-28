@@ -52,7 +52,7 @@ TEST_CASE("the llm section reads its defaults, and the spend caps cannot be nega
     const auto& section = latibot::llm::llm_section();
     const auto defaults = section.read(nlohmann::json::object());
     CHECK(defaults.provider == "anthropic");
-    CHECK(defaults.model == "claude-haiku-4-5");
+    CHECK(defaults.model == "claude-haiku-5-5");
     CHECK(defaults.spend_cap_daily_usd == 2.0);
     CHECK(defaults.spend_cap_monthly_usd == 20.0);
     CHECK(defaults.tool_rounds == 8);

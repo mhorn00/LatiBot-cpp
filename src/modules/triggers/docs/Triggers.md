@@ -119,6 +119,23 @@ trigger had, and the panel says so under the list. After a save the panel
 shows the trigger picked, on whichever page it landed. A page whose long
 patterns would pass 2,000 characters has its lines shortened evenly.
 
+### 2.6 The language model's tools
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, it can work with triggers too:
+
+| Tool | Does | Needs |
+|---|---|---|
+| `list_triggers` | Every trigger here: id, pattern, mode, cooldown, responses | nothing |
+| `add_trigger` | Adds one, with the pattern, responses, mode and cooldown; on, silent, never answering bots | Manage Messages of whoever asked |
+| `remove_trigger` | Deletes one by id | Manage Messages of whoever asked |
+
+Like every tool that changes something, the last two refuse a bot's
+message. The names the model writes as markers are put back into the
+pattern and responses, and those it is shown are hidden, as everywhere
+(Language_Model.md §3.8). Each change is logged. `/llm tools off` turns any
+of them off in a server.
+
 ## 3. How it works
 
 The decisions are pure functions in `events/triggers.hpp`:

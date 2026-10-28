@@ -92,6 +92,17 @@ worth keeping. People who have left still appear. Mentions never ping. Past
 a hundred entries, the history comes back as a `.txt` file with UTC times
 instead of ten pages of buttons.
 
+### 2.4 The language model's `nickname_history`
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, it can read a history too: someone's by alias, or the asker's
+own, the newest ten unless it asks for up to 50, with when and who changed
+each. It never sees a nickname, since no name reaches the model
+(Language_Model.md §3.8): each is a marker it writes into its reply, which
+is put back as the nickname when the reply is posted. So it can say what
+someone was called, but not what the name means. `/llm tools off
+nickname_history` turns it off in a server.
+
 ## 3. How it works
 
 **Attribution**, in the order it happens:

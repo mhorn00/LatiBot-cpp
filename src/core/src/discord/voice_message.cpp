@@ -56,6 +56,16 @@ auto voice_message_response(std::uint64_t flags, std::chrono::milliseconds durat
     return payload.dump();
 }
 
+auto voice_message_post(std::uint64_t flags, std::chrono::milliseconds duration, std::string_view waveform, std::string_view filename)
+    -> std::string {
+    const nlohmann::json payload{{"flags", flags | voice_message_flag},
+                                 {"attachments", nlohmann::json::array({{{"id", 0},
+                                                                         {"filename", filename},
+                                                                         {"duration_secs", static_cast<double>(duration.count()) / 1000.0},
+                                                                         {"waveform", waveform}}})}};
+    return payload.dump();
+}
+
 auto voice_message_form(std::string_view payload_json, const voice_message& message) -> form {
     // A boundary is any line that appears nowhere in the parts; Ogg is
     // binary, so it is checked rather than assumed.
@@ -93,6 +103,23 @@ auto answer_with_voice_message(ports::http_client& http, const dpp::slashcommand
         co_return std::unexpected(ports::api_error{.http_status = reply->status, .message = describe_refusal(reply->status, body)});
     }
     co_return {};
+}
+
+auto post_voice_message(ports::http_client& http, std::string_view bot_token, dpp::snowflake channel, std::uint64_t flags,
+                        voice_message message) -> dpp::task<ports::result<dpp::snowflake>> {
+    const std::string payload = voice_message_post(flags, message.duration, message.waveform, message.filename);
+    form sent = voice_message_form(payload, message);
+    auto reply = co_await http.send({.url = "https://discord.com" + build_endpoint(std::format("/channels/{}/messages", channel.str())),
+                                     .method = ports::http_method::post,
+                                     .body = std::move(sent.body),
+                                     .content_type = std::move(sent.content_type),
+                                     .headers = {{"Authorization", std::format("Bot {}", bot_token)}}});
+    if (!reply.has_value()) co_return std::unexpected(std::move(reply.error()));
+    const nlohmann::json body = nlohmann::json::parse(reply->body, nullptr, false);
+    if (reply->status >= 400)
+        co_return std::unexpected(ports::api_error{.http_status = reply->status, .message = describe_refusal(reply->status, body)});
+    if (!body.is_object() || !body.contains("id") || !body["id"].is_string()) co_return dpp::snowflake{};
+    co_return dpp::snowflake{body["id"].get<std::string>()};
 }
 
 } // namespace latibot::discord

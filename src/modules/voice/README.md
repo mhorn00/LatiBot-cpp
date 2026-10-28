@@ -21,6 +21,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | `voice: connections ready`, `voice: markers reached`, `voice: voice states` | ✓ |
 | Timers | `feeding the mixer`, every second; `the voice auto-leave check`, every 5 seconds | ✓ |
 | Tables | none | ✓ |
+| Model tools | `join_voice`, `leave_voice`, the language model's /join and /leave; whoever asked needs Speak; when the llm module is built | ✓ |
 | Per-server settings | voice_grace_seconds, how long the bot stays alone before leaving | |
 | Config section | none | ✓ |
 | Capabilities | offers voice::services to the modules that require it; uses none | |

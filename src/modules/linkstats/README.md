@@ -24,6 +24,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | `linkstats: reactions added`, `linkstats: reactions taken back`, `linkstats: an emoji cleared`, `linkstats: every reaction cleared`, `linkstats: image posts and emotes sent as reactions` (new messages), `linkstats: a link turning out to be an image` (message updates), `linkstats: emotes deleted` | ✓ |
 | Timers | `copying emojis`, every minute, unless copying is off | ✓ |
 | Tables | `reactions`, `reaction_log`, `emojis`, `emoji_aliases`, `backfill_progress`, `emoji_images`, `emoji_copies`, `emote_reactions`, and the view `counted_reactions` | ✓ |
+| Model tools | `link_stats`, the language model's /linkstats boards and counts, with people as aliases; when the llm module is built | ✓ |
 | Per-server settings | linkstats_images, whether image and video posts are counted | |
 | Config section | `linkstats.emoji_copy_min_uses`, 1 by default; 0 turns copying off | ✓ |
 | Environment | LATIBOT_DEBUG_RECOMPUTE_BOT_ID, Debug builds only: whose replacements a recompute reads | |

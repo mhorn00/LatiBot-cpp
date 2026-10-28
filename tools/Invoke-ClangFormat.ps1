@@ -31,10 +31,19 @@ if ($sources.Count -eq 0) {
     throw "No sources found under: $($Roots -join ', ')"
 }
 
+# A batch at a time: every path on one command line passes Windows' limit of
+# 32,767 characters once there are a few hundred files.
+$batchSize = 100
+$batches = for ($start = 0; $start -lt $sources.Count; $start += $batchSize) {
+    , $sources[$start..([Math]::Min($start + $batchSize, $sources.Count) - 1)]
+}
+
 if (-not $Check) {
-    & $clangFormat -i @sources
-    if ($LASTEXITCODE -ne 0) {
-        throw "clang-format failed with exit code $LASTEXITCODE"
+    foreach ($batch in $batches) {
+        & $clangFormat -i @batch
+        if ($LASTEXITCODE -ne 0) {
+            throw "clang-format failed with exit code $LASTEXITCODE"
+        }
     }
     Write-Host "Formatted $($sources.Count) files."
     return
@@ -43,7 +52,9 @@ if (-not $Check) {
 # --dry-run reports one diagnostic per difference on stderr and says nothing
 # about which files they add up to, so the list comes from parsing. -Werror
 # raises those diagnostics from warning to error, hence both severities.
-$output = & $clangFormat --dry-run -Werror @sources 2>&1
+$output = foreach ($batch in $batches) {
+    & $clangFormat --dry-run -Werror @batch 2>&1
+}
 $unformatted = @(
     $output |
         ForEach-Object { [string] $_ } |

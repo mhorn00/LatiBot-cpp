@@ -23,7 +23,7 @@ auto unknown_sound_reply(std::string_view wanted) -> std::string {
 
 soundboard_command::soundboard_command(soundboard_services services)
     : info_{.name = "soundboard",
-            .description = "Send a soundboard sound as a voice message.",
+            .description = "Send a soundboard sound as a voice message, or play it in voice.",
             .aliases = {},
             .required_bot_permissions = 0,
             // Shown to whoever may use the soundboard in voice.
@@ -40,6 +40,7 @@ auto soundboard_command::build(const std::string& name, dpp::snowflake applicati
     payload.add_option(dpp::command_option(dpp::co_string, "sound", "Which sound. Start typing its name.", true)
                            .set_auto_complete(true)
                            .set_max_length(100));
+    payload.add_option(dpp::command_option(dpp::co_boolean, "voice", "Play it in the voice channel the bot is in instead.", false));
     return payload;
 }
 
@@ -65,6 +66,25 @@ auto soundboard_command::execute(const dpp::slashcommand_t& event) -> dpp::task<
     if (!found) {
         if (services_.looked_in) services_.looked_in(guild);
         co_await event.co_reply(refusal(event, unknown_sound_reply(wanted)));
+        co_return;
+    }
+
+    if (bool_option(event, "voice").value_or(false)) {
+        const dpp::snowflake channel = services_.bot_voice_channel ? services_.bot_voice_channel(guild) : dpp::snowflake{};
+        if (channel.empty() || !services_.play_in_voice) {
+            co_await event.co_reply(refusal(event, "i'm not in a voice channel; /join me first, or leave voice off"));
+            co_return;
+        }
+        const auto played = co_await services_.play_in_voice(channel, *found);
+        if (!played.has_value()) {
+            util::log().warn("/soundboard could not play sound {} ({}) in voice in guild {}: {}", found->id, found->name, guild,
+                             played.error().message);
+            co_await event.co_reply(refusal(event, std::format("Discord wouldn't play that in voice: {}", played.error().message)));
+            co_return;
+        }
+        util::log().info("played soundboard sound {} ({}) in voice channel {} for {} in guild {}", found->id, found->name, channel,
+                         describe_user(event.command.get_issuing_user()), guild);
+        co_await event.co_reply(result(event, std::format("playing {} in <#{}>", found->name, channel.str())));
         co_return;
     }
 

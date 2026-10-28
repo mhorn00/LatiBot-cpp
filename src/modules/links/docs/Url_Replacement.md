@@ -163,6 +163,16 @@ bot sees that server with the file there. A server is imported once
 A bad line is named in the log, and a domain listed twice keeps its last line,
 as the Java bot's map did. Importing does not turn replacement on.
 
+### 2.8 The language model's `fix_link`
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, someone can ask it for a link that previews: `fix_link` reads the
+link, or a message with links, as a real message is read (§2.1), and gives
+each on its first mirror, with the others as fallbacks, or why it was left
+alone. The model writes the link into its reply; nothing is watched or
+retried, and it works while replacement is off. `/llm tools off fix_link`
+turns it off in a server.
+
 ## 3. How it works
 
 ### 3.1 The scanner

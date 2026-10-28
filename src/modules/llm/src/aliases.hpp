@@ -122,6 +122,12 @@ public:
     /// marker for someone unknown becomes "someone".
     [[nodiscard]] auto restore(std::string_view text, bool for_speech = false) const -> std::string;
 
+    /// A marker, `<hidden1>`, standing for `text` in what the model writes,
+    /// which `restore` puts back: for a tool to hand over a name, such as a
+    /// past nickname, that the model may use but must never read
+    /// (src/modules/llm/docs/Language_Model.md §3.8).
+    auto hide(std::string text) -> std::string;
+
     [[nodiscard]] auto bot_name() const -> const std::string& { return bot_name_; }
 
 private:
@@ -157,6 +163,8 @@ private:
     mutable std::optional<std::map<dpp::snowflake, std::vector<std::string>>> added_names_;
 
     std::map<dpp::snowflake, person> met_;
+    /// What `hide` stood for, `<hidden1>` first.
+    std::vector<std::string> hidden_;
     std::map<std::string, dpp::snowflake, std::less<>> by_alias_;
 };
 

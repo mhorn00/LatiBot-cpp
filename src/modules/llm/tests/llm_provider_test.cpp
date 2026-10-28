@@ -77,6 +77,22 @@ TEST_CASE("a call costs its tokens at the model's prices, cache included", "[llm
     CHECK(latibot::llm::cost_usd(*haiku, used) == Catch::Approx(1.85));
 }
 
+TEST_CASE("a long prompt costs more on a model with two rates", "[llm]") {
+    const auto* haiku = latibot::llm::find_model("claude-haiku-5-5");
+    REQUIRE(haiku != nullptr);
+
+    // 100K prompt tokens is still the short rate: $0.006 in, $0.0005 out,
+    // $0.0025 writing the cache, $0.0002 reading it.
+    const latibot::llm::usage at_limit{
+        .input_tokens = 60'000, .output_tokens = 1'000, .cache_write_tokens = 20'000, .cache_read_tokens = 20'000};
+    CHECK(latibot::llm::cost_usd(*haiku, at_limit) == Catch::Approx(0.0092));
+
+    // One more and all of it, the output too, costs five times as much.
+    latibot::llm::usage over = at_limit;
+    over.input_tokens += 1;
+    CHECK(latibot::llm::cost_usd(*haiku, over) == Catch::Approx(5 * 0.0092001));
+}
+
 TEST_CASE("provider names are read case-insensitively", "[llm]") {
     CHECK(latibot::llm::provider_from_string(" Anthropic ") == latibot::llm::provider_kind::anthropic);
     CHECK(latibot::llm::provider_from_string("openai") == latibot::llm::provider_kind::openai);
@@ -111,6 +127,25 @@ TEST_CASE("an Anthropic request never sends temperature, and sends effort only t
     // Thinking is left at the model's default; switching it off is a 400 on
     // some of them.
     CHECK_FALSE(sonnet.contains("thinking"));
+
+    const json new_haiku = latibot::llm::anthropic_body(one_question("claude-haiku-5-5"));
+    CHECK_FALSE(new_haiku.contains("temperature"));
+    CHECK(new_haiku["output_config"]["effort"] == "low");
+    CHECK_FALSE(new_haiku.contains("thinking"));
+}
+
+TEST_CASE("a request that asks not to think turns thinking off only where a model can", "[llm]") {
+    const auto without_thinking = [](std::string model) {
+        request call = one_question(std::move(model));
+        call.think = false;
+        return latibot::llm::anthropic_body(call);
+    };
+    CHECK(without_thinking("claude-haiku-5-5")["thinking"]["type"] == "disabled");
+    CHECK(without_thinking("claude-sonnet-5-5")["thinking"]["type"] == "between_tools");
+    // Haiku 4.5 does not think unless asked; Opus 5.5 cannot stop, and
+    // `disabled` would be a 400.
+    CHECK_FALSE(without_thinking("claude-haiku-4-5").contains("thinking"));
+    CHECK_FALSE(without_thinking("claude-opus-5-5").contains("thinking"));
 }
 
 TEST_CASE("the last Anthropic round forbids tools but still declares them", "[llm]") {

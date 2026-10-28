@@ -9,6 +9,7 @@
 #include "links/module.hpp"
 #include "linkstats_config.hpp"
 
+#include "mocks/mock_model_tools.hpp"
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
@@ -118,4 +119,13 @@ TEST_CASE("the linkstats README lists what the module registers", "[linkstats]")
     }
     CHECK(latibot::testing::readme_row(readme(), "Config section") == keys);
     CHECK(latibot::testing::readme_row(readme(), "Message stages").empty());
+}
+
+TEST_CASE("the linkstats README lists the model's tools, made only when the language model is there", "[linkstats]") {
+    test_host bot;
+    latibot::testing::mock_model_tools tools;
+    bot.offered.offer<latibot::capabilities::model_tools>(tools, "a test");
+    const module_list modules = start_linkstats(bot);
+    // Links, started with it, has its own.
+    CHECK(latibot::testing::readme_row(readme(), "Model tools") == without(tools.names(), {"fix_link"}));
 }

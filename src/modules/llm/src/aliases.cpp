@@ -5,6 +5,7 @@
 #include "core/util/text.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <format>
@@ -40,6 +41,9 @@ auto is_marker_kind(std::string_view kind) -> bool {
 }
 
 /// `alias:kind` split, when `inner` is a marker.
+/// What `people::hide` writes before its number.
+constexpr std::string_view hidden_prefix = "hidden";
+
 auto split_marker(std::string_view inner) -> std::optional<std::pair<std::string_view, std::string_view>> {
     const std::size_t colon = inner.find(':');
     if (colon == std::string_view::npos) return std::nullopt;
@@ -461,10 +465,24 @@ auto people::restore_marker(std::string_view alias, std::string_view kind, bool 
     return shown.empty() ? std::string("someone") : shown;
 }
 
+auto people::hide(std::string text) -> std::string {
+    hidden_.push_back(std::move(text));
+    return std::format("<{}{}>", hidden_prefix, hidden_.size());
+}
+
 auto people::restore(std::string_view text, bool for_speech) const -> std::string {
     return rewrite(
         text,
         [this, for_speech](std::string_view inner) -> std::optional<std::string> {
+            if (inner.starts_with(hidden_prefix)) {
+                const std::string_view digits = inner.substr(hidden_prefix.size());
+                std::size_t number = 0;
+                const auto [end, failed] = std::from_chars(digits.data(), digits.data() + digits.size(), number);
+                if (digits.empty() || failed != std::errc{} || end != digits.data() + digits.size()) return std::nullopt;
+                // One from another request, such as a memory's, is gone.
+                if (number < 1 || number > hidden_.size()) return std::string("something");
+                return hidden_[number - 1];
+            }
             const auto marker = split_marker(inner);
             if (!marker) return std::nullopt;
             return restore_marker(marker->first, marker->second, for_speech);
