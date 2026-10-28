@@ -340,9 +340,17 @@ namespace.
 Keep them few and small. One that grows module-specific types becomes a
 bridge instead.
 
-There are two: `speech` (§5.3), and since 2026-10-06 `link_replacements`,
+There are five: `speech` (§5.3); since 2026-10-06 `link_replacements`,
 one call that links offers so the language model can leave replies to a
-replacement alone.
+replacement alone; `nickname_changes` and `bot_status`, for the model's
+`set_nickname` and `set_status`; and since 2026-10-28 `model_tools`, which
+the language model offers and every other module adds its tools to.
+
+`model_tools` stands in for the bridge §5.1 foresaw for "an LLM tool that
+queues music": with eighteen tools across seven modules, one interface the
+model offers keeps each tool beside the command it mirrors, in its own
+module, with no third library per pair. Its types are the model's, not any
+module's: a name, a schema, a handler, and a context of who asked.
 
 ### 5.3 The `speech` capability
 
@@ -363,8 +371,11 @@ public:
     [[nodiscard]] virtual auto prepare_for_model(std::string_view text, dpp::snowflake guild) const -> std::string = 0;
 
     /// Says it within the server's limits, queued under `for_user` so they
-    /// can /tts stop it.
-    virtual auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text) -> dpp::task<void> = 0;
+    /// can /tts stop it, in `voice`, or the default one.
+    virtual auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text, std::string_view voice) -> dpp::task<void> = 0;
+
+    /// The voices `say` takes here, the default first: for a persona's.
+    [[nodiscard]] virtual auto voices(dpp::snowflake guild) const -> std::vector<std::string> = 0;
 
     /// The "## Speaking" section of the model's instructions.
     [[nodiscard]] virtual auto guide_for_model() const -> std::string = 0;
@@ -387,6 +398,7 @@ what happens today in a channel with no voice session. The LLM's tests use a
 | Leaving voice tidies speech and music (K9) | voice's `on_left` |
 | Music feeds the mixer | music registers its source with voice's mixer |
 | Link stats read replacements | linkstats requires links: `replacements.hpp` and `url_rules.hpp` are links' public headers |
+| The model uses other modules' features | each module adds its tools to `model_tools` |
 | A trigger's reply silences an advanced trigger | already core: `incoming_message::answered` and the stage order |
 
 ---

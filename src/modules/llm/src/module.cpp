@@ -4,6 +4,7 @@
 #include "aliases.hpp"
 #include "anthropic.hpp"
 #include "ask.hpp"
+#include "bot_tools.hpp"
 #include "config_check.hpp"
 #include "conversation.hpp"
 #include "core/capabilities/bot_status.hpp"
@@ -27,6 +28,7 @@
 #include "llm_module.hpp"
 #include "memory.hpp"
 #include "memory_tools.hpp"
+#include "module_tools.hpp"
 #include "openai.hpp"
 #include "persona_webhooks.hpp"
 #include "personas.hpp"
@@ -64,7 +66,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 7> llm_steps{{
+constexpr std::array<db::migration, 8> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -252,6 +254,12 @@ constexpr std::array<db::migration, 7> llm_steps{{
         -- by name (src/modules/llm/docs/Language_Model.md 2.11). Off.
         ALTER TABLE llm_personas ADD COLUMN talks INTEGER NOT NULL DEFAULT 0;
      )sql"},
+    {.version = 8, .name = "personas that speak", .sql = R"sql(
+        -- The voice a persona's replies are spoken in, in a voice session
+        -- (src/modules/llm/docs/Language_Model.md 2.11). NULL is the
+        -- default voice.
+        ALTER TABLE llm_personas ADD COLUMN voice TEXT;
+     )sql"},
 }};
 
 constexpr std::string_view module_name = "llm";
@@ -283,6 +291,16 @@ public:
     [[nodiscard]] auto name() const -> std::string_view override { return module_name; }
     [[nodiscard]] auto schema() const -> std::span<const db::migration> override { return llm_steps; }
 
+    /// Where the other modules add their tools, in their own start
+    /// (src/modules/llm/docs/Language_Model.md §3.4).
+    auto offer(modules::capability_registry& offered) -> void override {
+        module_tools_ = std::make_unique<module_tools>(tools_, bot_->gateway(),
+                                                       [this](dpp::message message, std::int64_t persona, dpp::snowflake guild) {
+                                                           return post_as(std::move(message), persona, guild);
+                                                       });
+        offered.offer<capabilities::model_tools>(*module_tools_, module_name);
+    }
+
     auto start(modules::host& bot) -> void override {
         // The keys are a sign-in, and never logged; the log channel masks
         // them in case something ever does.
@@ -306,7 +324,8 @@ public:
 
         // Spoken replies, when DECtalk is built in; null otherwise, and then
         // the model never speaks (docs/modules/Module_Plan_Final.md §5.3).
-        auto* speech = bot.capabilities().find<capabilities::speech>();
+        speech_ = bot.capabilities().find<capabilities::speech>();
+        auto* speech = speech_;
         util::log().debug("the language model {}", speech != nullptr ? "speaks in voice channels with a session" : "never speaks");
 
         // Replies to link replacements left alone, when links is built in.
@@ -335,6 +354,18 @@ public:
                                   .post = [this](dpp::message message, std::int64_t persona,
                                                  dpp::snowflake guild) { return post_as(std::move(message), persona, guild); }};
         add_discord_tools(tools_, discord_tools_);
+        add_bot_tools(*module_tools_,
+                      {.triggers = &triggers_,
+                       .personas = &personas_,
+                       .discord = &bot.gateway(),
+                       .gateway_ping =
+                           [this] {
+                               const auto& shards = bot_->cluster().get_shards();
+                               if (shards.empty()) return std::chrono::milliseconds{0};
+                               return std::chrono::milliseconds{static_cast<std::int64_t>(shards.begin()->second->websocket_ping * 1000.0)};
+                           },
+                       .server_count = [] { return dpp::get_guild_count(); },
+                       .started_at = std::chrono::floor<std::chrono::seconds>(bot.clock().now())});
 
         // LatiBot and the personas that talk message each other with it
         // (src/modules/llm/docs/Language_Model.md §2.11).
@@ -450,6 +481,7 @@ private:
                 .aliases = &aliases_,
                 .usage = &usage_,
                 .tools = &tools_,
+                .speech = speech_,
                 .http = &bot_->http(),
                 .clock = &bot_->clock(),
                 .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; }};
@@ -567,6 +599,10 @@ private:
     std::unique_ptr<provider> anthropic_;
     std::unique_ptr<provider> openai_;
     commands::llm_panels panels_;
+    // Null without DECtalk; looked up in start.
+    capabilities::speech* speech_ = nullptr;
+    // Made in offer, before any module's start adds to it.
+    std::unique_ptr<module_tools> module_tools_;
     // Made in start, once the speech capability can be looked up.
     std::unique_ptr<persona_webhooks> webhooks_;
     std::unique_ptr<responder> responder_;

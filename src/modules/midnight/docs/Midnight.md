@@ -75,6 +75,23 @@ Manage Server, by default, and every answer is private.
 anywhere in the name (`chicago` finds `America/Chicago`), 25 suggestions at a
 time. A timezone the machine does not know is refused rather than stored.
 
+### 2.3 The language model's tools
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, it can work with midnight messages too:
+
+| Tool | Does | Needs |
+|---|---|---|
+| `list_midnight` | Every entry here: id, channel, time zone, text, when it last posted | nothing |
+| `add_midnight` | Adds one, in the channel named or this one, first posting at the next midnight as `add` does; silent | Manage Server of whoever asked |
+| `edit_midnight` | Changes an entry's time zone, channel or text, or turns it on or off | Manage Server of whoever asked |
+
+There is no tool to remove one: turning it off is enough, and `/midnight
+remove` is there for the rest. The names the model writes as markers are
+put back into the text, and those it is shown are hidden, as everywhere
+(Language_Model.md §3.8). The two that change something refuse a bot's
+message, and each change is logged.
+
 ## 3. How it works
 
 **Poll the wall clock.** A 30-second cluster timer calls

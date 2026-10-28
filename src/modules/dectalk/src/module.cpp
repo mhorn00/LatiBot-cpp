@@ -1,17 +1,22 @@
 #include "dectalk/module.hpp"
 
 #include "chat_command.hpp"
+#include "core/capabilities/model_tools.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
+#include "core/discord/voice_message.hpp"
 #include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ui/panel_routes.hpp"
+#include "core/util/log.hpp"
 #include "dectalk_engine.hpp"
 #include "dectalk_speech.hpp"
 #include "speak_command.hpp"
 #include "speech_queue.hpp"
+#include "speech_tools.hpp"
 #include "voice/services.hpp"
 #include "voice/voice_mixer.hpp"
+#include "voice/voice_state.hpp"
 #include "voice_lab.hpp"
 #include "voice_store.hpp"
 
@@ -56,7 +61,7 @@ public:
     auto offer(modules::capability_registry& offered) -> void override {
         voice::services& voice = voice::required(offered);
         queue_ = std::make_unique<speech_queue>(voice.mixer());
-        speech_ = std::make_unique<dectalk_speech>(engine_, *queue_, voice.sessions(), bot_->settings());
+        speech_ = std::make_unique<dectalk_speech>(engine_, *queue_, voice.sessions(), bot_->settings(), &voices_);
         lab_ = std::make_unique<commands::voice_lab>(drafts_, voices_, bot_->clock(), services());
 
         // Speech waits for the connection to be ready, is told when each
@@ -79,6 +84,28 @@ public:
                          {commands::lab_edit_view, commands::lab_base_view, commands::lab_test_view, commands::lab_save_view,
                           commands::lab_reset_view, commands::lab_form_view, commands::lab_name_view, commands::lab_open_view},
                          module_name);
+
+        // The language model's own /speak, /chat and /tts stop, when it is
+        // built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) {
+            commands::add_speech_tools(
+                *tools, {.speech = services(),
+                         .channel_of = [](dpp::snowflake guild, dpp::snowflake user) { return discord::voice_channel_of(guild, user); },
+                         .bot_channel = [this](dpp::snowflake guild) { return discord::bot_voice_channel(bot_->cluster(), guild); },
+                         .connect =
+                             [this](dpp::snowflake guild, dpp::snowflake channel) {
+                                 dpp::discord_client* shard = discord::shard_for(bot_->cluster(), guild);
+                                 if (shard == nullptr) return false;
+                                 shard->connect_voice(guild, channel);
+                                 util::log().info("joined voice channel {} in guild {} to speak for the language model", channel, guild);
+                                 return true;
+                             },
+                         .post_voice =
+                             [this](dpp::snowflake channel, discord::voice_message message) {
+                                 return discord::post_voice_message(bot_->http(), bot_->cluster().token, channel,
+                                                                    dpp::m_suppress_notifications, std::move(message));
+                             }});
+        }
     }
 
 private:

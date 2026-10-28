@@ -11,8 +11,8 @@ namespace latibot::llm {
 /// and models are allowed is `check_config`'s to say.
 struct llm_config {
     std::string provider{"anthropic"};
-    std::string model{"claude-haiku-4-5"};
-    std::string check_model{"claude-haiku-4-5"};
+    std::string model{"claude-haiku-5-5"};
+    std::string check_model{"claude-haiku-5-5"};
     double spend_cap_daily_usd = 2.0;
     double spend_cap_monthly_usd = 20.0;
     int tool_rounds = 8;

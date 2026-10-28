@@ -10,6 +10,7 @@
 #include "core/ui/panel_routes.hpp"
 #include "voice/module.hpp"
 
+#include "mocks/mock_model_tools.hpp"
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
@@ -87,4 +88,16 @@ TEST_CASE("the dectalk README lists what the module registers", "[dectalk]") {
     CHECK(latibot::testing::readme_row(readme(), "Timers").empty());
     CHECK(latibot::testing::readme_row(readme(), "Message stages").empty());
     CHECK(latibot::testing::readme_row(readme(), "Config section").empty());
+}
+
+TEST_CASE("the dectalk README lists the model's tools, made only when the language model is there", "[dectalk]") {
+    test_host bot;
+    latibot::testing::mock_model_tools tools;
+    bot.offered.offer<latibot::capabilities::model_tools>(tools, "a test");
+    const module_list modules = start_dectalk(bot);
+    // Voice, started with it, has its own.
+    std::set<std::string> ours = tools.names();
+    ours.erase("join_voice");
+    ours.erase("leave_voice");
+    CHECK(latibot::testing::readme_row(readme(), "Model tools") == ours);
 }

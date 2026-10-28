@@ -21,6 +21,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | none | ✓ |
 | Timers | `the midnight tick`, every 30 seconds | ✓ |
 | Tables | `midnight_messages` | ✓ |
+| Model tools | `list_midnight`, `add_midnight`, `edit_midnight`, the language model's /midnight; adding and editing need Manage Server of whoever asked; when the llm module is built | ✓ |
 | Per-server settings | none | |
 | Config section | none | ✓ |
 | Environment | none | |

@@ -1,10 +1,13 @@
 #include "triggers/module.hpp"
 
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
 #include "core/events/stage_order.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ui/panel_routes.hpp"
 #include "trigger_command.hpp"
+#include "trigger_tools.hpp"
 #include "triggers.hpp"
 
 #include <array>
@@ -61,6 +64,8 @@ public:
 
     auto start(modules::host& bot) -> void override {
         bot.slash_commands().add(std::make_unique<commands::trigger_command>(store_));
+        // The language model's own /trigger, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) add_trigger_tools(*tools, store_);
         bot.panels().add(
             panel_,
             {commands::trigger_list_view, commands::trigger_panel_view, commands::trigger_pick_view, commands::trigger_edit_view,

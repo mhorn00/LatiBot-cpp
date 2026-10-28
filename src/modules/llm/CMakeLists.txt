@@ -4,6 +4,7 @@ latibot_module(llm CONFIG
         src/advanced_triggers.cpp
         src/aliases.cpp
         src/anthropic.cpp
+        src/bot_tools.cpp
         src/config_check.cpp
         src/conversation.cpp
         src/discord_tools.cpp
@@ -14,6 +15,7 @@ latibot_module(llm CONFIG
         src/memory_tools.cpp
         src/models.cpp
         src/module.cpp
+        src/module_tools.cpp
         src/openai.cpp
         src/persona_webhooks.cpp
         src/personas.cpp
@@ -29,11 +31,13 @@ latibot_module(llm CONFIG
     TESTS
         tests/llm_aliases_test.cpp
         tests/llm_answer_test.cpp
+        tests/llm_bot_tools_test.cpp
         tests/llm_command_test.cpp
         tests/llm_conversation_test.cpp
         tests/llm_discord_tools_test.cpp
         tests/llm_guards_test.cpp
         tests/llm_module_test.cpp
+        tests/llm_module_tools_test.cpp
         tests/llm_panel_test.cpp
         tests/llm_persona_test.cpp
         tests/llm_provider_test.cpp

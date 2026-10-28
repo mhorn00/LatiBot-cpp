@@ -287,7 +287,7 @@ TEST_CASE("a guild's model settings are read clamped, with the model falling bac
 
     const auto fresh = latibot::llm::load_llm_settings(settings, guild, config);
     CHECK_FALSE(fresh.enabled);
-    CHECK(fresh.model == "claude-haiku-4-5");
+    CHECK(fresh.model == "claude-haiku-5-5");
     CHECK(fresh.context_messages == 15);
     CHECK(fresh.personality_role == guild);
 
@@ -305,5 +305,5 @@ TEST_CASE("a guild's model settings are read clamped, with the model falling bac
     CHECK(changed.personality_role == dpp::snowflake{555});
 
     settings.set(guild, latibot::llm::model_key, "gpt-2");
-    CHECK(latibot::llm::load_llm_settings(settings, guild, config).model == "claude-haiku-4-5");
+    CHECK(latibot::llm::load_llm_settings(settings, guild, config).model == "claude-haiku-5-5");
 }

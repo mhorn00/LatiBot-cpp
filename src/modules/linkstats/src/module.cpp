@@ -1,8 +1,10 @@
 #include "linkstats/module.hpp"
 
 #include "backfill.hpp"
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
+#include "core/modules/capability_registry.hpp"
 #include "core/modules/host.hpp"
 #include "core/ports/clock.hpp"
 #include "core/ui/panel_routes.hpp"
@@ -15,6 +17,7 @@
 #include "links/url_rules.hpp"
 #include "linkstats_command.hpp"
 #include "linkstats_config.hpp"
+#include "linkstats_tools.hpp"
 #include "media_posts.hpp"
 #include "reactions.hpp"
 
@@ -229,6 +232,9 @@ public:
                                         .bot_id = [this] { return recompute_bot_id_.value_or(bot_->me().id); }},
             &bot.settings()));
         bot.panels().add(panel_, {commands::board_view, commands::similar_view, commands::keep_view, commands::merge_view}, module_name);
+
+        // The language model's own /linkstats, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) add_linkstats_tools(*tools, reactions_, &bot.settings());
 
         bot.listen(bot.cluster().on_message_create, "linkstats: image posts and emotes sent as reactions",
                    [this](const dpp::message_create_t& event) {

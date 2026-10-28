@@ -10,6 +10,7 @@
 #include "nickname_command.hpp"
 #include "nicknames_config.hpp"
 
+#include "mocks/mock_model_tools.hpp"
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
@@ -118,4 +119,15 @@ TEST_CASE("the nicknames README lists what the module registers", "[nicknames]")
     CHECK(bot.timers.empty());
     CHECK(latibot::testing::readme_row(readme(), "Message stages").empty());
     CHECK(bot.stages.size() == 0);
+}
+
+TEST_CASE("the README lists the model's tools, made only when the language model is there", "[nicknames]") {
+    test_host bot;
+    latibot::testing::mock_model_tools tools;
+    bot.offered.offer<latibot::capabilities::model_tools>(tools, "a test");
+    const module_list modules = start_nicknames(bot);
+    CHECK(latibot::testing::readme_row(readme(), "Model tools") == tools.names());
+
+    test_host without;
+    CHECK_NOTHROW(start_nicknames(without));
 }

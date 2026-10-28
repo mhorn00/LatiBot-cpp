@@ -25,6 +25,9 @@ Who sees the command is the same as who may use the soundboard in voice: it
 defaults to members with Use Soundboard, and a server can change that under
 Integrations.
 
+With **`voice:true`** the sound plays in the voice channel the bot is in
+instead (§4), and the reply says "playing *name* in #channel".
+
 ## 2. The sounds it can see
 
 Every soundboard sound the bot can see:
@@ -98,7 +101,31 @@ sound in well under that, fetching aside. What was made is kept, up to 128
 sounds, by sound and volume, since a sound's file never changes, so a sound
 played again answers at once.
 
-## 4. When it cannot
+## 4. Playing in voice
+
+Discord's own soundboard plays the sound: `POST
+/channels/{channel}/send-soundboard-sound`, with the sound's id and, for one
+from a server, that server's id. The room hears it as it hears anyone's
+soundboard, with the sound's name shown. There is no ffmpeg in it, and no
+mixing with what the bot plays through its own connection, music or speech.
+
+The bot must already be in voice, and is not moved: `/join` it first. It
+needs Speak and Use Soundboard in that channel, and Use External Sounds for
+a sound from another server, and must be neither muted nor deafened. Its
+voice connections never deafen it.
+
+## 5. The language model's `play_sound`
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, someone can ask it for a sound by name. When the bot is in voice
+in that server it plays there, as `voice:true` does, unless the model asks
+for a voice message; otherwise it posts the voice message in the channel,
+always as LatiBot, since a persona's webhook cannot send one. Whoever asked
+needs Use Soundboard, as for `/soundboard`. It refuses a bot's message, as
+every tool that changes something does, and `/llm tools off play_sound`
+turns it off in a server.
+
+## 6. When it cannot
 
 | Case | Says |
 |---|---|
@@ -107,10 +134,12 @@ played again answers at once.
 | Discord's CDN refuses | … Discord wouldn't give me that sound (HTTP 404) |
 | ffmpeg fails | … ffmpeg couldn't read that sound: *its last line* |
 | Discord refuses the voice message | couldn't send the voice message; it's in the log |
+| `voice:true` with the bot not in voice | i'm not in a voice channel; /join me first, or leave voice off |
+| Discord refuses to play it in voice | Discord wouldn't play that in voice: *why* |
 
 Each is private to whoever asked.
 
-## 5. Configuration
+## 7. Configuration
 
 | Key | Default | |
 |---|---|---|
@@ -122,7 +151,7 @@ startup. Without it the bot starts, warns, and `/soundboard` says what is
 missing. `deploy/Install-Dependencies.ps1` puts ffmpeg beside the bot for
 music already, which is where this looks first.
 
-## 6. Decisions
+## 8. Decisions
 
 | Date | Decision | Why |
 |---|---|---|
@@ -134,7 +163,7 @@ music already, which is where this looks first.
 | 2026-10-21 | The sound's name is not in the message | Discord refuses content on a voice message |
 | 2026-10-21 | The form built by hand, not by DPP | The first real run got `400: Invalid Form Body`: DPP names a lone file `file`, not `files[0]` |
 
-## 7. Limits, and what is still to check
+## 9. Limits, and what is still to check
 
 - **Not yet run in real Discord.** In particular: that Discord takes an
   interaction response as a voice message. `/chat` answers the same way,

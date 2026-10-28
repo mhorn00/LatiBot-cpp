@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 using latibot::discord::voice_message;
@@ -155,4 +156,30 @@ TEST_CASE("a refused voice message says which field Discord refused", "[discord]
     REQUIRE_FALSE(sent.has_value());
     CHECK(sent.error().http_status == 400);
     CHECK(sent.error().message == "Discord returned 400: Invalid Form Body; data.attachments.0: Unknown file");
+}
+
+TEST_CASE("a voice message posted in a channel goes as the bot, with the form", "[discord]") {
+    latibot::testing::mock_http http;
+    http.queue(200, R"({"id": "9876"})");
+
+    const auto sent = latibot::discord::post_voice_message(http, "the-token", dpp::snowflake{555}, 0, clip()).sync_wait();
+
+    REQUIRE(sent.has_value());
+    CHECK(*sent == dpp::snowflake{9876});
+    REQUIRE(http.requests.size() == 1);
+    const auto& request = http.requests.front();
+    CHECK(request.url == "https://discord.com/api/v10/channels/555/messages");
+    CHECK(request.body.contains("name=\"files[0]\""));
+    CHECK(request.body.contains(R"("flags":8192)"));
+    CHECK_FALSE(request.body.contains(R"("type")"));
+    REQUIRE(request.headers.size() == 1);
+    CHECK(request.headers[0] == std::pair<std::string, std::string>{"Authorization", "Bot the-token"});
+}
+
+TEST_CASE("a voice message the channel refuses says why", "[discord]") {
+    latibot::testing::mock_http http;
+    http.queue(403, R"({"code": 50013, "message": "Missing Permissions"})");
+    const auto sent = latibot::discord::post_voice_message(http, "t", dpp::snowflake{1}, 0, clip()).sync_wait();
+    REQUIRE_FALSE(sent.has_value());
+    CHECK(sent.error().http_status == 403);
 }

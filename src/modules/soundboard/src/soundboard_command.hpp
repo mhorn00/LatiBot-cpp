@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/commands/registry.hpp"
+#include "core/discord/voice_message.hpp"
+#include "core/ports/result.hpp"
 
 #include <dpp/snowflake.h>
 
@@ -14,6 +16,7 @@ class http_client;
 namespace latibot::soundboard {
 class clip_maker;
 class sound_catalog;
+struct sound;
 } // namespace latibot::soundboard
 
 namespace latibot::commands {
@@ -28,10 +31,23 @@ struct soundboard_services {
     /// Told whenever someone looks through a server's sounds, so that ones
     /// added since they were last read turn up; may be empty.
     std::function<void(dpp::snowflake)> looked_in;
+
+    /// The voice channel the bot is in here, 0 for none; may be empty, and
+    /// then nothing plays in voice.
+    std::function<dpp::snowflake(dpp::snowflake guild)> bot_voice_channel;
+
+    /// Plays a sound in a voice channel the bot is in, with Discord's own
+    /// soundboard (src/modules/soundboard/docs/Soundboard.md §4).
+    std::function<dpp::task<ports::result<void>>(dpp::snowflake channel, const soundboard::sound& played)> play_in_voice;
+
+    /// Posts a voice message in a channel as the bot, for the language
+    /// model, whose tool answers no interaction.
+    std::function<dpp::task<ports::result<dpp::snowflake>>(dpp::snowflake channel, discord::voice_message message)> post_voice;
 };
 
 /// Answers with a soundboard sound as a voice message
-/// (src/modules/soundboard/docs/Soundboard.md §3). Needs no voice channel.
+/// (src/modules/soundboard/docs/Soundboard.md §3), which needs no voice
+/// channel; or, with `voice`, plays it where the bot is in voice (§4).
 class soundboard_command final : public command {
 public:
     explicit soundboard_command(soundboard_services services);

@@ -878,3 +878,73 @@ TEST_CASE("the persona list and view say what each is", "[llm][persona]") {
     CHECK(view.contains("$0.25"));
     CHECK(view.contains("webhook's own"));
 }
+
+// --------------------------------------------------------------------------
+// Speaking
+// --------------------------------------------------------------------------
+
+TEST_CASE("a persona answering in a voice session's channel is spoken", "[llm][persona]") {
+    fixture test;
+    const persona claude = test.make("Claude");
+    test.personas.record_post(dpp::snowflake{7000}, claude.id, guild, channel, noon);
+    incoming_message reply = from_alice("and you?");
+    reply.reply_to = dpp::snowflake{7000};
+
+    SECTION("in the session's channel") {
+        test.speech.session_channels[guild] = channel;
+        const auto result = test.stage(reply);
+        REQUIRE(asked(result) != nullptr);
+        CHECK(asked(result)->persona_id == claude.id);
+        CHECK(asked(result)->speak);
+    }
+    SECTION("anywhere else") {
+        const auto result = test.stage(reply);
+        REQUIRE(asked(result) != nullptr);
+        CHECK_FALSE(asked(result)->speak);
+    }
+}
+
+TEST_CASE("a persona is spoken in its own voice, and LatiBot in the default", "[llm][persona][coro]") {
+    fixture test;
+    persona claude = test.make("Claude");
+    claude.voice = "betty";
+    REQUIRE(test.personas.update(claude));
+    REQUIRE(test.personas.find(claude.id, guild)->voice == "betty");
+
+    test.model.answer("ahoy there");
+    ask_llm as_claude = ask_as(claude.id, "claude, say something");
+    as_claude.speak = true;
+    const auto report = test.answer(as_claude);
+    REQUIRE(report.posted.size() == 1);
+    CHECK(test.model.requests.at(0).stable_system.contains("## Speaking"));
+
+    test.model.answer("and me");
+    ask_llm as_latibot = ask_as(0, "latibot, say something");
+    as_latibot.speak = true;
+    test.answer(as_latibot);
+
+    REQUIRE(test.speech.spoken.size() == 2);
+    CHECK(test.speech.spoken[0].voice == "betty");
+    CHECK(test.speech.spoken[0].text == report.posted[0]);
+    CHECK(test.speech.spoken[1].voice.empty());
+}
+
+TEST_CASE("a persona's voice is shown when the bot speaks, and found ignoring case", "[llm][persona]") {
+    persona claude{.id = 3,
+                   .guild_id = guild,
+                   .name = "Claude",
+                   .avatar_url = {},
+                   .model = {},
+                   .enabled = true,
+                   .created_by = alice,
+                   .created_at = noon};
+    CHECK_FALSE(latibot::commands::render_persona(claude, "claude-haiku-5-5", {}, 0).contains("voice"));
+    CHECK(latibot::commands::render_persona(claude, "claude-haiku-5-5", {}, 0, true).contains("the default voice"));
+    claude.voice = "betty";
+    CHECK(latibot::commands::render_persona(claude, "claude-haiku-5-5", {}, 0, true).contains("speaks as betty"));
+
+    const std::vector<std::string> voices{"paul", "betty", "deep"};
+    CHECK(latibot::commands::find_voice(voices, " Betty ") == "betty");
+    CHECK(latibot::commands::find_voice(voices, "DEEP") == "deep");
+    CHECK_FALSE(latibot::commands::find_voice(voices, "chris").has_value());
+}

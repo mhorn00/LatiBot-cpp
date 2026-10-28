@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -23,6 +24,7 @@ public:
         dpp::snowflake guild;
         dpp::snowflake for_user;
         std::string text;
+        std::string voice;
     };
     std::vector<said> spoken;
 
@@ -39,10 +41,15 @@ public:
         return prepared_mark + std::string(text);
     }
 
-    auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text) -> dpp::task<void> override {
-        spoken.push_back({.guild = guild, .for_user = for_user, .text = std::move(text)});
+    /// What `voices` offers, the default first.
+    std::vector<std::string> voice_names{"paul", "betty", "harry"};
+
+    auto say(dpp::snowflake guild, dpp::snowflake for_user, std::string text, std::string_view voice) -> dpp::task<void> override {
+        spoken.push_back({.guild = guild, .for_user = for_user, .text = std::move(text), .voice = std::string(voice)});
         co_return;
     }
+
+    [[nodiscard]] auto voices(dpp::snowflake /*guild*/) const -> std::vector<std::string> override { return voice_names; }
 
     [[nodiscard]] auto guide_for_model() const -> std::string override { return "## Speaking\nSay it plainly."; }
 };

@@ -10,6 +10,7 @@ latibot_module(voice
         src/voice_mixer.cpp
         src/voice_sessions.cpp
         src/voice_state.cpp
+        src/voice_tools.cpp
     TESTS
         tests/join_command_test.cpp
         tests/pcm_test.cpp
@@ -17,4 +18,5 @@ latibot_module(voice
         tests/voice_mixer_test.cpp
         tests/voice_module_test.cpp
         tests/voice_sessions_test.cpp
+        tests/voice_tools_test.cpp
 )

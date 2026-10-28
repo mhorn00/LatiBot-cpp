@@ -1,6 +1,7 @@
 #include "music/module.hpp"
 
 #include "cookies.hpp"
+#include "core/capabilities/model_tools.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
 #include "core/modules/capability_registry.hpp"
@@ -13,9 +14,11 @@
 #include "music_command.hpp"
 #include "music_config.hpp"
 #include "music_player.hpp"
+#include "music_tools.hpp"
 #include "pot_provider.hpp"
 #include "voice/services.hpp"
 #include "voice/voice_mixer.hpp"
+#include "voice/voice_state.hpp"
 #include "yt_dlp.hpp"
 
 #include <dpp/dpp.h>
@@ -136,6 +139,23 @@ public:
         bot.slash_commands().add(std::make_unique<commands::music_command>(commands::music_services{
             .player = player_.get(), .resolver = &resolver_, .settings = &bot.settings(), .unavailable = unavailable()}));
         bot.panels().add(panel_, {commands::music_queue_view}, module_name);
+
+        // The language model's own /music, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) {
+            commands::add_music_tools(
+                *tools,
+                {.music = {.player = player_.get(), .resolver = &resolver_, .settings = &bot.settings(), .unavailable = unavailable()},
+                 .channel_of = [](dpp::snowflake guild, dpp::snowflake user) { return discord::voice_channel_of(guild, user); },
+                 .bot_channel = [this](dpp::snowflake guild) { return discord::bot_voice_channel(bot_->cluster(), guild); },
+                 .connect =
+                     [this](dpp::snowflake guild, dpp::snowflake channel) {
+                         dpp::discord_client* shard = discord::shard_for(bot_->cluster(), guild);
+                         if (shard == nullptr) return false;
+                         shard->connect_voice(guild, channel);
+                         util::log().info("joined voice channel {} in guild {} to play music for the language model", channel, guild);
+                         return true;
+                     }});
+        }
     }
 
 private:

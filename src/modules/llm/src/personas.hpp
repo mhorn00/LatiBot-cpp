@@ -41,6 +41,11 @@ struct persona {
     /// `talk_to`, and be messaged by them; and whether LatiBot answers it by
     /// name. Off by default (src/modules/llm/docs/Language_Model.md §2.11).
     bool talks = false;
+
+    /// The voice its replies are spoken in, in a voice session: one of the
+    /// speech capability's voices. Empty for the default
+    /// (src/modules/llm/docs/Language_Model.md §2.11).
+    std::string voice;
 };
 
 /// How many personas a server may have.

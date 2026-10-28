@@ -131,6 +131,24 @@ commands and limits work as for `/speak`, and **phoneme input is on**
 (`[:phoneme arpabet speak on]`), as it was in the Java bot's `/chat`, so
 `[hxeh'low]` is spoken as phonemes. The waveform is the audio's own.
 
+### 2.6 The language model's tools
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, someone can ask it to use DECtalk:
+
+| Tool | Does, as | Who may |
+|---|---|---|
+| `speak` | `/speak`: says it in voice, where the bot is or joining whoever asked, queued under them | anyone |
+| `voice_message` | `/chat`: posts a voice message in the channel, always as LatiBot, since a persona's webhook cannot send one | anyone |
+| `stop_speech` | `/tts stop`, or `skip` | whoever asked for what is playing, an administrator, or a trusted user (§2.4) |
+
+What the model writes is sanitized at the **model's** trust level (§2.2),
+whoever asked it, so it never reaches the host commands. The server's
+limits apply (§2.3), and the voices are those `/speak` takes. Its spoken
+replies in a voice session are separate (Language_Model.md §2.5). Each tool
+refuses a bot's message, and `/llm tools off` turns any of them off in a
+server.
+
 ## 3. Custom voices and the voice lab
 
 A custom voice is a built-in voice plus DECtalk `[:dv]` edits: an ordered

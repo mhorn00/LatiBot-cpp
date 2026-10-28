@@ -1,5 +1,6 @@
 #include "nicknames/module.hpp"
 
+#include "core/capabilities/model_tools.hpp"
 #include "core/capabilities/nickname_changes.hpp"
 #include "core/commands/registry.hpp"
 #include "core/config/bootstrap.hpp"
@@ -12,6 +13,7 @@
 #include "core/util/log.hpp"
 #include "nickname_command.hpp"
 #include "nickname_import.hpp"
+#include "nickname_tools.hpp"
 #include "nicknames.hpp"
 #include "nicknames_config.hpp"
 
@@ -170,6 +172,9 @@ public:
         bot.slash_commands().add(std::make_unique<commands::nickname_command>(store_, pending_, bot.clock(), bot.cluster()));
         bot.slash_commands().add(std::make_unique<commands::nicknames_command>(store_));
         bot.panels().add(panel_, {commands::nickname_history_view}, module_name);
+
+        // The language model's own /nicknames, when it is built in.
+        if (auto* tools = bot.capabilities().find<capabilities::model_tools>()) add_nickname_tools(*tools, store_);
 
         // Years of history from the Java bot, if its file was left beside the
         // database. Importing is idempotent, so this needs no marker file and

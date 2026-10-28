@@ -40,6 +40,12 @@ struct placed_sound {
 
 } // namespace
 
+auto play_request(const sound& played) -> nlohmann::json {
+    nlohmann::json body{{"sound_id", played.id.str()}};
+    if (!played.guild_id.empty()) body["source_guild_id"] = played.guild_id.str();
+    return body;
+}
+
 auto parse_sounds(const nlohmann::json& listed) -> std::vector<sound> {
     const nlohmann::json* items = &listed;
     if (listed.is_object()) {

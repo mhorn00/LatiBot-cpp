@@ -11,12 +11,14 @@
 #include "mock_tts.hpp"
 #include "mocks/mock_voice.hpp"
 #include "support/schema.hpp"
+#include "voice_params.hpp"
 #include "voice_store.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 using namespace std::chrono_literals;
 
@@ -33,7 +35,8 @@ struct fixture {
     latibot::testing::mock_tts tts;
     latibot::testing::mock_voice voice;
     latibot::audio::speech_queue queue{voice};
-    latibot::audio::dectalk_speech speech{tts, queue, sessions, settings};
+    latibot::audio::voice_store voices{db};
+    latibot::audio::dectalk_speech speech{tts, queue, sessions, settings, &voices};
 
     fixture() {
         latibot::testing::create_schema(db);
@@ -65,11 +68,43 @@ TEST_CASE("a spoken reply is synthesized and queued under whoever asked", "[dect
     fixture test;
     test.voice.connected[guild] = true;
 
-    test.speech.say(guild, alice, "ahoy there").sync_wait_for(2s);
+    test.speech.say(guild, alice, "ahoy there", {}).sync_wait_for(2s);
     REQUIRE(test.tts.requests.size() == 1);
     CHECK(test.tts.requests[0].text == "ahoy there");
     CHECK(test.voice.plays.size() == 1);
     CHECK(test.queue.current_owner(guild) == alice);
+}
+
+TEST_CASE("a spoken reply is said in the voice asked for, or Paul's", "[dectalk][coro]") {
+    fixture test;
+    test.voice.connected[guild] = true;
+    latibot::audio::custom_voice deep{.base = "harry", .edits = {}};
+    REQUIRE(deep.set("ap", 90));
+    test.voices.save(guild, {.name = "deep", .voice = deep, .created_by = alice, .updated_at = {}});
+
+    test.speech.say(guild, alice, "one", "betty").sync_wait_for(2s);
+    test.speech.say(guild, alice, "two", "deep").sync_wait_for(2s);
+    test.speech.say(guild, alice, "three", "deleted-since").sync_wait_for(2s);
+    test.speech.say(guild, alice, "four", {}).sync_wait_for(2s);
+
+    REQUIRE(test.tts.requests.size() == 4);
+    CHECK(test.tts.requests[0].voice.voice == "betty");
+    CHECK(test.tts.requests[1].voice.voice == "harry");
+    CHECK(test.tts.requests[1].voice.custom_params.contains("ap 90"));
+    CHECK(test.tts.requests[2].voice.voice == "paul");
+    CHECK(test.tts.requests[2].voice.custom_params.empty());
+    CHECK(test.tts.requests[3].voice.voice == "paul");
+}
+
+TEST_CASE("the voices offered are the built-in ones, Paul first, then the server's", "[dectalk]") {
+    fixture test;
+    test.voices.save(guild, {.name = "deep", .voice = {}, .created_by = alice, .updated_at = {}});
+
+    const std::vector<std::string> names = test.speech.voices(guild);
+    REQUIRE(names.size() == latibot::audio::builtin_voices().size() + 1);
+    CHECK(names.front() == "paul");
+    CHECK(names.back() == "deep");
+    CHECK(test.speech.voices(dpp::snowflake{101}).size() == latibot::audio::builtin_voices().size());
 }
 
 TEST_CASE("a spoken reply keeps to the server's limits", "[dectalk][coro]") {
@@ -77,7 +112,7 @@ TEST_CASE("a spoken reply keeps to the server's limits", "[dectalk][coro]") {
     test.voice.connected[guild] = true;
     test.settings.set_int(guild, latibot::commands::tts_max_characters_key, 5);
 
-    test.speech.say(guild, alice, "ahoy there").sync_wait_for(2s);
+    test.speech.say(guild, alice, "ahoy there", {}).sync_wait_for(2s);
     REQUIRE(test.tts.requests.size() == 1);
     CHECK(test.tts.requests[0].text.size() <= 5);
 }

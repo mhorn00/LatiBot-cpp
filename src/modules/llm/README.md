@@ -22,10 +22,11 @@ registers, so this table cannot fall behind the code.
 | Discord events | `llm: who is typing` (typing starts), for conversation mode, which waits for people to finish; needs the typing intent, which is not privileged | ✓ |
 | Timers | `the reminder tick`, every 30 seconds: posts the reminders the model set that are due | ✓ |
 | Tables | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (full-text, with its three triggers), `llm_blacklist`, `llm_triggers`, `llm_aliases`, `llm_personas`, `llm_persona_posts`, `llm_alias_names`, `llm_reminders` | ✓ |
+| Model tools | `list_advanced_triggers`, `add_advanced_trigger`, `post_in_channel`, `bot_info`, besides the memory and Discord tools; every module's tools join them through model_tools | |
 | Per-server settings | the llm_ keys in `src/settings.hpp`, each with its default and range | |
 | Config section | `llm.provider`, `llm.model`, `llm.check_model`, `llm.spend_cap_daily_usd`, `llm.spend_cap_monthly_usd`, `llm.tool_rounds`; a model the bot cannot price stops startup | ✓ |
 | Environment | ANTHROPIC_API_KEY, OPENAI_API_KEY; a provider exists only with its key, and the log channel masks both | |
-| Capabilities | uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. Uses nickname_changes, when offered (nicknames): `set_nickname` is recorded in the nickname history; without it the change is made but not recorded. Uses bot_status, which the core offers, for `set_status`. | |
+| Capabilities | offers model_tools (core/capabilities/model_tools.hpp), where every module adds its tools for the model. Uses speech, when offered (dectalk): replies in a voice session's channel are spoken. Without it the model never speaks. Uses link_replacements, when offered (links): a reply to a replacement is not taken as talking to the bot. Uses nickname_changes, when offered (nicknames): `set_nickname` is recorded in the nickname history; without it the change is made but not recorded. Uses bot_status, which the core offers, for `set_status`. | |
 | Permissions | Manage Webhooks, for posting as a persona; Manage Nicknames, Add Reactions and Manage Messages, for the tools; warned about per server when missing | |
 | Requires | the core | |
 

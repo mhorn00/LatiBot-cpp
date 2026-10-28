@@ -399,7 +399,7 @@ TEST_CASE("the check asks the check model, briefly, and records what it cost", "
 
         REQUIRE(test.model.requests.size() == 1);
         const latibot::llm::request& sent = test.model.requests[0];
-        CHECK(sent.model == "claude-haiku-4-5");
+        CHECK(sent.model == "claude-haiku-5-5");
         CHECK(sent.stable_system == latibot::llm::check_instructions());
         CHECK(sent.tools.empty());
         CHECK_FALSE(sent.allow_tools);
@@ -619,7 +619,7 @@ TEST_CASE("an answer reads the channel, builds the prompt, records the spend and
 
     REQUIRE(test.model.requests.size() == 1);
     const latibot::llm::request& sent = test.model.requests[0];
-    CHECK(sent.model == "claude-haiku-4-5");
+    CHECK(sent.model == "claude-haiku-5-5");
     CHECK(sent.stable_system.contains("Talk like a pirate."));
     // Aliases, never ids or names: the memory's "Alice" is a marker too.
     const std::string alice_alias = test.alias(alice);

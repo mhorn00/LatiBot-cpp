@@ -231,7 +231,11 @@ auto responder::answer(llm::ask_llm ask) -> dpp::task<answer_report> {
                      ask.author_id, ask.channel_id, why(ask), read, report.used.input_tokens + report.used.cache_write_tokens,
                      report.used.cache_read_tokens, report.used.output_tokens, report.cost, tools);
 
-    if (speaking && !report.posted.empty()) co_await services_.speech->say(ask.guild_id, ask.author_id, std::move(text));
+    // A persona in its own voice, so it is not taken for LatiBot.
+    if (speaking && !report.posted.empty()) {
+        co_await services_.speech->say(ask.guild_id, ask.author_id, std::move(text),
+                                       answering_as != nullptr ? std::string_view(answering_as->voice) : std::string_view{});
+    }
     co_return report;
 }
 
@@ -280,6 +284,7 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
          .results = {},
          .raw = {}});
     call.allow_tools = false;
+    call.think = false;
     call.max_output_tokens = check_output_tokens;
 
     const auto outcome = co_await checking->complete(std::move(call));

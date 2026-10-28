@@ -10,6 +10,7 @@ latibot_module(linkstats CONFIG
         src/emoji_copies.cpp
         src/legacy_replacements.cpp
         src/linkstats_command.cpp
+        src/linkstats_tools.cpp
     # SHA-256 of emoji images, so one image is copied once (emoji_copies.cpp).
     # DPP links OpenSSL already; this says so.
     LINKS OpenSSL::Crypto
@@ -23,4 +24,5 @@ latibot_module(linkstats CONFIG
         tests/media_posts_test.cpp
         tests/reaction_store_test.cpp
         tests/linkstats_module_test.cpp
+        tests/linkstats_tools_test.cpp
 )

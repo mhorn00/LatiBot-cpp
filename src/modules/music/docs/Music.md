@@ -196,6 +196,25 @@ seconds that were queued on the old connection (§4.2).
 | A track producing no audio | 30 s, then it has failed | A fetch that stalls should not hold the queue |
 | Volume | 50 % by default, 0–200 %, per server | Music at full scale drowns speech |
 
+### 3.6 The language model's tools
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, someone can ask it for music:
+
+| Tool | Does, as |
+|---|---|
+| `music_queue` | `queue` and `nowplaying`: what plays, how far in, the repeat, the next ten |
+| `play_music` | `play`: a link, at the end, next or now, where the bot is or joining whoever asked |
+| `music_control` | `pause` (as pause or resume), `skip`, `repeat`, `shuffle`, `clear`, `stop` |
+
+`play_music` takes **links only**, as `play` does (§3.2): the model has no
+search, so "play some lofi" gets it asking for a link. The link is checked
+as `play` checks it, the server's track limit applies, and the tracks are
+queued under whoever asked. The two that change something need Speak of
+whoever asked, as `/music` wants, refuse a bot's message, and are logged.
+The volume and the track limit stay with `/music`, for Manage Server.
+`/llm tools off` turns any of them off in a server.
+
 ## 4. How it works
 
 ### 4.1 The shape

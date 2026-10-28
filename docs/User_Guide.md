@@ -436,15 +436,16 @@ the shape it showed meant nothing.
 ### `/soundboard`
 
 Sends a soundboard sound as a Discord **voice message**, which plays inline,
-rather than as a file to download. No voice channel is involved.
+rather than as a file to download, or with `voice:true` plays it in the voice
+channel the bot is in.
 
 | | |
 |---|---|
 | **Module** | [soundboard](../src/modules/soundboard/README.md) |
-| **Options** | `sound` (required), suggested as you type |
+| **Options** | `sound` (required), suggested as you type · `voice`, to play it in voice instead |
 | **Who** | Use Soundboard, by default |
 | **Where** | servers only |
-| **Bot needs** | nothing; ffmpeg on the machine it runs on |
+| **Bot needs** | ffmpeg on the machine it runs on; for `voice`, Speak and Use Soundboard there, and Use External Sounds for another server's sound |
 
 Any sound the bot can see can be picked: Discord's own, and every server's it
 is in. The suggestions put this server's sounds first, then Discord's, then
@@ -458,11 +459,17 @@ any, so the sound's name is not on it; the line above it reads "*you* used
 /soundboard". A sound added to a server shows up in its suggestions within a
 minute of someone typing into the option.
 
+With **`voice:true`**, Discord's own soundboard plays it in the bot's voice
+channel, as anyone's soundboard does, and the answer says `playing airhorn in
+#lounge`. The bot has to be in voice already; `/join` it first.
+
 | When | It says (privately) |
 |---|---|
 | the sound can't be found | `i can't see a soundboard sound called "…"` |
 | ffmpeg is missing, Discord won't give the file, or ffmpeg can't read it | `couldn't make that a voice message: …`, saying which |
 | Discord refuses the upload | `couldn't send the voice message; it's in the log` |
+| `voice:true`, and the bot is not in voice | `i'm not in a voice channel; /join me first, or leave voice off` |
+| Discord won't play it in voice | `Discord wouldn't play that in voice: …` |
 
 ### `/music`
 
@@ -1199,7 +1206,8 @@ knows, since its spending limit is worked out from them:
 
 | Model | Per million tokens in / out | |
 |---|---|---|
-| Claude Haiku 4.5 | $1 / $5 | the default |
+| Claude Haiku 5.5 | $0.10 / $0.50 | the default; five times that for a prompt over 100K tokens |
+| Claude Haiku 4.5 | $1 / $5 | |
 | Claude Sonnet 5, Sonnet 5.5 | $2 / $10 | |
 | Claude Opus 5.5 | $4 / $20 | |
 | Claude Opus 5 | $5 / $25 | |
@@ -1217,7 +1225,7 @@ knows, since its spending limit is worked out from them:
 | `model` | `ok, this server now uses Claude Sonnet 5.5` |
 | `model` with no key for it | `there's no openai API key on the bot, so GPT-6 Luna can't be used` |
 | Anything but `status` or the personality, without Manage Server | `that needs Manage Server` |
-| `status` | `The language model is **on** here, using Claude Haiku 4.5.` then what was spent today and this month, against the caps, and how much of the month's was this server's |
+| `status` | `The language model is **on** here, using Claude Haiku 5.5.` then what was spent today and this month, against the caps, and how much of the month's was this server's |
 
 `status` adds a line when there is no API key for the model, one when
 conversation mode is on, and one when a spending limit has been reached.
@@ -1351,14 +1359,43 @@ decides when, and says what it did.
 | `set_reminder` | Reminds someone here later, posted by whoever set it and mentioning them; at most 100 waiting per server, a year ahead | |
 | `talk_to` | Posts a message to LatiBot or a persona, which answers it ([Personas](#personas)) | a persona without `talks`, or a target without it; the bot pacing is used up |
 
-The six that change Discord refuse any message from a bot, LatiBot's own
-and its personas' included, so one model cannot talk another into acting.
-Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
-and every persona; the model is then neither shown it nor able to run it.
-All are on until then.
+
+**The bot's other features** are tools too, each there only when its
+module is built in. Those that change something follow the commands' own
+rules: whoever asked needs what the command needs.
+
+| Tool | Does, as | Needs of whoever asked |
+|---|---|---|
+| `join_voice`, `leave_voice` | [`/join`, `/leave`](#join--leave): the asker's channel or someone else's | Speak |
+| `speak` | [`/speak`](#speak): says it in voice, joining the asker if the bot is not there | |
+| `voice_message` | [`/chat`](#chat): a DECtalk voice message here, always as LatiBot | |
+| `stop_speech` | [`/tts stop`](#tts), or `skip` | to have asked for it, or be an admin |
+| `play_sound` | [`/soundboard`](#soundboard): in voice when the bot is there, otherwise a voice message | Use Soundboard |
+| `music_queue` | [`/music queue`](#music): what plays and what is next | |
+| `play_music` | [`/music play`](#music): a link, never a search | Speak |
+| `music_control` | `/music` pause, resume, skip, repeat, shuffle, clear, stop | Speak |
+| `nickname_history` | [`/nicknames`](#nicknames), with every nickname hidden from the model | |
+| `link_stats` | [`/linkstats`](#linkstats): the boards, or one person's count | |
+| `fix_link` | gives a link on this server's [mirror](#links), for a link with no preview | |
+| `list_triggers`, `add_trigger`, `remove_trigger` | [`/trigger`](#trigger) | Manage Messages to add or remove |
+| `list_midnight`, `add_midnight`, `edit_midnight` | [`/midnight`](#midnight) | Manage Server to add or edit |
+| `list_advanced_triggers`, `add_advanced_trigger` | `/llm trigger` | Manage Server to add |
+| `post_in_channel` | [`/say`](#say) in another channel, as LatiBot or the persona, mentioning nobody | to be able to post there |
+| `bot_info` | [`/version`](#version) and [`/ping`](#ping), with the uptime | |
+
+**A name the model may use but not see**, such as a past nickname, reaches
+it as a marker like `<hidden1>`. It writes the marker into its reply, and the
+bot puts the name back as it posts, so the provider never receives it.
+
+Every tool that changes something refuses any message from a bot, LatiBot's
+own and its personas' included, so one model cannot talk another into
+acting. Each is logged. `/llm tools off tool` turns one off in a server for
+LatiBot and every persona; the model is then neither shown it nor able to
+run it. All are on until then.
 
 `/llm tools list` shows which are on here, and `/llm tools off tool` and `on`
-change that (Manage Server). The model's `/memory` tools are in the list too.
+change that (Manage Server); `tool` completes as you type. The model's
+`/memory` tools are in the list too.
 
 #### Names the model never sees
 
@@ -1396,14 +1433,15 @@ its name.
 
 | Subcommand | Options | Who | Effect |
 |---|---|---|---|
-| `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` · `talks` | Manage Server | Makes one; at most 10 per server |
-| `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` · `talks` | Manage Server | Changes it; what is left out stays |
+| `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` · `talks` · `voice` | Manage Server | Makes one; at most 10 per server |
+| `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` · `talks` · `voice` | Manage Server | Changes it; what is left out stays |
 | `remove` | `persona` | Manage Server | Deletes it with its documents and triggers; its messages stay |
 | `list` | none | everyone | Every persona here, on or off |
-| `view` | `persona` | everyone | Its model, picture, triggers, and what it spent this month |
+| `view` | `persona` | everyone | Its model, picture, voice, triggers, and what it spent this month |
 | `document` | `persona` · `which` (system or personality) · `action` (`view` by default, or `edit`, `history`, `diff`, `revert`) · `file` · `version` · `from` · `to` | as for [the documents](#the-documents) | Its **system instructions**, who it is (Manage Server), and its **personality** (everyone, unless `personality editors` says otherwise) |
 
-The `persona` option completes from this server's personas.
+The `persona` option completes from this server's personas, and `voice` from
+the [voices](#tts): the built-in ones, then this server's custom voices.
 
 - **Its own instructions.** It is told who it is by its system instructions
   and personality, and not by the server's, which are LatiBot's.
@@ -1411,10 +1449,12 @@ The `persona` option completes from this server's personas.
   limits.
 - **Memory and tools**: it remembers as LatiBot does, sharing LatiBot's
   memories and keeping personal ones of its own, and it has the same
-  [tools](#what-the-model-can-do) except setting the status. It is never
-  spoken. With
+  [tools](#what-the-model-can-do) except setting the status. With
   [conversation mode](#conversation-mode) on, it keeps talking as LatiBot
   does, in conversations of its own.
+- **Its own voice.** In a voice session it is spoken as LatiBot is, in the
+  voice its `voice` option gave it, so it is not heard as LatiBot. Paul when
+  it has none; Paul too if its custom voice has since been deleted.
 - **Talking to LatiBot and the other personas** needs `talks:true` on the
   persona (off by default). Then it, and LatiBot, have the `talk_to` tool:
   the model posts a message in the channel to LatiBot or another persona
@@ -1436,6 +1476,7 @@ The `persona` option completes from this server's personas.
 | A picture that is not an `https://` link | `the avatar has to be an https:// link to an image` |
 | An eleventh | `a server can have at most 10 personas` |
 | A persona that does not exist | `there's no persona called "Zed" here` |
+| A voice that does not exist | `i don't know a voice called "chris"` |
 | `remove` | `removed Claude, with its documents and triggers` |
 | A document saved | `saved Claude's system instructions as version 2 (about 40 tokens)` |
 
@@ -1855,7 +1896,7 @@ person had it remember, so nobody can talk it into forgetting someone else;
 to 500 memories of up to 500 characters each.
 
 **In a voice session**, a reply in the session's text channel is also spoken
-there, in Paul's voice. The model is told it will be heard and keeps it short
+there, in Paul's voice, or a [persona's](#personas) own. The model is told it will be heard and keeps it short
 and plain, and may use a few DECtalk inline commands such as `[:rate 250]`;
 the posted text keeps the commands it was allowed, so the channel sees what
 was said as it was said. Nothing the model writes is ever trusted with the
@@ -1929,7 +1970,7 @@ addressed every time.
 - Joining in, it may still decide to say nothing. Its reply comes without a
   notification, as an advanced trigger's does.
 
-Each check costs about a twentieth of a cent with Claude Haiku 4.5, the
+Each check costs about a fiftieth of a cent with Claude Haiku 5.5, the
 `llm.check_model` in `config.json`, and counts toward the spending limit. The
 times and counts are [settings](#llm-settings).
 

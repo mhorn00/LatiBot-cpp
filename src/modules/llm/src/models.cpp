@@ -8,12 +8,25 @@
 namespace latibot::llm {
 namespace {
 
-// Checked against the providers' pricing pages in September 2026. None of
+// Checked against the providers' pricing pages in September 2026 (Claude
+// Haiku 5.5 in October 2026). None of
 // these take `temperature`: every current Claude model answers a non-default
 // one with a 400 (src/modules/llm/docs/Language_Model.md §3.2), so no request sends
 // it. OpenAI's models take a reasoning effort instead of Claude's, set by the
 // OpenAI provider.
-constexpr std::array<model_info, 8> models{{
+constexpr std::array<model_info, 9> models{{
+    // $0.50 / $2.50 once the prompt is over 100K tokens.
+    {.id = "claude-haiku-5-5",
+     .label = "Claude Haiku 5.5",
+     .provider = provider_kind::anthropic,
+     .input_price = 0.10,
+     .output_price = 0.50,
+     .cache_write_price = 0.125,
+     .cache_read_price = 0.01,
+     .long_prompt_tokens = 100'000,
+     .long_prompt_multiplier = 5.0,
+     .takes_effort = true,
+     .thinking_off = "disabled"},
     {.id = "claude-haiku-4-5",
      .label = "Claude Haiku 4.5",
      .provider = provider_kind::anthropic,
@@ -29,7 +42,8 @@ constexpr std::array<model_info, 8> models{{
      .output_price = 10.0,
      .cache_write_price = 2.50,
      .cache_read_price = 0.20,
-     .takes_effort = true},
+     .takes_effort = true,
+     .thinking_off = "disabled"},
     {.id = "claude-sonnet-5-5",
      .label = "Claude Sonnet 5.5",
      .provider = provider_kind::anthropic,
@@ -37,7 +51,8 @@ constexpr std::array<model_info, 8> models{{
      .output_price = 10.0,
      .cache_write_price = 2.50,
      .cache_read_price = 0.20,
-     .takes_effort = true},
+     .takes_effort = true,
+     .thinking_off = "between_tools"},
     {.id = "claude-opus-5-5",
      .label = "Claude Opus 5.5",
      .provider = provider_kind::anthropic,
@@ -53,7 +68,8 @@ constexpr std::array<model_info, 8> models{{
      .output_price = 25.0,
      .cache_write_price = 6.25,
      .cache_read_price = 0.50,
-     .takes_effort = true},
+     .takes_effort = true,
+     .thinking_off = "disabled"},
     {.id = "claude-fable-5-1",
      .label = "Claude Fable 5.1",
      .provider = provider_kind::anthropic,
@@ -108,8 +124,10 @@ auto find_model(std::string_view id) noexcept -> const model_info* {
 
 auto cost_usd(const model_info& model, const usage& used) noexcept -> double {
     const auto priced = [](std::int64_t tokens, double price) { return static_cast<double>(tokens) * price / tokens_per_price_unit; };
-    return priced(used.input_tokens, model.input_price) + priced(used.output_tokens, model.output_price) +
-           priced(used.cache_write_tokens, model.cache_write_price) + priced(used.cache_read_tokens, model.cache_read_price);
+    const std::int64_t prompt_tokens = used.input_tokens + used.cache_write_tokens + used.cache_read_tokens;
+    const double rate = model.long_prompt_tokens > 0 && prompt_tokens > model.long_prompt_tokens ? model.long_prompt_multiplier : 1.0;
+    return rate * (priced(used.input_tokens, model.input_price) + priced(used.output_tokens, model.output_price) +
+                   priced(used.cache_write_tokens, model.cache_write_price) + priced(used.cache_read_tokens, model.cache_read_price));
 }
 
 auto to_string(stop_reason reason) noexcept -> std::string_view {

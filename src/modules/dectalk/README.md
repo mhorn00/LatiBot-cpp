@@ -23,6 +23,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | none of its own: voice tells it when a connection is ready, a marker is reached, or the bot left | ✓ |
 | Timers | none | ✓ |
 | Tables | `tts_voices` | ✓ |
+| Model tools | `speak`, `voice_message`, `stop_speech`, the language model's /speak, /chat and /tts stop and skip, sanitized at its own trust level; when the llm module is built | ✓ |
 | Per-server settings | tts_max_characters and tts_max_seconds, the speech limits (`src/speak_command.hpp`) | |
 | Config section | none; the trusted servers and users of config.json decide who may use DECtalk's host commands | ✓ |
 | Capabilities | offers speech (core/capabilities/speech.hpp), which llm uses | |

@@ -10,6 +10,7 @@
 #include "core/ui/panel_routes.hpp"
 #include "links/replacements.hpp"
 
+#include "mocks/mock_model_tools.hpp"
 #include "support/module_readme.hpp"
 #include "support/test_host.hpp"
 
@@ -103,4 +104,12 @@ TEST_CASE("the links README lists what the module registers", "[links]") {
     CHECK(latibot::testing::readme_row(readme(), "Timers") == timers);
     CHECK(latibot::testing::readme_row(readme(), "Config section").empty());
     CHECK(bot.asked_sections.empty());
+}
+
+TEST_CASE("the links README lists the model's tools, made only when the language model is there", "[links]") {
+    test_host bot;
+    latibot::testing::mock_model_tools tools;
+    bot.offered.offer<latibot::capabilities::model_tools>(tools, "a test");
+    const module_list modules = start_links(bot);
+    CHECK(latibot::testing::readme_row(readme(), "Model tools") == tools.names());
 }

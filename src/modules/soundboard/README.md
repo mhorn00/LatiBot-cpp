@@ -22,10 +22,12 @@ module registers, so this table cannot fall behind the code.
 | Discord events | `soundboard: Discord's own sounds` (connecting), `soundboard: a server's sounds` (servers arriving), `soundboard: servers left` | ✓ |
 | Timers | `the soundboard refresh`, every 30 minutes | ✓ |
 | Tables | none | ✓ |
+| Model tools | `play_sound`, the language model's /soundboard: in voice when the bot is in a voice channel there, otherwise a voice message; whoever asked needs Use Soundboard; when the llm module is built | ✓ |
 | Per-server settings | none | |
 | Config section | `soundboard.ffmpeg_path` | ✓ |
 | Environment | none | |
 | Programs | ffmpeg, without which `/soundboard` says so | |
+| Permissions | Use Soundboard, for playing a sound in voice; warned about per server when missing | |
 | Capabilities | offers none, uses none | |
 | Requires | the core | |
 

@@ -12,18 +12,22 @@
 using latibot::commands::soundboard_command;
 using latibot::commands::soundboard_services;
 
-TEST_CASE("the soundboard command takes one sound, suggested as it is typed", "[soundboard]") {
+TEST_CASE("the soundboard command takes a sound, suggested as it is typed, and whether to play it in voice", "[soundboard]") {
     const latibot::soundboard::sound_catalog sounds;
     const soundboard_command command(soundboard_services{.sounds = &sounds, .clips = nullptr, .http = nullptr, .looked_in = {}});
 
     const dpp::slashcommand payload = command.build("soundboard", dpp::snowflake{1});
 
-    REQUIRE(payload.options.size() == 1);
+    REQUIRE(payload.options.size() == 2);
     const dpp::command_option& sound = payload.options.front();
     CHECK(sound.name == "sound");
     CHECK(sound.type == dpp::co_string);
     CHECK(sound.required);
     CHECK(sound.autocomplete);
+    const dpp::command_option& voice = payload.options.back();
+    CHECK(voice.name == "voice");
+    CHECK(voice.type == dpp::co_boolean);
+    CHECK_FALSE(voice.required);
 }
 
 TEST_CASE("the soundboard command is for whoever may use the soundboard, and its voice message arrives silently", "[soundboard]") {

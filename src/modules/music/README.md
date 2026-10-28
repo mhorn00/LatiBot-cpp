@@ -21,6 +21,7 @@ module registers, so this table cannot fall behind the code.
 | Discord events | none of its own: voice tells it when the bot left, which takes the queue with it | ✓ |
 | Timers | none of its own: voice's mixer reads from the player every second | ✓ |
 | Tables | none | ✓ |
+| Model tools | `music_queue`, `play_music`, `music_control`, the language model's /music, links only; changing anything needs Speak of whoever asked; when the llm module is built | ✓ |
 | Per-server settings | music_volume, music_track_limit_minutes (`src/music_command.hpp`) | |
 | Config section | `music.ytdlp_path`, `music.ffmpeg_path`, `music.deno_path`, `music.pot_provider_path`, `music.pot_provider_port`; before sections each was at the top, which still works | ✓ |
 | Environment | LATIBOT_YTDLP_FIREFOX_PROFILE or LATIBOT_YTDLP_COOKIES, the account yt-dlp signs in as when it must; never logged | |

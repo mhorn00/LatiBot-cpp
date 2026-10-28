@@ -83,6 +83,16 @@ drops out and rejoins within the grace does not lose the session.
 it was about to say. That includes a moderator disconnecting the bot, since
 the shell sees the bot's own voice state change, whatever caused it.
 
+### 2.4 The language model's `join_voice` and `leave_voice`
+
+With the [language model](../../llm/docs/Language_Model.md#34-memory-and-tools)
+built in, someone can ask it to come into voice or go: `join_voice` joins,
+or moves to, the asker's channel or another person's, by alias, as `/join`
+does, and `leave_voice` leaves. Whoever asked needs Speak, as the commands
+want; a bot's message is refused, as for every tool that changes something,
+and each is logged. Leaving through it tidies up as any leaving does (§2.3).
+`/llm tools off` turns either off in a server.
+
 ## 3. How it works
 
 **One connection per server.** DPP gives one `discord_voice_client` per

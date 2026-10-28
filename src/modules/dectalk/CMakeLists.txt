@@ -12,6 +12,7 @@ latibot_module(dectalk
         src/module.cpp
         src/speak_command.cpp
         src/speech_queue.cpp
+        src/speech_tools.cpp
         src/voice_lab.cpp
         src/voice_params.cpp
         src/voice_store.cpp
@@ -27,6 +28,7 @@ latibot_module(dectalk
         tests/mock_tts_test.cpp
         tests/speak_command_test.cpp
         tests/speech_queue_test.cpp
+        tests/speech_tools_test.cpp
         tests/voice_lab_panel_test.cpp
         tests/voice_lab_test.cpp
         tests/voice_params_test.cpp

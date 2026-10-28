@@ -16,6 +16,7 @@ latibot_module(music CONFIG
         src/links.cpp
         src/module.cpp
         src/music_command.cpp
+        src/music_tools.cpp
         src/music_player.cpp
         src/music_queue.cpp
         src/pot_provider.cpp
@@ -26,6 +27,7 @@ latibot_module(music CONFIG
         tests/music_cookies_test.cpp
         tests/music_links_test.cpp
         tests/music_module_test.cpp
+        tests/music_tools_test.cpp
         tests/music_player_test.cpp
         tests/music_queue_test.cpp
         tests/pot_provider_test.cpp

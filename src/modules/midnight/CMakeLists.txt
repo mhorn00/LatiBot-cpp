@@ -4,9 +4,11 @@ latibot_module(midnight
         src/module.cpp
         src/midnight.cpp
         src/midnight_command.cpp
+        src/midnight_tools.cpp
     TESTS
         tests/midnight_test.cpp
         tests/midnight_command_test.cpp
         tests/midnight_store_test.cpp
         tests/midnight_module_test.cpp
+        tests/midnight_tools_test.cpp
 )
