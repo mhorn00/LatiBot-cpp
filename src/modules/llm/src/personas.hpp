@@ -21,21 +21,21 @@ namespace latibot::llm {
 /// (src/modules/llm/docs/Language_Model.md §2.11).
 struct persona {
     std::int64_t id = 0;
-    dpp::snowflake guild_id;
+    dpp::snowflake guild_id{};
 
     /// What it is called, and answers to. Unique in its server, ignoring
     /// case.
-    std::string name;
+    std::string name{};
 
     /// The image shown beside its messages; empty for the webhook's own.
-    std::string avatar_url;
+    std::string avatar_url{};
 
     /// The model it answers with; empty for the server's.
-    std::string model;
+    std::string model{};
 
     bool enabled = true;
-    dpp::snowflake created_by;
-    std::chrono::sys_seconds created_at;
+    dpp::snowflake created_by{};
+    std::chrono::sys_seconds created_at{};
 
     /// Whether it may message LatiBot and the other personas that may, with
     /// `talk_to`, and be messaged by them; and whether LatiBot answers it by
@@ -45,7 +45,7 @@ struct persona {
     /// The voice its replies are spoken in, in a voice session: one of the
     /// speech capability's voices. Empty for the default
     /// (src/modules/llm/docs/Language_Model.md §2.11).
-    std::string voice;
+    std::string voice{};
 };
 
 /// How many personas a server may have.

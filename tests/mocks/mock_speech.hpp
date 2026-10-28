@@ -18,15 +18,15 @@ namespace latibot::testing {
 class mock_speech final : public capabilities::speech {
 public:
     /// Each guild's voice session's text channel.
-    std::map<dpp::snowflake, dpp::snowflake> session_channels;
+    std::map<dpp::snowflake, dpp::snowflake> session_channels{};
 
     struct said {
-        dpp::snowflake guild;
-        dpp::snowflake for_user;
-        std::string text;
-        std::string voice;
+        dpp::snowflake guild{};
+        dpp::snowflake for_user{};
+        std::string text{};
+        std::string voice{};
     };
-    std::vector<said> spoken;
+    std::vector<said> spoken{};
 
     /// What `prepare_for_model` puts in front, so a test can tell prepared
     /// text from what the model wrote.

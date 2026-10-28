@@ -12,10 +12,13 @@
 #include <dpp/permissions.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <format>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace latibot::commands {
 namespace {

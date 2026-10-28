@@ -8,8 +8,11 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace latibot::events {

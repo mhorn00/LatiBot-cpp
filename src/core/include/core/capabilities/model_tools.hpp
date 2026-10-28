@@ -21,66 +21,66 @@ namespace latibot::capabilities {
 /// Whom the model is answering, which is whom a tool acts for
 /// (src/modules/llm/docs/Language_Model.md §3.4).
 struct model_tool_context {
-    dpp::snowflake guild_id;
-    dpp::snowflake channel_id;
+    dpp::snowflake guild_id{};
+    dpp::snowflake channel_id{};
 
     /// Who asked, and the message they asked in.
-    dpp::snowflake author_id;
-    dpp::snowflake message_id;
+    dpp::snowflake author_id{};
+    dpp::snowflake message_id{};
 
     /// What they may do in `channel_id`, as Discord's permission bits; a
     /// tool that does what a command does checks what the command checks.
     std::uint64_t author_permissions = 0;
 
-    std::chrono::sys_seconds now;
+    std::chrono::sys_seconds now{};
 
     /// The model knows people only by aliases, never their names or ids
     /// (src/modules/llm/docs/Language_Model.md §3.8). Whom an alias the model
     /// passed stands for; nothing for one it has not been shown.
-    std::function<std::optional<dpp::snowflake>(std::string_view alias)> user_for;
+    std::function<std::optional<dpp::snowflake>(std::string_view alias)> user_for{};
 
     /// How a person is shown to the model: their alias.
-    std::function<std::string(dpp::snowflake user)> shown_as;
+    std::function<std::string(dpp::snowflake user)> shown_as{};
 
     /// What the model wrote, with the names it wrote as markers put back,
     /// as Discord should get it.
-    std::function<std::string(std::string_view text)> restore;
+    std::function<std::string(std::string_view text)> restore{};
 
     /// What people wrote, with their names made aliases, as the model may
     /// read it.
-    std::function<std::string(std::string_view text)> sanitize;
+    std::function<std::string(std::string_view text)> sanitize{};
 
     /// A channel of this server the model named: `#name`, `name`, `<#id>`
     /// or an id; nothing when there is none here.
-    std::function<std::optional<dpp::snowflake>(std::string_view named)> channel_for;
+    std::function<std::optional<dpp::snowflake>(std::string_view named)> channel_for{};
 
     /// A marker standing for `text`, such as a past nickname, which the
     /// model may write in its reply and which is put back when it is posted.
     /// For names the model may use but must never read. Good for this reply
     /// only.
-    std::function<std::string(std::string_view text)> hide;
+    std::function<std::string(std::string_view text)> hide{};
 
     /// Posts as whoever is answering, LatiBot or a persona through its
     /// webhook, in the channel the message names: this one, unless the tool
     /// chose another.
-    std::function<dpp::task<ports::result<dpp::message>>(dpp::message message)> post;
+    std::function<dpp::task<ports::result<dpp::message>>(dpp::message message)> post{};
 };
 
 /// What a tool hands back to the model: text, and whether it failed. A
 /// failure is for the model to read and recover from, so say why.
 struct model_tool_result {
-    std::string content;
+    std::string content{};
     bool is_error = false;
 };
 
 /// One tool, as the model sees it and as it runs.
 struct model_tool {
     /// snake_case, unique across the bot.
-    std::string name;
-    std::string description;
+    std::string name{};
+    std::string description{};
 
     /// A JSON schema for its input: an object.
-    nlohmann::json input_schema;
+    nlohmann::json input_schema{};
 
     /// Whether it changes anything. One that does is refused when the
     /// message being answered is a bot's, LatiBot's and its personas'
@@ -88,7 +88,7 @@ struct model_tool {
     bool changes = false;
 
     /// Handed copies: it may outlive the call that started it.
-    std::function<dpp::task<model_tool_result>(nlohmann::json input, model_tool_context context)> run;
+    std::function<dpp::task<model_tool_result>(nlohmann::json input, model_tool_context context)> run{};
 };
 
 // What every tool does with its input and output.

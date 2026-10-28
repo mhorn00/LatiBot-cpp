@@ -12,6 +12,9 @@
 #include <dpp/permissions.h>
 
 #include <chrono>
+#include <cstdint>
+#include <format>
+#include <string>
 
 using namespace std::chrono_literals;
 

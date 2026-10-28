@@ -5,6 +5,9 @@
 #include "core/util/log.hpp"
 #include "core/util/text.hpp"
 
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 namespace latibot::llm {

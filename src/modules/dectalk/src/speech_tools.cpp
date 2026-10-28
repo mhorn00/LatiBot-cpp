@@ -15,8 +15,11 @@
 #include <dpp/permissions.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <expected>
 #include <format>
 #include <memory>
+#include <string>
 #include <utility>
 
 namespace latibot::commands {
@@ -30,9 +33,9 @@ using capabilities::tool_refused;
 /// The text, voice and rate the model asked for, made ready to synthesize:
 /// within the server's limits, sanitized at the model's trust level.
 struct prepared_speech {
-    std::string text;
-    ports::voice_settings voice;
-    speech_limits limits;
+    std::string text{};
+    ports::voice_settings voice{};
+    speech_limits limits{};
 };
 
 auto prepare(const speech_tool_services& services, const nlohmann::json& input, const model_tool_context& context)

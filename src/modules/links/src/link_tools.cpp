@@ -3,6 +3,7 @@
 #include "core/capabilities/model_tools.hpp"
 #include "links/url_rules.hpp"
 
+#include <cstdint>
 #include <format>
 #include <string>
 #include <vector>

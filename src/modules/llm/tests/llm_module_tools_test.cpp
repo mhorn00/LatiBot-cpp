@@ -16,6 +16,7 @@
 #include <dpp/permissions.h>
 
 #include <chrono>
+#include <cstdint>
 #include <format>
 #include <string>
 #include <tuple>
@@ -85,7 +86,15 @@ struct fixture {
 };
 
 auto asked_by_alice() -> tool_context {
-    return {.guild_id = guild, .channel_id = channel, .author_id = alice, .now = {}, .cast = nullptr, .message_id = dpp::snowflake{5}};
+    return {.guild_id = guild,
+            .channel_id = channel,
+            .author_id = alice,
+            .now = {},
+            .cast = nullptr,
+            .message_id = dpp::snowflake{5},
+            .persona_id = 0,
+            .asker_is_bot = false,
+            .allowed = {}};
 }
 
 } // namespace

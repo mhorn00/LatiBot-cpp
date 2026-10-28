@@ -23,10 +23,10 @@ enum class provider_kind : std::uint8_t { anthropic, openai };
 /// pricing page when the entry was added.
 struct model_info {
     /// Exactly as the API takes it.
-    std::string_view id;
+    std::string_view id{};
 
     /// For people: "Claude Haiku 4.5".
-    std::string_view label;
+    std::string_view label{};
 
     provider_kind provider = provider_kind::anthropic;
 
@@ -52,7 +52,7 @@ struct model_info {
     /// not to think. Empty for a model that does not think unless asked, or
     /// one that cannot stop: on those, sending one is a 400
     /// (src/modules/llm/docs/Language_Model.md §3.2).
-    std::string_view thinking_off;
+    std::string_view thinking_off{};
 };
 
 /// Every model the bot knows, cheapest first within a provider.

@@ -8,7 +8,9 @@
 #include <dpp/permissions.h>
 
 #include <chrono>
+#include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 #include <vector>
 

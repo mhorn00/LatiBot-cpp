@@ -26,11 +26,11 @@ struct bot_tool_services {
     const ports::discord_gateway* discord = nullptr;
 
     /// The gateway's latency, and how many servers the bot is in.
-    std::function<std::chrono::milliseconds()> gateway_ping;
-    std::function<std::size_t()> server_count;
+    std::function<std::chrono::milliseconds()> gateway_ping{};
+    std::function<std::size_t()> server_count{};
 
     /// When the bot started, for its uptime.
-    std::chrono::sys_seconds started_at;
+    std::chrono::sys_seconds started_at{};
 };
 
 /// `list_advanced_triggers` and `add_advanced_trigger`, the model's /llm

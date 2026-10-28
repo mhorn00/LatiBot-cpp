@@ -11,6 +11,9 @@
 
 #include <dpp/permissions.h>
 
+#include <cstdint>
+#include <format>
+
 namespace {
 
 constexpr dpp::snowflake guild{1000};

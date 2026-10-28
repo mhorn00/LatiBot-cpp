@@ -9,6 +9,7 @@
 
 #include <dpp/permissions.h>
 
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <vector>

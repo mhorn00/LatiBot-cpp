@@ -15,6 +15,7 @@
 
 #include <chrono>
 #include <optional>
+#include <utility>
 
 using latibot::events::reaction_emoji;
 using namespace std::chrono_literals;
