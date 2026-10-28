@@ -2,6 +2,7 @@
 
 #include "core/config/guild_settings.hpp"
 #include "core/util/text.hpp"
+#include "talk_tool.hpp"
 #include "tools.hpp"
 
 #include <algorithm>
@@ -39,13 +40,14 @@ auto switch_tool(config::guild_settings& settings, dpp::snowflake guild, std::st
     return true;
 }
 
-auto allowed_tools(const tool_registry& tools, const config::guild_settings& settings, dpp::snowflake guild, std::int64_t persona)
-    -> std::vector<std::string> {
+auto allowed_tools(const tool_registry& tools, const config::guild_settings& settings, dpp::snowflake guild, std::int64_t persona,
+                   bool talks) -> std::vector<std::string> {
     const auto off = tools_off(settings, guild);
     std::vector<std::string> allowed;
     for (std::string& name : tools.names()) {
         if (off.contains(name)) continue;
         if (persona != 0 && std::ranges::find(latibot_only_tools, name) != latibot_only_tools.end()) continue;
+        if (!talks && name == talk_tool_name) continue;
         allowed.push_back(std::move(name));
     }
     return allowed;

@@ -291,11 +291,11 @@ messages nobody addressed it in.
   `latibot, ...`, is answered at once during a conversation. Outside one it
   could be people talking *about* the bot, so the **check** decides.
 - **Each persona has conversations of its own** (§2.11), opened when it
-  answers someone who addressed or named it, with the same limits, kept
-  apart from LatiBot's. A persona's name anywhere is heard as LatiBot's is,
-  the longest name first; LatiBot named wins. A message nobody named goes to
-  whoever of them, LatiBot or a persona, **replied last** among those with a
-  conversation open in the channel.
+  answers a reply to one of its messages or a `talk_to`, with the same
+  limits, kept apart from LatiBot's. A persona's name is just a word: only
+  LatiBot's is heard. A message nobody named goes to whoever of them,
+  LatiBot or a persona, **replied last** among those with a conversation
+  open in the channel.
 - **During a conversation**, any other message from a person may be for
   it, and the check decides. Some are left without a check, since they are
   plainly for someone else: a reply to anybody but the bot (or to its
@@ -329,22 +329,20 @@ the `GUILD_MESSAGE_TYPING` intent. It is not privileged.
 A **persona** is someone else the model answers as: a name, a picture, a
 model, and instructions of its own. Its messages are posted through a
 webhook, so they show under its name and picture, with Discord's APP tag
-beside them. The first in mind was a "Claude" who answers when someone says
-"claude"; nothing about Claude is built in, and the name, picture and
+beside them. Nothing about any persona is built in: the name, picture and
 instructions are the server's.
 
 It answers, once the server has run `/llm on`, through the same guards as
 LatiBot (§2.2):
 
-- a message that **starts with its name**, as LatiBot's own (§2.1): `claude,
-  hi` and `Claude what's up`, but not `claudes` or `hey claude`. Of two names
-  that fit, the longer wins, so `Claude Opus, hi` is for Claude Opus;
 - a **reply** to one of its messages;
-- one of its **advanced triggers** (§2.6), a trigger given a `persona`.
+- one of its **advanced triggers** (§2.6), a trigger given a `persona`;
+- a message in a **conversation** it is in (§2.10);
+- a **`talk_to`** from LatiBot or another persona, when it `talks` (below).
 
-LatiBot addressed wins: a message that mentions the bot is LatiBot's, even if
-it starts with a persona's name. A persona is never @mentioned, since a
-webhook is not a member.
+**A persona answers no name.** Only LatiBot answers to its name (§2.1): a
+persona's name in a message is just a word, from anyone. A persona is never
+@mentioned, since a webhook is not a member.
 
 How it answers differs from LatiBot:
 
@@ -361,20 +359,26 @@ How it answers differs from LatiBot:
 - **Its memory**: the shared memories and its own personal ones (§2.4), and
   the same tools as LatiBot (§3.4), except `set_status`, since a webhook has
   no status of its own.
-- **LatiBot and the personas speak to each other by name.** A message of
-  one of theirs that starts with another's name, or @mentions LatiBot, is
-  answered as addressed; one that names another in passing goes to the check
-  (§2.10), with conversation mode on, unless that one is talking in the
-  channel already. Or one sets off another's trigger with `bots` on (§2.6).
-  Never a reply, since LatiBot answers with one and the two would bounce for
-  ever; never its own name; and never joining in, unnamed. Every such answer
-  is paced, as any reply to a bot is (§2.7). Another bot only addresses them,
-  as it would LatiBot. The language model is the one
-  stage that hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it
-  tells which persona wrote a message by the name it was posted under.
+- **Talking to LatiBot and the other personas** is for a persona with
+  `talks` on (`/llm persona add | edit talks:true`; off by default). Such a
+  persona, and LatiBot always, has the **`talk_to`** tool: it posts a message
+  in the channel as the sender, to LatiBot or a persona that also talks,
+  never itself, and that one answers it, as if addressed, and so is in a
+  conversation with the channel (§2.10). The model is told whom it can reach.
+  Each `talk_to` takes a bot turn (§2.7), so the bot pacing ends an
+  exchange; the message it posts sets off nothing else. And LatiBot answers
+  its name from a persona that talks, as from a person: a message starting
+  with it, or an @mention, at once; named in passing, through the check with
+  conversation mode on. From a persona that does not talk, its name is
+  ignored. No persona answers its name from anyone, and a reply between them
+  counts for nothing, since LatiBot answers with one. A trigger with `bots`
+  on (§2.6) is the other way in: it lets the bots, LatiBot and the personas
+  set it off as a person would. The language model is the one stage that
+  hears LatiBot's own webhook (Message_Pipeline.md §2.1), and it tells which
+  persona wrote a message by the name it was posted under.
 - **It is never spoken.** It has **conversations of its own** (§2.10) while
-  the server has conversation mode on: it answers its name anywhere, and
-  joins in where the check, asked about it by name, says yes.
+  the server has conversation mode on, and joins in where the check, asked
+  about it by name, says yes.
 
 At most **10** per server. A name is at most 80 characters, not LatiBot's,
 and holds neither "clyde" nor "discord", which Discord refuses in a
@@ -506,8 +510,9 @@ Besides the memory tools, the model has these (`discord_tools.*`):
 | `pin_message` | Pins or unpins | whoever asked lacks Manage Messages there |
 | `create_poll` | Posts a Discord poll, as LatiBot or the persona | |
 | `set_reminder` | Reminds someone here later, posted by whoever set it and mentioning them; at most 100 waiting per server, a year ahead | |
+| `talk_to` | Posts a message to LatiBot or a persona, which answers it (§2.11) | a persona without `talks`, or a target without it; the bot pacing is used up |
 
-The six that change something refuse any message from a bot, LatiBot's own
+The six that change Discord refuse any message from a bot, LatiBot's own
 and its personas' included, so one model cannot talk another into acting.
 Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
 and every persona; the model is then neither shown it nor able to run it.
@@ -707,7 +712,8 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-27 | Discord tools: reading messages, people, the server and channels, the time; nicknames, status, reactions, pins, polls, reminders. All on until `/llm tools off`; the ones that change something refuse bots | The owner's list. Renaming needs no permission from the asker, at the owner's say; pinning does. The status is shared by every server, so only `trusted_guilds` may set it |
 | 2026-10-27 | Personas get memory and tools; memories are shared or personal | The owner's request: shared notes for the whole cast, and each one's own |
 | 2026-10-27 | `llm.tool_rounds` 8 by default | More tools, and more of them needed in one answer |
-| 2026-10-27 | LatiBot and the personas answer each other by name, as people address them, but never by a reply, never unnamed, and paced | The owner's request: a persona saying "hey LatiBot" was not answered. LatiBot answers with a reply, so replies would loop |
+| 2026-10-27 | LatiBot and the personas answer each other by name, as people address them, but never by a reply, never unnamed, and paced | The owner's request: a persona saying "hey LatiBot" was not answered. LatiBot answers with a reply, so replies would loop. Replaced the same day, below |
+| 2026-10-27 | Personas answer no name; LatiBot and the personas that `talks` message each other with the `talk_to` tool; LatiBot answers its name only from a persona that talks | The owner's design: an explicit message, not text read for names, which is where accidental loops come from. `talks` is off by default |
 | 2026-10-27 | Personas join conversation mode, each with windows of its own; an unnamed message goes to whoever replied last | The owner's request. A window per speaker keeps each one's limits its own; the last to reply is who people are most likely answering |
 | 2026-10-27 | The check leans towards yes, short reactions included | The owner's request: it let short replies to the bot go unanswered. Joining in can still answer `[silent]` |
 | 2026-10-27 | A marker written without its brackets, `u7kx3q:name`, is restored whole | Taken as a bare alias, `u7kx3q:name` was posted as `Alice:name`; a persona was seen writing about a user identifier with a name in it |

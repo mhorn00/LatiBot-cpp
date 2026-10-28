@@ -36,6 +36,11 @@ struct persona {
     bool enabled = true;
     dpp::snowflake created_by;
     std::chrono::sys_seconds created_at;
+
+    /// Whether it may message LatiBot and the other personas that may, with
+    /// `talk_to`, and be messaged by them; and whether LatiBot answers it by
+    /// name. Off by default (src/modules/llm/docs/Language_Model.md §2.11).
+    bool talks = false;
 };
 
 /// How many personas a server may have.

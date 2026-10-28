@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <optional>
 #include <span>
@@ -54,18 +55,6 @@ using stage_result = events::own_stage_result<ask_llm>;
 /// such as a reply to a link replacement.
 [[nodiscard]] auto addresses_bot(const events::incoming_message& message, std::string_view bot_name, bool reply_counts = true) -> bool;
 
-/// The persona a message starts with the name of, as LatiBot is addressed
-/// by its name: the longest name that fits, so "Claude Opus, hi" is for
-/// Claude Opus rather than Claude. Null when it names none of them
-/// (src/modules/llm/docs/Language_Model.md §2.11).
-[[nodiscard]] auto addressed_persona(std::string_view content, std::span<const persona> personas) -> const persona*;
-
-/// The persona a message names anywhere, as conversation mode hears LatiBot
-/// named: "thanks claude" as much as "claude, ...". The longest name that
-/// fits wins; null when it names none of them
-/// (src/modules/llm/docs/Language_Model.md §2.10).
-[[nodiscard]] auto named_persona(std::string_view content, std::span<const persona> personas) -> const persona*;
-
 /// What the bot says, once per guild per day or month, when a spend cap
 /// stops it answering (src/modules/llm/docs/Language_Model.md §2.2).
 [[nodiscard]] auto spend_cap_reply(const spend_status& status) -> std::string;
@@ -103,6 +92,11 @@ struct stage_services {
     /// Whether a webhook is one the personas post through, so that a message
     /// from it is a persona's. Null: none is.
     std::function<bool(dpp::snowflake)> persona_webhook;
+
+    /// Whether a message of LatiBot's or a persona's in a channel is one
+    /// `talk_to` posted, whose target is answering it already: such a
+    /// message sets off nothing more. Forgets it once asked. Null: none is.
+    std::function<bool(dpp::snowflake channel, std::string_view content)> handed_off;
 };
 
 /// The pipeline's last stage: decides whether the model answers a message,
@@ -135,6 +129,12 @@ public:
     /// Takes the rate limits for an ask that waited on the check, now that
     /// the check agreed. False when they are used up.
     auto claim_reply(const ask_llm& ask) -> bool;
+
+    /// Claims a turn for one model answering another in a channel, as
+    /// `talk_to` asks for: the model is on there, no spend cap is reached,
+    /// and the bot pacing allows it (src/modules/llm/docs/Language_Model.md
+    /// §2.7). The wait before answering, or why not.
+    auto claim_bot_turn(dpp::snowflake guild, dpp::snowflake channel) -> std::expected<std::chrono::seconds, std::string>;
 
 private:
     /// Who of LatiBot's own wrote a message: LatiBot, or one of its personas.
@@ -171,24 +171,25 @@ private:
                                    std::span<const persona> personas, bool by_bot, std::optional<std::int64_t> writer,
                                    std::optional<advanced_trigger>& fired) -> std::optional<route>;
 
-    /// Whom of LatiBot and the personas a message of `writer`'s, one of
-    /// them, speaks to by name: one it starts with, or @mentions, is
-    /// answered as addressed; one named in passing goes, with conversation
-    /// mode on, to the check, unless that one is talking here already. Never
-    /// its writer, and never by a reply, since LatiBot answers with one
-    /// (src/modules/llm/docs/Language_Model.md §2.11).
-    [[nodiscard]] auto spoken_between(const events::incoming_message& message, const own_writer& writer, const llm_settings& settings,
-                                      std::string_view bot_name, std::span<const persona> personas) const -> std::optional<route>;
+    /// Whether a persona's message, `writer`'s, speaks to LatiBot by name,
+    /// as a person's may: one it starts with, or an @mention, is answered as
+    /// addressed; one named in passing goes, with conversation mode on, to
+    /// the check, unless LatiBot is talking here already. Only a persona that
+    /// `talks` (`personas` are the enabled ones), never by a reply, since
+    /// LatiBot answers with one; and no persona answers its name, from
+    /// anyone (src/modules/llm/docs/Language_Model.md §2.11).
+    [[nodiscard]] auto spoken_to_latibot(const events::incoming_message& message, const own_writer& writer, const llm_settings& settings,
+                                         std::string_view bot_name, std::span<const persona> personas) const -> std::optional<route>;
 
-    /// The enabled persona a person's message is for: it starts with the
-    /// persona's name, or replies to one of its messages. A bot's message is
-    /// for none of them.
+    /// The enabled persona a person's message is for: it replies to one of
+    /// its messages. A persona answers no name. A bot's message is for none
+    /// of them.
     [[nodiscard]] auto spoken_to(const events::incoming_message& message, std::span<const persona> personas) const -> const persona*;
 
     /// Whether conversation mode takes up a message nobody addressed, and
-    /// for whom: it names LatiBot or one of `personas`, or a conversation is
-    /// open and nothing says the message is for someone else, when it goes
-    /// to whoever of them replied last
+    /// for whom: it names LatiBot, or a conversation is open and nothing says
+    /// the message is for someone else, when it goes to whoever of LatiBot
+    /// and `personas` replied last
     /// (src/modules/llm/docs/Language_Model.md §2.10, §2.11).
     [[nodiscard]] auto join_in(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
                                std::span<const persona> personas) const -> std::optional<route>;

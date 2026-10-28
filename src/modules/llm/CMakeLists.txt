@@ -23,6 +23,7 @@ latibot_module(llm CONFIG
         src/settings.cpp
         src/spend.cpp
         src/stage.cpp
+        src/talk_tool.cpp
         src/tool_switches.cpp
         src/tools.cpp
     TESTS
@@ -37,5 +38,6 @@ latibot_module(llm CONFIG
         tests/llm_persona_test.cpp
         tests/llm_provider_test.cpp
         tests/llm_store_test.cpp
+        tests/llm_talk_test.cpp
         tests/llm_tools_test.cpp
 )

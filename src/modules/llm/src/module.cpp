@@ -36,6 +36,7 @@
 #include "settings.hpp"
 #include "spend.hpp"
 #include "stage.hpp"
+#include "talk_tool.hpp"
 #include "tool_switches.hpp"
 #include "tools.hpp"
 
@@ -63,7 +64,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 6> llm_steps{{
+constexpr std::array<db::migration, 7> llm_steps{{
     {.version = 1, .name = "the language model", .sql = R"sql(
         -- Every call to a model and what it cost. The spend caps are sums
         -- over this, so a restart does not reset them. The price is stored
@@ -245,6 +246,12 @@ constexpr std::array<db::migration, 6> llm_steps{{
 
         CREATE INDEX llm_reminders_by_time ON llm_reminders (due_at);
      )sql"},
+    {.version = 7, .name = "personas that talk to the others", .sql = R"sql(
+        -- Whether a persona may message LatiBot and the other personas with
+        -- talk_to, and be messaged by them, and whether LatiBot answers it
+        -- by name (src/modules/llm/docs/Language_Model.md 2.11). Off.
+        ALTER TABLE llm_personas ADD COLUMN talks INTEGER NOT NULL DEFAULT 0;
+     )sql"},
 }};
 
 constexpr std::string_view module_name = "llm";
@@ -328,6 +335,18 @@ public:
                                   .post = [this](dpp::message message, std::int64_t persona,
                                                  dpp::snowflake guild) { return post_as(std::move(message), persona, guild); }};
         add_discord_tools(tools_, discord_tools_);
+
+        // LatiBot and the personas that talk message each other with it
+        // (src/modules/llm/docs/Language_Model.md §2.11).
+        add_talk_tool(
+            tools_,
+            talk_services{
+                .personas = &personas_,
+                .expected = &handoffs_,
+                .claim_turn = [this](dpp::snowflake guild, dpp::snowflake channel) { return stage_->claim_bot_turn(guild, channel); },
+                .post = [this](dpp::message message, std::int64_t persona,
+                               dpp::snowflake guild) { return post_as(std::move(message), persona, guild); },
+                .hand_off = [this](ask_llm ask) { bot_->detach(answer(std::move(ask)), "answering a message from another model"); }});
         bot.permission(dpp::p_manage_nicknames, "the language model's set_nickname tool");
         bot.permission(dpp::p_add_reactions, "the language model's add_reaction tool");
         bot.permission(dpp::p_manage_messages, "the language model's pin_message tool");
@@ -338,38 +357,42 @@ public:
 
         const auto me = [this] { return bot_identity{.id = bot_->me().id, .name = bot_->me().username}; };
         responder_ = std::make_unique<responder>(
-            responder_services{
-                .discord = &bot.gateway(),
-                .clock = &bot.clock(),
+            responder_services{.discord = &bot.gateway(),
+                               .clock = &bot.clock(),
+                               .settings = &bot.settings(),
+                               .section = &section_,
+                               .documents = &documents_,
+                               .memories = &memories_,
+                               .usage = &usage_,
+                               .tools = &tools_,
+                               .aliases = &aliases_,
+                               .provider_for = [this](provider_kind kind) { return provider_for(kind); },
+                               .speech = speech,
+                               .personas = &personas_,
+                               .webhooks = webhooks_.get(),
+                               .allowed_tools =
+                                   [this](dpp::snowflake guild, std::int64_t persona) {
+                                       const auto who = persona == 0 ? std::nullopt : personas_.find(persona, guild);
+                                       return allowed_tools(tools_, bot_->settings(), guild, persona, persona == 0 || (who && who->talks));
+                                   }},
+            me);
+        stage_ = std::make_unique<llm_stage>(
+            stage_services{
                 .settings = &bot.settings(),
                 .section = &section_,
-                .documents = &documents_,
-                .memories = &memories_,
+                .blacklist = &blacklist_,
+                .triggers = &triggers_,
                 .usage = &usage_,
-                .tools = &tools_,
-                .aliases = &aliases_,
-                .provider_for = [this](provider_kind kind) { return provider_for(kind); },
-                .speech = speech,
                 .personas = &personas_,
-                .webhooks = webhooks_.get(),
-                .allowed_tools = [this](dpp::snowflake guild,
-                                        std::int64_t persona) { return allowed_tools(tools_, bot_->settings(), guild, persona); }},
-            me);
-        stage_ =
-            std::make_unique<llm_stage>(stage_services{.settings = &bot.settings(),
-                                                       .section = &section_,
-                                                       .blacklist = &blacklist_,
-                                                       .triggers = &triggers_,
-                                                       .usage = &usage_,
-                                                       .personas = &personas_,
-                                                       .speech = speech,
-                                                       .replacements = replacements,
-                                                       .windows = &windows_,
-                                                       .activity = &activity_,
-                                                       .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; },
-                                                       .me = me,
-                                                       .persona_webhook = [this](dpp::snowflake id) { return webhooks_->owns(id); }},
-                                        bot.clock());
+                .speech = speech,
+                .replacements = replacements,
+                .windows = &windows_,
+                .activity = &activity_,
+                .has_provider = [this](provider_kind kind) { return provider_for(kind) != nullptr; },
+                .me = me,
+                .persona_webhook = [this](dpp::snowflake id) { return webhooks_->owns(id); },
+                .handed_off = [this](dpp::snowflake channel, std::string_view content) { return handoffs_.take(channel, content); }},
+            bot.clock());
 
         bot.slash_commands().add(std::make_unique<commands::llm_command>(services()));
         bot.slash_commands().add(std::make_unique<commands::memory_command>(services()));
@@ -535,6 +558,7 @@ private:
     persona_store personas_;
     reminder_store reminders_;
     discord_tool_services discord_tools_;
+    handoffs handoffs_;
     conversation_windows windows_;
     channel_activity activity_;
     tool_registry tools_;

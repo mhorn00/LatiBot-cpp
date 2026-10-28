@@ -11,7 +11,7 @@
 namespace latibot::llm {
 namespace {
 
-constexpr std::string_view columns = "id, guild_id, name, avatar_url, model, enabled, created_by, created_at";
+constexpr std::string_view columns = "id, guild_id, name, avatar_url, model, enabled, created_by, created_at, talks";
 
 auto read_persona(db::statement& row) -> persona {
     return {.id = row.get<std::int64_t>(0),
@@ -21,7 +21,8 @@ auto read_persona(db::statement& row) -> persona {
             .model = row.get<std::optional<std::string>>(4).value_or(std::string{}),
             .enabled = row.get<bool>(5),
             .created_by = row.get<dpp::snowflake>(6),
-            .created_at = row.get<std::chrono::sys_seconds>(7)};
+            .created_at = row.get<std::chrono::sys_seconds>(7),
+            .talks = row.get<bool>(8)};
 }
 
 auto model_or_null(const persona& entry) -> std::optional<std::string_view> {
@@ -95,16 +96,18 @@ auto persona_store::count(dpp::snowflake guild_id) const -> std::size_t {
 auto persona_store::add(const persona& entry) -> std::int64_t {
     const auto guard = db_->lock();
     db_->prepare(
-           "INSERT INTO llm_personas (guild_id, name, avatar_url, model, enabled, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-           entry.guild_id, entry.name, entry.avatar_url, model_or_null(entry), entry.enabled, entry.created_by, entry.created_at)
+           "INSERT INTO llm_personas (guild_id, name, avatar_url, model, enabled, created_by, created_at, talks) "
+           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+           entry.guild_id, entry.name, entry.avatar_url, model_or_null(entry), entry.enabled, entry.created_by, entry.created_at,
+           entry.talks)
         .run();
     return db_->last_insert_rowid();
 }
 
 auto persona_store::update(const persona& entry) -> bool {
     const auto guard = db_->lock();
-    db_->prepare("UPDATE llm_personas SET name = ?, avatar_url = ?, model = ?, enabled = ? WHERE id = ? AND guild_id = ?", entry.name,
-                 entry.avatar_url, model_or_null(entry), entry.enabled, entry.id, entry.guild_id)
+    db_->prepare("UPDATE llm_personas SET name = ?, avatar_url = ?, model = ?, enabled = ?, talks = ? WHERE id = ? AND guild_id = ?",
+                 entry.name, entry.avatar_url, model_or_null(entry), entry.enabled, entry.talks, entry.id, entry.guild_id)
         .run();
     return db_->changes() > 0;
 }
