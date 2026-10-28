@@ -302,10 +302,10 @@ auto describe_saved(const document_target& target, int version, std::string_view
 auto render_personas(std::span<const llm::persona> personas) -> std::string {
     if (personas.empty()) return "No personas here yet. Make one with `/llm persona add`.";
 
-    std::string text = "**Personas**: each answers when a message starts with its name, or replies to it.\n";
+    std::string text = "**Personas**: each answers replies to its messages, its advanced triggers, and those it talks with.\n";
     for (const llm::persona& who : personas) {
-        text += std::format("- **{}**{}{}\n", who.name, who.model.empty() ? std::string{} : std::format(", on {}", who.model),
-                            who.enabled ? "" : " (off)");
+        text += std::format("- **{}**{}{}{}\n", who.name, who.model.empty() ? std::string{} : std::format(", on {}", who.model),
+                            who.talks ? ", talks to the others" : "", who.enabled ? "" : " (off)");
     }
     return util::truncate(text, 2000);
 }
@@ -318,6 +318,8 @@ auto render_persona(const llm::persona& who, std::string_view server_model, std:
                                    who.model.empty() ? ", the server's model" : "");
     text +=
         who.avatar_url.empty() ? std::string("Its picture is the webhook's own.\n") : std::format("Its picture: <{}>\n", who.avatar_url);
+    text += who.talks ? "It may message LatiBot and the other personas that talk, and they it.\n"
+                      : "It does not talk to LatiBot or the other personas; `/llm persona edit talks:true` lets it.\n";
     text += std::format("Spent this month: ${:.2f}.\n", spent_this_month);
     if (triggers.empty()) {
         text += "No advanced triggers of its own; `/llm trigger add persona:` gives it one.";
@@ -582,12 +584,14 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
 
     dpp::command_option persona(dpp::co_sub_command_group, "persona", "Others the model answers as, under their own name.");
     dpp::command_option create(dpp::co_sub_command, "add", "Make one (Manage Server).");
-    create.add_option(dpp::command_option(dpp::co_string, "name", "What it is called, and answers to.", true)
+    create.add_option(dpp::command_option(dpp::co_string, "name", "What it is called.", true)
                           .set_min_length(1)
                           .set_max_length(static_cast<std::int64_t>(llm::persona_name_limit)));
     create.add_option(dpp::command_option(dpp::co_string, "avatar", "An https:// link to its picture.", false)
                           .set_max_length(static_cast<std::int64_t>(llm::avatar_url_limit)));
     create.add_option(persona_model_option("Its model. The server's by default."));
+    create.add_option(
+        dpp::command_option(dpp::co_boolean, "talks", "Let it message LatiBot and the other personas. Off by default.", false));
     persona.add_option(create);
 
     dpp::command_option change(dpp::co_sub_command, "edit", "Change one (Manage Server).");
@@ -599,6 +603,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     change.add_option(persona_model_option("A model of its own."));
     change.add_option(dpp::command_option(dpp::co_boolean, "server_model", "Go back to the server's model.", false));
     change.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
+    change.add_option(dpp::command_option(dpp::co_boolean, "talks", "Let it message LatiBot and the other personas.", false));
     persona.add_option(change);
 
     dpp::command_option drop(dpp::co_sub_command, "remove", "Delete one, its documents and triggers (Manage Server).");
@@ -1256,7 +1261,8 @@ auto llm_command::add_persona(const dpp::slashcommand_t& event) -> dpp::task<voi
                       .model = string_option(event, "model"),
                       .enabled = true,
                       .created_by = event.command.get_issuing_user().id,
-                      .created_at = seconds_now(*services_.clock)};
+                      .created_at = seconds_now(*services_.clock),
+                      .talks = bool_option(event, "talks").value_or(false)};
 
     std::optional<std::string> problem = llm::persona_name_problem(made.name);
     if (!problem) problem = llm::avatar_problem(made.avatar_url);
@@ -1281,8 +1287,8 @@ auto llm_command::add_persona(const dpp::slashcommand_t& event) -> dpp::task<voi
                      made.model.empty() ? std::string{} : std::format(", on {}", made.model));
 
     std::string reply = std::format(
-        "made {0}: it answers here when a message starts with \"{0}\", or replies to it. Tell it who it is with `/llm persona "
-        "document persona:{0} which:system action:edit`",
+        "made {0}: it answers replies to its messages, and its advanced triggers (`/llm trigger add persona:{0}`). Tell it who "
+        "it is with `/llm persona document persona:{0} which:system action:edit`",
         made.name);
     if (!llm::load_llm_settings(*services_.settings, guild, *services_.section).enabled) reply += ". The model is off here: /llm on";
     co_await event.co_reply(result(event, reply));
@@ -1313,14 +1319,17 @@ auto llm_command::edit_persona(const dpp::slashcommand_t& event, llm::persona wh
     }
     if (bool_option(event, "server_model").value_or(false)) who.model.clear();
     who.enabled = bool_option(event, "enabled").value_or(who.enabled);
+    who.talks = bool_option(event, "talks").value_or(who.talks);
 
     if (problem) {
         co_await event.co_reply(refusal(event, *problem));
         co_return;
     }
     services_.personas->update(who);
-    util::log().info("persona {} in guild {} changed by {}: \"{}\", {}, {}", who.id, guild, describe_user(event.command.get_issuing_user()),
-                     who.name, who.model.empty() ? std::string("the server's model") : who.model, who.enabled ? "on" : "off");
+    util::log().info("persona {} in guild {} changed by {}: \"{}\", {}, {}{}", who.id, guild,
+                     describe_user(event.command.get_issuing_user()), who.name,
+                     who.model.empty() ? std::string("the server's model") : who.model, who.enabled ? "on" : "off",
+                     who.talks ? ", talks to the others" : "");
     co_await event.co_reply(result(event, std::format("updated {}", who.name)));
 }
 

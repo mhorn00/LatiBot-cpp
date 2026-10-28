@@ -12,6 +12,7 @@
 #include "persona_webhooks.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
+#include "talk_tool.hpp"
 #include "tools.hpp"
 
 #include <algorithm>
@@ -395,6 +396,18 @@ auto responder::build_request(const llm::ask_llm& ask, const llm_settings& setti
          .speaking_guide = ask.speak && services_.speech != nullptr ? services_.speech->guide_for_model() : std::string{},
          .persona_name = as != nullptr ? as->name : std::string{}});
     call.varying_system = varying_instructions(memories, now, cast, true);
+
+    // Who it can message, so it need not guess a name.
+    if (tools.allows(talk_tool_name) && services_.personas != nullptr) {
+        const std::vector<std::string> reachable = reachable_by(ask.persona_id, services_.personas->for_guild(ask.guild_id));
+        if (!reachable.empty()) {
+            std::string names;
+            for (const std::string& name : reachable) {
+                names += names.empty() ? name : ", " + name;
+            }
+            call.varying_system += std::format("\n\nYou can message these with talk_to: {}.", names);
+        }
+    }
     call.conversation.push_back({.from = speaker::user,
                                  .text = question_for(history, latest, replied_to, ask.how, ask.context_prompt,
                                                       static_cast<std::size_t>(settings.context_tokens), cast),

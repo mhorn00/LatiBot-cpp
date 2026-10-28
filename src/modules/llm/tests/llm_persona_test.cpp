@@ -340,31 +340,14 @@ TEST_CASE("a persona's documents are its own, empty until written, and named in 
 // When a persona answers
 // --------------------------------------------------------------------------
 
-TEST_CASE("a message that starts with a persona's name is the persona's, the longest name first", "[llm][persona]") {
-    fixture test;
-    const persona claude = test.make("Claude");
-    const persona opus = test.make("Claude Opus");
-
-    const auto plain = test.stage(from_alice("claude, what's 2+2"));
-    REQUIRE(asked(plain) != nullptr);
-    CHECK(asked(plain)->persona_id == claude.id);
-    CHECK(asked(plain)->how == approach::addressed);
-    CHECK_FALSE(asked(plain)->speak);
-    CHECK(plain.consumed);
-
-    const auto longer = test.stage(from_alice("Claude Opus what's 2+2"));
-    REQUIRE(asked(longer) != nullptr);
-    CHECK(asked(longer)->persona_id == opus.id);
-
-    // Not its name: as for LatiBot's own.
-    CHECK(asked(test.stage(from_alice("claudes are great"))) == nullptr);
-    CHECK(asked(test.stage(from_alice("hey claude"))) == nullptr);
-}
-
-TEST_CASE("LatiBot addressed wins over a persona named in the same message", "[llm][persona]") {
+TEST_CASE("a persona answers no name: only LatiBot does", "[llm][persona]") {
     fixture test;
     test.make("Claude");
 
+    CHECK(asked(test.stage(from_alice("claude, what's 2+2"))) == nullptr);
+    CHECK(asked(test.stage(from_alice("Claude what's 2+2"))) == nullptr);
+
+    // LatiBot's own name still works, whatever persona is named beside it.
     incoming_message message = from_alice("claude says hi");
     message.mentions_bot = true;
     const auto result = test.stage(message);
@@ -387,19 +370,24 @@ TEST_CASE("a reply to a persona's message is for that persona", "[llm][persona]"
     CHECK(asked(test.stage(message)) == nullptr);
 }
 
-TEST_CASE("a persona never answers a bot, and an off one never answers", "[llm][persona]") {
+TEST_CASE("a persona never answers a bot's reply, and an off one never answers", "[llm][persona]") {
     fixture test;
     persona claude = test.make("Claude");
+    test.personas.record_post(dpp::snowflake{7000}, claude.id, guild, channel, noon);
 
-    incoming_message from_bot = from_alice("claude, hi");
+    incoming_message from_bot = from_alice("and then?");
+    from_bot.reply_to = dpp::snowflake{7000};
     from_bot.author_id = other_bot;
     from_bot.from_bot = true;
     from_bot.author_is_allowed_bot = true;
     CHECK(asked(test.stage(from_bot)) == nullptr);
 
+    incoming_message reply = from_alice("and then?");
+    reply.reply_to = dpp::snowflake{7000};
+    CHECK(asked(test.stage(reply)) != nullptr);
     claude.enabled = false;
     test.personas.update(claude);
-    CHECK(asked(test.stage(from_alice("claude, hi"))) == nullptr);
+    CHECK(asked(test.stage(reply)) == nullptr);
 }
 
 TEST_CASE("a persona's trigger is answered by the persona, and only while it is on", "[llm][persona]") {
@@ -524,12 +512,22 @@ TEST_CASE("only LatiBot's own webhook speaks for a persona", "[llm][persona]") {
     CHECK(asked(test.stage(from_persona("Claude", "pizza"))) != nullptr);
 }
 
-TEST_CASE("LatiBot and the personas speak to each other by name, never to themselves, and never by a reply", "[llm][persona]") {
+TEST_CASE("LatiBot answers its name from a persona that talks, and nothing else answers a name between them", "[llm][persona]") {
     fixture test;
-    const persona claude = test.make("Claude");
+    persona claude = test.make("Claude");
     const persona gemini = test.make("Gemini");
 
-    SECTION("starting with a name, or a mention, is answered at once") {
+    SECTION("a persona that does not talk is not answered by name") {
+        CHECK(asked(test.stage(from_persona("Claude", "LatiBot, what do you think?"))) == nullptr);
+        incoming_message mention = from_persona("Claude", "what do you think?");
+        mention.mentions_bot = true;
+        CHECK(asked(test.stage(mention)) == nullptr);
+    }
+
+    claude.talks = true;
+    test.personas.update(claude);
+
+    SECTION("one that talks is answered, by its name first or a mention, at once") {
         const auto to_latibot = test.stage(from_persona("Claude", "LatiBot, what do you think?"));
         REQUIRE(asked(to_latibot) != nullptr);
         CHECK(asked(to_latibot)->how == approach::addressed);
@@ -537,49 +535,29 @@ TEST_CASE("LatiBot and the personas speak to each other by name, never to themse
         CHECK(asked(to_latibot)->speaker == "Claude");
         CHECK_FALSE(asked(to_latibot)->check_first);
 
-        incoming_message mention = from_persona("Gemini", "what do you think?");
+        incoming_message mention = from_persona("Claude", "what do you think?");
         mention.mentions_bot = true;
         CHECK(asked(test.stage(mention))->persona_id == 0);
-
-        const auto to_claude = test.stage(from_latibot("claude, what do you think?"));
-        REQUIRE(asked(to_claude) != nullptr);
-        CHECK(asked(to_claude)->persona_id == claude.id);
-        CHECK(asked(to_claude)->how == approach::addressed);
-
-        CHECK(asked(test.stage(from_persona("Claude", "gemini, your turn")))->persona_id == gemini.id);
-    }
-
-    SECTION("nobody answers being named by themselves") {
-        CHECK(asked(test.stage(from_persona("Claude", "claude here, hello"))) == nullptr);
-        CHECK(asked(test.stage(from_latibot("LatiBot here, hello"))) == nullptr);
-    }
-
-    SECTION("a reply is not speaking to anyone, since LatiBot answers with one") {
-        test.personas.record_post(dpp::snowflake{7001}, claude.id, guild, channel, noon);
-        incoming_message reply = from_latibot("fair point");
-        reply.reply_to = dpp::snowflake{7001};
-        CHECK(asked(test.stage(reply)) == nullptr);
     }
 
     SECTION("named in passing, it goes to the check, with conversation mode on") {
         CHECK(asked(test.stage(from_persona("Claude", "hey LatiBot, you there?"))) == nullptr);
-
         test.settings.set_bool(guild, latibot::llm::conversation_key, true);
         const auto checked = test.stage(from_persona("Claude", "hey LatiBot, you there?"));
         REQUIRE(asked(checked) != nullptr);
         CHECK(asked(checked)->how == approach::named);
-        CHECK(asked(checked)->persona_id == 0);
         CHECK(asked(checked)->check_first);
+    }
 
-        // During their conversation, at once.
-        test.windows.opened(channel, gemini.id);
-        const auto talking = test.stage(from_latibot("i bet gemini disagrees"));
-        REQUIRE(asked(talking) != nullptr);
-        CHECK(asked(talking)->persona_id == gemini.id);
-        CHECK_FALSE(asked(talking)->check_first);
+    SECTION("no persona answers its name, from LatiBot or another, and never a reply") {
+        CHECK(asked(test.stage(from_latibot("claude, what do you think?"))) == nullptr);
+        CHECK(asked(test.stage(from_persona("Claude", "gemini, your turn"))) == nullptr);
+        CHECK(asked(test.stage(from_latibot("LatiBot here, hello"))) == nullptr);
 
-        // Unnamed, nothing: they never join each other's conversations.
-        CHECK(asked(test.stage(from_latibot("that's wild"))) == nullptr);
+        test.personas.record_post(dpp::snowflake{7001}, gemini.id, guild, channel, noon);
+        incoming_message reply = from_latibot("fair point");
+        reply.reply_to = dpp::snowflake{7001};
+        CHECK(asked(test.stage(reply)) == nullptr);
     }
 }
 
@@ -623,20 +601,16 @@ TEST_CASE("each persona has conversations of its own, and the one that replied l
     test.windows.opened(channel);
     CHECK(asked(test.stage(from_alice("that's wild")))->persona_id == 0);
 
-    SECTION("a persona named anywhere is answered at once in its own conversation, and checked outside one") {
+    SECTION("a persona's name is just a word, even during its conversation; LatiBot's is not") {
         const auto named_claude = test.stage(from_alice("thanks claude"));
         REQUIRE(asked(named_claude) != nullptr);
-        CHECK(asked(named_claude)->how == approach::named);
-        CHECK(asked(named_claude)->persona_id == claude.id);
-        CHECK_FALSE(asked(named_claude)->check_first);
+        CHECK(asked(named_claude)->how == approach::joined_in);
+        CHECK(asked(named_claude)->persona_id == 0);
 
-        const auto named_gemini = test.stage(from_alice("i think gemini would disagree"));
-        REQUIRE(asked(named_gemini) != nullptr);
-        CHECK(asked(named_gemini)->persona_id == gemini.id);
-        CHECK(asked(named_gemini)->check_first);
-
-        // LatiBot named wins, as LatiBot addressed does.
-        CHECK(asked(test.stage(from_alice("latibot and claude, thoughts?")))->persona_id == 0);
+        const auto named_latibot = test.stage(from_alice("what do latibot and claude think?"));
+        REQUIRE(asked(named_latibot) != nullptr);
+        CHECK(asked(named_latibot)->how == approach::named);
+        CHECK(asked(named_latibot)->persona_id == 0);
     }
 
     SECTION("a persona that is off has no conversation") {
@@ -645,10 +619,7 @@ TEST_CASE("each persona has conversations of its own, and the one that replied l
         gemini.enabled = false;
         test.personas.update(gemini);
         CHECK(asked(test.stage(from_alice("that's wild")))->persona_id == 0);
-        // Named, it is just a word, and the message goes to LatiBot's
-        // conversation like any other.
         CHECK(asked(test.stage(from_alice("thanks gemini")))->persona_id == 0);
-        CHECK(asked(test.stage(from_alice("thanks gemini")))->how == approach::joined_in);
     }
 
     SECTION("every window keeps its own limits") {
@@ -688,11 +659,14 @@ TEST_CASE("the check is asked about the persona whose conversation it is", "[llm
 
 TEST_CASE("a persona on a model with no key is not answered", "[llm][persona]") {
     fixture test;
-    test.make("Zed", "gpt-6-luna");
+    const persona zed = test.make("Zed", "gpt-6-luna");
+    test.personas.record_post(dpp::snowflake{7000}, zed.id, guild, channel, noon);
+    incoming_message reply = from_alice("hi");
+    reply.reply_to = dpp::snowflake{7000};
     test.openai_key = false;
-    CHECK(asked(test.stage(from_alice("zed, hi"))) == nullptr);
+    CHECK(asked(test.stage(reply)) == nullptr);
     test.openai_key = true;
-    CHECK(asked(test.stage(from_alice("zed, hi"))) != nullptr);
+    CHECK(asked(test.stage(reply)) != nullptr);
 }
 
 TEST_CASE("a persona answers as itself: through the webhook, with its own instructions, the tools and its memories",

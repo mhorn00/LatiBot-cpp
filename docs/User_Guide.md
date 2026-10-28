@@ -1349,8 +1349,9 @@ decides when, and says what it did.
 | `pin_message` | Pins or unpins | whoever asked lacks Manage Messages there |
 | `create_poll` | Posts a Discord poll, as LatiBot or the persona | |
 | `set_reminder` | Reminds someone here later, posted by whoever set it and mentioning them; at most 100 waiting per server, a year ahead | |
+| `talk_to` | Posts a message to LatiBot or a persona, which answers it ([Personas](#personas)) | a persona without `talks`, or a target without it; the bot pacing is used up |
 
-The six that change something refuse any message from a bot, LatiBot's own
+The six that change Discord refuse any message from a bot, LatiBot's own
 and its personas' included, so one model cannot talk another into acting.
 Each is logged. `/llm tools off tool` turns one off in a server for LatiBot
 and every persona; the model is then neither shown it nor able to run it.
@@ -1387,15 +1388,16 @@ and `role`, not both. Replies: `ok, i won't answer @name`, `ok, i'll answer
 
 A persona is someone else the model answers as: its own name and picture,
 posted through a webhook so its messages show as its own, with Discord's
-**APP** tag. It answers when a message **starts with its name** (as LatiBot
-does, so `claude, hi` but not `hey claude`), when someone **replies** to one
-of its messages, and when one of its advanced triggers fires. A message that
-@mentions LatiBot stays LatiBot's.
+**APP** tag. It answers when someone **replies** to one of its messages, when
+one of its [advanced triggers](#advanced-triggers) fires, in a conversation
+it is in, and when LatiBot or another persona messages it. **A persona answers
+no name**: saying `claude` in a message does nothing; only LatiBot answers to
+its name.
 
 | Subcommand | Options | Who | Effect |
 |---|---|---|---|
-| `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` | Manage Server | Makes one; at most 10 per server |
-| `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` | Manage Server | Changes it; what is left out stays |
+| `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` · `talks` | Manage Server | Makes one; at most 10 per server |
+| `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` · `talks` | Manage Server | Changes it; what is left out stays |
 | `remove` | `persona` | Manage Server | Deletes it with its documents and triggers; its messages stay |
 | `list` | none | everyone | Every persona here, on or off |
 | `view` | `persona` | everyone | Its model, picture, triggers, and what it spent this month |
@@ -1413,13 +1415,15 @@ The `persona` option completes from this server's personas.
   spoken. With
   [conversation mode](#conversation-mode) on, it keeps talking as LatiBot
   does, in conversations of its own.
-- **LatiBot and the personas talk to each other by name**, as people talk to
-  them: `LatiBot, what do you think?` from a persona is answered, and so is
-  `hey Claude` from LatiBot once the check agrees (with conversation mode on).
-  Replying to one's message is not enough, since LatiBot always answers with
-  a reply, and nobody answers their own name. They also set off each other's
-  [advanced triggers](#advanced-triggers) with `bots:true`. Every such answer
-  counts toward the bot pacing below.
+- **Talking to LatiBot and the other personas** needs `talks:true` on the
+  persona (off by default). Then it, and LatiBot, have the `talk_to` tool:
+  the model posts a message in the channel to LatiBot or another persona
+  that talks, and that one answers it and joins the conversation. LatiBot
+  also answers its own name from a persona that talks, as from a person, and
+  ignores it from one that does not. Every such answer counts toward the bot
+  pacing below, which ends an exchange until a person speaks. Separately, an
+  [advanced trigger](#advanced-triggers) with `bots:true` is set off by
+  LatiBot and the personas as by a person.
 - **It is not a reply.** A webhook cannot send one, so the answer is posted
   after the question and notifies nobody.
 - **The bot needs Manage Webhooks** in the channel. The first answer in a
@@ -1427,7 +1431,7 @@ The `persona` option completes from this server's personas.
 
 | Situation | Reply |
 |---|---|
-| `add` | `made Claude: it answers here when a message starts with "Claude", or replies to it. …`, and `The model is off here: /llm on` when it is |
+| `add` | `made Claude: it answers replies to its messages, and its advanced triggers …`, and `The model is off here: /llm on` when it is |
 | A name that is taken, LatiBot's own, or holds "clyde" or "discord" | `there's already a persona called Claude`, `that's my own name`, ``Discord doesn't allow "discord" in the name`` |
 | A picture that is not an `https://` link | `the avatar has to be an https:// link to an image` |
 | An eleventh | `a server can have at most 10 personas` |
@@ -1882,8 +1886,9 @@ busy. An advanced trigger's failure is silent.
 **Other bots.** The model answers a bot only if the server
 [allows that bot](#bots), and only when the bot addresses it or sets off an
 [advanced trigger](#advanced-triggers) with `bots:true`; LatiBot's own
-messages and its personas' are answered when they name LatiBot or a persona
-(see [Personas](#personas)) or set off such a trigger. Because two
+messages and its personas' are answered when one messages another with
+`talk_to`, when a persona that talks names LatiBot (see [Personas](#personas)),
+or when they set off such a trigger. Because two
 models can talk to each other forever, it paces itself: at most twenty replies to
 bots in a row in a channel before waiting for a person to say something, at
 least five seconds between them, and 500 a day per server. Any person
@@ -1916,8 +1921,9 @@ addressed every time.
 - It **leans towards answering**: a short reaction such as "lol" or "wait
   really?" right after it spoke counts as talking to it.
 - **Personas** have conversations of their own, with the same limits: one
-  opens when a persona answers someone, its name anywhere is answered, and a
-  message nobody named goes to whoever replied last, LatiBot or a persona.
+  opens when a persona answers a reply to it or a `talk_to`, and a message
+  nobody named goes to whoever replied last, LatiBot or a persona. A
+  persona's name is not listened for; only LatiBot's is.
 - It **waits for people to finish typing**, for up to 6 seconds, and answers
   only someone's latest message.
 - Joining in, it may still decide to say nothing. Its reply comes without a

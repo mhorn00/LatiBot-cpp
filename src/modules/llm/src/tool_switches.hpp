@@ -33,9 +33,10 @@ inline constexpr std::array<std::string_view, 1> latibot_only_tools{"set_status"
 auto switch_tool(config::guild_settings& settings, dpp::snowflake guild, std::string_view name, bool on) -> bool;
 
 /// The tools LatiBot, `persona` 0, or a persona may call in a server: every
-/// registered one the server has not turned off, and for a persona none of
-/// LatiBot's own.
+/// registered one the server has not turned off; for a persona none of
+/// LatiBot's own; and `talk_to` only for one that `talks`, as LatiBot always
+/// may (src/modules/llm/docs/Language_Model.md §2.11).
 [[nodiscard]] auto allowed_tools(const tool_registry& tools, const config::guild_settings& settings, dpp::snowflake guild,
-                                 std::int64_t persona) -> std::vector<std::string>;
+                                 std::int64_t persona, bool talks = true) -> std::vector<std::string>;
 
 } // namespace latibot::llm
