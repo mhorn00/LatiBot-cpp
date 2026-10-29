@@ -182,8 +182,8 @@ without the capability a reply is only posted
 
 ### 2.6 Advanced triggers
 
-A pattern (whole word or anywhere, ignoring case, as for
-[simple triggers](../../triggers/docs/Triggers.md)) and a **prompt**, one line about what to
+A pattern (whole word, anywhere or a regular expression, ignoring case, as
+for [simple triggers](../../triggers/docs/Triggers.md)) and a **prompt**, one line about what to
 say: "Someone mentioned pineapple pizza. Defend it with unreasonable
 passion." How to say it comes from the server's **trigger style** document,
 so the prompt stays short.
@@ -207,7 +207,10 @@ so the prompt stays short.
 Managed with `/llm trigger add | edit | remove | list` (Manage Server). A
 pattern is up to 200 characters and a prompt up to 500. There is no panel:
 the commands cover what one would, and `/trigger`'s panel is the model to
-copy if one is ever wanted.
+copy if one is ever wanted. `edit` given only the id opens a form
+(`llmtrig`) holding the pattern, prompt, mode, chance and cooldown as they
+are, saved whole or not at all. The answers show each prompt in full, cut
+only at Discord's 2,000 characters for the whole message.
 
 ### 2.7 Other bots
 
@@ -783,6 +786,7 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-27 | A persona is spoken in a voice session, in a voice of its own; the speech capability says the voices and `say` takes one | The owner's request, reversing 2026-10-20. Its own voice keeps it from being heard as LatiBot; the list stays DECtalk's, so the language model's code knows none of its voices |
 | 2026-10-28 | The other modules give the model tools through one capability, `model_tools`, which llm offers, rather than a bridge library or a capability each | The owner's choice. Eighteen tools across seven modules: each module keeps its tool beside its command, llm knows none of them, and the bot rule is applied once |
 | 2026-10-28 | A name a tool must give the model, such as a past nickname, is hidden text: a marker put back as the reply is posted | §3.8: the provider never receives a name, and the tool would be useless with none |
+| 2026-10-28 | `/llm trigger edit` with only the id opens a form holding the trigger; replies show the whole prompt | A command's options cannot start out filled in, and a prompt cut at 120 characters could not be checked before editing it |
 
 ## 5. Limits, and what is still to check
 

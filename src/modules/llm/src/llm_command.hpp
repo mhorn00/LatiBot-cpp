@@ -119,6 +119,15 @@ struct document_target {
 /// (src/modules/llm/docs/Language_Model.md §3.5).
 [[nodiscard]] auto describe_saved(const document_target& target, int version, std::string_view content) -> std::string;
 
+/// The form `/llm trigger edit` opens when given only the id, holding the
+/// trigger as it is: a command's options cannot start out filled in.
+[[nodiscard]] auto trigger_form(const llm::advanced_trigger& entry) -> dpp::interaction_modal_response;
+
+/// Applies that form's fields to a trigger, all of them or, when one cannot be
+/// read or the pattern will not work, none, returning why.
+[[nodiscard]] auto apply_trigger_form(llm::advanced_trigger& entry, const std::map<std::string, std::string, std::less<>>& fields)
+    -> std::optional<std::string>;
+
 /// `/llm persona list`: every persona here, on or off.
 [[nodiscard]] auto render_personas(std::span<const llm::persona> personas) -> std::string;
 
@@ -163,6 +172,7 @@ inline constexpr std::string_view llm_settings_pick_view = "llmsetpick";
 inline constexpr std::string_view llm_settings_form_view = "llmsetform";
 inline constexpr std::string_view llm_switch_view = "llmswitch";
 inline constexpr std::string_view llm_document_form_view = "llmdoc";
+inline constexpr std::string_view llm_trigger_form_view = "llmtrig";
 inline constexpr std::string_view memory_list_view = "memlist";
 
 // --------------------------------------------------------------------------

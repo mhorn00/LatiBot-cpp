@@ -128,8 +128,28 @@ TEST_CASE("the modal keeps fields it cannot read rather than resetting them", "[
     CHECK(entry.mode == latibot::events::match_mode::substring);
     CHECK(entry.cooldown == 45s);
     CHECK(applied.note ==
-          "\"sideways\" isn't word or anywhere, so it still matches anywhere; "
+          "\"sideways\" isn't word, anywhere or regex, so it still matches anywhere; "
           "\"thirty\" isn't a number of seconds from 0 to 86400, so the cooldown stayed 45s");
+}
+
+TEST_CASE("the modal refuses a regular expression that will not compile", "[triggers]") {
+    using latibot::commands::apply_form;
+    using latibot::events::match_mode;
+
+    latibot::events::trigger entry{.pattern = "420", .mode = match_mode::whole_word};
+    const auto applied = apply_form(entry, {.pattern = "(4", .responses = "nice", .mode = "regex", .cooldown = ""});
+    REQUIRE(applied.refused.has_value());
+    CHECK(applied.refused->starts_with("that pattern won't work: "));
+
+    const auto fine = apply_form(entry, {.pattern = "4[0-9]{2}", .responses = "nice", .mode = "regex", .cooldown = ""});
+    CHECK_FALSE(fine.refused.has_value());
+    CHECK(entry.mode == match_mode::regex);
+}
+
+TEST_CASE("a regex pattern is listed as code, so markdown leaves it alone", "[triggers]") {
+    latibot::events::trigger entry{.id = 4, .pattern = "*_hi_*", .mode = latibot::events::match_mode::regex};
+    entry.responses = {{.text = "hello", .weight = 1}};
+    CHECK(latibot::commands::describe(entry) == "`4` `*_hi_*` (regex, 30s) -> 1 response");
 }
 
 TEST_CASE("the modal reads the mode however the panel writes it", "[triggers]") {

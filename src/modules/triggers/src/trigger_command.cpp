@@ -40,9 +40,12 @@ constexpr std::size_t lines_budget = 1650;
 /// The longest note under the panel.
 constexpr std::size_t note_limit = 200;
 
+/// Discord's limit on a message.
+constexpr std::size_t message_limit = 2000;
+
 /// The mode as the form's field takes it, which is how its label names it.
-auto mode_label(events::match_mode mode) -> std::string_view {
-    return mode == events::match_mode::substring ? "anywhere" : "word";
+auto form_mode(events::match_mode mode) -> std::string_view {
+    return mode == events::match_mode::whole_word ? "word" : util::mode_label(mode);
 }
 
 /// Splits a leading "<weight> |" off a response line.
@@ -95,15 +98,25 @@ auto format_responses(std::span<const events::weighted_response> responses) -> s
 }
 
 auto describe(const events::trigger& entry) -> std::string {
-    const std::string mode = entry.mode == events::match_mode::substring ? "anywhere" : "whole word";
     const std::string cooldown = entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s", entry.cooldown.count());
 
-    std::string line = std::format("`{}` **{}** ({}, {}", entry.id, entry.pattern, mode, cooldown);
+    // A regular expression is code, and its * and _ would read as markdown.
+    const std::string pattern =
+        entry.mode == events::match_mode::regex ? std::format("`{}`", entry.pattern) : std::format("**{}**", entry.pattern);
+    std::string line = std::format("`{}` {} ({}, {}", entry.id, pattern, util::mode_label(entry.mode), cooldown);
     if (!entry.enabled) line += ", disabled";
     if (entry.respond_to_bots) line += ", answers bots";
     if (const std::string options = describe_message_options(entry.message_flags); !options.empty()) line += ", " + options;
     line += std::format(") -> {} response{}", entry.responses.size(), entry.responses.size() == 1 ? "" : "s");
     return line;
+}
+
+auto describe_in_full(std::string_view heading, const events::trigger& entry) -> std::string {
+    std::string text = std::format("{} {}:", heading, describe(entry));
+    for (const events::weighted_response& option : entry.responses) {
+        text += option.weight == 1 ? std::format("\n- {}", option.text) : std::format("\n- {} | {}", option.weight, option.text);
+    }
+    return util::truncate(text, message_limit);
 }
 
 auto render_trigger_list(const events::trigger_store& store, dpp::snowflake guild_id, int page) -> dpp::message {
@@ -146,9 +159,10 @@ trigger_command::trigger_command(events::trigger_store& store)
 auto trigger_command::build(const std::string& name, dpp::snowflake application_id) const -> dpp::slashcommand {
     dpp::slashcommand payload = command::build(name, application_id);
 
-    dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone.", false);
+    dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone, or is a regular expression.", false);
     mode.add_choice(dpp::command_option_choice("Whole word", std::string("whole_word")));
     mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
+    mode.add_choice(dpp::command_option_choice("Regular expression", std::string("regex")));
 
     dpp::command_option add(dpp::co_sub_command, "add", "Add a trigger.");
     add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true)
@@ -223,6 +237,11 @@ auto trigger_command::add(const dpp::slashcommand_t& event) -> dpp::task<void> {
 
     const std::string mode_text = string_option(event, "mode");
     const events::match_mode mode = events::match_mode_from_string(mode_text).value_or(events::match_mode::whole_word);
+    if (const auto problem = util::pattern_error(pattern, mode)) {
+        co_await event.co_reply(refusal(event, std::format("that pattern won't work: {}", *problem)));
+        co_return;
+    }
+
     const auto cooldown = int_option(event, "cooldown");
 
     const bool answer_bots = bool_option(event, "bots").value_or(false);
@@ -230,22 +249,23 @@ auto trigger_command::add(const dpp::slashcommand_t& event) -> dpp::task<void> {
     discord::message_flags flags = events::trigger{}.message_flags;
     apply_message_options(event, flags);
 
-    const std::int64_t id = store_->add({.guild_id = event.command.guild_id,
-                                         .pattern = pattern,
-                                         .mode = mode,
-                                         .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
-                                         .enabled = true,
-                                         .respond_to_bots = answer_bots,
-                                         .message_flags = flags,
-                                         .responses = responses});
+    events::trigger entry{.guild_id = event.command.guild_id,
+                          .pattern = pattern,
+                          .mode = mode,
+                          .cooldown = std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())),
+                          .enabled = true,
+                          .respond_to_bots = answer_bots,
+                          .message_flags = flags,
+                          .responses = responses};
+    const std::int64_t id = store_->add(entry);
+    entry.id = id;
 
     util::log().info("trigger {} added in guild {} by {}: pattern=\"{}\" mode={} cooldown={} bots={} flags={} responses={}", id,
                      event.command.guild_id, describe_user(event.command.get_issuing_user()), pattern, events::to_string(mode),
                      std::chrono::seconds(cooldown.value_or(events::default_trigger_cooldown.count())), answer_bots,
                      discord::describe_flags(flags), responses.size());
 
-    co_await event.co_reply(result(event, std::format("added trigger `{}` for `{}` with {} response{}", id, pattern, responses.size(),
-                                                      responses.size() == 1 ? "" : "s")));
+    co_await event.co_reply(result(event, describe_in_full("added", entry)));
 }
 
 auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -279,6 +299,13 @@ auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> 
     if (const auto mode = events::match_mode_from_string(string_option(event, "mode"))) entry->mode = *mode;
     if (const auto cooldown = int_option(event, "cooldown")) entry->cooldown = std::chrono::seconds(*cooldown);
 
+    // Checked once both are read: a pattern that was fine as text may not be
+    // as a regular expression.
+    if (const auto problem = util::pattern_error(entry->pattern, entry->mode)) {
+        co_await event.co_reply(refusal(event, std::format("that pattern won't work: {}", *problem)));
+        co_return;
+    }
+
     entry->enabled = bool_option(event, "enabled").value_or(entry->enabled);
 
     entry->respond_to_bots = bool_option(event, "bots").value_or(entry->respond_to_bots);
@@ -291,7 +318,7 @@ auto trigger_command::edit(const dpp::slashcommand_t& event) -> dpp::task<void> 
 
     util::log().info("trigger {} updated in guild {} by {}: {}", *id, event.command.guild_id,
                      describe_user(event.command.get_issuing_user()), describe(*entry));
-    co_await event.co_reply(result(event, std::format("updated {}", describe(*entry))));
+    co_await event.co_reply(result(event, describe_in_full("updated", *entry)));
 }
 
 auto trigger_command::remove(const dpp::slashcommand_t& event) -> dpp::task<void> {
@@ -342,9 +369,14 @@ auto apply_form(events::trigger& entry, const form_fields& fields) -> form_outco
         if (const auto read = events::match_mode_from_string(mode)) {
             entry.mode = *read;
         } else {
-            kept.push_back(std::format("\"{}\" isn't word or anywhere, so it still matches {}", mode,
-                                       entry.mode == events::match_mode::substring ? "anywhere" : "whole words"));
+            kept.push_back(std::format("\"{}\" isn't word, anywhere or regex, so it still matches {}", mode, util::mode_label(entry.mode)));
         }
+    }
+
+    // Refused rather than kept: there is no older pattern worth falling back
+    // to, and the mode may be what made this one unusable.
+    if (const auto problem = util::pattern_error(entry.pattern, entry.mode)) {
+        return {.refused = std::format("that pattern won't work: {}", *problem), .note = {}};
     }
 
     if (const std::string_view cooldown = util::trim(fields.cooldown); !cooldown.empty()) {
@@ -387,7 +419,7 @@ auto pick_menu(std::span<const events::trigger> page_of, int page, std::int64_t 
         // and one label too long makes Discord refuse the whole panel. The
         // lines above the menu show the pattern in full.
         menu.add_select_option(dpp::select_option(util::truncate(entry.pattern, select_option_limit), std::to_string(entry.id),
-                                                  entry.mode == events::match_mode::substring ? "anywhere" : "whole word")
+                                                  std::string(util::mode_label(entry.mode)))
                                    .set_default(entry.id == selected));
     }
 
@@ -598,12 +630,12 @@ auto trigger_form(int page, const events::trigger* entry) -> dpp::interaction_mo
 
     form.add_row();
     form.add_component(dpp::component()
-                           .set_label("Match: word or anywhere")
+                           .set_label("Match: word, anywhere or regex")
                            .set_id("mode")
                            .set_type(dpp::cot_text)
                            .set_text_style(dpp::text_short)
                            .set_required(false)
-                           .set_default_value(std::string(mode_label(entry == nullptr ? events::match_mode::whole_word : entry->mode))));
+                           .set_default_value(std::string(form_mode(entry == nullptr ? events::match_mode::whole_word : entry->mode))));
 
     form.add_row();
     form.add_component(

@@ -14,6 +14,7 @@ using latibot::events::match_mode_from_string;
 using latibot::events::matches;
 using latibot::events::off_cooldown;
 using latibot::events::weighted_response;
+using latibot::util::pattern_error;
 using namespace std::chrono_literals;
 
 TEST_CASE("whole word matching ignores the middle of longer words", "[triggers]") {
@@ -61,8 +62,50 @@ TEST_CASE("match modes parse from their stored and spoken names", "[triggers]") 
     CHECK(match_mode_from_string("substring") == match_mode::substring);
     CHECK(match_mode_from_string("anywhere") == match_mode::substring);
     CHECK(match_mode_from_string(" Whole word ") == match_mode::whole_word);
-    CHECK_FALSE(match_mode_from_string("regex").has_value());
+    CHECK(match_mode_from_string("regex") == match_mode::regex);
+    CHECK(match_mode_from_string(" Regex") == match_mode::regex);
     CHECK_FALSE(match_mode_from_string("").has_value());
+}
+
+TEST_CASE("a regex pattern is a regular expression, ignoring case", "[triggers]") {
+    CHECK(matches("it is 421 somewhere", R"(\b42[0-9]\b)", match_mode::regex));
+    CHECK(matches("NICE", "^nice$", match_mode::regex));
+    CHECK(matches("good morning", "good (morning|night)", match_mode::regex));
+
+    CHECK_FALSE(matches("4200 is not it", R"(\b42[0-9]\b)", match_mode::regex));
+    CHECK_FALSE(matches("very nice", "^nice$", match_mode::regex));
+}
+
+TEST_CASE("the literal modes do not read a pattern as a regular expression", "[triggers]") {
+    CHECK(matches("what?", "what?", match_mode::substring));
+    CHECK_FALSE(matches("whatever", "wh.t", match_mode::substring));
+}
+
+TEST_CASE("a regex pattern knows words beyond ASCII", "[triggers]") {
+    CHECK(matches("CAFÉ time", R"(\bcafé\b)", match_mode::regex));
+    CHECK_FALSE(matches("cafés", R"(\bcafé\b)", match_mode::regex));
+}
+
+TEST_CASE("a broken or runaway regex fires nothing", "[triggers]") {
+    CHECK_FALSE(matches("anything (at all", "(at all", match_mode::regex));
+
+    // Exponential backtracking: without the match limit this takes minutes.
+    const std::string as(40, 'a');
+    CHECK_FALSE(matches(as + "!", "^(a+)+$", match_mode::regex));
+}
+
+TEST_CASE("a regex pattern is checked before it is saved", "[triggers]") {
+    CHECK_FALSE(pattern_error("420", match_mode::whole_word).has_value());
+    CHECK_FALSE(pattern_error("(", match_mode::substring).has_value());
+    CHECK_FALSE(pattern_error(R"(\b42[0-9]\b)", match_mode::regex).has_value());
+
+    const auto unclosed = pattern_error("(420", match_mode::regex);
+    REQUIRE(unclosed.has_value());
+    CHECK(unclosed->contains("at character"));
+
+    // These would fire on every message.
+    CHECK(pattern_error("a*", match_mode::regex).has_value());
+    CHECK(pattern_error("^", match_mode::regex).has_value());
 }
 
 TEST_CASE("weighted responses are picked in proportion", "[triggers]") {

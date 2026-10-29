@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <format>
 #include <utility>
 
@@ -43,6 +44,9 @@ constexpr std::int64_t cooldown_limit = 86400;
 
 /// Discord's longest modal title.
 constexpr std::size_t form_title_limit = 45;
+
+/// Discord's limit on a message.
+constexpr std::size_t message_limit = 2000;
 
 /// What to put in the persona option to mean LatiBot itself, for a trigger
 /// moved back from a persona.
@@ -84,14 +88,37 @@ auto group_title(std::string_view group) -> std::string_view {
 /// One trigger, in a line; `persona` is the name of the persona that
 /// answers it, empty for LatiBot.
 auto describe_trigger(const llm::advanced_trigger& entry, std::string_view persona = {}) -> std::string {
-    std::string line = std::format("`{}` **{}** ({}, {:.0f}%, ", entry.id, entry.pattern,
-                                   entry.mode == util::match_mode::substring ? "anywhere" : "whole word", entry.probability * 100);
+    // A regular expression is code, and its * and _ would read as markdown.
+    const std::string pattern =
+        entry.mode == util::match_mode::regex ? std::format("`{}`", entry.pattern) : std::format("**{}**", entry.pattern);
+    std::string line = std::format("`{}` {} ({}, {:.0f}%, ", entry.id, pattern, util::mode_label(entry.mode), entry.probability * 100);
     line += entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s cooldown", entry.cooldown.count());
     if (!persona.empty()) line += std::format(", as {}", persona);
     if (entry.respond_to_bots) line += ", answers bots";
     if (!entry.enabled) line += ", disabled";
-    line += std::format(") -> {}", util::truncate(entry.context_prompt, 120));
+    // The whole prompt: these are only ever shown to whoever asked, and a
+    // list too long for a message is cut as a whole.
+    line += std::format(") -> {}", entry.context_prompt);
     return line;
+}
+
+/// Reads a whole number from `low` to `high` out of a form's field.
+auto read_number(std::string_view text, std::int64_t low, std::int64_t high) -> std::optional<std::int64_t> {
+    const std::string_view trimmed = util::trim(text);
+    std::int64_t value = 0;
+    const auto [stop, error] = std::from_chars(trimmed.data(), trimmed.data() + trimmed.size(), value);
+    if (error != std::errc{} || stop != trimmed.data() + trimmed.size() || value < low || value > high) return std::nullopt;
+    return value;
+}
+
+/// How many options the subcommand was given, below its group.
+auto given_options(const dpp::slashcommand_t& event) -> std::size_t {
+    const dpp::command_interaction command = event.command.get_command_interaction();
+    const std::vector<dpp::command_data_option>* options = &command.options;
+    while (options->size() == 1 && ((*options)[0].type == dpp::co_sub_command_group || (*options)[0].type == dpp::co_sub_command)) {
+        options = &(*options)[0].options;
+    }
+    return options->size();
 }
 
 auto document_group(std::string_view name, std::string_view description, bool personality) -> dpp::command_option {
@@ -145,9 +172,10 @@ auto voice_option(std::string_view description) -> dpp::command_option {
 }
 
 auto match_mode_option() -> dpp::command_option {
-    dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone.", false);
+    dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone, or is a regular expression.", false);
     mode.add_choice(dpp::command_option_choice("Whole word", std::string("whole_word")));
     mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
+    mode.add_choice(dpp::command_option_choice("Regular expression", std::string("regex")));
     return mode;
 }
 
@@ -427,6 +455,90 @@ auto llm_settings_form(std::string_view group, const std::map<std::string, std::
     return form;
 }
 
+auto trigger_form(const llm::advanced_trigger& entry) -> dpp::interaction_modal_response {
+    const auto custom_id = ui::encode({.view = std::string(llm_trigger_form_view), .page = 0, .argument = std::to_string(entry.id)});
+    dpp::interaction_modal_response form(custom_id.value_or(std::string(llm_trigger_form_view)),
+                                         std::format("Edit advanced trigger {}", entry.id));
+
+    // The same limits as /llm trigger add, so the form cannot save what the
+    // command would refuse.
+    form.add_component(dpp::component()
+                           .set_label("Pattern")
+                           .set_id("pattern")
+                           .set_type(dpp::cot_text)
+                           .set_text_style(dpp::text_short)
+                           .set_required(true)
+                           .set_max_length(trigger_pattern_limit)
+                           .set_default_value(entry.pattern));
+    form.add_row();
+    form.add_component(dpp::component()
+                           .set_label("Prompt")
+                           .set_id("prompt")
+                           .set_type(dpp::cot_text)
+                           .set_text_style(dpp::text_paragraph)
+                           .set_required(true)
+                           .set_max_length(static_cast<std::uint32_t>(llm::context_prompt_limit))
+                           .set_default_value(entry.context_prompt));
+    form.add_row();
+    form.add_component(
+        dpp::component()
+            .set_label("Match: word, anywhere or regex")
+            .set_id("mode")
+            .set_type(dpp::cot_text)
+            .set_text_style(dpp::text_short)
+            .set_required(true)
+            .set_default_value(entry.mode == util::match_mode::whole_word ? "word" : std::string(util::mode_label(entry.mode))));
+    form.add_row();
+    form.add_component(dpp::component()
+                           .set_label("Chance, percent")
+                           .set_id("chance")
+                           .set_type(dpp::cot_text)
+                           .set_text_style(dpp::text_short)
+                           .set_required(true)
+                           .set_placeholder("1 to 100")
+                           .set_default_value(std::format("{:.0f}", entry.probability * 100)));
+    form.add_row();
+    form.add_component(dpp::component()
+                           .set_label("Cooldown in seconds, 0 for none")
+                           .set_id("cooldown")
+                           .set_type(dpp::cot_text)
+                           .set_text_style(dpp::text_short)
+                           .set_required(true)
+                           .set_placeholder(std::format("0 to {}", cooldown_limit))
+                           .set_default_value(std::to_string(entry.cooldown.count())));
+    return form;
+}
+
+auto apply_trigger_form(llm::advanced_trigger& entry, const std::map<std::string, std::string, std::less<>>& fields)
+    -> std::optional<std::string> {
+    const auto field = [&fields](std::string_view name) -> std::string_view {
+        const auto found = fields.find(name);
+        return found == fields.end() ? std::string_view{} : std::string_view(found->second);
+    };
+
+    const std::string pattern(util::trim(field("pattern")));
+    const std::string prompt(util::trim(field("prompt")));
+    if (pattern.empty() || prompt.empty()) return "a trigger needs a pattern and a prompt; nothing was changed";
+
+    const auto mode = util::match_mode_from_string(field("mode"));
+    if (!mode) return std::format("\"{}\" isn't word, anywhere or regex; nothing was changed", util::trim(field("mode")));
+    const auto chance = read_number(field("chance"), 1, 100);
+    if (!chance) return std::format("\"{}\" isn't a percent from 1 to 100; nothing was changed", util::trim(field("chance")));
+    const auto cooldown = read_number(field("cooldown"), 0, cooldown_limit);
+    if (!cooldown) {
+        return std::format("\"{}\" isn't a number of seconds from 0 to {}; nothing was changed", util::trim(field("cooldown")),
+                           cooldown_limit);
+    }
+    if (const auto problem = util::pattern_error(pattern, *mode)) return std::format("that pattern won't work: {}", *problem);
+
+    entry.pattern = pattern;
+    entry.context_prompt = prompt;
+    entry.mode = *mode;
+    entry.probability = static_cast<double>(*chance) / 100.0;
+    entry.cooldown = std::chrono::seconds{*cooldown};
+    return std::nullopt;
+}
+
 auto read_llm_settings_form(std::string_view group, const std::map<std::string, std::string, std::less<>>& fields)
     -> std::variant<std::vector<std::pair<std::string_view, std::int64_t>>, std::string> {
     std::vector<std::pair<std::string_view, std::int64_t>> changes;
@@ -535,7 +647,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots, LatiBot and other personas.", false));
     trigger.add_option(add);
 
-    dpp::command_option edit(dpp::co_sub_command, "edit", "Change one.");
+    dpp::command_option edit(dpp::co_sub_command, "edit", "Change one. Given only the id, it opens in a form to edit.");
     edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /llm trigger list.", true).set_min_value(1));
     edit.add_option(dpp::command_option(dpp::co_string, "pattern", "New text to look for.", false).set_max_length(trigger_pattern_limit));
     edit.add_option(dpp::command_option(dpp::co_string, "prompt", "New instruction.", false)
@@ -983,7 +1095,7 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
             const auto owner = std::ranges::find(personas, entry.persona_id, &llm::persona::id);
             text += describe_trigger(entry, owner == personas.end() ? std::string_view{} : std::string_view(owner->name)) + "\n";
         }
-        co_await event.co_reply(result(event, util::truncate(text, 2000)));
+        co_await event.co_reply(result(event, util::truncate(text, message_limit)));
         co_return;
     }
 
@@ -1007,6 +1119,14 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
             co_return;
         }
         entry = std::move(*found);
+
+        // Given nothing to change, it opens a form holding the trigger as it
+        // is, since a command's options cannot start out filled in.
+        if (given_options(event) <= 1) {
+            const auto opened = co_await event.co_dialog(trigger_form(entry));
+            if (opened.is_error()) util::log().warn("could not open the form for advanced trigger {}: {}", id, opened.get_error().message);
+            co_return;
+        }
     } else if (action == "add") {
         entry.guild_id = guild;
         entry.created_by = event.command.get_issuing_user().id;
@@ -1048,6 +1168,10 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
         co_await event.co_reply(refusal(event, "a trigger needs a pattern and a prompt"));
         co_return;
     }
+    if (const auto problem = util::pattern_error(entry.pattern, entry.mode)) {
+        co_await event.co_reply(refusal(event, std::format("that pattern won't work: {}", *problem)));
+        co_return;
+    }
 
     if (action == "add") {
         entry.id = services_.triggers->add(entry);
@@ -1057,8 +1181,9 @@ auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view act
     }
     util::log().info("advanced trigger {} {} in guild {} by {}: {}", entry.id, action == "add" ? "added" : "updated", guild, who,
                      describe_trigger(entry, answered_by));
-    co_await event.co_reply(
-        result(event, std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by))));
+    co_await event.co_reply(result(
+        event,
+        util::truncate(std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by)), message_limit)));
 }
 
 auto render_tools(const std::vector<llm::tool_definition>& tools, const std::set<std::string, std::less<>>& off) -> std::string {
@@ -1573,6 +1698,40 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
         }
         util::log().info("language model settings in guild {} changed by {} from the panel: {}", guild, who, changed);
         ui::update_panel(event, settings_panel(guild));
+        return true;
+    }
+
+    if (state.view == llm_trigger_form_view) {
+        if (!manages_server(event)) {
+            ui::answer_privately(event, "advanced triggers need Manage Server");
+            return true;
+        }
+        std::int64_t id = 0;
+        const auto [stop, error] = std::from_chars(state.argument.data(), state.argument.data() + state.argument.size(), id);
+        if (error != std::errc{} || stop != state.argument.data() + state.argument.size()) return false;
+
+        // Removed from another client while the form was open.
+        auto entry = services_.triggers->find(id, guild);
+        if (!entry) {
+            ui::answer_privately(event, std::format("advanced trigger `{}` is gone, so nothing was saved", id));
+            return true;
+        }
+        if (const auto problem = apply_trigger_form(*entry, ui::form_fields(event))) {
+            ui::answer_privately(event, *problem);
+            return true;
+        }
+        if (!services_.triggers->update(*entry)) {
+            ui::answer_privately(event, std::format("advanced trigger `{}` is gone, so nothing was saved", id));
+            return true;
+        }
+
+        std::string answered_by;
+        if (entry->persona_id != 0 && services_.personas != nullptr) {
+            if (const auto owner = services_.personas->find(entry->persona_id, guild)) answered_by = owner->name;
+        }
+        util::log().info("advanced trigger {} updated in guild {} by {} from its form: {}", id, guild, who,
+                         describe_trigger(*entry, answered_by));
+        ui::answer_privately(event, util::truncate(std::format("updated {}", describe_trigger(*entry, answered_by)), message_limit));
         return true;
     }
 

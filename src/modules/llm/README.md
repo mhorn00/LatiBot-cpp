@@ -17,7 +17,7 @@ registers, so this table cannot fall behind the code.
 | What | | Checked |
 |---|---|---|
 | Commands | `/llm`, `/memory` | ✓ |
-| Panels | `llmset`, `llmsetpick`, `llmsetform`, `llmswitch`, `llmdoc`, `memlist` | ✓ |
+| Panels | `llmset`, `llmsetpick`, `llmsetform`, `llmswitch`, `llmdoc`, `llmtrig`, `memlist` | ✓ |
 | Message stages | `language model`, at the model position, last: it consumes what it answers | ✓ |
 | Discord events | `llm: who is typing` (typing starts), for conversation mode, which waits for people to finish; needs the typing intent, which is not privileged | ✓ |
 | Timers | `the reminder tick`, every 30 seconds: posts the reminders the model set that are due | ✓ |

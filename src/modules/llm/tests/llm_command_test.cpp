@@ -1,4 +1,5 @@
 #include "llm_command.hpp"
+#include "advanced_triggers.hpp"
 #include "core/commands/registry.hpp"
 #include "settings.hpp"
 
@@ -115,6 +116,61 @@ TEST_CASE("the document form fits a modal and is filled with the current text", 
     REQUIRE(filled != nullptr);
     CHECK(*filled == "be nice");
     CHECK(form->custom_id == "llmdoc:0:system");
+}
+
+TEST_CASE("the advanced trigger form fits a modal and is filled with the trigger as it is", "[llm]") {
+    const latibot::llm::advanced_trigger entry{.id = 12,
+                                               .pattern = "pineapple",
+                                               .mode = latibot::util::match_mode::substring,
+                                               .context_prompt = std::string(500, 'x'),
+                                               .probability = 0.25,
+                                               .cooldown = 90s};
+    const auto form = latibot::commands::trigger_form(entry);
+    latibot::testing::check_modal_fits(form);
+    CHECK(form.custom_id == "llmtrig:0:12");
+
+    std::map<std::string, std::string, std::less<>> filled;
+    for (const auto& row : form.components) {
+        filled.emplace(row[0].custom_id, std::get<std::string>(row[0].value));
+    }
+    CHECK(filled["pattern"] == "pineapple");
+    CHECK(filled["prompt"] == entry.context_prompt);
+    CHECK(filled["mode"] == "anywhere");
+    CHECK(filled["chance"] == "25");
+    CHECK(filled["cooldown"] == "90");
+
+    // Sent back untouched, it changes nothing.
+    latibot::llm::advanced_trigger copy = entry;
+    REQUIRE_FALSE(latibot::commands::apply_trigger_form(copy, filled).has_value());
+    CHECK(copy.pattern == entry.pattern);
+    CHECK(copy.context_prompt == entry.context_prompt);
+    CHECK(copy.mode == entry.mode);
+    CHECK(copy.probability == entry.probability);
+    CHECK(copy.cooldown == entry.cooldown);
+}
+
+TEST_CASE("the advanced trigger form is applied whole or not at all", "[llm]") {
+    latibot::llm::advanced_trigger entry{.id = 3, .pattern = "pizza", .context_prompt = "defend it"};
+    std::map<std::string, std::string, std::less<>> fields{
+        {"pattern", " pine(apple)? "}, {"prompt", "be appalled"}, {"mode", "Regex"}, {"chance", "50"}, {"cooldown", "0"}};
+
+    REQUIRE_FALSE(latibot::commands::apply_trigger_form(entry, fields).has_value());
+    CHECK(entry.pattern == "pine(apple)?");
+    CHECK(entry.context_prompt == "be appalled");
+    CHECK(entry.mode == latibot::util::match_mode::regex);
+    CHECK(entry.probability == 0.5);
+    CHECK(entry.cooldown == 0s);
+
+    const latibot::llm::advanced_trigger before = entry;
+    for (const auto& [key, value] : std::map<std::string, std::string>{
+             {"pattern", "(unclosed"}, {"prompt", "  "}, {"mode", "sideways"}, {"chance", "0"}, {"cooldown", "a while"}}) {
+        auto broken = fields;
+        broken[key] = value;
+        INFO(key);
+        CHECK(latibot::commands::apply_trigger_form(entry, broken).has_value());
+        CHECK(entry.pattern == before.pattern);
+        CHECK(entry.context_prompt == before.context_prompt);
+    }
 }
 
 TEST_CASE("a document is shown inline when short, and attached when not", "[llm]") {

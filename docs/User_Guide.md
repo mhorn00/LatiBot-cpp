@@ -655,28 +655,31 @@ Manages this server's automatic replies. See
 
 | Option | Required | Meaning |
 |---|---|---|
-| `pattern` | yes | The text to look for, 1–200 characters. Literal text, not a regular expression |
+| `pattern` | yes | The text to look for, 1–200 characters. Literal text, unless `mode` is **Regular expression** |
 | `responses` | yes | One per line, up to 2000 characters. A line may start with `3 \| ` to weight it |
-| `mode` | no | **Whole word** (default) or **Anywhere in the message** |
+| `mode` | no | **Whole word** (default), **Anywhere in the message**, or **Regular expression** |
 | `cooldown` | no | Seconds between replies in one channel, 0–86400. Default 30 |
 | `bots` | no | Also answer allowed bots. Default off |
 | `silent` | no | Reply without notifying anyone, what Discord calls @silent. Default on |
 | `previews` | no | Show link previews in the reply. Default on |
 
-Replies with the new trigger's id, for example *added trigger `4` for `420` with 2 responses*.
+Replies with the new trigger's list line and every response in full, for
+example *added `4` **420** (whole word, 30s) -> 2 responses:* followed by
+the responses, one per line.
 
 Refuses a pattern that is only whitespace (`a pattern of only whitespace would
-match everything`) and responses that parse to nothing (`that leaves no
+match everything`), responses that parse to nothing (`that leaves no
 responses to pick from`) — a trigger that matches but has nothing to say is
-worse than no trigger.
+worse than no trigger — and a regular expression that does not compile or
+that would match every message (`that pattern won't work: ...`).
 
 #### `/trigger edit`
 
 Takes `id` (required, from `/trigger list`) plus any of the options above, and
 `enabled` to turn one off without deleting it. **Every option is optional**: an
 edit changes what was given and leaves the rest alone, so fixing a cooldown does
-not mean retyping the responses. Replies with the updated trigger, or
-*no trigger `7` in this server* if the id is wrong.
+not mean retyping the responses. Replies with the updated trigger and its
+responses in full, or *no trigger `7` in this server* if the id is wrong.
 
 #### `/trigger remove`
 
@@ -693,7 +696,9 @@ Shows this server's triggers, 8 per page, with ◀ / ▶ buttons. Each line read
 ```
 
 Silent with previews is the default and goes unmentioned; `notifies` and
-`no previews` appear only when a trigger differs.
+`no previews` appear only when a trigger differs. A regular expression is
+shown in backticks, `` `\b42[0-9]\b` (regex, 30s) ``, so markdown leaves it
+alone.
 
 #### `/trigger panel`
 
@@ -711,11 +716,12 @@ buttons appear:
 
 **Add** opens the same form, empty.
 
-The form's mode takes `word` or `anywhere` (`whole word`, `whole_word` and
-`substring` work too). It keeps fields it cannot read rather than resetting
+The form's mode takes `word`, `anywhere` or `regex` (`whole word`,
+`whole_word` and `substring` work too). It keeps fields it cannot read rather than resetting
 them, and says so under the list: typing "thirty" into the cooldown box leaves
 the cooldown you had. A blank pattern or no responses is refused with an
-explanation, and nothing is saved. After a save the panel shows the trigger
+explanation, and nothing is saved; so is a pattern that will not work in its
+mode. After a save the panel shows the trigger
 picked, on whichever page it landed.
 
 The panel survives restarts and has nothing to expire, because which page and
@@ -1311,7 +1317,7 @@ word count.
 
 A [simple trigger](#trigger-responses) answers with fixed replies; an advanced
 one asks the model to say something. Each has a pattern, matched the same way
-(whole word or anywhere, ignoring case), and a **prompt**: one line about what
+(whole word, anywhere or a regular expression, ignoring case), and a **prompt**: one line about what
 to say, such as `Someone mentioned pineapple pizza. Defend it with
 unreasonable passion.` How to say it comes from the trigger style document, so
 the prompt stays short.
@@ -1319,7 +1325,7 @@ the prompt stays short.
 | Subcommand | Options |
 |---|---|
 | `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` · `persona` (a [persona](#personas) to answer it, rather than LatiBot) · `bots` (also answer bots, LatiBot and personas; off by default) |
-| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays. `persona:LatiBot` gives it back to LatiBot |
+| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays. `persona:LatiBot` gives it back to LatiBot. With only `id`, it opens a form holding the pattern, prompt, mode, chance and cooldown as they are, to change in place |
 | `remove` | `id` |
 | `list` | none |
 
@@ -1556,6 +1562,13 @@ all answering "nice", are not added for you; add them with
   `(420)`, but not on `4200`. Every occurrence is checked, so `4200 and also
   420` does match.
 - **Anywhere** matches inside longer words, so `cat` fires on `catastrophe`.
+- **Regular expression** reads the pattern as a
+  [PCRE2](https://www.pcre.org/current/doc/html/pcre2pattern.html) regular
+  expression, found anywhere in the message: `\b42[0-9]\b` fires on `421`
+  but not on `4200`, and `^good (morning|night)` only at the start. Write
+  `\b` around it for whole words. A pattern that would match an empty
+  message is refused, since it would answer everything, and one that takes
+  too long on a message gives up and stays quiet.
 - Matching ignores case on both sides.
 - **The cooldown is per trigger, per channel.** Two channels do not share one.
   Cooldowns are forgotten when the bot restarts, which costs at most one extra

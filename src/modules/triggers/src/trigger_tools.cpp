@@ -73,6 +73,7 @@ auto add_trigger(trigger_store& store, const nlohmann::json& input, const model_
 
     const match_mode mode =
         match_mode_from_string(capabilities::tool_text(input, "mode").value_or("whole_word")).value_or(match_mode::whole_word);
+    if (const auto problem = util::pattern_error(pattern, mode)) return tool_refused(std::format("that pattern won't work: {}", *problem));
     const std::int64_t cooldown = std::clamp(capabilities::tool_number(input, "cooldown").value_or(default_trigger_cooldown.count()),
                                              std::int64_t{0}, cooldown_limit);
 
@@ -115,11 +116,14 @@ auto add_trigger_tools(capabilities::model_tools& tools, trigger_store& store) -
          .description = "Add a trigger: when a message matches the pattern, the bot replies with one of the responses, at most once per "
                         "cooldown in a channel. Whoever you are answering needs Manage Messages.",
          .input_schema = capabilities::tool_schema(
-             {{"pattern", capabilities::tool_property("The text to look for, at most 200 characters. Literal, not a regular expression.")},
+             {{"pattern", capabilities::tool_property(
+                              "What to look for, at most 200 characters: literal text, or a PCRE2 regular expression when mode is regex.")},
               {"responses",
                {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "One or more replies, 2000 characters together."}}},
-              {"mode", capabilities::tool_choice("Whether the pattern must be a whole word; whole_word when left out.",
-                                                 {"whole_word", "substring"})},
+              {"mode", capabilities::tool_choice(
+                           "Whether the pattern must be a whole word, may be anywhere, or is a case-insensitive regular expression; "
+                           "whole_word when left out.",
+                           {"whole_word", "substring", "regex"})},
               {"cooldown", capabilities::tool_property("Seconds between replies in a channel, 0 to 86400; 30 when left out.", "integer")}},
              {"pattern", "responses"}),
          .changes = true,

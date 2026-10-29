@@ -59,6 +59,7 @@ endif()
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(ctre REQUIRED)
+find_package(PCRE2 REQUIRED)
 # DPP, built from third_party/DPP by conan/dpp/conanfile.py, once per
 # configuration rather than once per build folder.
 find_package(dpp REQUIRED)

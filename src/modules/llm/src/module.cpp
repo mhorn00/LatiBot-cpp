@@ -427,10 +427,11 @@ public:
 
         bot.slash_commands().add(std::make_unique<commands::llm_command>(services()));
         bot.slash_commands().add(std::make_unique<commands::memory_command>(services()));
-        bot.panels().add(panels_,
-                         {commands::llm_settings_view, commands::llm_settings_pick_view, commands::llm_settings_form_view,
-                          commands::llm_switch_view, commands::llm_document_form_view, commands::memory_list_view},
-                         module_name);
+        bot.panels().add(
+            panels_,
+            {commands::llm_settings_view, commands::llm_settings_pick_view, commands::llm_settings_form_view, commands::llm_switch_view,
+             commands::llm_document_form_view, commands::llm_trigger_form_view, commands::memory_list_view},
+            module_name);
 
         // Conversation mode waits for people to finish typing
         // (src/modules/llm/docs/Language_Model.md §2.10). Not privileged.

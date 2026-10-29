@@ -32,10 +32,11 @@ instead are [advanced triggers](../../llm/docs/Language_Model.md#26-advanced-tri
 The Java bot answered `420`, `4:20` and `69` with "nice", hard-coded. People
 liked it and wanted more of them, so triggers became data: per server,
 editable without a restart, and safe to let anyone with Manage Messages
-write. The one thing not offered is regular expressions. A user-written
-regex is a performance risk and, with MSVC's recursive `std::regex`, a
-stack-overflow risk on a path every message takes. A pattern is literal
-text, and the only choice is whether it must stand alone as a word.
+write. A pattern is literal text, standing alone as a word or anywhere,
+or, when asked for, a regular expression. Those run on PCRE2 with a match
+limit rather than on `std::regex`, whose recursion and backtracking make a
+user-written pattern a stack-overflow and performance risk on a path every
+message takes.
 
 ## 2. Behaviour
 
@@ -45,6 +46,11 @@ text, and the only choice is whether it must stand alone as a word.
   `(420)`, not on `4200`. **Every** occurrence is checked, so
   `4200 and also 420` matches.
 - **Anywhere**: `cat` fires on `catastrophe`.
+- **Regex**: a PCRE2 regular expression, found anywhere in the message:
+  `\b42[0-9]\b` fires on `421` but not on `4200`. `\b` and `\w` know
+  letters beyond ASCII. A pattern that does not compile, or that matches an
+  empty message and so would fire on every one, is refused when it is
+  saved. A match that runs into the limit (100,000 steps) fires nothing.
 - Case is ignored on both sides.
 - Every trigger that matches, is enabled and is off cooldown replies, so one
   message can set off several.
@@ -97,7 +103,9 @@ nothing to say is worse than none.
 
 A list line reads `` `4` **420** (whole word, 30s) -> 2 responses``. It adds
 `disabled`, `answers bots`, `notifies` or `no previews` only where a trigger
-differs from the default.
+differs from the default. A regex is shown in backticks rather than bold,
+so its `*` and `_` are not read as markdown. `add` and `edit` answer with
+that line and every response in full, up to Discord's 2,000 characters.
 
 ### 2.5 The panel
 
@@ -112,8 +120,9 @@ Pick a trigger from the menu, then:
 | **Hide link previews** / **Show link previews** | Toggles `previews` |
 | **Delete** | Confirms in the panel itself, so nothing is left behind if ignored |
 
-**Add** opens the same form, empty. The form's mode takes `word` or
-`anywhere`, and `whole word`, `whole_word` and `substring` also work. A field
+**Add** opens the same form, empty. The form's mode takes `word`,
+`anywhere` or `regex`, and `whole word`, `whole_word` and `substring` also
+work. A pattern that will not work in its mode is refused. Any other field
 it cannot read, such as "thirty" for the cooldown, keeps the value the
 trigger had, and the panel says so under the list. After a save the panel
 shows the trigger picked, on whichever page it landed. A page whose long
@@ -183,6 +192,7 @@ characters, so a long pattern cannot break the panel for the whole server.
 | plan v4 | Triggers do not consume the message | The Java bot's early return cost a message its link replacement |
 | 2026-09-22 | A panel with a menu, buttons and forms, all state in `custom_id` | It survives restarts and nothing on the bot's side expires |
 | 2026-09-23 | Answering bots is per trigger, off by default | Hearing a bot and answering it are separate decisions |
+| 2026-10-28 | A third mode, `regex`, on PCRE2 with a match limit; supersedes literal-only | The owner's request. PCRE2 does not recurse on the stack and gives up at its limit, which answers why plan v4 refused them. A mode rather than every pattern a regex, so a saved `what?` keeps its meaning |
 | 2026-09-23 | The responses label is under 45 characters; the weight syntax went to the placeholder | Discord refuses the whole modal over a long label (plan §21.4) |
 | 2026-09-25 | One lock around the cooldown check, the pick and the claim | Two messages at 4:20 could both find a trigger ready (cleanup CONC-002) |
 | 2026-09-25 | Menu labels are truncated to 100 characters | A long pattern broke the panel for the whole server (cleanup DISC-002) |

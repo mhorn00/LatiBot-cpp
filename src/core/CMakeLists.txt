@@ -70,6 +70,8 @@ target_include_directories(latibot_core
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 target_link_libraries(latibot_core PUBLIC dpp::dpp SQLite::SQLite3 ctre::ctre)
+# Only match.cpp uses PCRE2, for trigger patterns.
+target_link_libraries(latibot_core PRIVATE PCRE2::8BIT)
 # crypt32 is the Windows certificate store, read at startup to give OpenSSL
 # the roots it does not ship with (src/util/ca_certificates.cpp).
 if(WIN32)

@@ -86,6 +86,9 @@ auto add_advanced_trigger(const bot_tool_services& services, const nlohmann::jso
         .respond_to_bots = false};
     if (util::character_count(entry.pattern) > pattern_limit)
         return tool_refused(std::format("a pattern is at most {} characters", pattern_limit));
+    if (const auto problem = util::pattern_error(entry.pattern, entry.mode)) {
+        return tool_refused(std::format("that pattern won't work: {}", *problem));
+    }
     if (util::character_count(entry.context_prompt) > context_prompt_limit) {
         return tool_refused(std::format("a prompt is at most {} characters: a line, not a document", context_prompt_limit));
     }
@@ -151,22 +154,26 @@ auto add_bot_tools(capabilities::model_tools& tools, bot_tool_services services)
                    co_return list_advanced_triggers(*shared, context);
                }});
 
-    tools.add({.name = "add_advanced_trigger",
-               .description = "Add an advanced trigger: when a message matches the pattern, you, or a persona, reply following the prompt. "
-                              "Whoever you are answering needs Manage Server.",
-               .input_schema = capabilities::tool_schema(
-                   {{"pattern", capabilities::tool_property("The text to look for, at most 200 characters.")},
-                    {"prompt", capabilities::tool_property("What to say about it, in a line, at most 500 characters.")},
-                    {"persona", capabilities::tool_property("A persona's name to answer it; you when left out.")},
-                    {"chance", capabilities::tool_property("Percent of matches it answers, 1 to 100; 100 when left out.", "integer")},
-                    {"cooldown", capabilities::tool_property("Seconds between replies in a channel; 300 when left out.", "integer")},
-                    {"mode", capabilities::tool_choice("Whether the pattern must be a whole word; whole_word when left out.",
-                                                       {"whole_word", "substring"})}},
-                   {"pattern", "prompt"}),
-               .changes = true,
-               .run = [shared](nlohmann::json input, model_tool_context context) -> dpp::task<model_tool_result> {
-                   co_return add_advanced_trigger(*shared, input, context);
-               }});
+    tools.add(
+        {.name = "add_advanced_trigger",
+         .description = "Add an advanced trigger: when a message matches the pattern, you, or a persona, reply following the prompt. "
+                        "Whoever you are answering needs Manage Server.",
+         .input_schema = capabilities::tool_schema(
+             {{"pattern", capabilities::tool_property(
+                              "What to look for, at most 200 characters: literal text, or a PCRE2 regular expression when mode is regex.")},
+              {"prompt", capabilities::tool_property("What to say about it, in a line, at most 500 characters.")},
+              {"persona", capabilities::tool_property("A persona's name to answer it; you when left out.")},
+              {"chance", capabilities::tool_property("Percent of matches it answers, 1 to 100; 100 when left out.", "integer")},
+              {"cooldown", capabilities::tool_property("Seconds between replies in a channel; 300 when left out.", "integer")},
+              {"mode",
+               capabilities::tool_choice("Whether the pattern must be a whole word, may be anywhere, or is a case-insensitive regular "
+                                         "expression; whole_word when left out.",
+                                         {"whole_word", "substring", "regex"})}},
+             {"pattern", "prompt"}),
+         .changes = true,
+         .run = [shared](nlohmann::json input, model_tool_context context) -> dpp::task<model_tool_result> {
+             co_return add_advanced_trigger(*shared, input, context);
+         }});
 
     tools.add({.name = "post_in_channel",
                .description = "Post a message in another channel of this server, as yourself, without mentioning anyone, as /say "
