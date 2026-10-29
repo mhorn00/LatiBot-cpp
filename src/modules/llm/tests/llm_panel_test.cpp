@@ -3,7 +3,6 @@
 // stored and shown. Through DPP's own reading and writing of interactions
 // (support/panel_harness.hpp), since that is where the panels once broke.
 
-#include "advanced_triggers.hpp"
 #include "documents.hpp"
 #include "guards.hpp"
 #include "llm_command.hpp"
@@ -59,7 +58,6 @@ struct llm_fixture : database_fixture {
     latibot::config::guild_settings settings{db};
     latibot::llm::llm_config config;
     latibot::llm::document_store documents{db};
-    latibot::llm::advanced_trigger_store triggers{db};
     latibot::llm::blacklist_store blacklist{db};
     latibot::llm::memory_store memories{db};
     latibot::llm::usage_store usage{db};
@@ -67,7 +65,6 @@ struct llm_fixture : database_fixture {
     latibot::commands::llm_panels panels{{.settings = &settings,
                                           .section = &config,
                                           .documents = &documents,
-                                          .triggers = &triggers,
                                           .blacklist = &blacklist,
                                           .memories = &memories,
                                           .usage = &usage,

@@ -1,7 +1,6 @@
 # The language model module (README.md).
 latibot_module(llm CONFIG
     SOURCES
-        src/advanced_triggers.cpp
         src/aliases.cpp
         src/anthropic.cpp
         src/bot_tools.cpp

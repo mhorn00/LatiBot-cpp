@@ -89,7 +89,7 @@ These are the places where one feature reaches into another, from the
 
 ## 3. The modules
 
-```text mermaid
+```mermaid
 flowchart TB
     core["<b>core</b><br/>/ping /say /status /shutdown /goodbye /bots /logs"]
     voice["<b>voice</b> (built with dectalk or music)<br/>/join /leave /voice start|stop|grace"]
@@ -127,8 +127,8 @@ otherwise.
 | **voice** | `/join` `/leave` `/voice start`, `stop`, `grace`; the mixer; voice sessions; auto-leave. It has no switch of its own: it is built when dectalk or music is. | core | — |
 | **dectalk** | `/speak` `/tts` `/chat`; `/tts voices lab`, `list`, `delete`; DECtalk itself, which is only built with this module | voice | — |
 | **music** | `/music`; yt-dlp, ffmpeg, cookies, the PO token provider | voice | — |
-| **llm** | `/llm` `/memory`; answering, advanced triggers, memory, aliases, spend | core | speech |
-| **triggers** | `/trigger`; trigger replies | core | — |
+| **llm** | `/llm` `/memory`; answering, memory, aliases, spend; advanced triggers until 2026-10-29 | core | speech |
+| **triggers** | `/trigger`; trigger replies, and since 2026-10-29 the triggers that ask the model | core | model_replies |
 | **nicknames** | `/nickname` `/nicknames`; history, audit attribution, the Java import, the Server Members intent | core | — |
 | **midnight** | `/midnight`; the daily message | core | — |
 | **links** | `/links` (was `/urlrepl`) and `/urltoggle`; replacing links, watching previews, Retry, the Java rules import | core | — |
@@ -340,11 +340,20 @@ namespace.
 Keep them few and small. One that grows module-specific types becomes a
 bridge instead.
 
-There are five: `speech` (§5.3); since 2026-10-06 `link_replacements`,
+There are six: `speech` (§5.3); since 2026-10-06 `link_replacements`,
 one call that links offers so the language model can leave replies to a
 replacement alone; `nickname_changes` and `bot_status`, for the model's
-`set_nickname` and `set_status`; and since 2026-10-28 `model_tools`, which
-the language model offers and every other module adds its tools to.
+`set_nickname` and `set_status`; since 2026-10-28 `model_tools`, which
+the language model offers and every other module adds its tools to; and
+since 2026-10-29 `model_replies`, which the language model offers so the
+triggers module can have it answer a trigger: the personas, who of
+LatiBot's own wrote a message, whether a message addresses LatiBot and whose
+message it replies to, and the answer as actions to carry out, after every
+guard the model has (its check model first, for an analysis). The advanced
+triggers moved to the triggers module with it, and the triggers, calling
+`take_over_answering`, decide every answer but conversation mode's; the
+model keeps every decision about whether it may speak. Neither module
+needs the other: without triggers, the model decides as before.
 
 `model_tools` stands in for the bridge §5.1 foresaw for "an LLM tool that
 queues music": with eighteen tools across seven modules, one interface the
@@ -399,7 +408,7 @@ what happens today in a channel with no voice session. The LLM's tests use a
 | Music feeds the mixer | music registers its source with voice's mixer |
 | Link stats read replacements | linkstats requires links: `replacements.hpp` and `url_rules.hpp` are links' public headers |
 | The model uses other modules' features | each module adds its tools to `model_tools` |
-| A trigger's reply silences an advanced trigger | already core: `incoming_message::answered` and the stage order |
+| A trigger's reply silences an advanced trigger | already core: `incoming_message::answered` and the stage order. Since 2026-10-29 both kinds are the triggers module's, which asks the model through `model_replies` |
 
 ---
 

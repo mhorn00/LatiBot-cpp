@@ -33,7 +33,7 @@ stays as the record of how the port was designed.
 | 🛑 | [`/shutdown`](#shutdown) | Stop the bot | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 🛑 | [`/goodbye`](#goodbye) | Configure the phrase that stops the bot | the core | [Basic commands](../src/core/docs/Basic_Commands.md) |
 | 📋 | [`/logs`](#logs) | Post the bot's log in one channel | the core | [Log channel](../src/core/docs/Log_Channel.md) |
-| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases | [triggers](../src/modules/triggers/README.md) | [Triggers](../src/modules/triggers/docs/Triggers.md) |
+| 🗣 | [`/trigger`](#trigger) | Manage automatic replies to phrases, fixed or from the model | [triggers](../src/modules/triggers/README.md) | [Triggers](../src/modules/triggers/docs/Triggers.md) |
 | 🤖 | [`/bots`](#bots) | Choose which other bots the bot may hear | the core | [Message pipeline](../src/core/docs/Message_Pipeline.md) |
 | 🙈 | [`/channels`](#channels) | Choose channels the bot ignores, entirely, for the language model, or for bots | the core | [Message pipeline](../src/core/docs/Message_Pipeline.md#24-channels) |
 | 🏷 | [`/nickname`](#nickname) | Change somebody's nickname, on the record | [nicknames](../src/modules/nicknames/README.md) | [Nicknames](../src/modules/nicknames/docs/Nicknames.md) |
@@ -42,7 +42,7 @@ stays as the record of how the port was designed.
 | 🔗 | [`/links`](#links) | Turn link replacement on, and choose which links get posted again with a working preview | [links](../src/modules/links/README.md) | [URL replacement](../src/modules/links/docs/Url_Replacement.md) |
 | 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [links](../src/modules/links/README.md) | [URL replacement](../src/modules/links/docs/Url_Replacement.md) |
 | 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [linkstats](../src/modules/linkstats/README.md) | [Link stats](../src/modules/linkstats/docs/Link_Stats.md) |
-| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality, set its triggers | [llm](../src/modules/llm/README.md) | [Language model](../src/modules/llm/docs/Language_Model.md) |
+| 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality | [llm](../src/modules/llm/README.md) | [Language model](../src/modules/llm/docs/Language_Model.md) |
 | 🧠 | [`/memory`](#memory) | What the language model remembers | [llm](../src/modules/llm/README.md) | [Language model](../src/modules/llm/docs/Language_Model.md) |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command | — | [Basic commands](../src/core/docs/Basic_Commands.md#3-the-goodbye-phrase) |
 | 🗣 | [Trigger responses](#trigger-responses) | The "420 → nice" behaviour, generalised | — | [Triggers](../src/modules/triggers/docs/Triggers.md) |
@@ -99,14 +99,14 @@ as subsections, rather than renumbering.
 |---|---|
 | [Basic commands](../src/core/docs/Basic_Commands.md) | `/ping`, `/version`, `/say`, `/status`, `/shutdown`, `/goodbye` and the goodbye phrase |
 | [Message pipeline](../src/core/docs/Message_Pipeline.md) | The stages every message passes through, who is heard, and `/bots` |
-| [Triggers](../src/modules/triggers/docs/Triggers.md) | `/trigger` and its panel, and the replies |
+| [Triggers](../src/modules/triggers/docs/Triggers.md) | `/trigger` and its panel, the replies, and the triggers that ask the model |
 | [URL replacement](../src/modules/links/docs/Url_Replacement.md) | `/links`, `/urltoggle`, the replacements, watching previews, Retry |
 | [Link stats](../src/modules/linkstats/docs/Link_Stats.md) | `/linkstats`, reaction counting, the recompute, image posts, emoji copies |
 | [Nicknames](../src/modules/nicknames/docs/Nicknames.md) | `/nickname`, `/nicknames`, tracking and attribution, the Java import |
 | [Midnight](../src/modules/midnight/docs/Midnight.md) | `/midnight` and the once-a-day post |
 | [Speech](../src/modules/dectalk/docs/Speech.md) | DECtalk, `/speak`, `/tts`, `/chat`, the sanitizer, custom voices and the voice lab |
 | [Voice channels](../src/modules/voice/docs/Voice_Channels.md) | `/join`, `/leave`, voice sessions, the speech queue, leaving empty channels |
-| [Language model](../src/modules/llm/docs/Language_Model.md) | `/llm`, `/memory`, answering, memory, documents, advanced triggers, spend |
+| [Language model](../src/modules/llm/docs/Language_Model.md) | `/llm`, `/memory`, answering, memory, documents, spend |
 | [Log channel](../src/core/docs/Log_Channel.md) | `/logs` |
 | [Commands and panels](../src/core/docs/Commands_and_Panels.md) | What every command and panel shares: registration, flags, `custom_id` state, forms, `--unregister-commands` |
 | [Running the bot](../src/core/docs/Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
@@ -655,11 +655,17 @@ Manages this server's automatic replies. See
 
 | Option | Required | Meaning |
 |---|---|---|
-| `pattern` | yes | The text to look for, 1–200 characters. Literal text, unless `mode` is **Regular expression** |
-| `responses` | yes | One per line, up to 2000 characters. A line may start with `3 \| ` to weight it |
+| `pattern` | unless `when` says otherwise | The text to look for, 1–200 characters. Literal text, unless `mode` is **Regular expression** |
+| `responses` | one of these two | One per line, up to 2000 characters. A line may start with `3 \| ` to weight it |
+| `prompt` | one of these two | Instead of responses, what the [model](#advanced-triggers) should say about it, in a line, up to 500 characters. Only with the language model built in |
+| `question` | instead of the two above | An [analysis](#advanced-triggers): a yes-or-no question the check model is asked about each message the pattern matches; a yes is answered by the model. The pattern has to be words, not a regular expression. Only with the language model built in |
+| `chance` | no | With a prompt: the percent of matches answered, 1–100. Default 100 |
+| `persona` | no | With a prompt: a [persona](#personas) to answer it rather than LatiBot; suggested as you type |
+| `when` | no | **Its pattern matches** (default), **LatiBot is @mentioned or named first**, or **A reply to whoever answers it**. The last two need no pattern, and need the language model |
 | `mode` | no | **Whole word** (default), **Anywhere in the message**, or **Regular expression** |
-| `cooldown` | no | Seconds between replies in one channel, 0–86400. Default 30 |
+| `cooldown` | no | Seconds between replies in one channel, 0–86400. Default 30, 300 with a prompt, or 0 for an analysis or on being addressed or replied to |
 | `bots` | no | Also answer allowed bots. Default off |
+| `reply` | no | Answer as a Discord reply to the message. Default off, or on with a prompt. A persona never replies: Discord does not let its webhook |
 | `silent` | no | Reply without notifying anyone, what Discord calls @silent. Default on |
 | `previews` | no | Show link previews in the reply. Default on |
 
@@ -670,21 +676,28 @@ the responses, one per line.
 Refuses a pattern that is only whitespace (`a pattern of only whitespace would
 match everything`), responses that parse to nothing (`that leaves no
 responses to pick from`) — a trigger that matches but has nothing to say is
-worse than no trigger — and a regular expression that does not compile or
-that would match every message (`that pattern won't work: ...`).
+worse than no trigger — both responses and a prompt (`a trigger has
+responses or a prompt for the model, not both`), and a regular expression that does not compile or that would match every
+message (`that pattern won't work: ...`).
 
 #### `/trigger edit`
 
 Takes `id` (required, from `/trigger list`) plus any of the options above, and
 `enabled` to turn one off without deleting it. **Every option is optional**: an
 edit changes what was given and leaves the rest alone, so fixing a cooldown does
-not mean retyping the responses. Replies with the updated trigger and its
-responses in full, or *no trigger `7` in this server* if the id is wrong.
+not mean retyping the responses. Giving responses, or a prompt, also makes it
+that kind of trigger. `persona:LatiBot` gives a trigger back to LatiBot.
+Replies with the updated trigger and its responses in full, or *no trigger
+`7` in this server* if the id is wrong.
+
+**Given only `id`**, it opens a form holding the trigger as it is, the
+responses or the prompt included, to change in place.
 
 #### `/trigger remove`
 
 Takes `id`. Replies *removed trigger `7`*, or says it does not exist. The
-responses go with it.
+responses go with it. A built-in trigger is not removed: turn it off with
+`/trigger edit id:… enabled:false`.
 
 #### `/trigger list`
 
@@ -692,13 +705,27 @@ Shows this server's triggers, 8 per page, with ◀ / ▶ buttons. Each line read
 
 ```
 `4` **420** (whole word, 30s) -> 2 responses
-`5` **69** (anywhere, no cooldown, disabled, answers bots, notifies, no previews) -> 1 response
+`5` **69** (anywhere, no cooldown, disabled, answers bots, replies, notifies, no previews) -> 1 response
+`9` **pizza** (whole word, 300s, 50%, as Claude) -> asks the model: Defend pineapple on it.
 ```
 
-Silent with previews is the default and goes unmentioned; `notifies` and
-`no previews` appear only when a trigger differs. A regular expression is
+Silent with previews is the default and goes unmentioned; `replies`,
+`notifies` and `no previews` appear only when a trigger differs. A trigger
+that asks the model shows its chance, who answers it (nobody named for
+LatiBot, `a persona that is gone` for one removed) and its whole prompt. A regular expression is
 shown in backticks, `` `\b42[0-9]\b` (regex, 30s) ``, so markdown leaves it
 alone.
+
+#### Fire a trigger (Apps menu)
+
+Right-click a message (long-press on a phone), then **Apps → Fire a
+trigger**. Manage Messages, by default. It answers only you with a menu of
+this server's triggers that are on, 25 to a page; pick one and it answers
+that message, whatever its pattern, chance, check or cooldown say. A
+trigger that asks the model still stays quiet when the model may not answer
+(it is off, the author is on the blacklist, a spending limit is reached),
+and the menu says so. The menu works for 15 minutes, and not after the bot
+restarts.
 
 #### `/trigger panel`
 
@@ -707,14 +734,20 @@ buttons appear:
 
 | Button | Does |
 |---|---|
-| **Edit** | Opens a form with the pattern, responses, mode and cooldown filled in |
+| **Edit** | Opens a form with the pattern, responses (or the prompt and chance), mode and cooldown filled in |
 | **Enable** / **Disable** | Toggles it. The label says what pressing it will do |
 | **Answer bots** / **Ignore bots** | Toggles whether it replies to allowed bots |
 | **Reply silently** / **Reply with notifications** | Toggles whether its replies notify anyone, on a row of their own |
 | **Hide link previews** / **Show link previews** | Toggles the previews on links in its replies |
-| **Delete** | Asks to confirm in the panel itself, so nothing is left behind if ignored |
+| **Answer as a reply** / **Post plainly** | Toggles whether it answers as a Discord reply; not for a persona's |
+| **Delete** | Asks to confirm in the panel itself, so nothing is left behind if ignored. Not there for a built-in trigger |
 
-**Add** opens the same form, empty.
+A trigger that asks the model has no silent or previews buttons, since the
+model posts its own answers.
+
+**Add** opens the same form, empty. With the language model built in, **Add
+for the model** opens the one with a prompt and a chance, and **Add an
+analysis** the one with a question and a prompt.
 
 The form's mode takes `word`, `anywhere` or `regex` (`whole word`,
 `whole_word` and `substring` work too). It keeps fields it cannot read rather than resetting
@@ -1198,7 +1231,6 @@ decides to answer is under [Talking to the bot](#talking-to-the-bot).
 | `model` | `name` (one of the models below) | This server's model from now on |
 | `settings` | none | Opens the [settings panel](#llm-settings) |
 | `personality` · `system` · `style` | a subcommand, below | The [documents](#the-documents) |
-| `trigger` | `add` · `edit` · `remove` · `list` | [Advanced triggers](#advanced-triggers) |
 | `blacklist` | `add` · `remove` (`user` or `role`) · `list` | People and roles it never answers here |
 | `names` | `add` · `remove` (`user` and `name`) · `list` (`user` optional) | More names someone goes by, which the model never sees (see [Names](#names-the-model-never-sees)) |
 | `tools` | `list` · `on` · `off` (`tool`) | What the model may look up and do here (see [What the model can do](#what-the-model-can-do)) |
@@ -1245,7 +1277,7 @@ version**, nothing is overwritten, and any earlier version is one command away.
 |---|---|---|---|
 | personality | `personality` | **everyone**, by default | How the bot comes across. Meant to be tuned by the people who talk to it |
 | system instructions | `system` | Manage Server | Rules that are not up for negotiation; empty to begin with |
-| trigger style | `style` | Manage Server | How advanced-trigger replies are written |
+| trigger style | `style` | Manage Server | How replies to triggers that ask the model are written |
 
 Each group has the same subcommands:
 
@@ -1315,25 +1347,39 @@ word count.
 
 #### Advanced triggers
 
-A [simple trigger](#trigger-responses) answers with fixed replies; an advanced
-one asks the model to say something. Each has a pattern, matched the same way
-(whole word, anywhere or a regular expression, ignoring case), and a **prompt**: one line about what
-to say, such as `Someone mentioned pineapple pizza. Defend it with
-unreasonable passion.` How to say it comes from the trigger style document, so
-the prompt stays short.
-
-| Subcommand | Options |
-|---|---|
-| `add` | `pattern` (required, up to 200 characters) · `prompt` (required, up to 500) · `chance` (percent, 100 by default) · `cooldown` (seconds, 300 by default) · `mode` · `persona` (a [persona](#personas) to answer it, rather than LatiBot) · `bots` (also answer bots, LatiBot and personas; off by default) |
-| `edit` | `id` (required) and any of the above, plus `enabled`; what is left out stays. `persona:LatiBot` gives it back to LatiBot. With only `id`, it opens a form holding the pattern, prompt, mode, chance and cooldown as they are, to change in place |
-| `remove` | `id` |
-| `list` | none |
+A [trigger](#trigger) can ask the model to say something instead of picking
+a fixed reply: give [`/trigger add`](#trigger-add) a **prompt** rather than
+responses, one line about what to say, such as `Someone mentioned pineapple
+pizza. Defend it with unreasonable passion.` How to say it comes from the
+trigger style document, so the prompt stays short. These were `/llm trigger`
+until 2026-10-29; they are listed, edited and removed with the other
+triggers now, with the same Manage Messages.
 
 - **`chance`** is how often a match gets a reply, and a match that loses its
   roll does not start the cooldown.
-- **The cooldown is per trigger, per channel**, as with simple triggers.
-- **A simple trigger wins.** When a message sets off a simple trigger, no
-  advanced trigger answers it, and no model call is made.
+- **The cooldown is per trigger, per channel**, 300 seconds by default.
+- **A fixed reply wins.** When a message gets a trigger's fixed reply, no
+  trigger asks the model about it, and no model call is made. At most one
+  asks the model per message.
+- **Being spoken to comes first.** A trigger set off by LatiBot being
+  addressed, or by a reply, answers as spoken to, before any analysis, and
+  an analysis before any comment. At most one asks the model per message.
+- **An analysis** has a **question** instead of a prompt: when its words
+  match, the cheap check model is asked the question about the message, and
+  only a yes is answered, as if LatiBot or the persona were spoken to. It
+  never runs on every message: the pattern has to be words, matched as whole
+  words or anywhere.
+- **Built-in triggers.** With the language model, every server has these,
+  which can be turned off and edited but never removed. They are what makes
+  LatiBot answer at all: everything but conversation mode goes through a
+  trigger.
+
+  | Built-in | Set off by | Answered by |
+  |---|---|---|
+  | LatiBot addressed | an @mention, or LatiBot's name first | LatiBot, as a reply |
+  | a reply to LatiBot | a reply to one of its messages | LatiBot, as a reply |
+  | `latibot` | the word, then the check: is the message talking to LatiBot? | LatiBot, on a yes |
+  | a reply to a persona | a reply to one of that persona's messages, from people | the persona |
 - **Bots set one off only with `bots:true`.** That covers the bots the server
   [allows](#bots), LatiBot itself and the [personas](#personas), so LatiBot
   and the personas can answer each other. Nobody answers themselves: a
@@ -1341,8 +1387,12 @@ the prompt stays short.
   persona. Replies to bots are paced (see *Other bots* under
   [talking to the bot](#talking-to-the-bot)), which ends the exchange
   until a person speaks.
-- Its reply is posted silently, as a simple trigger's is, and reads the last
-  five messages rather than fifteen (the setting above).
+- Its reply is posted silently, as a Discord reply unless the trigger has
+  `reply:false`, and reads the last five messages rather than fifteen (the
+  setting above). A persona's is never a reply.
+- Without the language model built in, these triggers are kept and listed,
+  and never fire. A persona's trigger stays when the persona is removed,
+  answered by nobody until `/trigger edit persona:` gives it to someone.
 
 #### What the model can do
 
@@ -1383,9 +1433,8 @@ rules: whoever asked needs what the command needs.
 | `nickname_history` | [`/nicknames`](#nicknames), with every nickname hidden from the model | |
 | `link_stats` | [`/linkstats`](#linkstats): the boards, or one person's count | |
 | `fix_link` | gives a link on this server's [mirror](#links), for a link with no preview | |
-| `list_triggers`, `add_trigger`, `remove_trigger` | [`/trigger`](#trigger) | Manage Messages to add or remove |
+| `list_triggers`, `add_trigger`, `remove_trigger` | [`/trigger`](#trigger), [advanced triggers](#advanced-triggers) included | Manage Messages to add or remove |
 | `list_midnight`, `add_midnight`, `edit_midnight` | [`/midnight`](#midnight) | Manage Server to add or edit |
-| `list_advanced_triggers`, `add_advanced_trigger` | `/llm trigger` | Manage Server to add |
 | `post_in_channel` | [`/say`](#say) in another channel, as LatiBot or the persona, mentioning nobody | to be able to post there |
 | `bot_info` | [`/version`](#version) and [`/ping`](#ping), with the uptime | |
 
@@ -1441,7 +1490,7 @@ its name.
 |---|---|---|---|
 | `add` | `name` (required, up to 80 characters) · `avatar` (an `https://` link) · `model` · `talks` · `voice` | Manage Server | Makes one; at most 10 per server |
 | `edit` | `persona` (required) · `name` · `avatar` (`none` for the webhook's own) · `model` · `server_model` · `enabled` · `talks` · `voice` | Manage Server | Changes it; what is left out stays |
-| `remove` | `persona` | Manage Server | Deletes it with its documents and triggers; its messages stay |
+| `remove` | `persona` | Manage Server | Deletes it with its documents; its messages stay, and its triggers fire for nobody |
 | `list` | none | everyone | Every persona here, on or off |
 | `view` | `persona` | everyone | Its model, picture, voice, triggers, and what it spent this month |
 | `document` | `persona` · `which` (system or personality) · `action` (`view` by default, or `edit`, `history`, `diff`, `revert`) · `file` · `version` · `from` · `to` | as for [the documents](#the-documents) | Its **system instructions**, who it is (Manage Server), and its **personality** (everyone, unless `personality editors` says otherwise) |
@@ -1477,7 +1526,7 @@ the [voices](#tts): the built-in ones, then this server's custom voices.
 
 | Situation | Reply |
 |---|---|
-| `add` | `made Claude: it answers replies to its messages, and its advanced triggers …`, and `The model is off here: /llm on` when it is |
+| `add` | `made Claude: it answers replies to its messages, and the triggers that name it …`, and `The model is off here: /llm on` when it is |
 | A name that is taken, LatiBot's own, or holds "clyde" or "discord" | `there's already a persona called Claude`, `that's my own name`, ``Discord doesn't allow "discord" in the name`` |
 | A picture that is not an `https://` link | `the avatar has to be an https:// link to an image` |
 | An eleventh | `a server can have at most 10 personas` |
@@ -1579,11 +1628,13 @@ all answering "nice", are not added for you; add them with
   trigger can be set to notify, or to hide link previews in its replies, with
   `silent` and `previews` on [`/trigger add`](#trigger-add) and `edit`, or the
   panel's buttons.
+- **Replies are plain posts** unless a trigger has `reply:true`, when they
+  answer the message as a Discord reply.
 - Triggers **do not consume the message**. One containing both `420` and a link
   gets the reply *and* the [link replacement](#url-replacement) — the Java
   version's early `return` meant it got only the first of those. A message a
-  trigger answered does not also set off an
-  [advanced trigger](#advanced-triggers); the simple, free reply wins.
+  trigger answered with a fixed reply does not also ask the model
+  ([advanced triggers](#advanced-triggers)); the free reply wins.
 
 **Other bots are ignored unless the server allows them.** Two bots answering
 each other is a loop nobody asked for, so the default is silence. Allowing a bot

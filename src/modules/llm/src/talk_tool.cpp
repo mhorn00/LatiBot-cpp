@@ -110,6 +110,11 @@ auto handoffs::take(dpp::snowflake channel, std::string_view content) -> bool {
     return true;
 }
 
+auto handoffs::expects(dpp::snowflake channel, std::string_view content) const -> bool {
+    const std::scoped_lock lock(mutex_);
+    return std::ranges::any_of(expected_, [&](const auto& each) { return each.first == channel && each.second == content; });
+}
+
 auto reachable_by(std::int64_t persona_id, const std::vector<persona>& personas) -> std::vector<std::string> {
     std::vector<std::string> names;
     if (persona_id != 0) {

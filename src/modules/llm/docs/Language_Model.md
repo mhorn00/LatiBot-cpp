@@ -4,8 +4,9 @@ Once a server turns it on, the bot answers people who address it, using a
 language model: Anthropic's Claude by default, or OpenAI's. It reads the
 recent conversation, remembers things for later, follows documents the
 server writes (a personality, rules, a style for its triggers), and speaks
-its replies in a voice session. **Advanced triggers** let it chime in on a
-pattern without being addressed. Every call is priced and counted against a
+its replies in a voice session. [Triggers that ask the model](../../triggers/docs/Triggers.md#26-triggers-that-ask-the-model),
+the triggers module's, let it chime in on a pattern without being
+addressed. Every call is priced and counted against a
 spending cap.
 
 This is the feature's spec: what it is for, how it behaves, how it is built,
@@ -18,7 +19,7 @@ with every reply.
 | **Module** | `llm`: [its README](../README.md) lists what it owns |
 | **Code** | `src/modules/llm/src/*`, `llm_command.*` being `/llm`, `/memory` and their panels; the core's `src/core/src/discord/dpp_http_client.*` |
 | **Tests** | `src/modules/llm/tests/` (`latibot_llm_tests`, with `mock_llm.hpp`); `tests/mocks/{mock_http,mock_speech}.hpp` |
-| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers`, `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); `llm_personas` and `llm_persona_posts`, version 2; settings as `llm_*` rows in `guild_settings` |
+| **Tables** | `llm_usage`, `llm_documents`, `llm_memory`, `llm_memory_search` (FTS5), `llm_blacklist`, `llm_triggers` (unused since 2026-10-29: copied into the triggers module's table), `llm_aliases`, the module's schema version 1 (was migrations 11 and 15); `llm_personas` and `llm_persona_posts`, version 2; settings as `llm_*` rows in `guild_settings` |
 | **Config** | the `llm` section of `config.json`: `provider`, `model`, `check_model`, `spend_cap_daily_usd`, `spend_cap_monthly_usd`, `tool_rounds`; `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in the environment |
 | **Plan** | Replaces plan §14, §21.18–§21.20, and the LLM half of §21.21 |
 | **Status** | Built in phase 5 (2026-09-28); personas added 2026-10-20. **Never called a real API or run in Discord**: see §5 |
@@ -53,6 +54,13 @@ Three things shaped it more than anything else:
 
 ### 2.1 When it answers
 
+**With the triggers module built in, triggers decide this** (../../triggers/docs/Triggers.md#28-built-in-triggers-when-latibot-answers-at-all):
+everything below but conversation mode (§2.10) is a built-in trigger there,
+which a server can turn off or edit, and this module answers what a trigger
+asks it to, through the same guards. The rules here are what those built-ins
+start as, and what the model does on its own when the triggers module is
+left out.
+
 In a server that has run `/llm on`, when somebody **addresses** the bot:
 
 - an **@mention** anywhere in the message;
@@ -74,7 +82,7 @@ which is how the two are told apart. And since a reply pings whoever it
 replies to unless that is turned off, a reply's ping is not a mention: only
 `<@LatiBot>` written in the message is.
 
-Or when an [advanced trigger](#26-advanced-triggers) fires. An addressed
+Or when a [trigger asks it to](../../triggers/docs/Triggers.md#26-triggers-that-ask-the-model). An addressed
 message is **consumed**, so nothing after it in the
 [pipeline](../../../core/docs/Message_Pipeline.md) runs.
 
@@ -88,8 +96,8 @@ included ([Message_Pipeline.md §2.4](../../../core/docs/Message_Pipeline.md#24-
 Checked in this order, **before anything is spent**:
 
 1. The server has not turned it on.
-2. Nobody addressed it, and no advanced trigger fired. A bot's message, or
-   one a simple trigger already answered, never sets off an advanced trigger.
+2. Nobody addressed it, and no trigger asked it to. A message a trigger
+   already answered is not taken up by conversation mode either.
 3. There is no API key for the model's provider.
 4. The author, or one of their roles, is on the server's **blacklist**. It
    still reads what they write, as part of the conversation.
@@ -180,44 +188,48 @@ in a voice, the voices there are, and the speaking section. The language model's
 without the capability a reply is only posted
 (docs/modules/Module_Plan_Final.md §5.3).
 
-### 2.6 Advanced triggers
+### 2.6 Triggers
 
-A pattern (whole word, anywhere or a regular expression, ignoring case, as
-for [simple triggers](../../triggers/docs/Triggers.md)) and a **prompt**, one line about what to
-say: "Someone mentioned pineapple pizza. Defend it with unreasonable
-passion." How to say it comes from the server's **trigger style** document,
-so the prompt stays short.
+The advanced triggers this section described moved to the triggers module
+on 2026-10-29, as [triggers that ask the model](../../triggers/docs/Triggers.md#26-triggers-that-ask-the-model),
+managed with `/trigger`. What decides they fire is the triggers module's:
+the pattern, the chance, the cooldown, which bots set them off. What
+decides the model may answer is still this module's, through the
+`model_replies` capability it offers:
 
-- `chance`: how often a match gets a reply, 100 % by default. A match that
-  loses its roll does not start the cooldown.
-- `cooldown`: per trigger, per channel, 300 s by default.
-- `bots`: off by default, when only people set it off. On, so do the bots
-  the server [allows](../../../core/docs/Message_Pipeline.md#23-bots),
-  LatiBot itself (but not a slash command's response, which quotes what the
-  command was given), and the personas (§2.11), so LatiBot and its personas can
-  answer each other. **Never its own writer**: a trigger LatiBot answers is
-  not set off by LatiBot, nor a persona's by that persona. Every reply to a
-  bot is paced (§2.7), which is what ends two of them answering each other.
-- It reads the last **5** messages rather than 15, and its reply is posted
-  silently.
-- **A simple trigger wins**: a message one answered sets off no advanced
-  trigger, and no call is made.
-- Its failures are silent.
-
-Managed with `/llm trigger add | edit | remove | list` (Manage Server). A
-pattern is up to 200 characters and a prompt up to 500. There is no panel:
-the commands cover what one would, and `/trigger`'s panel is the model to
-copy if one is ever wanted. `edit` given only the id opens a form
-(`llmtrig`) holding the pattern, prompt, mode, chance and cooldown as they
-are, saved whole or not at all. The answers show each prompt in full, cut
-only at Discord's 2,000 characters for the whole message.
+- **who wrote a message**, of LatiBot's own: LatiBot, a persona, or nobody
+  for a command's response, someone else's webhook, or a `talk_to`
+  message, which its target is answering already;
+- **whether a message speaks to the model**: it addresses LatiBot, replies
+  to a persona, or is a persona speaking to LatiBot (§2.11). Such a message
+  is answered as such, and sets off no trigger;
+- **the answer**, once the same guards as anything else let it through:
+  the switch, a channel the model ignores, the persona being on, a key for
+  its model, the blacklist, the spend caps (without a notice), the rate
+  limits, and for a bot the pacing (§2.7). It reads the last **5** messages
+  rather than 15, follows the **trigger style** document, and is posted
+  silently, as a Discord reply unless the trigger says otherwise; a
+  persona's never is one. Its failures are silent.
+- **Answered as spoken to**, for a trigger set off by being addressed or
+  replied to, the ask is as if addressed (§2.1): the author is notified, a
+  conversation opens, a failure is apologised for, and a spend cap is said
+  once. A persona writing to LatiBot this way has to be one that talks.
+- **An analysis** asks the check model the trigger's own yes-or-no question
+  about the message, in place of whether to reply (`check_instructions` with
+  a question), and is answered as named (§2.10) only on a yes. The rate
+  limits are taken once the check agrees.
+- **`take_over_answering`**: the triggers module calls it at startup, and
+  from then on the stage answers nothing on its own but conversation mode,
+  and leaves a message that addresses it, replies to it or a persona, or
+  names it, to the triggers.
 
 ### 2.7 Other bots
 
 It answers a bot only if the server [allows that bot](../../../core/docs/Message_Pipeline.md#23-bots),
-and only when the bot **addresses** it or sets off an advanced trigger with
-`bots` on (§2.6). LatiBot and its personas count as bots here, and set off
-nothing but such a trigger. Then, per channel:
+and only when the bot **addresses** it or sets off a trigger that asks the
+model with `bots` on (§2.6). LatiBot and its personas count as bots here, and
+set off nothing but such a trigger, or, for a persona that talks, LatiBot by
+name. Then, per channel:
 
 - at most **20** replies to bots in a row, before a person has to say
   something; any person speaking resets the count, whether or not the model
@@ -235,8 +247,8 @@ both take the last one.
 
 Someone who addressed the bot is told `sorry, i couldn't come up with
 anything just now`, or `i'm a bit overloaded right now; try me again in a
-minute` for a 429 or 529. Neither is retried. An advanced trigger's failure
-says nothing.
+minute` for a 429 or 529. Neither is retried. A trigger's failure says
+nothing.
 
 ### 2.9 `/llm`
 
@@ -252,7 +264,6 @@ default permissions are per command, not per subcommand.
 | `model name` | This server's model, from the known ones (§3.2) |
 | `settings` | A panel of the numbers below, a form per group, and the switches for the model and for conversation mode |
 | `personality`, `system`, `style` | The documents (§3.5) |
-| `trigger` | Advanced triggers (§2.6) |
 | `blacklist add \| remove \| list` | A `user` or a `role` it never answers here |
 | `persona` | [Personas](#211-personas): `add`, `edit`, `remove`, `list`, `view`, `document` |
 
@@ -264,7 +275,7 @@ clamped when read.
 |---|---|---|
 | Recent messages it reads | 15 | 0–50 |
 | Token budget for them | 3000 | 200–20000 |
-| Messages an advanced trigger reads | 5 | 0–20 |
+| Messages a trigger's answer reads | 5 | 0–20 |
 | Longest reply, in tokens | 4096 | 256–8192 |
 | Replies per person per minute | 6 | 1–60 |
 | Replies per channel per minute | 20 | 1–120 |
@@ -321,7 +332,7 @@ messages nobody addressed it in.
   comes with it in the transcript.
 - **Joining in**, the model is told nobody addressed it, and may answer
   `[silent]`, which posts nothing. It does not show *typing…* first, and
-  its reply arrives silently, as an advanced trigger's does. Named, it
+  its reply arrives silently, as a trigger's does. Named, it
   answers as if addressed, and whoever named it is notified.
 
 The bot watches who is typing through Discord's typing events, which need
@@ -339,7 +350,7 @@ It answers, once the server has run `/llm on`, through the same guards as
 LatiBot (§2.2):
 
 - a **reply** to one of its messages;
-- one of its **advanced triggers** (§2.6), a trigger given a `persona`;
+- a **trigger** given its name as `persona` (§2.6);
 - a message in a **conversation** it is in (§2.10);
 - a **`talk_to`** from LatiBot or another persona, when it `talks` (below).
 
@@ -565,12 +576,11 @@ when it succeeds, so no module can forget either.
 | triggers | `list_triggers`, `add_trigger`, `remove_trigger` | Triggers.md §2.6 |
 | midnight | `list_midnight`, `add_midnight`, `edit_midnight` | Midnight.md §2.3 |
 
-This module adds four of its own the same way (`bot_tools.*`):
+This module adds two of its own the same way (`bot_tools.*`); the triggers
+that ask the model are the triggers module's `add_trigger`, with a prompt:
 
 | Tool | Does | Refused when |
 |---|---|---|
-| `list_advanced_triggers` | The advanced triggers here, with whose each is | |
-| `add_advanced_trigger` | Adds one, for LatiBot or a persona by name, as `/llm trigger add` | whoever asked lacks Manage Server |
 | `post_in_channel` | Posts in another channel, as LatiBot or the persona, mentioning nobody | whoever asked cannot post there; it is this channel |
 | `bot_info` | The version, uptime, servers and gateway latency | |
 
@@ -661,7 +671,7 @@ noted before; and any set by hand with **`/llm names add user name`**
 Those are kept in `llm_alias_names`, where a name stands for one person per
 server; adding one gives the person an alias if they had none, so the name
 is hidden even before the model has heard of them. `remove` takes one back,
-and `list` shows them. The server's documents and an advanced trigger's prompt
+and `list` shows them. The server's documents and a trigger's prompt
 have mentions made aliases, but keep their names: the same text then goes
 each time, and stays cached (§3.3).
 
@@ -706,11 +716,13 @@ enabled, created_by, created_at)`, the name unique per server without regard
 to case, and `llm_persona_posts(message_id, persona_id, guild_id, channel_id,
 posted_at)`, every message a persona posted. A reply to one of those is a
 reply to the persona, and a transcript shows it by the persona's name.
-`llm_triggers.persona_id` and `llm_usage.persona_id` say whose a trigger and
-a call are, NULL for LatiBot's. A persona's documents are `llm_documents`
+`llm_usage.persona_id` says whose a call is, NULL for LatiBot's; a
+trigger's is the triggers module's `persona_id`. A persona's documents are `llm_documents`
 rows of kind `persona.<id>.system` and `persona.<id>.personality`, so they
 have versions, history, diff and revert like the server's. Removing a persona
-removes its documents, triggers and posts; its messages stay in Discord.
+removes its documents and posts; its messages stay in Discord, and its
+triggers stay in the triggers module, answered by nobody until given to
+someone else.
 
 `llm_stage` takes the guild's enabled personas after checking whether
 LatiBot is addressed, and its `ask_llm` carries `persona_id`. The responder
@@ -786,7 +798,9 @@ looks the persona up again, since it may have gone since, and then:
 | 2026-10-27 | A persona is spoken in a voice session, in a voice of its own; the speech capability says the voices and `say` takes one | The owner's request, reversing 2026-10-20. Its own voice keeps it from being heard as LatiBot; the list stays DECtalk's, so the language model's code knows none of its voices |
 | 2026-10-28 | The other modules give the model tools through one capability, `model_tools`, which llm offers, rather than a bridge library or a capability each | The owner's choice. Eighteen tools across seven modules: each module keeps its tool beside its command, llm knows none of them, and the bot rule is applied once |
 | 2026-10-28 | A name a tool must give the model, such as a past nickname, is hidden text: a marker put back as the reply is posted | §3.8: the provider never receives a name, and the tool would be useless with none |
-| 2026-10-28 | `/llm trigger edit` with only the id opens a form holding the trigger; replies show the whole prompt | A command's options cannot start out filled in, and a prompt cut at 120 characters could not be checked before editing it |
+| 2026-10-28 | `/llm trigger edit` with only the id opens a form holding the trigger; replies show the whole prompt | A command's options cannot start out filled in, and a prompt cut at 120 characters could not be checked before editing it. Superseded the next day, below |
+| 2026-10-29 | Advanced triggers move to the triggers module, which reaches the model through a `model_replies` capability; `/llm trigger` and its tools are gone, and `llm_triggers` stays, unused, until the owner says | The owner's choice (Triggers.md §4). This module keeps every decision about whether the model may speak |
+| 2026-10-29 | With the triggers module, being addressed, replied to and named are its built-in triggers, and this stage keeps only conversation mode; the check takes an analysis trigger's question | The owner's choice: every answer through a trigger. Conversation mode has no word to match, which an analysis needs. Without the triggers module, nothing changes here |
 
 ## 5. Limits, and what is still to check
 

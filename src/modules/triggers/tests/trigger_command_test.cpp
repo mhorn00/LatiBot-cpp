@@ -2,12 +2,14 @@
 #include "core/commands/registry.hpp"
 #include "core/db/database.hpp"
 #include "core/ui/paginator.hpp"
+#include "core/util/text.hpp"
 
 #include "support/discord_limits.hpp"
 #include "support/schema.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <map>
 #include <memory>
 
 #include <array>
@@ -439,4 +441,88 @@ TEST_CASE("the trigger command passes the registry's checks, and its panel is pr
 
     const latibot::commands::trigger_command trigger(store);
     CHECK(trigger.info().responses_for("panel").result == dpp::m_ephemeral);
+}
+
+TEST_CASE("a model trigger's line shows its chance, who answers it, and its whole prompt", "[triggers]") {
+    const std::string prompt(300, 'p');
+    latibot::events::trigger entry{.id = 9,
+                                   .pattern = "pizza",
+                                   .mode = latibot::events::match_mode::whole_word,
+                                   .cooldown = 300s,
+                                   .enabled = true,
+                                   .reply = true,
+                                   .prompt = prompt,
+                                   .chance = 0.25,
+                                   .persona_id = 0};
+    CHECK(describe(entry) == std::format("`9` **pizza** (whole word, 300s, 25%, replies) -> asks the model: {}", prompt));
+
+    const std::vector<latibot::capabilities::persona_name> personas{{.id = 7, .name = "Claude", .enabled = true}};
+    entry.persona_id = 7;
+    CHECK(describe(entry, personas).starts_with("`9` **pizza** (whole word, 300s, 25%, as Claude) -> asks the model: "));
+    entry.persona_id = 8;
+    CHECK(describe(entry, personas).contains("as a persona that is gone"));
+}
+
+TEST_CASE("add and edit answer with every response, cut at Discord's limit", "[triggers]") {
+    latibot::events::trigger entry{.id = 2, .pattern = "420", .cooldown = 30s, .enabled = true, .reply = true};
+    entry.responses = {{.text = "nice", .weight = 1}, {.text = "very nice", .weight = 3}};
+    CHECK(latibot::commands::describe_in_full("added", entry) ==
+          "added `2` **420** (whole word, 30s, replies) -> 2 responses:\n- nice\n- 3 | very nice");
+
+    entry.responses = {{.text = std::string(3000, 'x'), .weight = 1}};
+    CHECK(latibot::util::character_count(latibot::commands::describe_in_full("added", entry)) <= 2000);
+}
+
+TEST_CASE("the modal reads a model trigger's prompt and chance, and keeps a chance it cannot read", "[triggers]") {
+    using latibot::commands::apply_form;
+
+    latibot::events::trigger entry{.pattern = "pizza", .cooldown = 300s, .prompt = "Defend it.", .chance = 0.5};
+    const auto applied = apply_form(entry, {.pattern = "pizza",
+                                            .responses = "",
+                                            .mode = "anywhere",
+                                            .cooldown = "60",
+                                            .prompt = "Mock it.",
+                                            .chance = "lots",
+                                            .kind = latibot::events::trigger_kind::model});
+    REQUIRE_FALSE(applied.refused.has_value());
+    CHECK(entry.prompt == "Mock it.");
+    CHECK(entry.chance == 0.5);
+    CHECK(entry.cooldown == 60s);
+    CHECK(applied.note == "\"lots\" isn't a percent from 1 to 100, so the chance stayed 50%");
+
+    CHECK(apply_form(entry, {.pattern = "pizza", .prompt = "Mock it.", .chance = "25", .kind = latibot::events::trigger_kind::model})
+              .note.empty());
+    CHECK(entry.chance == 0.25);
+    CHECK(apply_form(entry, {.pattern = "pizza", .prompt = std::string(501, 'x'), .kind = latibot::events::trigger_kind::model})
+              .refused.has_value());
+}
+
+TEST_CASE("the model trigger's form fits a modal and is filled with the trigger as it is", "[triggers]") {
+    const latibot::events::trigger entry{.id = 12,
+                                         .pattern = "pizza",
+                                         .mode = latibot::events::match_mode::regex,
+                                         .cooldown = 90s,
+                                         .prompt = std::string(500, 'x'),
+                                         .chance = 0.25};
+    const auto form =
+        latibot::commands::trigger_form(0, &entry, latibot::events::trigger_kind::model, latibot::commands::trigger_command_form_view);
+    latibot::testing::check_modal_fits(form);
+    CHECK(form.custom_id.starts_with("trigcmdform:"));
+    REQUIRE(form.components.size() == 5);
+
+    std::map<std::string, std::string, std::less<>> filled;
+    for (const auto& row : form.components) {
+        filled.emplace(row[0].custom_id, std::get<std::string>(row[0].value));
+    }
+    CHECK(filled["pattern"] == "pizza");
+    CHECK(filled["prompt"] == entry.prompt);
+    CHECK(filled["mode"] == "regex");
+    CHECK(filled["chance"] == "25");
+    CHECK(filled["cooldown"] == "90");
+
+    const auto fixed = latibot::commands::trigger_form(0, nullptr, latibot::events::trigger_kind::responses);
+    CHECK(fixed.components.size() == 4);
+    const auto for_model = latibot::commands::trigger_form(0, nullptr, latibot::events::trigger_kind::model);
+    latibot::testing::check_modal_fits(for_model);
+    CHECK(for_model.components.size() == 5);
 }

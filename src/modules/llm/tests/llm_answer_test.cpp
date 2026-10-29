@@ -1,7 +1,7 @@
-#include "advanced_triggers.hpp"
 #include "aliases.hpp"
 #include "conversation.hpp"
 #include "core/capabilities/link_replacements.hpp"
+#include "core/capabilities/model_replies.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "core/util/text.hpp"
@@ -10,6 +10,7 @@
 #include "llm_config.hpp"
 #include "memory.hpp"
 #include "memory_tools.hpp"
+#include "prompt.hpp"
 #include "responder.hpp"
 #include "settings.hpp"
 #include "spend.hpp"
@@ -27,6 +28,7 @@
 
 #include <chrono>
 #include <format>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -64,7 +66,6 @@ struct fixture {
     latibot::config::guild_settings settings{db};
     latibot::llm::llm_config config;
     latibot::llm::blacklist_store blacklist{db};
-    latibot::llm::advanced_trigger_store triggers{db};
     latibot::llm::usage_store usage{db};
     latibot::llm::document_store documents{db};
     latibot::llm::memory_store memories{db};
@@ -80,7 +81,6 @@ struct fixture {
     fake_replacements replacements;
 
     bool has_key = true;
-    double roll = 0.0;
 
     /// The bot's Discord username; a test bot's is often not "LatiBot".
     std::string username = "LatiBot";
@@ -88,7 +88,6 @@ struct fixture {
     latibot::llm::llm_stage stage{{.settings = &settings,
                                    .section = &config,
                                    .blacklist = &blacklist,
-                                   .triggers = &triggers,
                                    .usage = &usage,
                                    .speech = &speech,
                                    .replacements = &replacements,
@@ -96,8 +95,7 @@ struct fixture {
                                    .activity = &activity,
                                    .has_provider = [this](latibot::llm::provider_kind) { return has_key; },
                                    .me = [this] { return latibot::llm::bot_identity{.id = bot_id, .name = username}; }},
-                                  clock,
-                                  [this] { return roll; }};
+                                  clock};
 
     latibot::llm::responder responder{{.discord = &discord,
                                        .clock = &clock,
@@ -166,6 +164,17 @@ auto from_other_bot(std::string content) -> incoming_message {
 /// keep the result for as long as the pointer.
 auto asked(const latibot::llm::stage_result& result) -> const ask_llm* {
     return result.actions.size() == 1 ? std::get_if<ask_llm>(&result.actions.front()) : nullptr;
+}
+
+/// The ask a trigger that fired comes to, as the stage decides it; nothing
+/// when it refused, or only had a notice to post.
+auto trigger_ask(latibot::llm::llm_stage& stage, const incoming_message& message, const latibot::capabilities::model_trigger& fired)
+    -> std::optional<ask_llm> {
+    const auto result = stage.trigger_ask(message, fired);
+    for (const auto& step : result.actions) {
+        if (const auto* ask = std::get_if<ask_llm>(&step)) return *ask;
+    }
+    return std::nullopt;
 }
 
 auto ask_from_alice(std::string content) -> ask_llm {
@@ -484,32 +493,41 @@ TEST_CASE("the model stays quiet in a guild that has not turned it on, or has no
     CHECK_FALSE(result.consumed);
 }
 
-TEST_CASE("an advanced trigger asks the model to speak up, unless a simple trigger already answered", "[llm]") {
+TEST_CASE("a trigger's ask carries its prompt, and passes the same guards", "[llm]") {
+    // The triggers module decides that a trigger fired; the stage decides
+    // whether the model may answer it (src/modules/triggers/docs/Triggers.md §2.6).
     fixture test;
-    const auto id = test.triggers.add({.id = 0,
-                                       .guild_id = guild,
-                                       .pattern = "pizza",
-                                       .mode = latibot::util::match_mode::whole_word,
-                                       .context_prompt = "Defend pineapple on it.",
-                                       .probability = 1.0,
-                                       .cooldown = 0s,
-                                       .enabled = true,
-                                       .created_by = alice});
+    const latibot::capabilities::model_trigger pizza{.trigger_id = 7, .prompt = "Defend pineapple on it.", .persona_id = 0, .reply = false};
 
-    const auto fired = test.stage(from_alice("anyone want pizza"));
-    const ask_llm* ask = asked(fired);
-    REQUIRE(ask != nullptr);
-    CHECK(ask->trigger_id == id);
+    const auto ask = trigger_ask(test.stage, from_alice("anyone want pizza"), pizza);
+    REQUIRE(ask.has_value());
+    CHECK(ask->how == approach::trigger);
+    CHECK(ask->trigger_id == 7);
     CHECK(ask->context_prompt == "Defend pineapple on it.");
+    CHECK_FALSE(ask->reply);
 
-    incoming_message answered = from_alice("pizza again");
+    test.settings.set_bool(guild, latibot::llm::enabled_key, false);
+    CHECK_FALSE(trigger_ask(test.stage, from_alice("anyone want pizza"), pizza).has_value());
+    test.settings.set_bool(guild, latibot::llm::enabled_key, true);
+    test.has_key = false;
+    CHECK_FALSE(trigger_ask(test.stage, from_alice("anyone want pizza"), pizza).has_value());
+}
+
+TEST_CASE("a message a trigger answered is not taken up as well, and one spoken to the model is its own", "[llm]") {
+    fixture test;
+    test.settings.set_bool(guild, latibot::llm::conversation_key, true);
+
+    incoming_message answered = from_alice("latibot pizza");
     answered.answered = true;
-    CHECK(test.stage(answered).actions.empty());
+    // Addressed, it is answered regardless; that is why the triggers leave
+    // such a message to the model.
+    CHECK(asked(test.stage(answered)) != nullptr);
+    CHECK(test.stage.addresses(from_alice("latibot, pizza?")));
+    CHECK_FALSE(test.stage.addresses(from_alice("anyone want pizza")));
 
-    // Bots have to address it; they never set off a trigger.
-    incoming_message from_bot = from_other_bot("pizza");
-    from_bot.mentions_bot = false;
-    CHECK(test.stage(from_bot).actions.empty());
+    incoming_message unaddressed = from_alice("pizza again");
+    unaddressed.answered = true;
+    CHECK(test.stage(unaddressed).actions.empty());
 }
 
 TEST_CASE("a blacklisted user or role is not answered, and the message is still consumed", "[llm]") {
@@ -944,4 +962,38 @@ TEST_CASE("a reply too long for one message is split on line breaks, three messa
     for (const std::string& part : capped) {
         CHECK(latibot::util::character_count(part) <= 20);
     }
+}
+
+TEST_CASE("a trigger answered as spoken to, or by analysis, asks as being addressed or named", "[llm]") {
+    fixture test;
+    latibot::capabilities::model_trigger fired{.trigger_id = 3, .prompt = {}, .persona_id = 0, .reply = true};
+
+    fired.how = latibot::capabilities::model_answer::spoken_to;
+    const auto spoken = trigger_ask(test.stage, from_alice("latibot hi"), fired);
+    REQUIRE(spoken.has_value());
+    CHECK(spoken->how == approach::addressed);
+    CHECK_FALSE(spoken->check_first);
+
+    fired.how = latibot::capabilities::model_answer::analysis;
+    fired.question = "Is this message talking to LatiBot?";
+    const auto analysed = trigger_ask(test.stage, from_alice("is latibot around?"), fired);
+    REQUIRE(analysed.has_value());
+    CHECK(analysed->how == approach::named);
+    CHECK(analysed->check_first);
+    CHECK(analysed->check_question == "Is this message talking to LatiBot?");
+}
+
+TEST_CASE("handed over to the triggers, the stage answers nobody who addresses it", "[llm]") {
+    fixture test;
+    REQUIRE(asked(test.stage(from_alice("latibot hi"))) != nullptr);
+    test.stage.hand_over();
+    CHECK(test.stage(from_alice("latibot hi")).actions.empty());
+    CHECK(test.stage.addresses(from_alice("latibot hi")));
+}
+
+TEST_CASE("an analysis's check asks the trigger's question instead of whether to reply", "[llm]") {
+    const std::string rules = latibot::llm::check_instructions("LatiBot", "Is it about the weather?");
+    CHECK(rules.contains("The question to answer about the latest message: Is it about the weather?"));
+    CHECK(rules.contains("Answer with one word: yes or no."));
+    CHECK(latibot::llm::check_instructions("LatiBot") != rules);
 }

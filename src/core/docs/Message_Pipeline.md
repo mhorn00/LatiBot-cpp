@@ -51,11 +51,13 @@ that bot, since two bots answering each other is a loop nobody asked for.
 | A person | always |
 
 A stage added with `hears::own_too` is given LatiBot's own messages and
-webhooks' as well, which every other stage is spared. Only the language model
-asks for them: its personas post through LatiBot's own webhook, and it lets
-them and LatiBot set off each other's advanced triggers. It leaves every
-other webhook alone, and never answers a message with a trigger of whoever
-wrote it.
+webhooks' as well, which every other stage is spared. Two ask for them, with
+the language model built in: its personas post through LatiBot's own
+webhook, so the model hears a persona speak to LatiBot, and the triggers
+let them and LatiBot set off each other's triggers that ask the model. Both
+ask the model's `model_replies` capability who of LatiBot's own wrote a
+message, leave every other webhook alone, and never answer a message with a
+trigger of whoever wrote it.
 
 Before any of that, the channel's rules (§2.4) can leave a message out: in a
 channel ignored entirely, nobody's message reaches a stage, and in a log
@@ -65,14 +67,16 @@ Reaching the stages is only permission to be considered. Each stage decides
 for itself whether it answers a bot:
 
 - **URL replacement** never replaces a bot's links.
-- **A simple trigger** answers a bot only if that trigger has `bots:true`
-  ([Triggers.md](../../modules/triggers/docs/Triggers.md)).
-- **The language model** answers a bot when the bot addresses it, or sets
-  off an advanced trigger with `bots:true`, and paces itself
+- **A trigger** answers a bot only if that trigger has `bots:true`
+  ([Triggers.md](../../modules/triggers/docs/Triggers.md)); LatiBot's own
+  messages and its personas' only a trigger that asks the model, and never
+  one of their own.
+- **The language model** answers a bot when the bot addresses it, or when a
+  trigger with `bots:true` asks it to, and paces itself
   ([Language_Model.md](../../modules/llm/docs/Language_Model.md)). LatiBot's
   own messages and its personas' are answered only through the language
   model's `talk_to` tool, LatiBot's name from a persona allowed to talk, or
-  such a trigger, and never by one of their own.
+  such a trigger.
 - **The goodbye phrase** needs Administrator, which a bot could in principle
   have.
 
@@ -82,8 +86,8 @@ for itself whether it answers a bot:
 |---|---|---|---|
 | 100, `stop` | [The goodbye phrase](Basic_Commands.md#3-the-goodbye-phrase) | yes, when it matches | — |
 | 200, `rewrite` | [URL replacement](../../modules/links/docs/Url_Replacement.md) | no | no |
-| 300, `reply` | [Simple triggers](../../modules/triggers/docs/Triggers.md) | no | yes, when one replies |
-| 400, `model` | [The language model](../../modules/llm/docs/Language_Model.md): addressed, or an advanced trigger | yes, when it answers | — |
+| 300, `reply` | [Triggers](../../modules/triggers/docs/Triggers.md): fixed replies, then one that asks the model; with the model built in, these include being addressed, replied to and named | no | yes, when one replies or asks the model |
+| 400, `model` | [The language model](../../modules/llm/docs/Language_Model.md): conversation mode, and, without the triggers module, being addressed | yes, when it answers | — |
 
 - **Positions** are named in `events/stage_order.hpp`, and each stage is
   added at one. They run lowest first, whatever order they were added in, so
@@ -93,9 +97,10 @@ for itself whether it answers a bot:
 - **Consumes** means the stages after it are skipped. Nothing should follow
   a goodbye.
 - **Answered** is passed on to the stages after it, as
-  `incoming_message::answered`. That is how a simple trigger's free reply
-  keeps an advanced trigger quiet, without the two stages knowing about each
-  other.
+  `incoming_message::answered`. That is how a trigger keeps the model's
+  conversation mode from also taking a message up, without the two stages
+  knowing about each other. Within the triggers' own stage a fixed reply
+  keeps the paid model answer quiet.
 - A stage that **throws** is logged, and the rest still run. An exception
   must never reach DPP's event thread, where it would end the process.
 
@@ -127,7 +132,7 @@ one replaces the old.
 | `what` | Leaves out | So |
 |---|---|---|
 | `everything` | every message | no goodbye, link replacement, trigger or model |
-| `llm` | every message, for the language model only | no answer, no advanced trigger, no conversation mode, and nothing read along; the rest work |
+| `llm` | every message, for the language model only | no answer, no trigger that asks the model, no conversation mode, and nothing read along; the rest work |
 | `bots` | every bot's message, LatiBot's own, its personas' and allowed bots' included | a log channel's lines set off nothing; people are heard as anywhere else |
 
 - **The log channel** ([Log_Channel.md](Log_Channel.md)) is always treated as

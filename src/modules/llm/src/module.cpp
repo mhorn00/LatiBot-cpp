@@ -1,6 +1,5 @@
 #include "llm/module.hpp"
 
-#include "advanced_triggers.hpp"
 #include "aliases.hpp"
 #include "anthropic.hpp"
 #include "ask.hpp"
@@ -9,6 +8,7 @@
 #include "conversation.hpp"
 #include "core/capabilities/bot_status.hpp"
 #include "core/capabilities/link_replacements.hpp"
+#include "core/capabilities/model_replies.hpp"
 #include "core/capabilities/nickname_changes.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/registry.hpp"
@@ -52,6 +52,8 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <variant>
+#include <vector>
 
 namespace latibot::llm {
 
@@ -268,7 +270,10 @@ constexpr std::string_view module_name = "llm";
 /// they were set for.
 constexpr std::chrono::seconds reminder_tick{30};
 
-class llm_module final : public modules::module {
+/// The module, and the model_replies capability it offers: how the
+/// triggers module has the model answer a trigger
+/// (src/modules/triggers/docs/Triggers.md §2.6).
+class llm_module final : public modules::module, public capabilities::model_replies {
 public:
     explicit llm_module(modules::host& bot)
         : bot_(&bot),
@@ -279,7 +284,6 @@ public:
           memories_(bot.database()),
           aliases_(bot.database()),
           blacklist_(bot.database()),
-          triggers_(bot.database()),
           personas_(bot.database()),
           reminders_(bot.database()),
           windows_(bot.clock()),
@@ -299,6 +303,59 @@ public:
                                                            return post_as(std::move(message), persona, guild);
                                                        });
         offered.offer<capabilities::model_tools>(*module_tools_, module_name);
+        offered.offer<capabilities::model_replies>(*this, module_name);
+    }
+
+    [[nodiscard]] auto personas(dpp::snowflake guild) const -> std::vector<capabilities::persona_name> override {
+        std::vector<capabilities::persona_name> names;
+        for (const persona& each : personas_.for_guild(guild)) {
+            names.push_back({.id = each.id, .name = each.name, .enabled = each.enabled});
+        }
+        return names;
+    }
+
+    [[nodiscard]] auto own_writer(const events::incoming_message& message) const -> std::optional<std::int64_t> override {
+        if (stage_ == nullptr) return std::nullopt;
+        const auto writer = stage_->own_writer_of(message);
+        if (!writer) return std::nullopt;
+        // talk_to's message is for its target, which is answering it already.
+        if (handoffs_.expects(message.channel_id, message.content)) {
+            util::log().trace("triggers: message {} was sent with talk_to; it sets off nothing", message.message_id);
+            return std::nullopt;
+        }
+        return writer->persona_id;
+    }
+
+    [[nodiscard]] auto addresses(const events::incoming_message& message) const -> bool override {
+        return stage_ != nullptr && stage_->addresses(message);
+    }
+
+    [[nodiscard]] auto replied_to(const events::incoming_message& message) const -> std::optional<std::int64_t> override {
+        return stage_ == nullptr ? std::nullopt : stage_->replied_to(message);
+    }
+
+    [[nodiscard]] auto answer(const events::incoming_message& message, const capabilities::model_trigger& fired)
+        -> std::vector<events::action> override {
+        std::vector<events::action> actions;
+        if (stage_ == nullptr) return actions;
+        for (auto& step : stage_->trigger_ask(message, fired).actions) {
+            if (auto* ask = std::get_if<ask_llm>(&step)) {
+                actions.emplace_back(
+                    events::background_task{.what = std::format("answering trigger {} with the language model", fired.trigger_id),
+                                            .run = [this, ask = std::move(*ask)]() mutable { return answer(std::move(ask)); }});
+            } else if (auto* notice = std::get_if<events::send_message>(&step)) {
+                actions.emplace_back(std::move(*notice));
+            }
+        }
+        return actions;
+    }
+
+    /// The triggers module calls this in its start, which may come before
+    /// this module's, where the stage is made.
+    auto take_over_answering() -> void override {
+        handed_over_ = true;
+        if (stage_ != nullptr) stage_->hand_over();
+        util::log().info("the triggers decide when the language model answers; it joins in on its own only in conversation mode");
     }
 
     auto start(modules::host& bot) -> void override {
@@ -355,9 +412,7 @@ public:
                                                  dpp::snowflake guild) { return post_as(std::move(message), persona, guild); }};
         add_discord_tools(tools_, discord_tools_);
         add_bot_tools(*module_tools_,
-                      {.triggers = &triggers_,
-                       .personas = &personas_,
-                       .discord = &bot.gateway(),
+                      {.discord = &bot.gateway(),
                        .gateway_ping =
                            [this] {
                                const auto& shards = bot_->cluster().get_shards();
@@ -412,7 +467,6 @@ public:
                 .settings = &bot.settings(),
                 .section = &section_,
                 .blacklist = &blacklist_,
-                .triggers = &triggers_,
                 .usage = &usage_,
                 .personas = &personas_,
                 .speech = speech,
@@ -424,14 +478,14 @@ public:
                 .persona_webhook = [this](dpp::snowflake id) { return webhooks_->owns(id); },
                 .handed_off = [this](dpp::snowflake channel, std::string_view content) { return handoffs_.take(channel, content); }},
             bot.clock());
+        if (handed_over_) stage_->hand_over();
 
         bot.slash_commands().add(std::make_unique<commands::llm_command>(services()));
         bot.slash_commands().add(std::make_unique<commands::memory_command>(services()));
-        bot.panels().add(
-            panels_,
-            {commands::llm_settings_view, commands::llm_settings_pick_view, commands::llm_settings_form_view, commands::llm_switch_view,
-             commands::llm_document_form_view, commands::llm_trigger_form_view, commands::memory_list_view},
-            module_name);
+        bot.panels().add(panels_,
+                         {commands::llm_settings_view, commands::llm_settings_pick_view, commands::llm_settings_form_view,
+                          commands::llm_switch_view, commands::llm_document_form_view, commands::memory_list_view},
+                         module_name);
 
         // Conversation mode waits for people to finish typing
         // (src/modules/llm/docs/Language_Model.md §2.10). Not privileged.
@@ -475,7 +529,6 @@ private:
         return {.settings = &bot_->settings(),
                 .section = &section_,
                 .documents = &documents_,
-                .triggers = &triggers_,
                 .blacklist = &blacklist_,
                 .personas = &personas_,
                 .memories = &memories_,
@@ -587,7 +640,6 @@ private:
     memory_store memories_;
     alias_store aliases_;
     blacklist_store blacklist_;
-    advanced_trigger_store triggers_;
     persona_store personas_;
     reminder_store reminders_;
     discord_tool_services discord_tools_;
@@ -608,6 +660,8 @@ private:
     std::unique_ptr<persona_webhooks> webhooks_;
     std::unique_ptr<responder> responder_;
     std::unique_ptr<llm_stage> stage_;
+    // Whether the triggers module took over deciding when the model answers.
+    bool handed_over_ = false;
 };
 
 } // namespace

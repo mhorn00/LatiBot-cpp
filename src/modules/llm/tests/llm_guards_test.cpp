@@ -1,4 +1,3 @@
-#include "advanced_triggers.hpp"
 #include "documents.hpp"
 #include "guards.hpp"
 #include "memory.hpp"
@@ -13,7 +12,6 @@
 #include <string>
 #include <vector>
 
-using latibot::llm::advanced_trigger;
 using latibot::llm::pacing_rules;
 using namespace std::chrono_literals;
 
@@ -22,18 +20,6 @@ namespace {
 constexpr dpp::snowflake guild{1000};
 constexpr dpp::snowflake channel{3000};
 constexpr dpp::snowflake other_channel{4000};
-
-auto pizza_trigger(std::int64_t id = 1) -> advanced_trigger {
-    return {.id = id,
-            .guild_id = guild,
-            .pattern = "pizza",
-            .mode = latibot::util::match_mode::whole_word,
-            .context_prompt = "Talk about pizza.",
-            .probability = 0.5,
-            .cooldown = 60s,
-            .enabled = true,
-            .created_by = dpp::snowflake{1}};
-}
 
 } // namespace
 
@@ -115,37 +101,6 @@ TEST_CASE("pacing can insist on a person first, or refuse bots entirely", "[llm]
 
     const pacing_rules never{.turns = 0, .delay = 0s, .daily_cap = 100, .needs_human = false};
     CHECK_FALSE(pacing.claim(guild, other_channel, never).allowed);
-}
-
-// --------------------------------------------------------------------------
-// Advanced triggers
-// --------------------------------------------------------------------------
-
-TEST_CASE("an advanced trigger fires on its roll, then waits out its cooldown in that channel", "[llm]") {
-    latibot::testing::mock_clock clock;
-    double next_roll = 0.9;
-    latibot::llm::advanced_trigger_matcher matcher(clock, [&] { return next_roll; });
-    const std::vector<advanced_trigger> triggers{pizza_trigger()};
-
-    // 0.9 is not under 0.5: no reply, and no cooldown either.
-    CHECK_FALSE(matcher.fire(triggers, channel, "who wants pizza").has_value());
-    next_roll = 0.1;
-    CHECK(matcher.fire(triggers, channel, "who wants pizza").has_value());
-    CHECK_FALSE(matcher.fire(triggers, channel, "more pizza").has_value());
-    CHECK(matcher.fire(triggers, other_channel, "pizza?").has_value());
-
-    clock.advance(60s);
-    CHECK(matcher.fire(triggers, channel, "pizza again").has_value());
-}
-
-TEST_CASE("an advanced trigger needs its pattern, and to be on", "[llm]") {
-    latibot::testing::mock_clock clock;
-    latibot::llm::advanced_trigger_matcher matcher(clock, [] { return 0.0; });
-    advanced_trigger off = pizza_trigger();
-    off.enabled = false;
-
-    CHECK_FALSE(matcher.fire({pizza_trigger()}, channel, "pizzas").has_value());
-    CHECK_FALSE(matcher.fire({off}, channel, "pizza").has_value());
 }
 
 // --------------------------------------------------------------------------

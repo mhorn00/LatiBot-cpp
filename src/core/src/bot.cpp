@@ -149,6 +149,15 @@ auto bot::register_events() -> void {
     cluster_.on_slashcommand([this](const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_await commands_.dispatch(event.command.get_command_name(), event);
     });
+    // A message's right-click menu (Apps) is a command too, registered and
+    // run through the same registry. DPP gives it an event of its own; as a
+    // slash command's, with the same interaction and so the same token, it
+    // answers the same way, and the message is in `command.resolved`.
+    cluster_.on_message_context_menu([this](const dpp::message_context_menu_t& event) -> dpp::task<void> {
+        dpp::slashcommand_t as_command(event.owner, event.shard, event.raw_event);
+        as_command.command = event.command;
+        co_await commands_.dispatch(event.command.get_command_name(), as_command);
+    });
 
     cluster_.on_ready([this](const dpp::ready_t& event) { on_ready(event); });
 
@@ -486,6 +495,9 @@ auto bot::carry_out(std::vector<events::action> actions) -> void {
                 if constexpr (std::is_same_v<step_type, events::send_message>) {
                     dpp::message reply(step.channel_id, step.content);
                     discord::apply_flags(reply, step.flags, discord::channel_message_flags);
+                    // Not failing when the message is gone: the reply still
+                    // makes sense on its own.
+                    if (!step.reply_to.empty()) reply.set_reference(step.reply_to, {}, step.channel_id, false);
 
                     // Logged once Discord answers, not before: a midnight
                     // message has claimed its day already, so a refusal here

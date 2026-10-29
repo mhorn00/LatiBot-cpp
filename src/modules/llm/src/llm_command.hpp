@@ -35,8 +35,6 @@ class guild_settings;
 } // namespace latibot::config
 
 namespace latibot::llm {
-struct advanced_trigger;
-class advanced_trigger_store;
 class alias_store;
 class blacklist_store;
 class document_store;
@@ -119,22 +117,13 @@ struct document_target {
 /// (src/modules/llm/docs/Language_Model.md §3.5).
 [[nodiscard]] auto describe_saved(const document_target& target, int version, std::string_view content) -> std::string;
 
-/// The form `/llm trigger edit` opens when given only the id, holding the
-/// trigger as it is: a command's options cannot start out filled in.
-[[nodiscard]] auto trigger_form(const llm::advanced_trigger& entry) -> dpp::interaction_modal_response;
-
-/// Applies that form's fields to a trigger, all of them or, when one cannot be
-/// read or the pattern will not work, none, returning why.
-[[nodiscard]] auto apply_trigger_form(llm::advanced_trigger& entry, const std::map<std::string, std::string, std::less<>>& fields)
-    -> std::optional<std::string>;
-
 /// `/llm persona list`: every persona here, on or off.
 [[nodiscard]] auto render_personas(std::span<const llm::persona> personas) -> std::string;
 
-/// `/llm persona view`: one persona, its triggers, and what it spent this
-/// month; and its voice, when the bot `speaks`.
-[[nodiscard]] auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
-                                  double spent_this_month, bool speaks = false) -> std::string;
+/// `/llm persona view`: one persona and what it spent this month; and its
+/// voice, when the bot `speaks`.
+[[nodiscard]] auto render_persona(const llm::persona& who, std::string_view server_model, double spent_this_month, bool speaks = false)
+    -> std::string;
 
 /// The voice called `wanted` among `voices`, ignoring case, as `voices`
 /// spells it; nothing when there is none.
@@ -172,7 +161,6 @@ inline constexpr std::string_view llm_settings_pick_view = "llmsetpick";
 inline constexpr std::string_view llm_settings_form_view = "llmsetform";
 inline constexpr std::string_view llm_switch_view = "llmswitch";
 inline constexpr std::string_view llm_document_form_view = "llmdoc";
-inline constexpr std::string_view llm_trigger_form_view = "llmtrig";
 inline constexpr std::string_view memory_list_view = "memlist";
 
 // --------------------------------------------------------------------------
@@ -185,7 +173,6 @@ struct llm_command_services {
     /// config.json's llm section.
     const llm::llm_config* section = nullptr;
     llm::document_store* documents = nullptr;
-    llm::advanced_trigger_store* triggers = nullptr;
     llm::blacklist_store* blacklist = nullptr;
     llm::persona_store* personas = nullptr;
     llm::memory_store* memories = nullptr;
@@ -209,8 +196,8 @@ struct llm_command_services {
     std::function<bool(llm::provider_kind)> has_provider;
 };
 
-/// `/llm`: the switch, the model, the settings panel, the documents, the
-/// advanced triggers and the blacklist
+/// `/llm`: the switch, the model, the settings panel, the documents and
+/// the blacklist
 /// (src/modules/llm/docs/Language_Model.md §2.9).
 ///
 /// Open to everyone, since the personality is
@@ -242,7 +229,6 @@ private:
     auto revert_document(const dpp::slashcommand_t& event, const document_target& target) -> dpp::task<void>;
     auto edit_from_file(const dpp::slashcommand_t& event, const document_target& target, dpp::snowflake attachment) -> dpp::task<void>;
     auto editors(const dpp::slashcommand_t& event) -> dpp::task<void>;
-    auto trigger(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
     auto blacklist(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void>;
 
     /// `/llm names add | remove | list` (src/modules/llm/docs/Language_Model.md

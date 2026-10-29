@@ -1,5 +1,6 @@
 #include "core/db/database.hpp"
 #include "core/db/migrations.hpp"
+#include "core/db/schema_versions.hpp"
 #include "core/ports/clock.hpp"
 #include "triggers.hpp"
 
@@ -359,6 +360,10 @@ TEST_CASE("triggers from before reply flags existed stay silent", "[triggers]") 
                static_cast<std::uint64_t>(guild))
         .run();
     latibot::db::migrate(db);
+    // Then adopted, and brought to the module's own latest version, as
+    // startup does.
+    latibot::db::prepare_schema_versions(db);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
 
     const auto found = trigger_store(db).for_guild(guild);
     REQUIRE(found.size() == 1);
@@ -407,6 +412,8 @@ TEST_CASE("an existing database gains the allowlist without losing its triggers"
     db.execute("INSERT INTO trigger_responses (trigger_id, response, weight) VALUES (last_insert_rowid(), 'nice', 1);");
 
     REQUIRE(latibot::db::migrate(db) == static_cast<int>(latibot::db::schema().size()));
+    REQUIRE(latibot::db::prepare_schema_versions(db) == latibot::db::schema_origin::adopted);
+    latibot::db::apply_schema(db, latibot::events::triggers_schema());
 
     const latibot::events::trigger_store store(db);
     const auto all = store.for_guild(dpp::snowflake{1});

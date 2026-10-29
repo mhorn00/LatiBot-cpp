@@ -1,7 +1,6 @@
 // The language model's own feature tools: advanced triggers, posting in
 // another channel, and what the bot is (src/modules/llm/docs/Language_Model.md §3.4).
 
-#include "advanced_triggers.hpp"
 #include "bot_tools.hpp"
 #include "core/db/database.hpp"
 #include "llm_module.hpp"
@@ -26,12 +25,10 @@ namespace {
 constexpr dpp::snowflake guild{1000};
 constexpr dpp::snowflake here{2000};
 constexpr dpp::snowflake general{2001};
-constexpr dpp::snowflake admin{11};
 constexpr dpp::snowflake member{12};
 
 struct fixture {
     latibot::db::database db{":memory:"};
-    latibot::llm::advanced_trigger_store triggers{db};
     latibot::llm::persona_store personas{db};
     latibot::testing::mock_discord discord;
     latibot::testing::mock_model_tools tools;
@@ -40,9 +37,7 @@ struct fixture {
         latibot::testing::create_schema(db);
         latibot::db::apply_schema(db, latibot::llm::llm_schema());
         tools.channels = {{"general", general}, {"here", here}};
-        latibot::llm::add_bot_tools(tools, {.triggers = &triggers,
-                                            .personas = &personas,
-                                            .discord = &discord,
+        latibot::llm::add_bot_tools(tools, {.discord = &discord,
                                             .gateway_ping = [] { return 42ms; },
                                             .server_count = [] { return std::size_t{3}; },
                                             .started_at = std::chrono::sys_seconds{std::chrono::seconds{1'789'900'000}}});
@@ -54,43 +49,6 @@ struct fixture {
 };
 
 } // namespace
-
-TEST_CASE("add_advanced_trigger adds one for LatiBot or a persona, for someone with Manage Server", "[llm]") {
-    fixture test;
-    const std::int64_t claude = test.personas.add({.id = 0,
-                                                   .guild_id = guild,
-                                                   .name = "Claude",
-                                                   .avatar_url = {},
-                                                   .model = {},
-                                                   .enabled = true,
-                                                   .created_by = admin,
-                                                   .created_at = {}});
-
-    CHECK(test.tools.run("add_advanced_trigger", {{"pattern", "pizza"}, {"prompt", "defend pineapple"}}, test.as(member)).is_error);
-    const auto added = test.tools.run("add_advanced_trigger",
-                                      {{"pattern", "pizza"}, {"prompt", "defend pineapple"}, {"persona", "claude"}, {"chance", 50}},
-                                      test.as(admin, dpp::p_manage_guild));
-    REQUIRE_FALSE(added.is_error);
-    CHECK(added.content.contains("answered by Claude"));
-
-    const auto all = test.triggers.for_guild(guild);
-    REQUIRE(all.size() == 1);
-    CHECK(all[0].persona_id == claude);
-    CHECK(all[0].probability == 0.5);
-    CHECK(all[0].cooldown == latibot::llm::default_advanced_cooldown);
-    CHECK(all[0].created_by == admin);
-
-    const auto listed = test.tools.run("list_advanced_triggers", nlohmann::json::object(), test.as(member));
-    CHECK(listed.content.contains("\"pizza\""));
-    CHECK(listed.content.contains("50% of matches"));
-    CHECK(listed.content.contains("answered by Claude: defend pineapple"));
-
-    CHECK(
-        test.tools.run("add_advanced_trigger", {{"pattern", "x"}, {"prompt", "y"}, {"persona", "Zed"}}, test.as(admin, dpp::p_manage_guild))
-            .is_error);
-    CHECK(test.tools.run("add_advanced_trigger", {{"pattern", "x"}, {"prompt", std::string(501, 'y')}}, test.as(admin, dpp::p_manage_guild))
-              .is_error);
-}
 
 TEST_CASE("post_in_channel posts elsewhere, as whoever answers, when the asker could post there", "[llm]") {
     fixture test;

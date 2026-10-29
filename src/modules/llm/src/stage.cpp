@@ -1,6 +1,7 @@
 #include "stage.hpp"
 
 #include "core/capabilities/link_replacements.hpp"
+#include "core/capabilities/model_replies.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/ports/clock.hpp"
@@ -44,13 +45,8 @@ auto spend_cap_reply(const spend_status& status) -> std::string {
     return "i've hit today's spending limit, so i'm staying quiet until tomorrow (UTC)";
 }
 
-llm_stage::llm_stage(stage_services services, ports::clock& clock, std::function<double()> roll)
-    : services_(std::move(services)),
-      clock_(&clock),
-      matcher_(clock, std::move(roll)),
-      users_(clock, rate_window),
-      channels_(clock, rate_window),
-      pacing_(clock) {}
+llm_stage::llm_stage(stage_services services, ports::clock& clock)
+    : services_(std::move(services)), clock_(&clock), users_(clock, rate_window), channels_(clock, rate_window), pacing_(clock) {}
 
 auto llm_stage::over_spend_cap(const events::incoming_message& message, bool addressed, stage_result& result) -> bool {
     const spend_status spend = spend_status_at(
@@ -178,37 +174,179 @@ auto llm_stage::spoken_to(const events::incoming_message& message, std::span<con
 }
 
 auto llm_stage::unaddressed(const events::incoming_message& message, const llm_settings& settings, std::string_view bot_name,
-                            std::span<const persona> personas, bool by_bot, std::optional<std::int64_t> writer,
-                            std::optional<advanced_trigger>& fired) -> std::optional<route> {
-    // A message a simple trigger answered is not answered twice.
+                            std::span<const persona> personas, bool by_bot) const -> std::optional<route> {
+    // A message a trigger answered is not answered twice, whether with a
+    // fixed reply or by asking the model.
     if (message.answered) {
-        util::log().trace("llm: message {} left alone: a simple trigger answered it", message.message_id);
+        util::log().trace("llm: message {} left alone: a trigger answered it", message.message_id);
         return std::nullopt;
     }
-    std::vector<advanced_trigger> triggers = services_.triggers->for_guild(message.guild_id);
-    std::erase_if(triggers, [&](const advanced_trigger& entry) {
-        return entry.persona_id != 0 && std::ranges::find(personas, entry.persona_id, &persona::id) == personas.end();
-    });
 
-    // A bot sets off only the triggers that say they answer bots, and never
-    // one its own writer answers: no persona answers itself, and LatiBot
-    // does not answer LatiBot (src/modules/llm/docs/Language_Model.md §2.6).
+    // A bot has to address LatiBot to be answered: two bots trading
+    // unprompted remarks is the loop pacing is there to stop.
     if (by_bot) {
-        std::erase_if(triggers, [&](const advanced_trigger& entry) { return !entry.respond_to_bots || entry.persona_id == writer; });
-    }
-    fired = matcher_.fire(triggers, message.channel_id, message.content);
-    if (fired) {
-        util::log().trace("llm: message {} fired advanced trigger {}", message.message_id, fired->id);
-        return route{.how = approach::trigger, .check_first = false};
-    }
-
-    // Otherwise a bot has to address LatiBot to be answered: two bots
-    // trading unprompted remarks is the loop pacing is there to stop.
-    if (by_bot) {
-        util::log().trace("llm: message {} left alone: a bot set off no trigger, and has to address it otherwise", message.message_id);
+        util::log().trace("llm: message {} left alone: a bot has to address it", message.message_id);
         return std::nullopt;
     }
     return join_in(message, settings, bot_name, personas);
+}
+
+auto llm_stage::reply_counts(const events::incoming_message& message) const -> bool {
+    return !message.replies_to_bot || services_.replacements == nullptr || !services_.replacements->is_replacement(message.reply_to);
+}
+
+auto llm_stage::enabled_personas(dpp::snowflake guild) const -> std::vector<persona> {
+    std::vector<persona> personas = services_.personas == nullptr ? std::vector<persona>{} : services_.personas->for_guild(guild);
+    std::erase_if(personas, [](const persona& each) { return !each.enabled; });
+    return personas;
+}
+
+auto llm_stage::spoken_to_whom(const events::incoming_message& message, const std::optional<own_writer>& ours, const llm_settings& settings,
+                               std::span<const persona> personas) const -> spoken {
+    // What LatiBot or a persona says addresses nobody, though a persona may
+    // speak to LatiBot by name.
+    const bot_identity me = services_.me();
+    spoken found;
+    found.addressed = !ours && addresses_bot(message, me.name, reply_counts(message));
+    if (found.addressed) return found;
+    if (ours) {
+        found.to_latibot = spoken_to_latibot(message, *ours, settings, me.name, personas);
+    } else {
+        found.answering = spoken_to(message, personas);
+    }
+    return found;
+}
+
+auto llm_stage::addresses(const events::incoming_message& message) const -> bool {
+    return addresses_bot(message, services_.me().name, /*reply_counts=*/false);
+}
+
+auto llm_stage::replied_to(const events::incoming_message& message) const -> std::optional<std::int64_t> {
+    if (message.reply_to.empty()) return std::nullopt;
+    // A reply to a link replacement comments on the post, not to the bot
+    // (src/modules/llm/docs/Language_Model.md §2.1).
+    if (message.replies_to_bot) return reply_counts(message) ? std::optional<std::int64_t>(0) : std::nullopt;
+    if (services_.personas == nullptr) return std::nullopt;
+    return services_.personas->poster(message.reply_to);
+}
+
+auto llm_stage::conversation_only(const events::incoming_message& message, const llm_settings& settings, bool spoken_to,
+                                  std::span<const persona> personas) const -> std::optional<route> {
+    if (spoken_to || message.answered || message.from_bot) return std::nullopt;
+    if (!settings.conversation.enabled || services_.windows == nullptr || util::is_blank(message.content)) return std::nullopt;
+
+    // A name is the triggers' to judge, by their analysis; being talked to
+    // in an open conversation is the model's.
+    const bot_identity me = services_.me();
+    if (names_bot(message.content, model_name) || names_bot(message.content, me.name)) {
+        util::log().trace("llm: message {} names the bot; the triggers answer that", message.message_id);
+        return std::nullopt;
+    }
+    const model_info* checker = find_model(services_.section->check_model);
+    if (checker == nullptr || !services_.has_provider(checker->provider)) return std::nullopt;
+
+    std::vector<std::int64_t> speakers{0};
+    for (const persona& each : personas) {
+        speakers.push_back(each.id);
+    }
+    const std::optional<std::int64_t> talking = services_.windows->latest_open(message.channel_id, settings.conversation, speakers);
+    if (!talking || !message.reply_to.empty() || message.mentions_others) return std::nullopt;
+    util::log().trace("llm: message {} in a conversation goes to the check", message.message_id);
+    return route{.how = approach::joined_in, .check_first = true, .persona_id = *talking};
+}
+
+auto llm_stage::trigger_ask(const events::incoming_message& message, const capabilities::model_trigger& fired) -> stage_result {
+    stage_result result;
+    if (message.channel_ignores.model) {
+        util::log().debug("trigger {} fired in channel {}, which the language model ignores", fired.trigger_id, message.channel_id);
+        return result;
+    }
+    const llm_settings settings = load_llm_settings(*services_.settings, message.guild_id, *services_.section);
+    if (!settings.enabled) {
+        util::log().debug("trigger {} fired, but the language model is off in guild {}", fired.trigger_id, message.guild_id);
+        return result;
+    }
+
+    std::optional<own_writer> ours;
+    if (message.from_self || (message.from_bot && !message.author_is_allowed_bot)) {
+        ours = own_writer_of(message);
+        if (!ours) return result;
+    }
+    const bool by_bot = message.from_bot || ours.has_value();
+    const bool spoken = fired.how != capabilities::model_answer::comment;
+
+    // A persona that is off, or gone, answers nothing, its triggers included.
+    const std::vector<persona> personas = enabled_personas(message.guild_id);
+    const persona* answering = nullptr;
+    if (fired.persona_id != 0) {
+        const auto owner = std::ranges::find(personas, fired.persona_id, &persona::id);
+        if (owner == personas.end()) {
+            util::log().debug("trigger {} fired, but persona {} is off or gone", fired.trigger_id, fired.persona_id);
+            return result;
+        }
+        answering = &*owner;
+    }
+
+    // Only a persona that talks speaks to the others; one that does not
+    // sets off nothing but comments (src/modules/llm/docs/Language_Model.md
+    // §2.11).
+    if (spoken && ours && ours->persona_id != 0) {
+        const auto writer = std::ranges::find(personas, ours->persona_id, &persona::id);
+        if (writer == personas.end() || !writer->talks) {
+            util::log().debug("trigger {} fired on {}'s message, which does not talk to the others", fired.trigger_id, ours->name);
+            return result;
+        }
+    }
+
+    const std::string_view model_id = answering == nullptr ? std::string_view(settings.model) : answering_model(*answering, settings.model);
+    const model_info* model = find_model(model_id);
+    if (model == nullptr || !services_.has_provider(model->provider)) {
+        util::log().debug("trigger {} fired, but guild {} wants {}, which has no API key set", fired.trigger_id, message.guild_id,
+                          model_id);
+        return result;
+    }
+    const bool analysis = fired.how == capabilities::model_answer::analysis;
+    if (analysis) {
+        const model_info* checker = find_model(services_.section->check_model);
+        if (checker == nullptr || !services_.has_provider(checker->provider)) {
+            util::log().debug("trigger {} fired, but there is no API key for the check model {}", fired.trigger_id,
+                              services_.section->check_model);
+            return result;
+        }
+    }
+
+    // Spoken to, a spend cap is said once; an analysis waits on its check
+    // before it takes a place in the rate limits.
+    const auto wait = admit(message, settings, fired.how == capabilities::model_answer::spoken_to, !analysis, by_bot, result);
+    if (!wait) return result;
+
+    approach how = approach::trigger;
+    if (fired.how == capabilities::model_answer::spoken_to) how = approach::addressed;
+    if (analysis) how = approach::named;
+    util::log().debug("llm: trigger {} hands message {} in channel {} to the model ({}{})", fired.trigger_id, message.message_id,
+                      message.channel_id, to_string(how),
+                      answering == nullptr ? std::string{} : std::format(", as persona {}", answering->id));
+    result.answered = true;
+    result.actions.emplace_back(
+        ask_llm{.guild_id = message.guild_id,
+                .channel_id = message.channel_id,
+                .message_id = message.message_id,
+                .author_id = message.author_id,
+                .author_name = message.author_name,
+                .content = message.content,
+                .author_is_bot = by_bot,
+                .reply_to = message.reply_to,
+                .how = how,
+                .check_first = analysis,
+                .check_question = analysis ? fired.question : std::string{},
+                .trigger_id = fired.trigger_id,
+                .context_prompt = fired.prompt,
+                .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
+                .wait = *wait,
+                .persona_id = answering == nullptr ? 0 : answering->id,
+                .speaker = ours ? ours->name : std::string{},
+                .reply = fired.reply});
+    return result;
 }
 
 auto llm_stage::spoken_to_latibot(const events::incoming_message& message, const own_writer& writer, const llm_settings& settings,
@@ -259,7 +397,7 @@ auto llm_stage::claim_bot_turn(dpp::snowflake guild, dpp::snowflake channel) -> 
 
 auto llm_stage::own_writer_of(const events::incoming_message& message) const -> std::optional<own_writer> {
     // A command's response is LatiBot doing as it was asked, and quotes
-    // whatever the command was given: an advanced trigger's pattern, for one.
+    // whatever the command was given: a trigger's pattern, for one.
     if (message.from_self && message.command_output) {
         util::log().trace("llm: message {} is a command's response, not LatiBot talking", message.message_id);
         return std::nullopt;
@@ -292,9 +430,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
     }
 
     // LatiBot's own messages, and webhooks', reach this stage too, so that
-    // LatiBot and its personas can set off each other's advanced triggers
-    // (src/modules/llm/docs/Language_Model.md §2.11). Any other is a bot
-    // nobody allowed, and is left alone.
+    // a persona can speak to LatiBot (src/modules/llm/docs/Language_Model.md
+    // §2.11). Any other is a bot nobody allowed, and is left alone.
     std::optional<own_writer> ours;
     if (message.from_self || (message.from_bot && !message.author_is_allowed_bot)) {
         ours = own_writer_of(message);
@@ -326,42 +463,37 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
 
     // A reply to a link replacement comments on the post, not to the bot
     // (src/modules/llm/docs/Language_Model.md §2.1).
-    const bool reply_counts =
-        !message.replies_to_bot || services_.replacements == nullptr || !services_.replacements->is_replacement(message.reply_to);
-
-    // What LatiBot or a persona says addresses nobody: it can only set off a
-    // trigger.
     const bot_identity me = services_.me();
-    const bool addressed = !ours && addresses_bot(message, me.name, reply_counts);
+    const std::vector<persona> personas = enabled_personas(message.guild_id);
+    const spoken found = spoken_to_whom(message, ours, settings, personas);
+    const bool addressed = found.addressed;
     util::log().trace(R"(llm: message {} {} (mentions the bot: {}, replies to the bot: {}{}, starts with "{}" or "{}": {}))",
                       message.message_id, addressed ? "addresses the bot" : "does not address the bot", message.mentions_bot,
-                      message.replies_to_bot, reply_counts ? "" : ", but to a link replacement", model_name, me.name,
+                      message.replies_to_bot, reply_counts(message) ? "" : ", but to a link replacement", model_name, me.name,
                       starts_with_name(message.content, model_name) || starts_with_name(message.content, me.name));
 
-    // The personas that may answer: the enabled ones. LatiBot addressed
-    // wins over a persona named in the same message.
-    std::vector<persona> personas =
-        services_.personas == nullptr ? std::vector<persona>{} : services_.personas->for_guild(message.guild_id);
-    std::erase_if(personas, [](const persona& each) { return !each.enabled; });
-
+    // LatiBot addressed wins over a persona named in the same message.
     route chosen{.how = approach::addressed, .check_first = false};
-    std::optional<advanced_trigger> fired;
-    const persona* answering = nullptr;
-    if (!addressed) answering = spoken_to(message, personas);
-    if (!addressed && answering == nullptr) {
-        // LatiBot and the personas speak to each other by name, before any
-        // trigger, as a person addressing one would.
-        std::optional<route> unprompted;
-        if (ours) unprompted = spoken_to_latibot(message, *ours, settings, me.name, personas);
-        if (!unprompted) {
-            unprompted =
-                unaddressed(message, settings, me.name, personas, by_bot, ours ? std::optional(ours->persona_id) : std::nullopt, fired);
-        }
+    const persona* answering = found.answering;
+    std::optional<route> unprompted;
+    if (handed_over_) {
+        // Handed over, the triggers answer whatever speaks to the model; only
+        // conversation mode is still this stage's.
+        if (ours) return result;
+        unprompted = conversation_only(message, settings, addressed || found.answering != nullptr, personas);
         if (!unprompted) return result;
+    } else if (!addressed && answering == nullptr) {
+        // LatiBot and the personas speak to each other by name, as a person
+        // addressing one would.
+        unprompted = found.to_latibot;
+        if (!unprompted) unprompted = unaddressed(message, settings, me.name, personas, by_bot);
+        if (!unprompted) return result;
+    }
+    if (unprompted) {
         chosen = *unprompted;
-        // A persona's trigger, or a persona's conversation, is the persona's
-        // to answer.
-        const std::int64_t owner_id = fired ? fired->persona_id : chosen.persona_id;
+        answering = nullptr;
+        // A persona's conversation is the persona's to answer.
+        const std::int64_t owner_id = chosen.persona_id;
         if (owner_id != 0) {
             const auto owner = std::ranges::find(personas, owner_id, &persona::id);
             if (owner != personas.end()) answering = &*owner;
@@ -400,8 +532,8 @@ auto llm_stage::operator()(const events::incoming_message& message) -> stage_res
                      .reply_to = message.reply_to,
                      .how = chosen.how,
                      .check_first = chosen.check_first,
-                     .trigger_id = fired ? fired->id : 0,
-                     .context_prompt = fired ? fired->context_prompt : std::string{},
+                     .trigger_id = 0,
+                     .context_prompt = {},
                      .speak = services_.speech != nullptr && services_.speech->speaks_in(message.guild_id, message.channel_id),
                      .wait = *wait,
                      .persona_id = answering == nullptr ? 0 : answering->id,

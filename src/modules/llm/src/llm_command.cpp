@@ -1,6 +1,5 @@
 #include "llm_command.hpp"
 
-#include "advanced_triggers.hpp"
 #include "aliases.hpp"
 #include "core/capabilities/speech.hpp"
 #include "core/commands/options.hpp"
@@ -17,7 +16,6 @@
 
 #include <algorithm>
 #include <array>
-#include <charconv>
 #include <format>
 #include <utility>
 
@@ -39,18 +37,8 @@ constexpr std::size_t history_shown = 15;
 /// up to four bytes a character.
 constexpr std::uint32_t document_file_limit = llm::document_length_limit * 4;
 
-constexpr std::uint32_t trigger_pattern_limit = 200;
-constexpr std::int64_t cooldown_limit = 86400;
-
 /// Discord's longest modal title.
 constexpr std::size_t form_title_limit = 45;
-
-/// Discord's limit on a message.
-constexpr std::size_t message_limit = 2000;
-
-/// What to put in the persona option to mean LatiBot itself, for a trigger
-/// moved back from a persona.
-constexpr std::string_view latibot_choice = "LatiBot";
 
 auto kind_label(llm::document_kind kind) -> std::string_view {
     switch (kind) {
@@ -83,42 +71,6 @@ auto group_title(std::string_view group) -> std::string_view {
     if (group == "replies") return "Replies and rate limits";
     if (group == "conversation") return "Conversation mode";
     return "Talking to other bots";
-}
-
-/// One trigger, in a line; `persona` is the name of the persona that
-/// answers it, empty for LatiBot.
-auto describe_trigger(const llm::advanced_trigger& entry, std::string_view persona = {}) -> std::string {
-    // A regular expression is code, and its * and _ would read as markdown.
-    const std::string pattern =
-        entry.mode == util::match_mode::regex ? std::format("`{}`", entry.pattern) : std::format("**{}**", entry.pattern);
-    std::string line = std::format("`{}` {} ({}, {:.0f}%, ", entry.id, pattern, util::mode_label(entry.mode), entry.probability * 100);
-    line += entry.cooldown.count() == 0 ? "no cooldown" : std::format("{}s cooldown", entry.cooldown.count());
-    if (!persona.empty()) line += std::format(", as {}", persona);
-    if (entry.respond_to_bots) line += ", answers bots";
-    if (!entry.enabled) line += ", disabled";
-    // The whole prompt: these are only ever shown to whoever asked, and a
-    // list too long for a message is cut as a whole.
-    line += std::format(") -> {}", entry.context_prompt);
-    return line;
-}
-
-/// Reads a whole number from `low` to `high` out of a form's field.
-auto read_number(std::string_view text, std::int64_t low, std::int64_t high) -> std::optional<std::int64_t> {
-    const std::string_view trimmed = util::trim(text);
-    std::int64_t value = 0;
-    const auto [stop, error] = std::from_chars(trimmed.data(), trimmed.data() + trimmed.size(), value);
-    if (error != std::errc{} || stop != trimmed.data() + trimmed.size() || value < low || value > high) return std::nullopt;
-    return value;
-}
-
-/// How many options the subcommand was given, below its group.
-auto given_options(const dpp::slashcommand_t& event) -> std::size_t {
-    const dpp::command_interaction command = event.command.get_command_interaction();
-    const std::vector<dpp::command_data_option>* options = &command.options;
-    while (options->size() == 1 && ((*options)[0].type == dpp::co_sub_command_group || (*options)[0].type == dpp::co_sub_command)) {
-        options = &(*options)[0].options;
-    }
-    return options->size();
 }
 
 auto document_group(std::string_view name, std::string_view description, bool personality) -> dpp::command_option {
@@ -169,14 +121,6 @@ auto persona_option(std::string_view description, bool required) -> dpp::command
 /// A persona's voice, completed from the speech capability's.
 auto voice_option(std::string_view description) -> dpp::command_option {
     return dpp::command_option(dpp::co_string, "voice", std::string(description), false).set_auto_complete(true);
-}
-
-auto match_mode_option() -> dpp::command_option {
-    dpp::command_option mode(dpp::co_string, "mode", "Whether the pattern must stand alone, or is a regular expression.", false);
-    mode.add_choice(dpp::command_option_choice("Whole word", std::string("whole_word")));
-    mode.add_choice(dpp::command_option_choice("Anywhere in the message", std::string("substring")));
-    mode.add_choice(dpp::command_option_choice("Regular expression", std::string("regex")));
-    return mode;
 }
 
 /// Memories with the people they name as mentions, which Discord shows as
@@ -343,7 +287,7 @@ auto find_voice(std::span<const std::string> voices, std::string_view wanted) ->
 auto render_personas(std::span<const llm::persona> personas) -> std::string {
     if (personas.empty()) return "No personas here yet. Make one with `/llm persona add`.";
 
-    std::string text = "**Personas**: each answers replies to its messages, its advanced triggers, and those it talks with.\n";
+    std::string text = "**Personas**: each answers replies to its messages, the triggers that name it, and those it talks with.\n";
     for (const llm::persona& who : personas) {
         text += std::format("- **{}**{}{}{}\n", who.name, who.model.empty() ? std::string{} : std::format(", on {}", who.model),
                             who.talks ? ", talks to the others" : "", who.enabled ? "" : " (off)");
@@ -351,8 +295,7 @@ auto render_personas(std::span<const llm::persona> personas) -> std::string {
     return util::truncate(text, 2000);
 }
 
-auto render_persona(const llm::persona& who, std::string_view server_model, std::span<const llm::advanced_trigger> triggers,
-                    double spent_this_month, bool speaks) -> std::string {
+auto render_persona(const llm::persona& who, std::string_view server_model, double spent_this_month, bool speaks) -> std::string {
     const llm::model_info* model = llm::find_model(llm::answering_model(who, server_model));
     std::string text = std::format("**{}** is {}, and answers with {}{}.\n", who.name, who.enabled ? "on" : "off",
                                    model == nullptr ? std::string(llm::answering_model(who, server_model)) : std::string(model->label),
@@ -366,14 +309,7 @@ auto render_persona(const llm::persona& who, std::string_view server_model, std:
                                   : std::format("In a voice session it speaks as {}.\n", who.voice);
     }
     text += std::format("Spent this month: ${:.2f}.\n", spent_this_month);
-    if (triggers.empty()) {
-        text += "No advanced triggers of its own; `/llm trigger add persona:` gives it one.";
-    } else {
-        text += "**Its advanced triggers**\n";
-        for (const llm::advanced_trigger& entry : triggers) {
-            text += describe_trigger(entry) + "\n";
-        }
-    }
+    text += std::format("Its triggers are in `/trigger list`; `/trigger add prompt: persona:{}` gives it one.", who.name);
     return util::truncate(text, 2000);
 }
 
@@ -453,90 +389,6 @@ auto llm_settings_form(std::string_view group, const std::map<std::string, std::
                                .set_default_value(llm::describe_setting(spec, value)));
     }
     return form;
-}
-
-auto trigger_form(const llm::advanced_trigger& entry) -> dpp::interaction_modal_response {
-    const auto custom_id = ui::encode({.view = std::string(llm_trigger_form_view), .page = 0, .argument = std::to_string(entry.id)});
-    dpp::interaction_modal_response form(custom_id.value_or(std::string(llm_trigger_form_view)),
-                                         std::format("Edit advanced trigger {}", entry.id));
-
-    // The same limits as /llm trigger add, so the form cannot save what the
-    // command would refuse.
-    form.add_component(dpp::component()
-                           .set_label("Pattern")
-                           .set_id("pattern")
-                           .set_type(dpp::cot_text)
-                           .set_text_style(dpp::text_short)
-                           .set_required(true)
-                           .set_max_length(trigger_pattern_limit)
-                           .set_default_value(entry.pattern));
-    form.add_row();
-    form.add_component(dpp::component()
-                           .set_label("Prompt")
-                           .set_id("prompt")
-                           .set_type(dpp::cot_text)
-                           .set_text_style(dpp::text_paragraph)
-                           .set_required(true)
-                           .set_max_length(static_cast<std::uint32_t>(llm::context_prompt_limit))
-                           .set_default_value(entry.context_prompt));
-    form.add_row();
-    form.add_component(
-        dpp::component()
-            .set_label("Match: word, anywhere or regex")
-            .set_id("mode")
-            .set_type(dpp::cot_text)
-            .set_text_style(dpp::text_short)
-            .set_required(true)
-            .set_default_value(entry.mode == util::match_mode::whole_word ? "word" : std::string(util::mode_label(entry.mode))));
-    form.add_row();
-    form.add_component(dpp::component()
-                           .set_label("Chance, percent")
-                           .set_id("chance")
-                           .set_type(dpp::cot_text)
-                           .set_text_style(dpp::text_short)
-                           .set_required(true)
-                           .set_placeholder("1 to 100")
-                           .set_default_value(std::format("{:.0f}", entry.probability * 100)));
-    form.add_row();
-    form.add_component(dpp::component()
-                           .set_label("Cooldown in seconds, 0 for none")
-                           .set_id("cooldown")
-                           .set_type(dpp::cot_text)
-                           .set_text_style(dpp::text_short)
-                           .set_required(true)
-                           .set_placeholder(std::format("0 to {}", cooldown_limit))
-                           .set_default_value(std::to_string(entry.cooldown.count())));
-    return form;
-}
-
-auto apply_trigger_form(llm::advanced_trigger& entry, const std::map<std::string, std::string, std::less<>>& fields)
-    -> std::optional<std::string> {
-    const auto field = [&fields](std::string_view name) -> std::string_view {
-        const auto found = fields.find(name);
-        return found == fields.end() ? std::string_view{} : std::string_view(found->second);
-    };
-
-    const std::string pattern(util::trim(field("pattern")));
-    const std::string prompt(util::trim(field("prompt")));
-    if (pattern.empty() || prompt.empty()) return "a trigger needs a pattern and a prompt; nothing was changed";
-
-    const auto mode = util::match_mode_from_string(field("mode"));
-    if (!mode) return std::format("\"{}\" isn't word, anywhere or regex; nothing was changed", util::trim(field("mode")));
-    const auto chance = read_number(field("chance"), 1, 100);
-    if (!chance) return std::format("\"{}\" isn't a percent from 1 to 100; nothing was changed", util::trim(field("chance")));
-    const auto cooldown = read_number(field("cooldown"), 0, cooldown_limit);
-    if (!cooldown) {
-        return std::format("\"{}\" isn't a number of seconds from 0 to {}; nothing was changed", util::trim(field("cooldown")),
-                           cooldown_limit);
-    }
-    if (const auto problem = util::pattern_error(pattern, *mode)) return std::format("that pattern won't work: {}", *problem);
-
-    entry.pattern = pattern;
-    entry.context_prompt = prompt;
-    entry.mode = *mode;
-    entry.probability = static_cast<double>(*chance) / 100.0;
-    entry.cooldown = std::chrono::seconds{*cooldown};
-    return std::nullopt;
 }
 
 auto read_llm_settings_form(std::string_view group, const std::map<std::string, std::string, std::less<>>& fields)
@@ -625,47 +477,7 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
 
     payload.add_option(document_group("personality", "How the bot comes across.", true));
     payload.add_option(document_group("system", "Instructions that are not up for negotiation (Manage Server).", false));
-    payload.add_option(document_group("style", "How advanced-trigger replies are written (Manage Server).", false));
-
-    dpp::command_option trigger(dpp::co_sub_command_group, "trigger",
-                                "Advanced triggers: phrases the model speaks up about (Manage Server).");
-    dpp::command_option add(dpp::co_sub_command, "add", "Add one.");
-    add.add_option(dpp::command_option(dpp::co_string, "pattern", "The text to look for.", true)
-                       .set_min_length(1)
-                       .set_max_length(trigger_pattern_limit));
-    add.add_option(dpp::command_option(dpp::co_string, "prompt", "What to say about it, in a line.", true)
-                       .set_min_length(1)
-                       .set_max_length(static_cast<std::int64_t>(llm::context_prompt_limit)));
-    add.add_option(dpp::command_option(dpp::co_integer, "chance", "Percent of matches it answers. 100 by default.", false)
-                       .set_min_value(1)
-                       .set_max_value(100));
-    add.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds between replies in one channel. 300 by default.", false)
-                       .set_min_value(0)
-                       .set_max_value(cooldown_limit));
-    add.add_option(match_mode_option());
-    add.add_option(persona_option("A persona to answer it, rather than LatiBot.", false));
-    add.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots, LatiBot and other personas.", false));
-    trigger.add_option(add);
-
-    dpp::command_option edit(dpp::co_sub_command, "edit", "Change one. Given only the id, it opens in a form to edit.");
-    edit.add_option(dpp::command_option(dpp::co_integer, "id", "From /llm trigger list.", true).set_min_value(1));
-    edit.add_option(dpp::command_option(dpp::co_string, "pattern", "New text to look for.", false).set_max_length(trigger_pattern_limit));
-    edit.add_option(dpp::command_option(dpp::co_string, "prompt", "New instruction.", false)
-                        .set_max_length(static_cast<std::int64_t>(llm::context_prompt_limit)));
-    edit.add_option(
-        dpp::command_option(dpp::co_integer, "chance", "Percent of matches it answers.", false).set_min_value(1).set_max_value(100));
-    edit.add_option(dpp::command_option(dpp::co_integer, "cooldown", "Seconds.", false).set_min_value(0).set_max_value(cooldown_limit));
-    edit.add_option(match_mode_option());
-    edit.add_option(dpp::command_option(dpp::co_boolean, "enabled", "Turn it on or off.", false));
-    edit.add_option(persona_option("Who answers it: a persona, or LatiBot.", false));
-    edit.add_option(dpp::command_option(dpp::co_boolean, "bots", "Also answer allowed bots, LatiBot and other personas.", false));
-    trigger.add_option(edit);
-
-    dpp::command_option remove(dpp::co_sub_command, "remove", "Delete one.");
-    remove.add_option(dpp::command_option(dpp::co_integer, "id", "From /llm trigger list.", true).set_min_value(1));
-    trigger.add_option(remove);
-    trigger.add_option(dpp::command_option(dpp::co_sub_command, "list", "Show them."));
-    payload.add_option(trigger);
+    payload.add_option(document_group("style", "How replies to model triggers are written (Manage Server).", false));
 
     dpp::command_option blacklist(dpp::co_sub_command_group, "blacklist", "Who the model does not answer (Manage Server).");
     for (const auto& [verb, what] : std::array<std::pair<const char*, const char*>, 2>{
@@ -731,12 +543,12 @@ auto llm_command::build(const std::string& name, dpp::snowflake application_id) 
     if (services_.speech != nullptr) change.add_option(voice_option("The voice it speaks in, in a voice session."));
     persona.add_option(change);
 
-    dpp::command_option drop(dpp::co_sub_command, "remove", "Delete one, its documents and triggers (Manage Server).");
+    dpp::command_option drop(dpp::co_sub_command, "remove", "Delete one and its documents (Manage Server).");
     drop.add_option(persona_option("Which.", true));
     persona.add_option(drop);
 
     persona.add_option(dpp::command_option(dpp::co_sub_command, "list", "Every persona here."));
-    dpp::command_option view(dpp::co_sub_command, "view", "One persona: its model, picture and triggers.");
+    dpp::command_option view(dpp::co_sub_command, "view", "One persona: its model, picture and spending.");
     view.add_option(persona_option("Which.", true));
     persona.add_option(view);
 
@@ -834,8 +646,6 @@ auto llm_command::manage(const dpp::slashcommand_t& event, std::string_view path
         co_await event.co_reply(result(event, panels.settings_panel(event.command.guild_id)));
     } else if (group == "conversation" && (action == "on" || action == "off")) {
         co_await switch_conversation(event, action == "on");
-    } else if (group == "trigger") {
-        co_await trigger(event, action);
     } else if (group == "blacklist") {
         co_await blacklist(event, action);
     } else if (group == "names") {
@@ -1082,110 +892,6 @@ auto llm_command::editors(const dpp::slashcommand_t& event) -> dpp::task<void> {
                                                          : std::format("ok, people with <@&{}> can edit the personality", *role)));
 }
 
-auto llm_command::trigger(const dpp::slashcommand_t& event, std::string_view action) -> dpp::task<void> {
-    const dpp::snowflake guild = event.command.guild_id;
-    const commands::user_label who = describe_user(event.command.get_issuing_user());
-
-    if (action == "list") {
-        const auto all = services_.triggers->for_guild(guild);
-        const auto personas = services_.personas == nullptr ? std::vector<llm::persona>{} : services_.personas->for_guild(guild);
-        std::string text = all.empty() ? std::string("No advanced triggers here yet. Add one with `/llm trigger add`.")
-                                       : std::string("**Advanced triggers**\n");
-        for (const llm::advanced_trigger& entry : all) {
-            const auto owner = std::ranges::find(personas, entry.persona_id, &llm::persona::id);
-            text += describe_trigger(entry, owner == personas.end() ? std::string_view{} : std::string_view(owner->name)) + "\n";
-        }
-        co_await event.co_reply(result(event, util::truncate(text, message_limit)));
-        co_return;
-    }
-
-    if (action == "remove") {
-        const std::int64_t id = int_option(event, "id").value_or(0);
-        if (!services_.triggers->remove(id, guild)) {
-            co_await event.co_reply(refusal(event, std::format("no advanced trigger `{}` here", id)));
-            co_return;
-        }
-        util::log().info("advanced trigger {} removed from guild {} by {}", id, guild, who);
-        co_await event.co_reply(result(event, std::format("removed advanced trigger `{}`", id)));
-        co_return;
-    }
-
-    llm::advanced_trigger entry;
-    if (action == "edit") {
-        const std::int64_t id = int_option(event, "id").value_or(0);
-        auto found = services_.triggers->find(id, guild);
-        if (!found) {
-            co_await event.co_reply(refusal(event, std::format("no advanced trigger `{}` here", id)));
-            co_return;
-        }
-        entry = std::move(*found);
-
-        // Given nothing to change, it opens a form holding the trigger as it
-        // is, since a command's options cannot start out filled in.
-        if (given_options(event) <= 1) {
-            const auto opened = co_await event.co_dialog(trigger_form(entry));
-            if (opened.is_error()) util::log().warn("could not open the form for advanced trigger {}: {}", id, opened.get_error().message);
-            co_return;
-        }
-    } else if (action == "add") {
-        entry.guild_id = guild;
-        entry.created_by = event.command.get_issuing_user().id;
-        entry.cooldown = llm::default_advanced_cooldown;
-    } else {
-        co_await event.co_reply(refusal(event, "i don't know that subcommand"));
-        co_return;
-    }
-
-    // An edit changes what was given and leaves the rest.
-    if (const std::string pattern(util::trim(string_option(event, "pattern"))); !pattern.empty()) entry.pattern = pattern;
-    if (const std::string prompt(util::trim(string_option(event, "prompt"))); !prompt.empty()) entry.context_prompt = prompt;
-    if (const auto chance = int_option(event, "chance")) entry.probability = static_cast<double>(*chance) / 100.0;
-    if (const auto cooldown = int_option(event, "cooldown")) entry.cooldown = std::chrono::seconds{*cooldown};
-    if (const auto mode = util::match_mode_from_string(string_option(event, "mode"))) entry.mode = *mode;
-    entry.enabled = bool_option(event, "enabled").value_or(entry.enabled);
-    entry.respond_to_bots = bool_option(event, "bots").value_or(entry.respond_to_bots);
-
-    // Who answers it: a persona, or LatiBot itself
-    // (src/modules/llm/docs/Language_Model.md §2.11).
-    std::string answered_by;
-    if (const std::string named(util::trim(string_option(event, "persona"))); !named.empty()) {
-        if (util::equals_ignoring_case(named, latibot_choice)) {
-            entry.persona_id = 0;
-        } else {
-            const auto owner = named_persona(event, "persona");
-            if (!owner) {
-                co_await event.co_reply(refusal(event, std::format("there's no persona called \"{}\" here", named)));
-                co_return;
-            }
-            entry.persona_id = owner->id;
-            answered_by = owner->name;
-        }
-    } else if (entry.persona_id != 0 && services_.personas != nullptr) {
-        if (const auto owner = services_.personas->find(entry.persona_id, guild)) answered_by = owner->name;
-    }
-
-    if (entry.pattern.empty() || entry.context_prompt.empty()) {
-        co_await event.co_reply(refusal(event, "a trigger needs a pattern and a prompt"));
-        co_return;
-    }
-    if (const auto problem = util::pattern_error(entry.pattern, entry.mode)) {
-        co_await event.co_reply(refusal(event, std::format("that pattern won't work: {}", *problem)));
-        co_return;
-    }
-
-    if (action == "add") {
-        entry.id = services_.triggers->add(entry);
-    } else if (!services_.triggers->update(entry)) {
-        co_await event.co_reply(refusal(event, std::format("no advanced trigger `{}` here", entry.id)));
-        co_return;
-    }
-    util::log().info("advanced trigger {} {} in guild {} by {}: {}", entry.id, action == "add" ? "added" : "updated", guild, who,
-                     describe_trigger(entry, answered_by));
-    co_await event.co_reply(result(
-        event,
-        util::truncate(std::format("{} {}", action == "add" ? "added" : "updated", describe_trigger(entry, answered_by)), message_limit)));
-}
-
 auto render_tools(const std::vector<llm::tool_definition>& tools, const std::set<std::string, std::less<>>& off) -> std::string {
     std::string text = "**What the model may use here**\n";
     for (const llm::tool_definition& tool : tools) {
@@ -1379,12 +1085,10 @@ auto llm_command::persona(const dpp::slashcommand_t& event, std::string_view act
     }
 
     if (action == "view") {
-        auto triggers = services_.triggers->for_guild(guild);
-        std::erase_if(triggers, [&](const llm::advanced_trigger& entry) { return entry.persona_id != who->id; });
         const auto now = seconds_now(*services_.clock);
         const double spent = services_.usage->spent_by_persona(who->id, llm::month_start(now), now + std::chrono::seconds{1});
         const llm::llm_settings settings = llm::load_llm_settings(*services_.settings, guild, *services_.section);
-        co_await event.co_reply(result(event, render_persona(*who, settings.model, triggers, spent, services_.speech != nullptr)));
+        co_await event.co_reply(result(event, render_persona(*who, settings.model, spent, services_.speech != nullptr)));
         co_return;
     }
     if (action == "document") {
@@ -1406,7 +1110,9 @@ auto llm_command::persona(const dpp::slashcommand_t& event, std::string_view act
         services_.personas->remove(who->id, guild);
         util::log().info("persona {} \"{}\" removed from guild {} by {}", who->id, who->name, guild,
                          describe_user(event.command.get_issuing_user()));
-        co_await event.co_reply(result(event, std::format("removed {}, with its documents and triggers", who->name)));
+        co_await event.co_reply(result(
+            event,
+            std::format("removed {}, with its documents; its triggers stay, and fire for nobody until given to someone else", who->name)));
     } else {
         co_await event.co_reply(refusal(event, "i don't know that subcommand"));
     }
@@ -1454,7 +1160,7 @@ auto llm_command::add_persona(const dpp::slashcommand_t& event) -> dpp::task<voi
                      made.model.empty() ? std::string{} : std::format(", on {}", made.model));
 
     std::string reply = std::format(
-        "made {0}: it answers replies to its messages, and its advanced triggers (`/llm trigger add persona:{0}`). Tell it who "
+        "made {0}: it answers replies to its messages, and the triggers that name it (`/trigger add prompt: persona:{0}`). Tell it who "
         "it is with `/llm persona document persona:{0} which:system action:edit`",
         made.name);
     if (!llm::load_llm_settings(*services_.settings, guild, *services_.section).enabled) reply += ". The model is off here: /llm on";
@@ -1698,40 +1404,6 @@ auto llm_panels::on_form(const dpp::form_submit_t& event, const ui::page_state& 
         }
         util::log().info("language model settings in guild {} changed by {} from the panel: {}", guild, who, changed);
         ui::update_panel(event, settings_panel(guild));
-        return true;
-    }
-
-    if (state.view == llm_trigger_form_view) {
-        if (!manages_server(event)) {
-            ui::answer_privately(event, "advanced triggers need Manage Server");
-            return true;
-        }
-        std::int64_t id = 0;
-        const auto [stop, error] = std::from_chars(state.argument.data(), state.argument.data() + state.argument.size(), id);
-        if (error != std::errc{} || stop != state.argument.data() + state.argument.size()) return false;
-
-        // Removed from another client while the form was open.
-        auto entry = services_.triggers->find(id, guild);
-        if (!entry) {
-            ui::answer_privately(event, std::format("advanced trigger `{}` is gone, so nothing was saved", id));
-            return true;
-        }
-        if (const auto problem = apply_trigger_form(*entry, ui::form_fields(event))) {
-            ui::answer_privately(event, *problem);
-            return true;
-        }
-        if (!services_.triggers->update(*entry)) {
-            ui::answer_privately(event, std::format("advanced trigger `{}` is gone, so nothing was saved", id));
-            return true;
-        }
-
-        std::string answered_by;
-        if (entry->persona_id != 0 && services_.personas != nullptr) {
-            if (const auto owner = services_.personas->find(entry->persona_id, guild)) answered_by = owner->name;
-        }
-        util::log().info("advanced trigger {} updated in guild {} by {} from its form: {}", id, guild, who,
-                         describe_trigger(*entry, answered_by));
-        ui::answer_privately(event, util::truncate(std::format("updated {}", describe_trigger(*entry, answered_by)), message_limit));
         return true;
     }
 

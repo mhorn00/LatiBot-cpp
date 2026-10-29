@@ -21,7 +21,8 @@ enum class approach : std::uint8_t {
     /// During a conversation, a message nobody addressed it in, which a
     /// check thought was for it. It may still choose to say nothing.
     joined_in,
-    /// An advanced trigger fired.
+    /// A trigger that asks the model to speak fired
+    /// (src/modules/triggers/docs/Triggers.md §2.6).
     trigger,
 };
 
@@ -51,7 +52,12 @@ struct ask_llm {
     /// taken only once it has.
     bool check_first = false;
 
-    /// For an advanced trigger: which one, and what it asks the model to say.
+    /// What the check is asked instead of whether to reply: an analysis
+    /// trigger's question (src/modules/triggers/docs/Triggers.md §2.6).
+    /// Empty for the usual one.
+    std::string check_question;
+
+    /// For a trigger: which one, and what it asks the model to say.
     std::int64_t trigger_id = 0;
     std::string context_prompt;
 
@@ -70,6 +76,11 @@ struct ask_llm {
     /// Who wrote the message by name, when it was LatiBot or a persona, who
     /// are shown by name rather than an alias; empty for anyone else.
     std::string speaker;
+
+    /// Whether LatiBot's answer is a Discord reply to the message, as it is
+    /// unless a trigger says otherwise. A persona's never is: a webhook
+    /// cannot reply.
+    bool reply = true;
 };
 
 /// The approach as the log names it: "addressed", "named", "joined in",

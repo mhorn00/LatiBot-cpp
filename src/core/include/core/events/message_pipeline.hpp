@@ -117,6 +117,10 @@ struct send_message {
     /// scheduled posts, not things to be pinged for, as in the Java bot.
     discord::message_flags flags = dpp::m_suppress_notifications;
 
+    /// The message this answers as a Discord reply, or 0 to post it plainly.
+    /// A reply that is silent still notifies nobody.
+    dpp::snowflake reply_to;
+
     /// What this is, for the log line saying whether it was posted: "trigger
     /// 3's reply", "midnight message 2".
     std::string what = "a message";

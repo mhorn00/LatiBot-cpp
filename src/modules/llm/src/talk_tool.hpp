@@ -39,8 +39,12 @@ public:
     /// Whether `content` in `channel` is one, forgetting it if so.
     auto take(dpp::snowflake channel, std::string_view content) -> bool;
 
+    /// Whether it is one, remembering it still: for the triggers, which see
+    /// the message before the stage that takes it.
+    [[nodiscard]] auto expects(dpp::snowflake channel, std::string_view content) const -> bool;
+
 private:
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::deque<std::pair<dpp::snowflake, std::string>> expected_;
 };
 

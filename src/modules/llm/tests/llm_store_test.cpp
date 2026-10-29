@@ -1,4 +1,3 @@
-#include "advanced_triggers.hpp"
 #include "core/config/guild_settings.hpp"
 #include "core/db/database.hpp"
 #include "documents.hpp"
@@ -243,41 +242,6 @@ TEST_CASE("the blacklist blocks a user or anyone with a role", "[llm]") {
     CHECK(blacklist.list(guild).size() == 2);
     CHECK(blacklist.remove(guild, latibot::llm::block_kind::user, bob));
     CHECK_FALSE(blacklist.blocks(guild, bob, none));
-}
-
-TEST_CASE("advanced triggers are stored per guild and edited in place", "[llm]") {
-    fixture test;
-    latibot::llm::advanced_trigger_store triggers(test.db);
-
-    latibot::llm::advanced_trigger entry{.id = 0,
-                                         .guild_id = guild,
-                                         .pattern = "pineapple pizza",
-                                         .mode = latibot::util::match_mode::substring,
-                                         .context_prompt = "Defend it with unreasonable passion.",
-                                         .probability = 0.5,
-                                         .cooldown = 600s,
-                                         .enabled = true,
-                                         .created_by = alice};
-    entry.id = triggers.add(entry);
-
-    const auto found = triggers.find(entry.id, guild);
-    REQUIRE(found.has_value());
-    CHECK(found->mode == latibot::util::match_mode::substring);
-    CHECK(found->probability == Catch::Approx(0.5));
-    CHECK(found->cooldown == 600s);
-    CHECK_FALSE(found->respond_to_bots);
-    CHECK_FALSE(triggers.find(entry.id, other_guild).has_value());
-
-    entry.enabled = false;
-    entry.respond_to_bots = true;
-    CHECK(triggers.update(entry));
-    CHECK_FALSE(triggers.for_guild(guild)[0].enabled);
-    CHECK(triggers.for_guild(guild)[0].respond_to_bots);
-
-    entry.guild_id = other_guild;
-    CHECK_FALSE(triggers.update(entry));
-    CHECK(triggers.remove(entry.id, guild));
-    CHECK(triggers.for_guild(guild).empty());
 }
 
 TEST_CASE("a guild's model settings are read clamped, with the model falling back to the config's", "[llm]") {

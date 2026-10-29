@@ -276,13 +276,13 @@ auto responder::check(const llm::ask_llm& ask) -> dpp::task<check_report> {
 
     request call;
     call.model = std::string(model->id);
-    call.stable_system = check_instructions(answerer);
-    call.conversation.push_back(
-        {.from = speaker::user,
-         .text = check_question(history, latest_of(ask), replied_to ? &*replied_to : nullptr, check_context_tokens, cast, answerer),
-         .calls = {},
-         .results = {},
-         .raw = {}});
+    call.stable_system = check_instructions(answerer, ask.check_question);
+    call.conversation.push_back({.from = speaker::user,
+                                 .text = check_question(history, latest_of(ask), replied_to ? &*replied_to : nullptr, check_context_tokens,
+                                                        cast, answerer, ask.check_question),
+                                 .calls = {},
+                                 .results = {},
+                                 .raw = {}});
     call.allow_tools = false;
     call.think = false;
     call.max_output_tokens = check_output_tokens;
@@ -448,7 +448,7 @@ auto responder::post(const llm::ask_llm& ask, const std::vector<std::string>& pa
     const bool addressed = spoke_to_bot(ask);
     for (std::size_t index = 0; index < parts.size(); ++index) {
         dpp::message reply(ask.channel_id, parts[index]);
-        if (index == 0 && as == nullptr) reply.set_reference(ask.message_id, ask.guild_id, ask.channel_id, false);
+        if (index == 0 && as == nullptr && ask.reply) reply.set_reference(ask.message_id, ask.guild_id, ask.channel_id, false);
 
         // Nothing the model writes pings anyone. Someone who addressed the
         // bot is notified of the reply, as with any reply; an advanced

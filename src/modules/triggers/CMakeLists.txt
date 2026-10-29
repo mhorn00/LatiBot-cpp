@@ -5,6 +5,7 @@ latibot_module(triggers
         src/triggers.cpp
         src/trigger_command.cpp
         src/trigger_tools.cpp
+        src/fire_command.cpp
     TESTS
         tests/triggers_test.cpp
         tests/trigger_command_test.cpp
@@ -12,4 +13,5 @@ latibot_module(triggers
         tests/trigger_panel_test.cpp
         tests/triggers_module_test.cpp
         tests/trigger_tools_test.cpp
+        tests/model_triggers_test.cpp
 )
