@@ -39,10 +39,10 @@ struct channel_rules {
 /// tested without a gateway, and the shell is the only place that has to know
 /// how Discord spells any of this.
 struct incoming_message {
-    dpp::snowflake guild_id;
-    dpp::snowflake channel_id;
-    dpp::snowflake message_id;
-    dpp::snowflake author_id;
+    dpp::snowflake guild_id{};
+    dpp::snowflake channel_id{};
+    dpp::snowflake message_id{};
+    dpp::snowflake author_id{};
 
     bool from_self = false;
     bool from_bot = false;
@@ -54,7 +54,7 @@ struct incoming_message {
 
     /// The webhook that posted it, 0 for anything else. A webhook's message
     /// is also `from_bot`, and its author id is the webhook's.
-    dpp::snowflake webhook_id;
+    dpp::snowflake webhook_id{};
 
     /// Whether the author has Administrator in this guild. Resolved by the
     /// shell, since it depends on roles and overwrites.
@@ -63,15 +63,15 @@ struct incoming_message {
     /// The author already turned this message's link previews off.
     bool embeds_suppressed = false;
 
-    std::string content;
+    std::string content{};
 
     /// How the author is shown to people: their server nickname, display
     /// name or username, whichever they have.
-    std::string author_name;
+    std::string author_name{};
 
     /// The author's roles here, for the model's blacklist
     /// (src/modules/llm/docs/Language_Model.md §2.2).
-    std::vector<dpp::snowflake> author_roles;
+    std::vector<dpp::snowflake> author_roles{};
 
     /// Whether the message @mentions LatiBot, or replies to one of its
     /// messages: two of the three ways to address it
@@ -85,7 +85,7 @@ struct incoming_message {
 
     /// The message this one replies to, whoever wrote it; 0 for a message
     /// that is not a reply.
-    dpp::snowflake reply_to;
+    dpp::snowflake reply_to{};
 
     /// Whether it @mentions somebody other than the bot and its author: a
     /// sign it is meant for them (src/modules/llm/docs/Language_Model.md
@@ -108,8 +108,8 @@ struct incoming_message {
 
 /// Post a message in a channel.
 struct send_message {
-    dpp::snowflake channel_id;
-    std::string content;
+    dpp::snowflake channel_id{};
+    std::string content{};
 
     /// Silent and without previews, or not, as whatever asked for the
     /// message decided. Only `discord::channel_message_flags` are applied.
@@ -119,7 +119,7 @@ struct send_message {
 
     /// The message this answers as a Discord reply, or 0 to post it plainly.
     /// A reply that is silent still notifies nobody.
-    dpp::snowflake reply_to;
+    dpp::snowflake reply_to{};
 
     /// What this is, for the log line saying whether it was posted: "trigger
     /// 3's reply", "midnight message 2".
@@ -140,7 +140,7 @@ struct stop_bot {
 /// actions.
 struct background_task {
     /// What it is, for the log line if it fails: "posting a replacement".
-    std::string what;
+    std::string what{};
 
     std::move_only_function<dpp::task<void>()> run;
 };
@@ -159,7 +159,7 @@ using action = std::variant<send_message, stop_bot, background_task>;
 /// `action` (src/core/docs/Message_Pipeline.md §3).
 template <typename Action>
 struct stage_decision {
-    std::vector<Action> actions;
+    std::vector<Action> actions{};
 
     /// Whether later stages should be skipped. A trigger response and a URL
     /// replacement can both fire on one message; an LLM reply should not
@@ -250,12 +250,12 @@ public:
 private:
     struct stage {
         int position = 0;
-        std::string name;
+        std::string name{};
         stage_fn handler;
         hears heard = hears::others;
     };
 
-    std::vector<stage> stages_;
+    std::vector<stage> stages_{};
 };
 
 } // namespace latibot::events

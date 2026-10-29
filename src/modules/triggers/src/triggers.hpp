@@ -46,7 +46,7 @@ using util::off_cooldown;
 using util::to_string;
 
 struct weighted_response {
-    std::string text;
+    std::string text{};
     int weight = 1;
 };
 
@@ -78,8 +78,8 @@ enum class trigger_kind : std::uint8_t {
 
 struct trigger {
     std::int64_t id = 0;
-    dpp::snowflake guild_id;
-    std::string pattern;
+    dpp::snowflake guild_id{};
+    std::string pattern{};
     match_mode mode = match_mode::whole_word;
 
     /// Per channel, and may be zero (src/modules/triggers/docs/Triggers.md §2.2).
@@ -104,12 +104,12 @@ struct trigger {
     bool reply = false;
 
     /// The fixed replies it picks from. Empty for a model trigger.
-    std::vector<weighted_response> responses;
+    std::vector<weighted_response> responses{};
 
     /// What a model trigger asks the language model to say, in a line:
     /// "Someone mentioned pineapple pizza. Defend it." Empty for a trigger
     /// with responses (src/modules/triggers/docs/Triggers.md §2.6).
-    std::string prompt;
+    std::string prompt{};
 
     /// The chance a model trigger answers a match, 0 to 1.
     double chance = 1.0;
@@ -120,14 +120,14 @@ struct trigger {
 
     /// For an analysis: the yes-or-no question the check model is asked
     /// about a message that matched, "Is this message talking to LatiBot?".
-    std::string question;
+    std::string question{};
 
     trigger_condition condition = trigger_condition::text;
 
     /// Which built-in trigger this is, such as "latibot-named"; empty for
     /// one someone made. A built-in can be turned off and edited, never
     /// removed, and keeps its kind, condition and persona.
-    std::string builtin;
+    std::string builtin{};
 
     /// How it answers: a question makes it an analysis; a prompt, or no
     /// responses on being addressed or replied to, the model.

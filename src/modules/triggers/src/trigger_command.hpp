@@ -92,13 +92,13 @@ using trigger_toggle = std::string_view (*)(events::trigger&);
 /// modal has no other kind of input. A model trigger's form has `prompt`
 /// and `chance` where another has `responses`.
 struct form_fields {
-    std::string pattern;
-    std::string responses;
-    std::string mode;
-    std::string cooldown;
-    std::string prompt;
-    std::string chance;
-    std::string question;
+    std::string pattern{};
+    std::string responses{};
+    std::string mode{};
+    std::string cooldown{};
+    std::string prompt{};
+    std::string chance{};
+    std::string question{};
 
     /// Which form it was, and so which fields it had.
     events::trigger_kind kind = events::trigger_kind::responses;
@@ -107,11 +107,11 @@ struct form_fields {
 /// What applying the modal came to.
 struct form_outcome {
     /// Why nothing was applied, when the trigger would be unusable.
-    std::optional<std::string> refused;
+    std::optional<std::string> refused{};
 
     /// The optional fields that could not be read and were left as they
     /// were, said in a line for the panel. Empty when everything read.
-    std::string note;
+    std::string note{};
 };
 
 /// Applies the modal's fields to a trigger.

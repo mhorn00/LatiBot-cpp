@@ -14,7 +14,7 @@ namespace latibot::capabilities {
 /// One of the language model's personas, as a trigger names who answers it.
 struct persona_name {
     std::int64_t id = 0;
-    std::string name;
+    std::string name{};
 
     /// A persona that is off answers nothing, its triggers included.
     bool enabled = true;
@@ -40,7 +40,7 @@ struct model_trigger {
 
     /// What to say, in a line; how to say it is the server's trigger style.
     /// May be empty for an answer as spoken to, which needs no steering.
-    std::string prompt;
+    std::string prompt{};
 
     /// Who answers: a persona, or 0 for LatiBot.
     std::int64_t persona_id = 0;
@@ -53,7 +53,7 @@ struct model_trigger {
 
     /// For an analysis: the yes-or-no question the check model is asked
     /// about the message, such as "Is this message talking to LatiBot?".
-    std::string question;
+    std::string question{};
 };
 
 /// What the triggers module needs of the language model to have it answer

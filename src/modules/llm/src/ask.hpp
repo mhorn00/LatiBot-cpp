@@ -33,17 +33,17 @@ enum class approach : std::uint8_t {
 /// decides, and the pipeline hands this to the responder as a background
 /// task (`carried_out_by`).
 struct ask_llm {
-    dpp::snowflake guild_id;
-    dpp::snowflake channel_id;
-    dpp::snowflake message_id;
-    dpp::snowflake author_id;
-    std::string author_name;
-    std::string content;
+    dpp::snowflake guild_id{};
+    dpp::snowflake channel_id{};
+    dpp::snowflake message_id{};
+    dpp::snowflake author_id{};
+    std::string author_name{};
+    std::string content{};
     bool author_is_bot = false;
 
     /// The message it replies to, shown to the model beside it; 0 when it is
     /// not a reply (src/modules/llm/docs/Language_Model.md §2.3).
-    dpp::snowflake reply_to;
+    dpp::snowflake reply_to{};
 
     approach how = approach::addressed;
 
@@ -55,11 +55,11 @@ struct ask_llm {
     /// What the check is asked instead of whether to reply: an analysis
     /// trigger's question (src/modules/triggers/docs/Triggers.md §2.6).
     /// Empty for the usual one.
-    std::string check_question;
+    std::string check_question{};
 
     /// For a trigger: which one, and what it asks the model to say.
     std::int64_t trigger_id = 0;
-    std::string context_prompt;
+    std::string context_prompt{};
 
     /// Also say the reply in the voice session this channel belongs to
     /// (src/modules/llm/docs/Language_Model.md §2.5).
@@ -75,7 +75,7 @@ struct ask_llm {
 
     /// Who wrote the message by name, when it was LatiBot or a persona, who
     /// are shown by name rather than an alias; empty for anyone else.
-    std::string speaker;
+    std::string speaker{};
 
     /// Whether LatiBot's answer is a Discord reply to the message, as it is
     /// unless a trigger says otherwise. A persona's never is: a webhook
