@@ -28,6 +28,69 @@ auto sample_rules() -> std::vector<url_rule> {
 
 } // namespace
 
+TEST_CASE("a link on a mirror is left alone unless its rule catches its mirrors", "[links]") {
+    auto rules = sample_rules();
+    CHECK(plan_replacements("https://vxtwitter.com/b/status/1", rules).empty());
+
+    rules[0].catch_mirrors = true;
+    const auto planned = plan_replacements("https://www.VXtwitter.com/b/status/1", rules);
+    REQUIRE(planned.size() == 1);
+    // Under the rule's site, which is what Retry looks the rule up by and what
+    // link stats count it under.
+    CHECK(planned[0].domain == "x.com");
+    CHECK(mirror_url(planned[0], 0) == "https://fxtwitter.com/b/status/1/en");
+    CHECK(mirror_url(planned[0], 1) == "https://vxtwitter.com/b/status/1");
+
+    // Only that rule's: tiktok.com does not catch its mirrors.
+    CHECK(plan_replacements("https://tfxktok.com/@a/video/1", rules).empty());
+}
+
+TEST_CASE("a link already on a rule's first mirror is still replaced, and translated", "[links]") {
+    auto rules = sample_rules();
+    rules[0].catch_mirrors = true;
+    const auto planned = plan_replacements("https://fxtwitter.com/b/status/1", rules);
+    REQUIRE(planned.size() == 1);
+    CHECK(mirror_url(planned[0], 0) == "https://fxtwitter.com/b/status/1/en");
+}
+
+TEST_CASE("a caught link drops its mirror's translation suffix for a mirror without one", "[links]") {
+    auto rules = sample_rules();
+    rules[0].catch_mirrors = true;
+    const auto planned = plan_replacements("https://fxtwitter.com/b/status/1/en?s=20", rules);
+    REQUIRE(planned.size() == 1);
+    CHECK(latibot::events::target_path(planned[0]) == "/b/status/1");
+    CHECK(mirror_url(planned[0], 0) == "https://fxtwitter.com/b/status/1/en?s=20");
+    CHECK(mirror_url(planned[0], 1) == "https://vxtwitter.com/b/status/1?s=20");
+}
+
+TEST_CASE("a link to the site itself keeps a path that happens to end like a suffix", "[links]") {
+    const auto planned = plan_replacements("https://x.com/en", sample_rules());
+    REQUIRE(planned.size() == 1);
+    CHECK(mirror_url(planned[0], 1) == "https://vxtwitter.com/en");
+}
+
+TEST_CASE("a site's own rule comes before one catching it as a mirror", "[links]") {
+    std::vector<url_rule> rules{
+        {.domain = "a.com", .mirrors = {{.host = "b.com", .translate_suffix = ""}}, .catch_mirrors = true},
+        {.domain = "b.com", .mirrors = {{.host = "c.com", .translate_suffix = ""}}},
+    };
+    const auto planned = plan_replacements("https://b.com/post", rules);
+    REQUIRE(planned.size() == 1);
+    CHECK(planned[0].domain == "b.com");
+    CHECK(mirror_url(planned[0], 0) == "https://c.com/post");
+}
+
+TEST_CASE("a mirror two rules share goes to the first of them that catches it", "[links]") {
+    std::vector<url_rule> rules{
+        {.domain = "twitter.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}, .catch_mirrors = false},
+        {.domain = "x.com", .mirrors = {{.host = "fxtwitter.com", .translate_suffix = ""}}, .catch_mirrors = true},
+    };
+    CHECK(plan_replacements("https://fxtwitter.com/post", rules).at(0).domain == "x.com");
+
+    rules[0].catch_mirrors = true;
+    CHECK(plan_replacements("https://fxtwitter.com/post", rules).at(0).domain == "twitter.com");
+}
+
 TEST_CASE("a link to a site without a rule does not stop the others", "[links]") {
     // The Java bot returned null from the whole message the moment it met a
     // domain it had no rule for.

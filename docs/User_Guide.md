@@ -970,7 +970,7 @@ with translation on, and needs no option of its own.
 | Subcommand | Options | Reply |
 |---|---|---|
 | `list` | none | Whether replacement is on, then the rules, five a page: **x.com** → fxtwitter.com/en, vxtwitter.com |
-| `set` | `domain` (required, autocompleted) · `mirrors` (required) | `Added: links to x.com now go to fxtwitter.com/en, vxtwitter.com`, or `Updated: …` |
+| `set` | `domain` (required, autocompleted) · `mirrors` (required) · `catch_mirrors` | `Added: links to x.com now go to fxtwitter.com/en, vxtwitter.com`, or `Updated: …` |
 | `remove` | `domain` (required, autocompleted) | `Links to x.com will be left alone from now on.` |
 | `test` | `text` (required: a whole message, or just a link) | A dry run, below |
 | `panel` | none | The rules with editing attached, below |
@@ -991,6 +991,14 @@ reason:
 
 A mirror listed twice is kept once, in its first place.
 
+**`catch_mirrors`** also replaces links already on one of the rule's mirrors.
+With it on for `x.com → fxtwitter.com/en, vxtwitter.com`, somebody pasting an
+`https://vxtwitter.com/…` link from elsewhere gets the same treatment as an
+`x.com` one: the mirrors tried in order, Retry, translation, and reactions
+counted under `x.com`. It is off until turned on, and left out of `set` it stays
+as it was. A site's own rule comes first, and a mirror two rules share goes to
+the first of them by name.
+
 **`test`** posts nothing. It shows the message the bot would post, as text, and
 then what happened to **every** link in what you gave it and why:
 
@@ -1008,7 +1016,8 @@ you have opted out with [`/urltoggle`](#urltoggle) it says so, since that would
 explain a link of yours being left alone.
 
 **`panel`** says whether replacement is on and lists a page of rules with a
-menu to pick one, then **Edit** and **Delete** for it. The last row has
+menu to pick one, then **Edit**, **Delete**, and **Also replace mirror links**
+(or **Leave mirror links alone**, once it is on) for it. The last row has
 **Add rule**, **Turn replacement on** (or **off**), and paging. Edit and Add
 open a form with the site and **the mirrors one per line** in the order they
 are tried, so reordering is rewriting lines; changing the site renames the rule

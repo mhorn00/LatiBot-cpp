@@ -36,7 +36,7 @@ namespace {
 
 // Append only: once a version has shipped, its SQL is never edited, and a
 // change becomes the next version.
-constexpr std::array<db::migration, 1> links_steps{{
+constexpr std::array<db::migration, 2> links_steps{{
     {.version = 1, .name = "url rules and replacements", .sql = R"sql(
         -- Where links to a site go instead, in the order to try them. A rule
         -- is its rows for one domain; position 0 is first.
@@ -108,6 +108,11 @@ constexpr std::array<db::migration, 1> links_steps{{
             spoilered    INTEGER NOT NULL,
             PRIMARY KEY (message_id, position)
         ) WITHOUT ROWID;
+     )sql"},
+    {.version = 2, .name = "url rules that catch their own mirrors", .sql = R"sql(
+        -- Whether a link already on one of the rule's mirrors is replaced too.
+        -- The same on all of a rule's rows, which are written together.
+        ALTER TABLE url_rules ADD COLUMN catch_mirrors INTEGER NOT NULL DEFAULT 0;
      )sql"},
 }};
 
@@ -193,11 +198,11 @@ public:
 
         bot.slash_commands().add(std::make_unique<commands::links_command>(rules_));
         bot.slash_commands().add(std::make_unique<commands::urltoggle_command>(rules_));
-        bot.panels().add(
-            panel_,
-            {commands::url_list_view, commands::url_panel_view, commands::url_pick_view, commands::url_edit_view, commands::url_delete_view,
-             commands::url_confirm_view, commands::url_add_view, commands::url_form_view, commands::url_switch_view},
-            module_name);
+        bot.panels().add(panel_,
+                         {commands::url_list_view, commands::url_panel_view, commands::url_pick_view, commands::url_edit_view,
+                          commands::url_delete_view, commands::url_confirm_view, commands::url_add_view, commands::url_form_view,
+                          commands::url_switch_view, commands::url_catch_on_view, commands::url_catch_off_view},
+                         module_name);
         bot.panels().add(retry_, {url_retry_view}, module_name);
 
         // Before the trigger replies, which a message with a link and a joke

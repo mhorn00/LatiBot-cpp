@@ -41,6 +41,12 @@ struct url_rule {
     /// no "www.".
     std::string domain;
     std::vector<mirror> mirrors;
+
+    /// Whether a link already on one of `mirrors` is replaced as well, so one
+    /// copied from elsewhere still gets the mirrors tried in turn, Retry,
+    /// translation and its reactions counted
+    /// (src/modules/links/docs/Url_Replacement.md §2.1).
+    bool catch_mirrors = false;
 };
 
 /// "fxtwitter.com/en" as a mirror: everything after the host is the
@@ -59,6 +65,9 @@ struct url_rule {
 struct planned_link {
     /// As the author wrote it.
     std::string original_url;
+
+    /// The rule's site, which is not the link's own host when the link was
+    /// already on one of the rule's mirrors.
     std::string domain;
 
     /// Inside an open spoiler, so its replacement is spoilered too.
@@ -110,6 +119,11 @@ struct link_verdict {
 /// Discord was not going to embed those anyway.
 [[nodiscard]] auto plan_replacements(std::string_view content, std::span<const url_rule> rules) -> std::vector<planned_link>;
 
+/// The path of what `link` points at. For a link that was already on a mirror,
+/// that is without any of its rule's translation suffixes, which belong to the
+/// mirror's address and not to the post: the mirror chosen adds its own.
+[[nodiscard]] auto target_path(const planned_link& link) -> std::string_view;
+
 /// `link` on its mirror at `index`. An index past the last mirror uses the
 /// last one, so a caller counting attempts cannot fall off the end.
 [[nodiscard]] auto mirror_url(const planned_link& link, std::size_t index) -> std::string;
@@ -137,6 +151,10 @@ public:
     /// transaction: a rename that fails leaves the old rule in place rather
     /// than no rule at all.
     auto rename(dpp::snowflake guild_id, std::string_view previous, const url_rule& rule) -> void;
+
+    /// Sets whether a rule also catches links already on its mirrors. False
+    /// when there is no such rule.
+    auto set_catch_mirrors(dpp::snowflake guild_id, std::string_view domain, bool catch_mirrors) -> bool;
 
     /// False when there was no such rule.
     auto remove(dpp::snowflake guild_id, std::string_view domain) -> bool;

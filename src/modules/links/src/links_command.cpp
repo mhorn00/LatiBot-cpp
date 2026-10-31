@@ -74,7 +74,8 @@ auto describe_mirrors(std::span<const events::mirror> mirrors) -> std::string {
 }
 
 auto describe(const events::url_rule& rule) -> std::string {
-    return std::format("**{}** → {}", rule.domain, describe_mirrors(rule.mirrors));
+    return std::format("**{}** → {}{}", rule.domain, describe_mirrors(rule.mirrors),
+                       rule.catch_mirrors ? " (and links already on those)" : "");
 }
 
 auto describe_state(bool enabled) -> std::string {
@@ -222,10 +223,10 @@ auto pick_menu(std::span<const events::url_rule> page_of, int page, std::string_
     return row;
 }
 
-auto selection_row(int page, std::string_view selected, bool confirming_delete) -> std::optional<dpp::component> {
-    if (selected.empty()) return std::nullopt;
+auto selection_row(int page, const events::url_rule* selected, bool confirming_delete) -> std::optional<dpp::component> {
+    if (selected == nullptr) return std::nullopt;
 
-    const std::string chosen(selected);
+    const std::string& chosen = selected->domain;
     dpp::component row;
     row.set_type(dpp::cot_action_row);
 
@@ -243,9 +244,13 @@ auto selection_row(int page, std::string_view selected, bool confirming_delete) 
 
     const auto edit = ui::encode({.view = std::string(url_edit_view), .page = page, .argument = chosen});
     const auto del = ui::encode({.view = std::string(url_delete_view), .page = page, .argument = chosen});
-    if (!edit || !del) return std::nullopt;
+    const auto catching = ui::encode(
+        {.view = std::string(selected->catch_mirrors ? url_catch_off_view : url_catch_on_view), .page = page, .argument = chosen});
+    if (!edit || !del || !catching) return std::nullopt;
     row.add_component(button(dpp::cos_primary, "Edit", *edit));
     row.add_component(button(dpp::cos_danger, "Delete", *del));
+    row.add_component(
+        button(dpp::cos_secondary, selected->catch_mirrors ? "Leave mirror links alone" : "Also replace mirror links", *catching));
     return row;
 }
 
@@ -285,7 +290,8 @@ auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_
 
     const ui::page_range window = ui::range_for(current, rules.size(), url_rules_per_page);
     const std::span<const events::url_rule> page_of(rules.data() + window.begin, window.size());
-    const bool shown = std::ranges::find(page_of, selected, &events::url_rule::domain) != page_of.end();
+    const auto picked = std::ranges::find(page_of, selected, &events::url_rule::domain);
+    const events::url_rule* shown = picked == page_of.end() ? nullptr : &*picked;
 
     const bool enabled = store.enabled(guild_id);
     std::string body =
@@ -305,8 +311,8 @@ auto render_url_panel(const events::url_rule_store& store, dpp::snowflake guild_
 
     dpp::message reply(body);
 
-    if (const auto menu = pick_menu(page_of, current, shown ? selected : std::string_view{})) reply.add_component(*menu);
-    if (const auto row = selection_row(current, shown ? selected : std::string_view{}, confirming_delete)) reply.add_component(*row);
+    if (const auto menu = pick_menu(page_of, current, shown != nullptr ? selected : std::string_view{})) reply.add_component(*menu);
+    if (const auto row = selection_row(current, shown, confirming_delete)) reply.add_component(*row);
     if (const auto footer = footer_row(current, rules.size(), enabled)) reply.add_component(*footer);
     return reply;
 }
@@ -391,6 +397,16 @@ auto url_panel::on_component(const dpp::interaction_create_t& event, const ui::p
     } else if (state.view == url_switch_view) {
         switch_url_replacement(*store_, guild, state.argument == "on", describe_user(event.command.get_issuing_user()), " from the panel");
         ui::update_panel(event, render_url_panel(*store_, guild, state.page));
+    } else if (state.view == url_catch_on_view || state.view == url_catch_off_view) {
+        const bool catching = state.view == url_catch_on_view;
+        std::string note = std::format("{} has no rule any more", state.argument);
+        if (store_->set_catch_mirrors(guild, state.argument, catching)) {
+            util::log().info("URL rule for {} {} links on its mirrors in guild {}, by {} from the panel", state.argument,
+                             catching ? "now catches" : "no longer catches", guild, describe_user(event.command.get_issuing_user()));
+            note = catching ? std::format("links already on {}'s mirrors are replaced too", state.argument)
+                            : std::format("links already on {}'s mirrors are left alone", state.argument);
+        }
+        ui::update_panel(event, render_url_panel(*store_, guild, state.page, state.argument, false, note));
     } else if (state.view == url_add_view) {
         event.dialog(url_rule_form(state.page, nullptr));
     } else if (state.view == url_edit_view) {
@@ -424,11 +440,15 @@ auto url_panel::on_form(const dpp::form_submit_t& event, const ui::page_state& s
         return true;
     }
 
-    const auto& rule = std::get<events::url_rule>(built);
+    auto rule = std::get<events::url_rule>(built);
 
     // The argument is the domain the modal was opened for, so a changed site
     // is a rename rather than a second rule.
     const std::string& previous = state.argument;
+
+    // The form has no field for this, so it stays as it was, renamed or not.
+    if (const auto before = store_->find(guild, previous)) rule.catch_mirrors = before->catch_mirrors;
+
     if (const auto refused = url_form_refusal(*store_, guild, previous, rule)) {
         util::log().debug("{} tried to save over the URL rule for {} in guild {}", who, rule.domain, guild);
         ui::answer_privately(event, *refused);
@@ -483,6 +503,8 @@ auto links_command::build(const std::string& name, dpp::snowflake application_id
                        .set_max_length(100));
     set.add_option(dpp::command_option(dpp::co_string, "mirrors", "In the order to try them. Add /en to one to ask it to translate.", true)
                        .set_max_length(1000));
+    set.add_option(dpp::command_option(dpp::co_boolean, "catch_mirrors",
+                                       "Also replace links already on these mirrors. Left out, it stays as it was.", false));
 
     dpp::command_option remove(dpp::co_sub_command, "remove", "Stop replacing a site's links.");
     remove.add_option(
@@ -556,14 +578,17 @@ auto links_command::set(const dpp::slashcommand_t& event) -> dpp::task<void> {
         co_return;
     }
 
-    const auto& rule = std::get<events::url_rule>(built);
-    const bool existed = store_->find(event.command.guild_id, rule.domain).has_value();
+    auto rule = std::get<events::url_rule>(built);
+    const auto before = store_->find(event.command.guild_id, rule.domain);
+    const bool existed = before.has_value();
+    rule.catch_mirrors = bool_option(event, "catch_mirrors").value_or(existed && before->catch_mirrors);
     store_->set(event.command.guild_id, rule);
 
     util::log().info("URL rule for {} {} in guild {} by {}: {}", rule.domain, existed ? "changed" : "added", event.command.guild_id,
                      describe_user(event.command.get_issuing_user()), describe_mirrors(rule.mirrors));
     co_await event.co_reply(result(
-        event, std::format("{}: links to {} now go to {}", existed ? "Updated" : "Added", rule.domain, describe_mirrors(rule.mirrors))));
+        event, std::format("{}: links to {} now go to {}{}", existed ? "Updated" : "Added", rule.domain, describe_mirrors(rule.mirrors),
+                           rule.catch_mirrors ? ", and links already on those are replaced too" : "")));
 }
 
 auto links_command::remove(const dpp::slashcommand_t& event) -> dpp::task<void> {

@@ -31,10 +31,9 @@ auto at_least_one(std::size_t per_mirror) -> std::size_t {
 /// part of the mirror's address and not of the post.
 auto same_target(std::string_view embed_url, const planned_link& link) -> bool {
     const auto embed = util::split_url(embed_url);
-    const auto original = util::split_url(link.original_url);
-    if (!embed || !original) return false;
+    if (!embed || !util::split_url(link.original_url)) return false;
 
-    const std::string_view wanted = util::comparable_path(original->path);
+    const std::string_view wanted = util::comparable_path(target_path(link));
     std::string_view seen = util::comparable_path(embed->path);
     if (seen == wanted) return true;
 

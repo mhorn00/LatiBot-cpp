@@ -127,6 +127,51 @@ TEST_CASE("the URL panel will not save over another site's rule", "[links]") {
     CHECK(test.mirrors_of("twitter.com") == "vxtwitter.com");
 }
 
+TEST_CASE("the URL panel turns catching mirror links on and off for the rule picked", "[links]") {
+    url_fixture test;
+    test.seed("x.com", "fxtwitter.com");
+    test.seed("tiktok.com", "tfxktok.com");
+    test.discord.choose("x.com");
+
+    test.discord.press("Also replace mirror links");
+    CHECK(test.store.find(guild, "x.com")->catch_mirrors);
+    CHECK_FALSE(test.store.find(guild, "tiktok.com")->catch_mirrors);
+    CHECK(test.discord.content().contains("**x.com** → fxtwitter.com (and links already on those)"));
+    CHECK(test.discord.content().contains("replaced too"));
+    // The rule stays picked, with the button now saying the opposite.
+    CHECK(option_in(test.discord.panel(), "x.com")->is_default);
+
+    test.discord.press("Leave mirror links alone");
+    CHECK_FALSE(test.store.find(guild, "x.com")->catch_mirrors);
+    CHECK(test.discord.content().contains("left alone"));
+}
+
+TEST_CASE("a stale panel's press asks for a state, and a rule gone says so", "[links]") {
+    url_fixture test;
+    test.seed("x.com", "fxtwitter.com");
+    test.discord.choose("x.com");
+    const std::string stale = test.discord.panel().components.at(1).components.at(2).custom_id;
+
+    test.store.remove(guild, "x.com");
+    test.discord.press("Also replace mirror links");
+    CHECK(stale.starts_with("urlcatchon:"));
+    CHECK(test.discord.content().contains("x.com has no rule any more"));
+}
+
+TEST_CASE("the URL panel's form leaves catching mirror links as it was, through a rename", "[links]") {
+    url_fixture test;
+    test.seed("x.com", "fxtwitter.com");
+    test.store.set_catch_mirrors(guild, "x.com", true);
+    test.discord.open(latibot::commands::render_url_panel(test.store, guild, 0));
+    test.discord.choose("x.com");
+
+    REQUIRE(panel_harness::is_update(test.discord.submit(test.discord.press("Edit"), {{"mirrors", "vxtwitter.com"}})));
+    CHECK(test.store.find(guild, "x.com")->catch_mirrors);
+
+    REQUIRE(panel_harness::is_update(test.discord.submit(test.discord.press("Edit"), {{"domain", "twitter.com"}})));
+    CHECK(test.store.find(guild, "twitter.com")->catch_mirrors);
+}
+
 TEST_CASE("the URL panel deletes a rule once confirmed, and turns replacement on and off", "[links]") {
     url_fixture test;
     test.seed("x.com", "fxtwitter.com");

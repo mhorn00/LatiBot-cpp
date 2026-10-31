@@ -245,8 +245,9 @@ TEST_CASE("picking a rule offers Edit and Delete for it", "[links]") {
     latibot::testing::check_message_fits(picked);
 
     const auto& row = picked.components[1].components;
-    REQUIRE(row.size() == 2);
+    REQUIRE(row.size() == 3);
     CHECK(row[0].label == "Edit");
+    CHECK(row[2].label == "Also replace mirror links");
     CHECK(latibot::ui::decode(row[0].custom_id)->argument == "x.com");
 
     const auto confirming = latibot::commands::render_url_panel(fixture.store, guild, 0, "x.com", true);

@@ -92,6 +92,34 @@ TEST_CASE("a rename that fails leaves the old rule where it was", "[links]") {
     CHECK_FALSE(fixture.store.find(guild, "twitter.com").has_value());
 }
 
+TEST_CASE("whether a rule catches its mirrors is kept with it, and off until set", "[links]") {
+    store_fixture fixture;
+    fixture.store.set(guild, x_rule());
+    CHECK_FALSE(fixture.store.find(guild, "x.com")->catch_mirrors);
+    CHECK_FALSE(fixture.store.for_guild(guild).front().catch_mirrors);
+
+    CHECK(fixture.store.set_catch_mirrors(guild, "x.com", true));
+    CHECK(fixture.store.find(guild, "x.com")->catch_mirrors);
+    CHECK(fixture.store.for_guild(guild).front().catch_mirrors);
+    CHECK_FALSE(fixture.store.find(other_guild, "x.com").has_value());
+
+    CHECK(fixture.store.set_catch_mirrors(guild, "x.com", false));
+    CHECK_FALSE(fixture.store.find(guild, "x.com")->catch_mirrors);
+
+    CHECK_FALSE(fixture.store.set_catch_mirrors(guild, "nowhere.com", true));
+}
+
+TEST_CASE("renaming a rule carries whether it catches its mirrors", "[links]") {
+    store_fixture fixture;
+    url_rule rule = x_rule();
+    rule.catch_mirrors = true;
+    fixture.store.set(guild, rule);
+
+    rule.domain = "twitter.com";
+    fixture.store.rename(guild, "x.com", rule);
+    CHECK(fixture.store.find(guild, "twitter.com")->catch_mirrors);
+}
+
 TEST_CASE("rules belong to one guild", "[links]") {
     store_fixture fixture;
     fixture.store.set(guild, x_rule());

@@ -22,6 +22,18 @@ auto without_scheme(std::string_view text) -> std::string_view {
     return text;
 }
 
+/// The rule a link on `host` comes under: the site's own, or else the first
+/// that catches links on its mirrors and has `host` as one. One mirror often
+/// serves several sites, and rules come sorted, so that is always the same one.
+auto rule_for(std::span<const url_rule> rules, std::string_view host) -> const url_rule* {
+    if (const auto own = std::ranges::find(rules, host, &url_rule::domain); own != rules.end()) return &*own;
+
+    const auto caught = std::ranges::find_if(rules, [host](const url_rule& rule) {
+        return rule.catch_mirrors && std::ranges::find(rule.mirrors, host, &mirror::host) != rule.mirrors.end();
+    });
+    return caught == rules.end() ? nullptr : &*caught;
+}
+
 } // namespace
 
 auto parse_mirror(std::string_view text) -> std::optional<mirror> {
@@ -80,7 +92,7 @@ auto explain_links(std::string_view content, std::span<const url_rule> rules) ->
                                       .spoilered = found.spoilered,
                                       .mirrors = {}}};
 
-        const auto rule = std::ranges::find(rules, verdict.link.domain, &url_rule::domain);
+        const url_rule* rule = rule_for(rules, verdict.link.domain);
         const bool seen_before = std::ranges::any_of(verdicts, [&](const link_verdict& earlier) {
             return earlier.decision == link_decision::replaced && earlier.link.original_url == found.url;
         });
@@ -91,7 +103,7 @@ auto explain_links(std::string_view content, std::span<const url_rule> rules) ->
             verdict.decision = link_decision::preview_off;
         } else if (found.in_code) {
             verdict.decision = link_decision::in_code;
-        } else if (rule == rules.end() || rule->mirrors.empty()) {
+        } else if (rule == nullptr || rule->mirrors.empty()) {
             verdict.decision = link_decision::no_rule;
         } else if (seen_before) {
             // The same link twice is one preview, not two.
@@ -99,6 +111,7 @@ auto explain_links(std::string_view content, std::span<const url_rule> rules) ->
         } else if (replaced == max_links_per_message) {
             verdict.decision = link_decision::over_limit;
         } else {
+            verdict.link.domain = rule->domain;
             verdict.link.mirrors = rule->mirrors;
             ++replaced;
         }
@@ -119,9 +132,24 @@ auto plan_replacements(std::string_view content, std::span<const url_rule> rules
     return planned;
 }
 
-auto mirror_url(const planned_link& link, std::size_t index) -> std::string {
+auto target_path(const planned_link& link) -> std::string_view {
     const auto parts = util::split_url(link.original_url);
+    if (!parts) return {};
+    if (util::rule_host(parts->authority) == link.domain) return parts->path;
+
+    const std::string_view path = util::comparable_path(parts->path);
+    for (const mirror& candidate : link.mirrors) {
+        if (!candidate.translate_suffix.empty() && path.ends_with(candidate.translate_suffix)) {
+            return path.substr(0, path.size() - candidate.translate_suffix.size());
+        }
+    }
+    return parts->path;
+}
+
+auto mirror_url(const planned_link& link, std::size_t index) -> std::string {
+    auto parts = util::split_url(link.original_url);
     if (!parts || link.mirrors.empty()) return link.original_url;
+    parts->path = target_path(link);
 
     const mirror& chosen = link.mirrors[std::min(index, link.mirrors.size() - 1)];
     return util::rehost(*parts, chosen.host, chosen.translate_suffix);
@@ -132,11 +160,13 @@ auto mirror_url(const planned_link& link, std::size_t index) -> std::string {
 auto url_rule_store::for_guild(dpp::snowflake guild_id) const -> std::vector<url_rule> {
     std::vector<url_rule> rules;
 
-    auto query =
-        db_->prepare("SELECT domain, host, translate_suffix FROM url_rules WHERE guild_id = ? ORDER BY domain, position", guild_id);
+    auto query = db_->prepare(
+        "SELECT domain, host, translate_suffix, catch_mirrors FROM url_rules WHERE guild_id = ? ORDER BY domain, position", guild_id);
     while (query.step()) {
         auto domain = query.get<std::string>(0);
-        if (rules.empty() || rules.back().domain != domain) rules.push_back({.domain = std::move(domain), .mirrors = {}});
+        if (rules.empty() || rules.back().domain != domain) {
+            rules.push_back({.domain = std::move(domain), .mirrors = {}, .catch_mirrors = query.get<bool>(3)});
+        }
         rules.back().mirrors.push_back(
             {.host = query.get<std::string>(1), .translate_suffix = query.get<std::optional<std::string>>(2).value_or(std::string{})});
     }
@@ -148,8 +178,10 @@ auto url_rule_store::find(dpp::snowflake guild_id, std::string_view domain) cons
     url_rule rule{.domain = std::string(domain), .mirrors = {}};
 
     auto query =
-        db_->prepare("SELECT host, translate_suffix FROM url_rules WHERE guild_id = ? AND domain = ? ORDER BY position", guild_id, domain);
+        db_->prepare("SELECT host, translate_suffix, catch_mirrors FROM url_rules WHERE guild_id = ? AND domain = ? ORDER BY position",
+                     guild_id, domain);
     while (query.step()) {
+        rule.catch_mirrors = query.get<bool>(2);
         rule.mirrors.push_back(
             {.host = query.get<std::string>(0), .translate_suffix = query.get<std::optional<std::string>>(1).value_or(std::string{})});
     }
@@ -180,11 +212,17 @@ auto url_rule_store::write(dpp::snowflake guild_id, const url_rule& rule) -> voi
     for (const mirror& entry : rule.mirrors) {
         const std::optional<std::string> suffix =
             entry.translate_suffix.empty() ? std::nullopt : std::optional<std::string>(entry.translate_suffix);
-        db_->prepare("INSERT INTO url_rules (guild_id, domain, position, host, translate_suffix) VALUES (?, ?, ?, ?, ?)", guild_id,
-                     rule.domain, position++, entry.host, suffix)
+        db_->prepare("INSERT INTO url_rules (guild_id, domain, position, host, translate_suffix, catch_mirrors) VALUES (?, ?, ?, ?, ?, ?)",
+                     guild_id, rule.domain, position++, entry.host, suffix, rule.catch_mirrors)
             .run();
         remember_mirror(guild_id, entry.host, rule.domain);
     }
+}
+
+auto url_rule_store::set_catch_mirrors(dpp::snowflake guild_id, std::string_view domain, bool catch_mirrors) -> bool {
+    const auto guard = db_->lock();
+    db_->prepare("UPDATE url_rules SET catch_mirrors = ? WHERE guild_id = ? AND domain = ?", catch_mirrors, guild_id, domain).run();
+    return db_->changes() > 0;
 }
 
 auto url_rule_store::remove(dpp::snowflake guild_id, std::string_view domain) -> bool {

@@ -45,6 +45,12 @@ inline constexpr std::string_view url_form_view = "urlform";
 /// "off", so pressing it twice on a stale panel does not flip it back.
 inline constexpr std::string_view url_switch_view = "urlswitch";
 
+/// The panel's buttons for whether a rule also catches links on its mirrors.
+/// Two views for the same reason as the switch's argument: a stale panel's
+/// press asks for a state rather than flipping it.
+inline constexpr std::string_view url_catch_on_view = "urlcatchon";
+inline constexpr std::string_view url_catch_off_view = "urlcatchoff";
+
 /// "Link replacement is **on** in this server.", or off: the line the list
 /// and the panel open with.
 [[nodiscard]] auto describe_state(bool enabled) -> std::string;
@@ -60,7 +66,8 @@ auto switch_url_replacement(events::url_rule_store& store, dpp::snowflake guild_
 /// "fxtwitter.com/en, vxtwitter.com": the mirrors as they are typed.
 [[nodiscard]] auto describe_mirrors(std::span<const events::mirror> mirrors) -> std::string;
 
-/// One line of the list: "**x.com** → fxtwitter.com/en, vxtwitter.com".
+/// One line of the list: "**x.com** → fxtwitter.com/en, vxtwitter.com", saying
+/// so when the rule also catches links already on those.
 [[nodiscard]] auto describe(const events::url_rule& rule) -> std::string;
 
 /// A rule from what somebody typed, or why it cannot be one.

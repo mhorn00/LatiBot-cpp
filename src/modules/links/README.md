@@ -17,7 +17,7 @@ module registers, so this table cannot fall behind the code.
 | What | | Checked |
 |---|---|---|
 | Commands | `/links` (was /urlrepl), `/urltoggle` | ✓ |
-| Panels | `urllist`, `urlpanel`, `urlpick`, `urledit`, `urldel`, `urlyes`, `urladd`, `urlform`, `urlswitch`, and `urlretry`, the Retry on a replacement | ✓ |
+| Panels | `urllist`, `urlpanel`, `urlpick`, `urledit`, `urldel`, `urlyes`, `urladd`, `urlform`, `urlswitch`, `urlcatchon`, `urlcatchoff`, and `urlretry`, the Retry on a replacement | ✓ |
 | Message stages | `url replacement`, at the rewrite position: before the trigger replies | ✓ |
 | Discord events | `links: the Java bot's rules, and replacements left unsettled` (servers connecting), `links: previews arriving` (message updates), `links: replacements deleted` | ✓ |
 | Timers | `the preview tracker's tick`, every second | ✓ |

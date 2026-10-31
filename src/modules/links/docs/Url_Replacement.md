@@ -16,7 +16,7 @@ use it, with every reply. The reactions on replacements are counted by
 | **Module** | `links`: [its README](../README.md) lists what it owns |
 | **Code** | `src/core/{include/core,src}/util/url_scan.*` (the core's, which linkstats shares); `src/modules/links/`: `include/links/{url_rules,replacements}.hpp`, `src/{url_replacer,embed_watch,links_command,module}.*` |
 | **Tests** | `src/core/tests/url_scan_test.cpp`, `src/modules/links/tests/` (`latibot_links_tests`), `tests/fuzz/fuzz_url_scan.cpp`; a link beside a trigger in `tests/app` |
-| **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links`, the module's schema version 1 (was migrations 6 and 12) |
+| **Tables** | `url_rules`, `url_opt_outs`, `known_mirrors`, `replacement_messages`, `replacement_links`, the module's schema versions 1 (was migrations 6 and 12) and 2 |
 | **Settings** | `url_replacement_enabled` and `url_rules_imported` per server in `guild_settings` |
 | **Plan** | Replaces plan §9.1–§9.5, §21.11 and §21.13 |
 | **Status** | Built in phase 3 (2026-09-24). The restart sweep (§3.5) has not been seen working in Discord yet |
@@ -61,13 +61,26 @@ A link is replaced when all of these hold:
 - the author has not opted out with `/urltoggle`, and did not turn the
   message's previews off themselves;
 - the link's site has a rule. Sites are matched by host, lowercased, without
-  `www.`, credentials or a port, so `https://WWW.X.com:443/a` is `x.com`;
+  `www.`, credentials or a port, so `https://WWW.X.com:443/a` is `x.com`. When
+  a rule **catches its mirrors**, a link on one of its mirrors counts as that
+  site's too (below);
 - the link is not written as `<https://…>`, which is how somebody asks
   Discord for no preview, and is not inside `code` or a code block;
 - it is not a link already seen earlier in the same message.
 
 At most **five** links go in one replacement. Links are then dropped from the
 end until the post fits in Discord's 2,000 characters.
+
+**Catching mirrors.** A rule can also take links already on one of its mirrors
+(`catch_mirrors`, off until turned on). Somebody copying a replaced link from
+elsewhere then gets everything a link to the site itself does: the mirrors tried
+from the first, Retry, translation, and the reactions counted, under the rule's
+site rather than the mirror's host. A mirror's translation suffix on the link is
+taken off first, so `fxtwitter.com/a/en` on a rule's `vxtwitter.com` is
+`vxtwitter.com/a`. Hosts are matched exactly, as sites are. A site's own rule
+comes before any rule catching it as a mirror, and a mirror two rules share goes
+to the first of them by name, whose site is then what its reactions are counted
+under.
 
 ### 2.2 What is posted
 
@@ -128,10 +141,10 @@ leaves it for the next start.
 |---|---|---|
 | `/links enable`, `disable` | Manage Server | Turns replacement on or off here. Off stops new replacements and Retry; replacements already posted stay, and their reactions still count |
 | `/links list` | Manage Server | Whether it is on, then the rules, five a page |
-| `/links set domain mirrors` | Manage Server | Adds a rule, or replaces a site's whole mirror list, which is also how reordering works |
+| `/links set domain mirrors [catch_mirrors]` | Manage Server | Adds a rule, or replaces a site's whole mirror list, which is also how reordering works. `catch_mirrors`, left out, stays as it was |
 | `/links remove domain` | Manage Server | Deletes a rule |
 | `/links test text` | Manage Server | A dry run over a whole message: what would be posted, and a verdict for every link |
-| `/links panel` | Manage Server | The rules with Edit, Delete, Add rule and an on/off button |
+| `/links panel` | Manage Server | The rules with Edit, Delete, whether to catch mirror links, Add rule and an on/off button |
 | `/urltoggle [user]` | everyone for themselves; Manage Server for anyone else | Flips an opt-out, per server |
 
 All of them answer privately. `domain` autocompletes the sites that have a
@@ -251,7 +264,8 @@ pressed. Rows are kept after the message is gone, because
 
 `url_rules` holds one row per mirror, with `position` 0 tried first. A rule
 is written wholesale, so the order is simply the list. `url_rule_store::rename`
-swaps a rule for another site's in one transaction. `known_mirrors` is every
+swaps a rule for another site's in one transaction. `catch_mirrors` (schema
+version 2) is on all of a rule's rows, and written with them. `known_mirrors` is every
 mirror host any rule has named, and is never pruned: the recompute recognises
 old replacements by it. The on/off switch and the import marker are
 `guild_settings` rows, so neither needed a migration.
@@ -260,8 +274,8 @@ old replacements by it. The on/off switch and the import marker are
 
 `url_panel` keeps nothing on the bot's side. The page and the chosen rule
 travel in each component's `custom_id` (views `urlpanel`, `urlpick`,
-`urledit`, `urldel`, `urlyes`, `urladd`, `urlform`, `urlswitch`, and
-`urllist` for `/links list`'s pages), so it survives a restart and two
+`urledit`, `urldel`, `urlyes`, `urladd`, `urlform`, `urlswitch`,
+`urlcatchon`, `urlcatchoff`, and `urllist` for `/links list`'s pages), so it survives a restart and two
 people can each have their own open. Lines are shortened evenly when a page
 of long mirror lists would pass 2,000 characters. The shared shape of
 panels is in [Commands_and_Panels.md](../../../core/docs/Commands_and_Panels.md).
@@ -290,6 +304,8 @@ panels is in [Commands_and_Panels.md](../../../core/docs/Commands_and_Panels.md)
 | 2026-09-25 | Settle a replacement stranded by a restart at once, from a fetched copy (cleanup decision 7) | Restarting its watch would edit a message that may have sat there for hours |
 | 2026-09-25 | Suppressed links and spoiler markers in code are read as Discord reads them | Found by the cleanup analysis (BUG-001) |
 | 2026-09-25 | `/links set` and `remove`, and `/urltoggle`, answer privately (cleanup decision 1) | Public in the Java bot, but a rule change or an opt-out is the business of whoever made it |
+| 2026-10-30 | A rule can catch links on its mirrors, per rule, off by default | A link copied from elsewhere otherwise misses the retries, translation and counted reactions; off because a server may post mirror links on purpose |
+| 2026-10-30 | A caught link is recorded under the rule's site | Retry looks its rule up by that, and link stats count by it, so a mirror's links are not a separate site there |
 
 ## 5. Limits, and what is still to check
 
