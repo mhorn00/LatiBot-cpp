@@ -53,6 +53,7 @@ $modules = [ordered]@{
     'links'      = @('linkstats')
     'linkstats'  = @()
     'soundboard' = @()
+    'emotes'     = @()
 }
 
 function Get-Switches([string[]] $off) {

@@ -431,7 +431,7 @@ put your own user ID in `trusted_users`:
 | `backup_directory` | text | `data/backups` | where database backups are written |
 | `backups_to_keep` | whole number | `7` | how many backups to keep, oldest removed first; `0` turns backups off |
 | `backup_interval_minutes` | whole number | `360` | how often a backup is taken; must be positive |
-| `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands: `[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]` |
+| `trusted_guilds` | list of IDs, as text | none | servers whose administrators may use DECtalk's host commands (`[:play]`, `[:log]`, `[:debug]`, `[:loadv]`, `[:setv]`), and the only servers Steal this emote adds to, for anyone who can run it |
 | `trusted_users` | list of IDs, as text | none | users who may use those commands in any server, and the only ones who may choose the log channel (`/logs`) |
 | `nicknames.track_changes` | true or false | `true` | watch for nickname changes, which needs the Server Members intent (above); was `track_nicknames` |
 | `linkstats.emoji_copy_min_uses` | whole number | `1` | how many reactions an emote needs before the bot keeps its own copy of it, so link stats can still show it after its server deletes it; `0` turns copying off, and raising it deletes the copies that no longer qualify ([how](src/modules/linkstats/docs/Link_Stats.md#10-the-bots-own-copies-of-emojis)) |
@@ -573,6 +573,7 @@ it is built, and what was decided and why.
 | `/voice` | `start`, `stop`, `grace`, `lab`, `list`, `delete` — voice sessions and custom voices |
 | `/chat` | say something as a voice message |
 | `/soundboard` | send a soundboard sound as a voice message |
+| Steal this emote | a message's Apps menu: add its custom emotes and stickers to a server in `trusted_guilds` |
 | `/music`, `/m` | play music from a link, with a queue; speech pauses it |
 | `/shutdown` | stop the bot |
 | `/goodbye` | show, change or turn off the phrase that stops the bot |

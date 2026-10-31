@@ -33,7 +33,8 @@ struct bootstrap {
 
     /// Servers whose administrators may use the DECtalk commands that touch
     /// the host filesystem, and users who may regardless of server
-    /// (src/modules/dectalk/docs/Speech.md §2.2).
+    /// (src/modules/dectalk/docs/Speech.md §2.2). The servers are also the only
+    /// ones Steal this emote adds to (src/modules/emotes/docs/Steal_Emote.md §2.1).
     std::vector<dpp::snowflake> trusted_guilds;
     std::vector<dpp::snowflake> trusted_users;
 

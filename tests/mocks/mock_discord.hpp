@@ -213,6 +213,76 @@ public:
         co_return ports::result<void>{};
     }
 
+    /// Server emojis uploaded, in order.
+    struct guild_emoji_upload {
+        dpp::snowflake guild_id;
+        std::string name;
+        std::string image;
+        bool animated = false;
+    };
+    std::vector<guild_emoji_upload> guild_emoji_uploads;
+    std::deque<ports::result<dpp::snowflake>> guild_emoji_results;
+
+    auto create_guild_emoji(dpp::snowflake guild_id, std::string name, std::string image, bool animated)
+        -> dpp::task<ports::result<dpp::snowflake>> override {
+        guild_emoji_uploads.push_back({.guild_id = guild_id, .name = std::move(name), .image = std::move(image), .animated = animated});
+        if (!guild_emoji_results.empty()) {
+            auto scripted = std::move(guild_emoji_results.front());
+            guild_emoji_results.pop_front();
+            co_return scripted;
+        }
+        co_return next_id();
+    }
+
+    /// What answered interactions were replaced with, and under which token.
+    std::vector<std::pair<std::string, dpp::message>> interaction_edits;
+
+    auto edit_interaction_response(std::string token, dpp::message message) -> dpp::task<ports::result<void>> override {
+        interaction_edits.emplace_back(std::move(token), std::move(message));
+        co_return ports::result<void>{};
+    }
+
+    /// Server stickers uploaded, in order.
+    struct guild_sticker_upload {
+        dpp::snowflake guild_id;
+        std::string name;
+        std::string tags;
+        std::string image;
+        bool gif = false;
+    };
+    std::vector<guild_sticker_upload> guild_sticker_uploads;
+    std::deque<ports::result<dpp::snowflake>> guild_sticker_results;
+
+    auto create_guild_sticker(dpp::snowflake guild_id, std::string name, std::string tags, std::string image, bool gif)
+        -> dpp::task<ports::result<dpp::snowflake>> override {
+        guild_sticker_uploads.push_back(
+            {.guild_id = guild_id, .name = std::move(name), .tags = std::move(tags), .image = std::move(image), .gif = gif});
+        if (!guild_sticker_results.empty()) {
+            auto scripted = std::move(guild_sticker_results.front());
+            guild_sticker_results.pop_front();
+            co_return scripted;
+        }
+        co_return next_id();
+    }
+
+    /// How many stickers each server has, none when not listed. A server in
+    /// `sticker_count_errors` fails to say.
+    std::map<dpp::snowflake, std::uint32_t> sticker_counts;
+    std::map<dpp::snowflake, ports::api_error> sticker_count_errors;
+
+    auto guild_sticker_count(dpp::snowflake guild_id) -> dpp::task<ports::result<std::uint32_t>> override {
+        if (const auto failing = sticker_count_errors.find(guild_id); failing != sticker_count_errors.end()) {
+            co_return std::unexpected(failing->second);
+        }
+        const auto found = sticker_counts.find(guild_id);
+        co_return found == sticker_counts.end() ? 0U : found->second;
+    }
+
+    /// The servers the bot is in.
+    std::vector<ports::emoji_server> emoji_server_list;
+
+    [[nodiscard]] auto emoji_servers() const -> std::vector<ports::emoji_server> override { return emoji_server_list; }
+
     /// Each channel's webhooks, as `channel_webhooks` lists them and
     /// `create_webhook` adds to them; a channel in `webhook_errors` fails
     /// both with that error.

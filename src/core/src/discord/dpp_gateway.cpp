@@ -2,10 +2,14 @@
 
 #include <dpp/cache.h>
 #include <dpp/cluster.h>
+#include <dpp/json.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <format>
+#include <shared_mutex>
+#include <string_view>
 #include <utility>
 
 namespace latibot::discord {
@@ -85,6 +89,36 @@ auto describe_channel(const dpp::channel& channel) -> ports::channel_details {
             .topic = channel.topic,
             .age_restricted = channel.is_nsfw(),
             .parent = parent};
+}
+
+/// How many stickers a server's boosts allow.
+auto sticker_slots(dpp::guild_premium_tier_t tier) -> std::uint32_t {
+    switch (tier) {
+    case dpp::tier_1:
+        return 15;
+    case dpp::tier_2:
+        return 30;
+    case dpp::tier_3:
+        return 60;
+    case dpp::tier_none:
+        break;
+    }
+    return 5;
+}
+
+/// How many still, and how many animated, emoji a server's boosts allow.
+auto emoji_slots(dpp::guild_premium_tier_t tier) -> std::uint32_t {
+    switch (tier) {
+    case dpp::tier_1:
+        return 100;
+    case dpp::tier_2:
+        return 150;
+    case dpp::tier_3:
+        return 250;
+    case dpp::tier_none:
+        break;
+    }
+    return 50;
 }
 
 auto to_webhook(const dpp::webhook& hook) -> ports::webhook {
@@ -183,6 +217,95 @@ auto dpp_gateway::delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task
     const auto confirmation = co_await cluster_->co_application_emoji_delete(emoji_id);
     if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
     co_return ports::result<void>{};
+}
+
+auto dpp_gateway::create_guild_emoji(dpp::snowflake guild_id, std::string name, std::string image, bool animated)
+    -> dpp::task<ports::result<dpp::snowflake>> {
+    dpp::emoji made(name);
+    try {
+        // DPP refuses an image over Discord's 256 KiB here, before sending.
+        made.load_image(image, animated ? dpp::i_gif : dpp::i_png);
+    } catch (const dpp::exception& error) {
+        co_return std::unexpected(ports::api_error{.http_status = 0, .message = error.what()});
+    }
+
+    const auto confirmation = co_await cluster_->co_guild_emoji_create(guild_id, made);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
+    co_return std::get<dpp::emoji>(confirmation.value).id;
+}
+
+auto dpp_gateway::edit_interaction_response(std::string token, dpp::message message) -> dpp::task<ports::result<void>> {
+    const auto confirmation = co_await cluster_->co_interaction_response_edit(token, message);
+    co_return done(confirmation);
+}
+
+auto dpp_gateway::create_guild_sticker(dpp::snowflake guild_id, std::string name, std::string tags, std::string image, bool gif)
+    -> dpp::task<ports::result<dpp::snowflake>> {
+    // By hand, since cluster::guild_sticker_create sends the fields as
+    // payload_json, and Discord documents this endpoint as taking form fields.
+    constexpr std::string_view boundary = "latibot-sticker-upload-boundary";
+    const std::string_view format = gif ? "gif" : "png";
+    const std::array<std::pair<std::string_view, std::string_view>, 3> fields{{{"name", name}, {"description", ""}, {"tags", tags}}};
+
+    std::string body;
+    for (const auto& [field, value] : fields) {
+        body += std::format("--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n", boundary, field, value);
+    }
+    body += std::format("--{}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"sticker.{}\"\r\nContent-Type: image/{}\r\n\r\n",
+                        boundary, format, format);
+    body += image;
+    body += std::format("\r\n--{}--\r\n", boundary);
+
+    const dpp::http_request_completion_t answer = co_await cluster_->co_request(
+        std::format("https://discord.com/api/v10/guilds/{}/stickers", guild_id), dpp::m_post, body,
+        std::format("multipart/form-data; boundary={}", boundary), {{"Authorization", "Bot " + cluster_->token}});
+
+    const nlohmann::json parsed = nlohmann::json::parse(answer.body, nullptr, false);
+    const auto text = [&parsed](const char* key) {
+        return parsed.is_object() && parsed.contains(key) && parsed[key].is_string() ? parsed[key].get<std::string>() : std::string{};
+    };
+    if (answer.status / 100 != 2) {
+        const std::string reason = text("message");
+        co_return std::unexpected(ports::api_error{.http_status = static_cast<int>(answer.status),
+                                                   .message = reason.empty() ? std::format("status {}", answer.status) : reason});
+    }
+    co_return dpp::snowflake(text("id"));
+}
+
+auto dpp_gateway::guild_sticker_count(dpp::snowflake guild_id) -> dpp::task<ports::result<std::uint32_t>> {
+    const auto confirmation = co_await cluster_->co_guild_stickers_get(guild_id);
+    if (confirmation.is_error()) co_return std::unexpected(to_error(confirmation));
+    co_return static_cast<std::uint32_t>(std::get<dpp::sticker_map>(confirmation.value).size());
+}
+
+auto dpp_gateway::emoji_servers() const -> std::vector<ports::emoji_server> {
+    std::vector<ports::emoji_server> servers;
+
+    dpp::cache<dpp::guild>* guilds = dpp::get_guild_cache();
+    const std::shared_lock lock(guilds->get_mutex());
+    for (const auto& [id, guild] : guilds->get_container()) {
+        if (guild == nullptr) continue;
+
+        ports::emoji_server server{.id = guild->id,
+                                   .name = guild->name,
+                                   .still_emoji = 0,
+                                   .animated_emoji = 0,
+                                   .slots = emoji_slots(guild->premium_tier),
+                                   .sticker_slots = guild->has_more_stickers() ? 60 : sticker_slots(guild->premium_tier),
+                                   .bot_can_add = true};
+        for (const dpp::snowflake emoji_id : guild->emojis) {
+            const dpp::emoji* emoji = dpp::find_emoji(emoji_id);
+            if (emoji == nullptr) continue;
+            ++(emoji->is_animated() ? server.animated_emoji : server.still_emoji);
+        }
+        // Without Server Members the bot's own member record may be absent.
+        if (const auto self = guild->members.find(cluster_->me.id); self != guild->members.end()) {
+            const dpp::permission granted = guild->base_permissions(self->second);
+            server.bot_can_add = granted.can(dpp::p_manage_emojis_and_stickers) || granted.can(dpp::p_create_guild_expressions);
+        }
+        servers.push_back(std::move(server));
+    }
+    return servers;
 }
 
 auto dpp_gateway::channel_webhooks(dpp::snowflake channel_id) -> dpp::task<ports::result<std::vector<ports::webhook>>> {

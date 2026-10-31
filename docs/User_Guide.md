@@ -42,6 +42,7 @@ stays as the record of how the port was designed.
 | 🔗 | [`/links`](#links) | Turn link replacement on, and choose which links get posted again with a working preview | [links](../src/modules/links/README.md) | [URL replacement](../src/modules/links/docs/Url_Replacement.md) |
 | 🔗 | [`/urltoggle`](#urltoggle) | Have your own links left alone | [links](../src/modules/links/README.md) | [URL replacement](../src/modules/links/docs/Url_Replacement.md) |
 | 📊 | [`/linkstats`](#linkstats) | Who gets the most reactions on replaced links | [linkstats](../src/modules/linkstats/README.md) | [Link stats](../src/modules/linkstats/docs/Link_Stats.md) |
+| 😼 | [Steal this emote](#steal-this-emote-apps-menu) | Add a message's custom emotes and stickers to a server | [emotes](../src/modules/emotes/README.md) | [Steal this emote](../src/modules/emotes/docs/Steal_Emote.md) |
 | 🧠 | [`/llm`](#llm) | Turn the language model on, choose it, edit its personality | [llm](../src/modules/llm/README.md) | [Language model](../src/modules/llm/docs/Language_Model.md) |
 | 🧠 | [`/memory`](#memory) | What the language model remembers | [llm](../src/modules/llm/README.md) | [Language model](../src/modules/llm/docs/Language_Model.md) |
 | 🛑 | [The goodbye phrase](#the-goodbye-phrase) | Stop the bot by saying so, no slash command | — | [Basic commands](../src/core/docs/Basic_Commands.md#3-the-goodbye-phrase) |
@@ -112,6 +113,7 @@ as subsections, rather than renumbering.
 | [Running the bot](../src/core/docs/Operations.md) | Startup, the command line, `config.json`, secrets, intents, the database, backups, permission warnings |
 | [Music](../src/modules/music/docs/Music.md) | `/music` and `/m`, the queue, yt-dlp and ffmpeg, and the mixer that pauses music for speech |
 | [Soundboard](../src/modules/soundboard/docs/Soundboard.md) | `/soundboard`, the sounds the bot can see, and making them voice messages with ffmpeg |
+| [Steal this emote](../src/modules/emotes/docs/Steal_Emote.md) | Adding a message's custom emotes and stickers to a server, from its Apps menu |
 
 Features designed but not built are in [Planned.md](Planned.md).
 
@@ -1054,6 +1056,44 @@ Stops the bot replacing your links in this server, or starts it again.
 The choice is **kept**, per server. The Java bot's `/toggle` kept it in memory,
 so every restart quietly undid everyone's choice, and it let anyone toggle
 anyone.
+
+### Steal this emote (Apps menu)
+
+Right-click a message (long-press on a phone), then **Apps → Steal this
+emote**. It answers only you with the custom emotes and stickers in that
+message, one to a page, each showing its image.
+
+| | |
+|---|---|
+| **Module** | [emotes](../src/modules/emotes/README.md) |
+| **Who** | everyone |
+| **Where** | servers only |
+| **Bot needs** | Create or Manage Expressions, in the server it adds to |
+
+The menu lists the servers in `trusted_guilds` in the bot's config where the bot
+has Create or Manage Expressions and there is room: `12 of 50 animated slots
+free`. Your own permissions there don't matter. Discord counts still emotes,
+animated emotes and stickers separately, and a line under the panel says how many
+servers are full.
+
+| Control | Does |
+|---|---|
+| ◀ ▶ | Moves between the message's emotes and stickers. Each keeps its own name and server |
+| The menu | Picks the server to add this one to |
+| **Name** | A form to name it, filled with its own name. An emote: 2 to 32 letters, numbers and underscores. A sticker: 2 to 30 characters |
+| **Add to …** | Adds it, and says how that went. It can then go to another server too |
+
+| Reply | When |
+|---|---|
+| `there are no custom emotes or stickers in that message` | only Unicode emoji, or none. Emotes inside `code`, reactions, and forwarded messages' contents are not read |
+| `that sticker is in Lottie format, …` | only verified and partnered servers can upload those, which rules out most of Discord's own stickers |
+| `There's nowhere to add it: …` | no server in `trusted_guilds` has the bot in it with the permission |
+| `Home has no still slots free any more` | it filled up after the panel opened |
+| `i couldn't download its image, or it's over Discord's 256 KiB limit` | the image can't be had small enough. The limit is 512 KiB for a sticker |
+| `Discord wouldn't take it: …` | Discord refused, with its reason |
+
+The panel works until nobody has used it for 15 minutes, and not after the bot
+restarts.
 
 ### `/linkstats`
 

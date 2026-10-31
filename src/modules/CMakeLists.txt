@@ -50,3 +50,8 @@ option(LATIBOT_WITH_SOUNDBOARD "Build the soundboard module: /soundboard, sounds
 if(LATIBOT_WITH_SOUNDBOARD)
     add_subdirectory(soundboard)
 endif()
+
+option(LATIBOT_WITH_EMOTES "Build the emotes module: Steal this emote" ON)
+if(LATIBOT_WITH_EMOTES)
+    add_subdirectory(emotes)
+endif()

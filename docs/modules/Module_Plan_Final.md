@@ -134,6 +134,7 @@ otherwise.
 | **links** | `/links` (was `/urlrepl`) and `/urltoggle`; replacing links, watching previews, Retry, the Java rules import | core | — |
 | **linkstats** | `/linkstats`; reaction counts, image posts, emote messages, the recompute, emoji copies | links | — |
 | **soundboard** (added 2026-10-21) | `/soundboard`; soundboard sounds as voice messages, through ffmpeg | core | — |
+| **emotes** (added 2026-10-30) | Steal this emote, a message's Apps menu command for emotes and stickers | core | — |
 
 ### 3.2 Why the core holds what it holds
 

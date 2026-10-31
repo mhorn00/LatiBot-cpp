@@ -30,6 +30,13 @@ public:
     auto start_typing(dpp::snowflake channel_id) -> dpp::task<ports::result<void>> override;
     auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<ports::result<dpp::snowflake>> override;
     auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<ports::result<void>> override;
+    auto create_guild_emoji(dpp::snowflake guild_id, std::string name, std::string image, bool animated)
+        -> dpp::task<ports::result<dpp::snowflake>> override;
+    auto edit_interaction_response(std::string token, dpp::message message) -> dpp::task<ports::result<void>> override;
+    auto create_guild_sticker(dpp::snowflake guild_id, std::string name, std::string tags, std::string image, bool gif)
+        -> dpp::task<ports::result<dpp::snowflake>> override;
+    auto guild_sticker_count(dpp::snowflake guild_id) -> dpp::task<ports::result<std::uint32_t>> override;
+    [[nodiscard]] auto emoji_servers() const -> std::vector<ports::emoji_server> override;
     auto channel_webhooks(dpp::snowflake channel_id) -> dpp::task<ports::result<std::vector<ports::webhook>>> override;
     auto create_webhook(dpp::snowflake channel_id, std::string name) -> dpp::task<ports::result<ports::webhook>> override;
     auto execute_webhook(const ports::webhook& hook, dpp::message message, std::string username, std::string avatar_url,

@@ -91,6 +91,23 @@ struct server_details {
     std::vector<std::string> emoji;
 };
 
+/// A server the bot is in, and its room for custom emoji, as the cache knows
+/// it. Discord counts still and animated emoji separately, each up to `slots`.
+/// The cache does not hold stickers, so `guild_sticker_count` says how many of
+/// `sticker_slots` are taken.
+struct emoji_server {
+    dpp::snowflake id;
+    std::string name;
+    std::uint32_t still_emoji = 0;
+    std::uint32_t animated_emoji = 0;
+    std::uint32_t slots = 0;
+    std::uint32_t sticker_slots = 0;
+
+    /// False when the bot lacks Create or Manage Expressions there. True when
+    /// the cache does not know, which leaves Discord to refuse the upload.
+    bool bot_can_add = false;
+};
+
 /// The Discord calls our features make.
 ///
 /// Deliberately small: it covers what features need today and grows as they
@@ -150,6 +167,27 @@ public:
     virtual auto create_application_emoji(std::string name, std::string image, bool animated) -> dpp::task<result<dpp::snowflake>> = 0;
 
     virtual auto delete_application_emoji(dpp::snowflake emoji_id) -> dpp::task<result<void>> = 0;
+
+    /// Adds a custom emoji to a server. `image` is a PNG or, when `animated`,
+    /// a GIF, of at most 256 KiB. Gives the new emoji's id. Needs Create or
+    /// Manage Expressions.
+    virtual auto create_guild_emoji(dpp::snowflake guild_id, std::string name, std::string image, bool animated)
+        -> dpp::task<result<dpp::snowflake>> = 0;
+
+    /// Replaces the message an interaction answered, for an answer that took
+    /// longer than the interaction's three seconds. The token lasts 15 minutes.
+    virtual auto edit_interaction_response(std::string token, dpp::message message) -> dpp::task<result<void>> = 0;
+
+    /// Adds a sticker to a server. `image` is a PNG, an APNG, or with `gif` a GIF.
+    /// Needs Create or Manage Expressions.
+    virtual auto create_guild_sticker(dpp::snowflake guild_id, std::string name, std::string tags, std::string image, bool gif)
+        -> dpp::task<result<dpp::snowflake>> = 0;
+
+    /// How many stickers a server has, asked of Discord.
+    virtual auto guild_sticker_count(dpp::snowflake guild_id) -> dpp::task<result<std::uint32_t>> = 0;
+
+    /// Every server the bot is in, from the cache.
+    [[nodiscard]] virtual auto emoji_servers() const -> std::vector<emoji_server> = 0;
 
     /// A channel's webhooks. Needs Manage Webhooks.
     virtual auto channel_webhooks(dpp::snowflake channel_id) -> dpp::task<result<std::vector<webhook>>> = 0;

@@ -66,7 +66,8 @@
         "LATIBOT_WITH_MIDNIGHT": "OFF",
         "LATIBOT_WITH_LINKS": "OFF",
         "LATIBOT_WITH_LINKSTATS": "OFF",
-        "LATIBOT_WITH_SOUNDBOARD": "OFF"
+        "LATIBOT_WITH_SOUNDBOARD": "OFF",
+        "LATIBOT_WITH_EMOTES": "OFF"
       }
     },
     {
@@ -111,7 +112,8 @@
         "LATIBOT_WITH_MIDNIGHT": "OFF",
         "LATIBOT_WITH_LINKS": "OFF",
         "LATIBOT_WITH_LINKSTATS": "OFF",
-        "LATIBOT_WITH_SOUNDBOARD": "OFF"
+        "LATIBOT_WITH_SOUNDBOARD": "OFF",
+        "LATIBOT_WITH_EMOTES": "OFF"
       }
     }
   ],
